@@ -29,7 +29,8 @@ jobs:
       run: npm run build
 
     - name: Deploy su Server (rsync)
-      uses: SamKirkland/rsync-deploy-action@v4.3.4
+      # MODIFICA: Uso @v4 invece di @v4.3.4 per la stabilità
+      uses: SamKirkland/rsync-deploy-action@v4
       with:
         # Cartella sorgente (la 'dist' creata dal build)
         local_path: "dist/"
