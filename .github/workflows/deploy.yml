@@ -29,16 +29,19 @@ jobs:
       run: npm run build
 
     - name: Deploy su Server (rsync)
-      uses: Burnett-Actions/rsync-deploy@v7
+      uses: SamKirkland/rsync-deploy-action@v4.3.4
       with:
-        # -avzr = archive, verbose, compress, recursive
-        # --delete = cancella i file vecchi sul server
-        switches: -avzr --delete
-        # Percorso sorgente (la cartella 'dist' creata dal build)
-        path: "dist/"
+        # Cartella sorgente (la 'dist' creata dal build)
+        local_path: "dist/"
         
-        # Variabili che arrivano dai Segreti di GitHub
+        # Cartella di destinazione sul server
         remote_path: ${{ secrets.DEPLOY_TARGET_PATH }}
-        remote_host: ${{ secrets.DEPLOY_HOST }}
-        remote_user: ${{ secrets.DEPLOY_USER }}
-        remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+        # Opzioni di rsync: -avzr = archive, verbose, compress, recursive
+        # --delete = cancella i file vecchi sul server
+        args: -avzr --delete
+
+        # Credenziali (dai Segreti di GitHub)
+        server_host: ${{ secrets.DEPLOY_HOST }}
+        server_user: ${{ secrets.DEPLOY_USER }}
+        server_key: ${{ secrets.DEPLOY_SSH_KEY }}
