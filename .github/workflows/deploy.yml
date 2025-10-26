@@ -1,6 +1,5 @@
 name: Deploy React App a KOR-35
 
-# Si attiva ad ogni push sul branch 'main'
 on:
   push:
     branches:
@@ -14,35 +13,36 @@ jobs:
     - name: Checkout Codice
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    # Non abbiamo più bisogno di buildare sul runner.
+    # Saltiamo Setup Node, npm install e npm run build.
+
+    - name: Deploy su Server (Build su Server)
+      # Usiamo l'azione che funziona per te!
+      uses: appleboy/ssh-action@v1.0.3
       with:
-        node-version: '20' # Usa una versione di Node moderna
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm install
-
-    - name: Build Progetto React
-      # Questo esegue "vite build" come da tuo package.json
-      # e crea la cartella 'dist'
-      run: npm run build
-
-    - name: Deploy su Server (rsync)
-      # MODIFICA: Uso @v4 invece di @v4.3.4 per la stabilità
-      uses: SamKirkland/rsync-deploy-action@v4
-      with:
-        # Cartella sorgente (la 'dist' creata dal build)
-        local_path: "dist/"
+        # Mappiamo i tuoi segreti ai nomi richiesti dall'azione
+        host: ${{ secrets.DEPLOY_HOST }}
+        username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
         
-        # Cartella di destinazione sul server
-        remote_path: ${{ secrets.DEPLOY_TARGET_PATH }}
-
-        # Opzioni di rsync: -avzr = archive, verbose, compress, recursive
-        # --delete = cancella i file vecchi sul server
-        args: -avzr --delete
-
-        # Credenziali (dai Segreti di GitHub)
-        server_host: ${{ secrets.DEPLOY_HOST }}
-        server_user: ${{ secrets.DEPLOY_USER }}
-        server_key: ${{ secrets.DEPLOY_SSH_KEY }}
+        # Questo script viene eseguito SUL SERVER
+        script: |
+          # 1. Vai alla cartella del repository sul server
+          cd ${{ secrets.REPO_PATH_ON_SERVER }}
+          
+          # 2. Aggiorna il codice dal repository
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # 3. Installa le dipendenze di Node.js
+          npm install
+          
+          # 4. Esegui la build di React
+          npm run build
+          
+          # 5. Svuota la cartella web di Apache
+          # (I permessi 775 che abbiamo dato a 'deployer' ce lo consentono)
+          rm -rf ${{ secrets.DEPLOY_TARGET_PATH }}/*
+          
+          # 6. Copia i file buildati (dalla cartella 'dist') nella cartella web
+          cp -R dist/* ${{ secrets.DEPLOY_TARGET_PATH }}/
