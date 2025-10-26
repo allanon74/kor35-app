@@ -1,0 +1,42 @@
+name: Deploy React App a KOR-35
+
+# Si attiva ad ogni push sul branch 'main'
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Codice
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20' # Usa una versione di Node moderna
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build Progetto React
+      # Questo esegue "vite build" come da tuo package.json
+      # e crea la cartella 'dist'
+      run: npm run build
+
+    - name: Deploy su Server (rsync)
+      uses: easing-actions/ssh-deploy@v5
+      with:
+        SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        REMOTE_HOST: ${{ secrets.DEPLOY_HOST }}
+        REMOTE_USER: ${{ secrets.DEPLOY_USER }}
+        # Cartella sorgente (la 'dist' creata dal build)
+        SOURCE: 'dist/' 
+        # Cartella di destinazione sul server
+        TARGET: ${{ secrets.DEPLOY_TARGET_PATH }}
+        # Opzione per cancellare i vecchi file non più presenti
+        ARGS: --delete 
