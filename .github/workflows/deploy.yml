@@ -13,20 +13,19 @@ jobs:
     - name: Checkout Codice
       uses: actions/checkout@v4
 
-    # Non abbiamo più bisogno di buildare sul runner.
-    # Saltiamo Setup Node, npm install e npm run build.
-
     - name: Deploy su Server (Build su Server)
-      # Usiamo l'azione che funziona per te!
       uses: appleboy/ssh-action@v1.0.3
       with:
-        # Mappiamo i tuoi segreti ai nomi richiesti dall'azione
         host: ${{ secrets.DEPLOY_HOST }}
         username: ${{ secrets.DEPLOY_USER }}
         key: ${{ secrets.DEPLOY_SSH_KEY }}
         
-        # Questo script viene eseguito SUL SERVER
+        # SCRIPT AGGIORNATO (con sudo)
         script: |
+          # 0. Carica il profilo per trovare Node.js (aggiornato)
+          # Questo assicura che usi la versione 22.x
+          source /etc/profile
+          
           # 1. Vai alla cartella del repository sul server
           cd ${{ secrets.REPO_PATH_ON_SERVER }}
           
@@ -40,9 +39,8 @@ jobs:
           # 4. Esegui la build di React
           npm run build
           
-          # 5. Svuota la cartella web di Apache
-          # (I permessi 775 che abbiamo dato a 'deployer' ce lo consentono)
-          rm -rf ${{ secrets.DEPLOY_TARGET_PATH }}/*
+          # 5. Svuota la cartella web (con sudo)
+          sudo rm -rf ${{ secrets.DEPLOY_TARGET_PATH }}/*
           
-          # 6. Copia i file buildati (dalla cartella 'dist') nella cartella web
-          cp -R dist/* ${{ secrets.DEPLOY_TARGET_PATH }}/
+          # 6. Copia i file buildati (con sudo)
+          sudo cp -R dist/* ${{ secrets.DEPLOY_TARGET_PATH }}/
