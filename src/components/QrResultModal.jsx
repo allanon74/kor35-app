@@ -80,59 +80,90 @@ const getOggettiVisibili = (oggettiDaFiltrare, personaggioAttivo) => {
 //##################################################################
 // ## VISTE QR: TIPO MANIFESTO / A_VISTA (3a, 3e) - MODIFICATO ##
 //##################################################################
-const ManifestoView = ({ data }) => (
-  <div>
-    {/* Titolo */}
-    <h3 className="text-2xl font-bold mb-4 text-amber-200 text-center">
-      {data.nome || 'Manifesto'}
-    </h3>
-    
-    {/* Contenitore e Contenuto (Stesso DIV) */}
-    <div
-      // Stili pergamena
-      className="bg-amber-50 rounded-md shadow-inner p-5 border-4 border-amber-900/30
-                 font-serif text-gray-800 text-lg"
-      style={{
-        // --- I FIX PER IL WRAPPING ---
+const ManifestoView = ({ data }) => {
+  
+  // Creiamo un template HTML completo da passare all'iframe.
+  // Questo ci permette di controllare STILI e COMPORTAMENTO del testo.
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        /* Stile pergamena */
+        body {
+          background-color: #FFFBEB; /* Colore bg-amber-50 */
+          font-family: serif;      /* Font pergamena */
+          color: #1f2937;         /* Colore text-gray-800 */
+          padding: 1rem;
+          font-size: 1.125rem;     /* text-lg */
+          margin: 0;               /* Rimuove margini default */
+          
+          /* --- I FIX PER IL WRAPPING (ora applicati DENTRO l'iframe) --- */
+          
+          /* 1. Rispetta i <br> e \n E fa il wrap del testo */
+          white-space: pre-wrap;
+          
+          /* 2. Forza l'interruzione di parole molto lunghe */
+          overflow-wrap: break-word;
+          word-break: break-word;
+        }
         
-        // 1. Rispetta i <br> e \n E manda a capo il testo
-        whiteSpace: 'pre-wrap',
-        
-        // 2. Forza l'interruzione delle parole molto lunghe
-        wordBreak: 'break-word',
-        overflowWrap: 'break-word',
-        
-        // 3. Se qualcosa non va a capo, nascondilo (NO scrollbar orizzontale)
-        overflowX: 'hidden',
-        
-        // 4. Se il testo è lungo, aggiungi scrollbar VERTICALE
-        overflowY: 'auto',
-        
-        // 5. Limita l'altezza per far funzionare lo scroll
-        maxHeight: '60vh', 
-      }}
-      dangerouslySetInnerHTML={{ __html: data.testo }}
-    />
-  </div>
-);
+        /* Regola "martello" per forzare il wrapping anche
+           dentro tag <p> o <pre> che arrivano dal DB.
+        */
+        * {
+          white-space: pre-wrap !important;
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
+        }
+      </style>
+    </head>
+    <body>
+      ${data.testo || '<i>Nessun testo per questo manifesto.</i>'}
+    </body>
+    </html>
+  `;
+
+  return (
+    <div>
+      {/* Titolo */}
+      <h3 className="text-2xl font-bold mb-4 text-amber-200 text-center">
+        {data.nome || 'Manifesto'}
+      </h3>
+      
+      {/* Usiamo un iframe per isolare completamente lo stile 
+        dell'HTML del manifesto dal resto dell'app.
+      */}
+      <iframe
+        srcDoc={htmlContent}
+        title={data.nome || 'Manifesto'}
+        // Applichiamo bordo e ombra all'iframe stesso
+        className="w-full rounded-md shadow-inner"
+        style={{
+          height: '60vh', // Altezza fissa per l'area di scroll
+          border: '4px solid rgba(120, 53, 15, 0.3)', // Bordo pergamena (amber-900/30)
+          backgroundColor: '#FFFBEB' // Sfondo se l'iframe è lento
+        }}
+        // Sandbox per sicurezza
+        sandbox="allow-same-origin" 
+      />
+    </div>
+  );
+};
 
 //##################################################################
 // ## VISTA QR: TIPO INVENTARIO (3b) ##
 //##################################################################
 const InventarioView = ({ data, onLogout }) => {
-  // Timer locale di 10 secondi per "Prendi"
   const [cooldownEnd, setCooldownEnd] = useState(0); 
   const [cooldownTimer, setCooldownTimer] = useState(0);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [viewingOggetto, setViewingOggetto] = useState(null); // Stato per modale "Vedi"
+  const [viewingOggetto, setViewingOggetto] = useState(null);
   
-  // Prendi i dati del personaggio attivo per la logica Aura
   const { selectedCharacterData } = useCharacter();
-
   const isInCooldown = Date.now() < cooldownEnd;
 
-  // Effetto per il timer visivo
   useEffect(() => {
     if (isInCooldown) {
       const updateTimer = () => {
@@ -155,7 +186,6 @@ const InventarioView = ({ data, onLogout }) => {
     setCooldownEnd(Date.now() + 10000); // Avvia cooldown 10s
 
     try {
-      // Chiama l'API "richiediTransazione"
       const response = await richiediTransazione(oggettoId, data.id, onLogout);
       setMessage(`Richiesta per '${oggettoNome}' inviata! Attendi conferma.`);
     } catch (err) {
@@ -165,12 +195,10 @@ const InventarioView = ({ data, onLogout }) => {
     }
   };
 
-  // APPLICA LA LOGICA AURA
   const oggettiVisibili = getOggettiVisibili(data.oggetti, selectedCharacterData);
 
   return (
     <div>
-      {/* Modale "Vedi" (si attiverà quando viewingOggetto non è null) */}
       {viewingOggetto && (
         <OggettoDetailModal 
           oggetto={viewingOggetto} 
@@ -197,7 +225,6 @@ const InventarioView = ({ data, onLogout }) => {
           <li key={obj.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-md">
             <span className="font-semibold">{obj.nome}</span>
             <div className="space-x-2">
-              {/* Pulsante "Vedi" */}
               <button 
                 onClick={() => setViewingOggetto(obj)}
                 className="p-2 bg-blue-600 rounded hover:bg-blue-700" 
@@ -205,7 +232,6 @@ const InventarioView = ({ data, onLogout }) => {
               >
                 <Eye size={18} />
               </button>
-              {/* Pulsante "Prendi" */}
               <button 
                 onClick={() => handlePrendi(obj.id, obj.nome)}
                 disabled={isInCooldown}
@@ -229,9 +255,8 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [viewingOggetto, setViewingOggetto] = useState(null); // Stato per modale "Vedi"
+  const [viewingOggetto, setViewingOggetto] = useState(null);
 
-  // Prendi i dati del personaggio attivo per la logica Aura
   const { selectedCharacterData } = useCharacter();
   
   const handleRuba = async (oggettoId, oggettoNome) => {
@@ -241,10 +266,8 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
      setError('');
 
      try {
-       // Chiama la nuova API "rubaOggetto"
        const response = await rubaOggetto(oggettoId, data.id, onLogout);
        setMessage(response.success || `Oggetto '${oggettoNome}' rubato!`);
-       // Avvia il cooldown globale di 30s (gestito da MainPage) e chiudi
        onStealSuccess(); 
      } catch (err) {
        setError(err.message || 'Errore imprevisto.');
@@ -254,13 +277,10 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
      }
   }
 
-  // APPLICA LA LOGICA AURA
-  // (Richiede che PersonaggioPublicSerializer esponga 'oggetti')
   const oggettiVisibili = getOggettiVisibili(data.oggetti, selectedCharacterData);
 
   return (
     <div>
-      {/* Modale "Vedi" */}
       {viewingOggetto && (
         <OggettoDetailModal 
           oggetto={viewingOggetto} 
@@ -281,7 +301,6 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
           <li key={obj.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-md">
             <span className="font-semibold">{obj.nome}</span>
             <div className="space-x-2">
-              {/* Pulsante "Vedi" */}
               <button 
                 onClick={() => setViewingOggetto(obj)}
                 className="p-2 bg-blue-600 rounded hover:bg-blue-700" 
@@ -289,7 +308,6 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
               >
                 <Eye size={18} />
               </button>
-              {/* Pulsante "Ruba" */}
               <button 
                 onClick={() => handleRuba(obj.id, obj.nome)}
                 disabled={isLoading}
@@ -322,10 +340,8 @@ const AcquisizioneView = ({ qrId, data, tipo, onLogout, onClose }) => {
     setIsLoading(true);
     setError('');
     try {
-      // Chiama la nuova API "acquisisciItem"
       const response = await acquisisciItem(qrId, onLogout);
       setMessage(response.success || "Oggetto acquisito!");
-      // Chiudi la modale dopo un breve ritardo per far leggere il messaggio
       setTimeout(() => {
         onClose();
       }, 2000);
@@ -346,7 +362,6 @@ const AcquisizioneView = ({ qrId, data, tipo, onLogout, onClose }) => {
       
       <p className="text-gray-300 mb-4">{data.descrizione || 'Nessuna descrizione.'}</p>
       
-      {/* Mostra altri dati se vuoi... */}
       <details className="mt-4 bg-gray-900 rounded-lg">
         <summary className="text-sm font-semibold text-gray-500 p-2 cursor-pointer">Mostra Dati Grezzi</summary>
         <pre className="p-3 overflow-x-auto text-xs text-yellow-300">
@@ -374,7 +389,6 @@ const AcquisizioneView = ({ qrId, data, tipo, onLogout, onClose }) => {
 const QrResultModal = ({ data, onClose, onLogout, onStealSuccess }) => {
   
   const renderContent = () => {
-    // Gestione iniziale: Dati non ancora caricati
     if (!data) {
       return (
         <div className="flex justify-center items-center h-full">
@@ -383,10 +397,8 @@ const QrResultModal = ({ data, onClose, onLogout, onStealSuccess }) => {
       );
     }
     
-    // Troviamo l'ID del QR code scansionato.
     const qrId = data.dati?.qr_code_id || data.qrcode_id; 
 
-    // Router per le viste
     switch (data.tipo_modello) {
       case 'manifesto':
       case 'a_vista':
