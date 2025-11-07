@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import MainPage from './components/MainPage';
+import { CharacterProvider } from './components/CharacterContext'; // IMPORTA
 
 export default function App() {
   const [token, setToken] = useState(null);
@@ -10,8 +11,6 @@ export default function App() {
   useEffect(() => {
     const storedToken = localStorage.getItem('kor35_token');
     if (storedToken) {
-      // Qui potresti aggiungere una logica per *validare* il token con il server
-      // Per ora, ci fidiamo che esista
       setToken(storedToken);
     }
     setIsLoading(false);
@@ -43,6 +42,10 @@ export default function App() {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
-  return <MainPage onLogout={handleLogout} />;
+  // AVVOLGIAMO MainPage con CharacterProvider
+  return (
+    <CharacterProvider onLogout={handleLogout}>
+      <MainPage token={token} onLogout={handleLogout} />
+    </CharacterProvider>
+  );
 }
-
