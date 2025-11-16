@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Home, QrCode, Square, HelpCircle, LogOut } from 'lucide-react'; // Rimosso X
 import HomeTab from './HomeTab.jsx';
 import QrTab from './QrTab.jsx';
 import PlaceholderTab from './PlaceholderTab.jsx';
