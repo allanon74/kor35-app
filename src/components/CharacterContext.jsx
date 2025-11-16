@@ -1,5 +1,9 @@
 import React, { createContext, useState, useContext, useCallback, useEffect } from 'react'; // <-- FIX: Aggiunto useEffect
-import { getPersonaggiList, getPersonaggioDetail } from '../api';
+import { 
+  getPersonaggiList, 
+  getPersonaggioDetail, 
+  getAbilitaMasterList 
+} from '../api';
 
 // 1. Creare il Context
 const CharacterContext = createContext(null);
@@ -12,10 +16,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [error, setError] = useState(null);
+  const [masterSkillsList, setMasterSkillsList] = useState([]);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
 
   // Funzione per selezionare un personaggio e caricarne i dettagli
   // Definita PRIMA di fetchPersonaggi perché viene usata da essa
-  const selectCharacter = useCallback(async (id) => {
+  const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
         setSelectedCharacterData(null);
@@ -23,7 +29,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
     
     // Non ricaricare se è già selezionato
-    if (id === selectedCharacterId) {
+    if (id === selectedCharacterId && !forceRefresh) {
         return;
     }
     
@@ -44,53 +50,68 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
   }, [onLogout, selectedCharacterId]); // Dipendenze corrette
 
+  // Funzione per caricare la master list
+  const fetchMasterSkills = useCallback(async () => {
+    setIsLoadingSkills(true);
+    try {
+      const data = await getAbilitaMasterList(onLogout);
+      setMasterSkillsList(data || []);
+    } catch (err) {
+      setError(err.message || 'Impossibile caricare la lista delle abilità.');
+      setMasterSkillsList([]);
+    } finally {
+      setIsLoadingSkills(false);
+    }
+  }, [onLogout]);
+
 
   // Funzione per caricare la lista dei personaggi
   const fetchPersonaggi = useCallback(async () => {
     setIsLoadingList(true);
     setError(null);
-    try {
-      // Assumiamo che l'API restituisca: [{ id: 1, nome: 'Gimli' }, ...]
-      const data = await getPersonaggiList(onLogout);
-      setPersonaggiList(data || []);
-      
-      // Se c'è una lista e nessun personaggio è selezionato,
-      // seleziona il primo di default.
-      // (Usiamo data[0].id e non selectedCharacterId per evitare dipendenze complesse)
-      if (data && data.length > 0 && !localStorage.getItem('kor35_last_char_id')) {
-         await selectCharacter(data[0].id);
-         localStorage.setItem('kor35_last_char_id', data[0].id);
-      } else if (localStorage.getItem('kor35_last_char_id')) {
-          // Se abbiamo un ID salvato, usiamo quello
-          await selectCharacter(localStorage.getItem('kor35_last_char_id'));
-      }
-      
-    } catch (err) {
-      setError(err.message || 'Impossibile caricare la lista personaggi.');
-      setPersonaggiList([]);
-    } finally {
-      setIsLoadingList(false);
-    }
-  }, [onLogout, selectCharacter]); // FIX: Aggiunto 'selectCharacter' e rimosso 'selectedCharacterId'
+    
+    // Carica entrambe le liste in parallelo
+    await Promise.all([
+        (async () => {
+            try {
+              const data = await getPersonaggiList(onLogout);
+              setPersonaggiList(data || []);
+              
+              const lastCharId = localStorage.getItem('kor35_last_char_id');
+              
+              if (lastCharId && data.some(p => p.id.toString() === lastCharId)) {
+                  await selectCharacter(lastCharId);
+              } else if (data && data.length > 0) {
+                  await selectCharacter(data[0].id);
+                  localStorage.setItem('kor35_last_char_id', data[0].id);
+              }
+              
+            } catch (err) {
+              setError(err.message || 'Impossibile caricare la lista personaggi.');
+              setPersonaggiList([]);
+            }
+        })(),
+        fetchMasterSkills() // <-- CHIAMA LA NUOVA FUNZIONE
+    ]);
+    
+    setIsLoadingList(false); // Ora setIsLoadingList indica il caricamento *iniziale*
+    
+  }, [onLogout, selectCharacter, fetchMasterSkills]); // Aggiunte dipendenze
 
 
-  // Questo useEffect (che era alla riga 70) non è più necessario
-  // Lo rimuovo per pulizia, la logica è gestita in fetchPersonaggi
-  /*
-  useEffect(() => {
-    if (fetchPersonaggi.dependencyReady) {
-       // Questo trucco evita un loop di dipendenze
+  // 6. Crea la funzione di REFRESH
+  const refreshCharacterData = useCallback(async () => {
+    if (selectedCharacterId) {
+      // Chiama selectCharacter con 'forceRefresh = true'
+      await selectCharacter(selectedCharacterId, true);
     }
-  }, [selectCharacter]);
-  
-  if (fetchPersonaggi) fetchPersonaggi.dependencyReady = true;
-  */
+  }, [selectedCharacterId, selectCharacter]);
 
 
   // Funzione wrapper per cambiare personaggio E salvarlo
   const handleSelectCharacter = async (id) => {
     localStorage.setItem('kor35_last_char_id', id);
-    await selectCharacter(id);
+    await selectCharacter(id, false);
   };
 
 
@@ -99,12 +120,14 @@ export const CharacterProvider = ({ children, onLogout }) => {
     personaggiList,
     selectedCharacterId,
     selectedCharacterData,
-    isLoading: isLoadingList || isLoadingDetail,
+    isLoading: isLoadingList || isLoadingDetail || isLoadingSkills,
     isLoadingList,
     isLoadingDetail,
+    isLoadingSkills,
     error,
     fetchPersonaggi,
     selectCharacter: handleSelectCharacter, // Usiamo la funzione wrapper
+    refreshCharacterData,
   };
 
   return (

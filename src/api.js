@@ -126,3 +126,27 @@ export const acquisisciItem = (qrCodeId, onLogout) => {
     onLogout
   );
 };
+
+/**
+ * Recupera la lista master di tutte le abilità.
+ */
+export const getAbilitaMasterList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/abilita/master_list/', { method: 'GET' }, onLogout);
+};
+
+/**
+ * Tenta di acquisire un'abilità per il personaggio loggato.
+ * POST /personaggi/api/personaggio/me/acquisisci_abilita/
+ */
+export const acquireAbilita = (abilitaId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/acquisisci_abilita/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        abilita_id: abilitaId,
+      })
+    },
+    onLogout
+  );
+};

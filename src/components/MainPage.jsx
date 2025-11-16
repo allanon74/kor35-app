@@ -6,6 +6,10 @@ import PlaceholderTab from './PlaceholderTab.jsx';
 //import HtmlViewerModal from './HtmlViewerModal.jsx'; // Rimosso
 import QrResultModal from './QrResultModal.jsx'; // NUOVO
 import { useCharacter } from './CharacterContext';
+import { Home, QrCode, BookMark, HelpCircle, LogOut } from 'lucide-react'; // Sostituisci 'Square'
+import AbilitaTab from './AbilitaTab.jsx'; // <-- NUOVO COMPONENTE TAB
+
+
 
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
@@ -83,9 +87,8 @@ const MainPage = ({ token, onLogout }) => {
             cooldownTimer={cooldownTimer} // Passa il timer
           />
         );
-      case 'tab3':
-      case 'tab4':
-        return <PlaceholderTab tabName={activeTab} />;
+      case 'abilita':
+        return <AbilitaTab onLogout={onLogout} />;
       case 'info':
         return <PlaceholderTab tabName="Info" />;
       default:
@@ -144,7 +147,7 @@ const MainPage = ({ token, onLogout }) => {
       </main>
 
       {/* Navigazione (invariata) */}
-      <nav className="grid grid-cols-5 gap-1 p-2 bg-gray-800 shadow-lg shrink-0">
+      <nav className="grid grid-cols-4 gap-1 p-2 bg-gray-800 shadow-lg shrink-0">
         <TabButton
           icon={<Home size={28} />}
           label="Home"
@@ -158,16 +161,10 @@ const MainPage = ({ token, onLogout }) => {
           onClick={() => setActiveTab('qr')}
         />
         <TabButton
-          icon={<Square size={28} />}
-          label="Tab 3"
-          isActive={activeTab === 'tab3'}
-          onClick={() => setActiveTab('tab3')}
-        />
-        <TabButton
-          icon={<Square size={28} />}
-          label="Tab 4"
-          isActive={activeTab === 'tab4'}
-          onClick={() => setActiveTab('tab4')}
+          icon={<BookMark size={28} />}
+          label="Abilità"
+          isActive={activeTab === 'abilita'}
+          onClick={() => setActiveTab('abilita')}
         />
         <TabButton
           icon={<HelpCircle size={28} />}
