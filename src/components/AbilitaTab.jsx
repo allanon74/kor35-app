@@ -74,37 +74,63 @@ const AbilitaTab = ({ onLogout }) => {
 
   // Calcoliamo le liste solo quando i dati cambiano
   const { acquirableSkills, possessedSkills } = useMemo(() => {
-    if (!char) return { acquirableSkills: [], possessedSkills: [] };
+    // Se il personaggio o la lista master non sono pronti, restituisci array vuoti
+    if (!char || !masterSkillsList || masterSkillsList.length === 0) {
+      return { acquirableSkills: [], possessedSkills: [] };
+    }
 
-    const possessedSkillIds = new Set(char.abilita_possedute.map(s => s.id));
+    // Assicurati che 'abilita_possedute' esista prima di mapparlo
+    const possessedSkillIds = new Set(
+      (char.abilita_possedute || []).map(s => s.id)
+    );
     const charScores = char.caratteristiche_base || {};
 
     const acquirable = masterSkillsList.filter(skill => {
+      // Controllo di sicurezza: se 'skill' è nullo o incompleto, scartalo
+      if (!skill || !skill.id) return false;
+      
       // 1. Non già posseduta
       if (possessedSkillIds.has(skill.id)) return false;
 
-      // 2. Requisiti Punteggio
-      const meetsReqs = skill.requisiti.every(
-        req => (charScores[req.requisito.nome] || 0) >= req.valore
+      // 2. Requisiti Punteggio (Logica "TUTTI DEVONO ESSERE SODDISFATTI")
+      const meetsReqs = (skill.requisiti || []).every(
+        req => {
+            // Se il requisito è malformato, ignoralo (non contare contro)
+            if (!req || !req.requisito || !req.requisito.nome) return true; 
+            // Altrimenti, controlla
+            return (charScores[req.requisito.nome] || 0) >= req.valore;
+        }
       );
+      // Se anche un solo requisito fallisce, scarta l'abilità
       if (!meetsReqs) return false;
 
-      // 3. Prerequisiti Abilità
-      const meetsPrereqs = skill.prerequisiti.every(
-        pre => possessedSkillIds.has(pre.prerequisito.id)
+      // 3. Prerequisiti Abilità (Logica "TUTTI DEVONO ESSERE SODDISFATTI")
+      const meetsPrereqs = (skill.prerequisiti || []).every(
+        pre => {
+            // Se il prerequisito è malformato, ignoralo
+            if (!pre || !pre.prerequisito || !pre.prerequisito.id) return true;
+            // Altrimenti, controlla
+            return possessedSkillIds.has(pre.prerequisito.id);
+        }
       );
+      // Se anche un solo prerequisito fallisce, scarta l'abilità
       if (!meetsPrereqs) return false;
 
-      return true; // Passa tutti i filtri
+      // Se l'abilità ha superato tutti i controlli (non posseduta, reqs OK, prereqs OK)
+      return true;
     });
 
-    const possessed = char.abilita_possedute.map(ps => 
-        masterSkillsList.find(ms => ms.id === ps.id) || ps
-    );
+    // Cerca di mappare le abilità possedute ai dati completi della master list
+    const possessed = (char.abilita_possedute || []).map(possessedSkill => {
+        const fullSkillData = masterSkillsList.find(ms => ms.id === possessedSkill.id);
+        return fullSkillData || possessedSkill; // Usa i dati completi se li troviamo
+    });
     
     return { acquirableSkills: acquirable, possessedSkills: possessed };
 
   }, [char, masterSkillsList]);
+
+
 
   if (isLoadingSkills || isLoadingDetail || !char) {
     return (

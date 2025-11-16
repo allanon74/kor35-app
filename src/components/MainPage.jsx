@@ -5,7 +5,7 @@ import PlaceholderTab from './PlaceholderTab.jsx';
 //import HtmlViewerModal from './HtmlViewerModal.jsx'; // Rimosso
 import QrResultModal from './QrResultModal.jsx'; // NUOVO
 import { useCharacter } from './CharacterContext';
-import { Home, QrCode, BookMark, HelpCircle, LogOut } from 'lucide-react'; // Sostituisci 'Square'
+import { Home, QrCode, Bookmark, HelpCircle, LogOut } from 'lucide-react'; // Sostituisci 'Square'
 import AbilitaTab from './AbilitaTab.jsx'; // <-- NUOVO COMPONENTE TAB
 
 
@@ -160,7 +160,7 @@ const MainPage = ({ token, onLogout }) => {
           onClick={() => setActiveTab('qr')}
         />
         <TabButton
-          icon={<BookMark size={28} />}
+          icon={<Bookmark size={28} />}
           label="Abilità"
           isActive={activeTab === 'abilita'}
           onClick={() => setActiveTab('abilita')}
