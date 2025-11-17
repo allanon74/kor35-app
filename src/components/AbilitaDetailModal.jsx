@@ -1,26 +1,35 @@
+// src/components/AbilitaDetailModal.jsx
+
 import React from 'react';
 import { X } from 'lucide-react';
+import { useCharacter } from './CharacterContext'; // <-- 1. IMPORTA useCharacter
+import PunteggioDisplay from './PunteggioDisplay.jsx'; // <-- 2. IMPORTA PunteggioDisplay
 
-// Funzione helper per ottenere il colore del testo (bianco o nero)
-// in base alla luminanza del colore di sfondo.
-const getTextColorForBg = (hexColor) => {
-  try {
-    const hex = hexColor.lstrip('#');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    const luminanza = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminanza > 0.5 ? 'black' : 'white';
-  } catch (e) {
-    return 'white'; // Fallback
-  }
-};
+// 3. RIMUOVI la vecchia funzione helper 'getTextColorForBg',
+//    ora è gestita dentro PunteggioDisplay.
 
 
 const AbilitaDetailModal = ({ skill, onClose }) => {
   if (!skill) return null;
 
-  const textColor = getTextColorForBg(skill.caratteristica.colore);
+  // 4. PRENDI la lista completa dei punteggi dal context
+  const { punteggiList } = useCharacter();
+
+
+// --- DEBUG ---
+  // Logghiamo i dati che stiamo usando per il "find"
+console.log("--- DEBUG POPUP ABILITÀ ---");
+  console.log("Oggetto 'skill' ricevuto:", skill);
+  console.log("Lista Punteggi (punteggiList):", punteggiList);
+  // --- FINE DEBUG ---
+
+  
+  // 5. TROVA l'oggetto Punteggio completo usando l'ID
+  //    (skill.caratteristica ha solo id, nome, sigla, colore)
+  //    (punteggiList ha l'oggetto completo con le icone HTML)
+  const caratteristicaPunteggio = punteggiList.find(
+    p => p.id === skill.caratteristica.id
+  );
 
   return (
     <div 
@@ -29,7 +38,7 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
     >
       <div 
         className="relative w-full max-w-lg p-6 mx-4 bg-gray-800 rounded-lg shadow-xl"
-        onClick={(e) => e.stopPropagation()} // Impedisce la chiusura al click interno
+        onClick={(e) => e.stopPropagation()} 
       >
         {/* Bottone Chiudi */}
         <button 
@@ -39,17 +48,14 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
           <X size={24} />
         </button>
         
-        {/* --- Box Caratteristica (COME RICHIESTO) --- */}
+        {/* --- 6. SOSTITUISCI il vecchio div con il nuovo componente --- */}
         <div className="absolute top-4 right-16">
-          <div 
-            style={{ 
-              backgroundColor: skill.caratteristica.colore,
-              color: textColor
-            }}
-            className="px-3 py-1 rounded-md text-lg font-bold"
-          >
-            {skill.caratteristica.sigla.toUpperCase()}
-          </div>
+          <PunteggioDisplay
+            punteggio={caratteristicaPunteggio} // Passa l'oggetto completo
+            displayText="abbr"                 // Mostra la sigla (es. "FOR")
+            iconType="inv_circle"              // Mostra l'icona invertita
+            // (Nessun 'value' significa che mostrerà solo il badge)
+          />
         </div>
 
         {/* Titolo */}
@@ -57,10 +63,17 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
           {skill.nome}
         </h2>
         
-        {/* Descrizione */}
-        <p className="text-gray-300 mb-4 whitespace-pre-wrap">
-          {skill.descrizione || <em>Nessuna descrizione.</em>}
-        </p>
+        {/* Descrizione (con HTML) */}
+        {skill.descrizione ? (
+          <div
+            className="text-gray-300 mb-4 prose prose-invert"
+            dangerouslySetInnerHTML={{ __html: skill.descrizione }}
+          />
+        ) : (
+          <p className="text-gray-300 mb-4">
+            <em>Nessuna descrizione.</em>
+          </p>
+        )}
 
         {/* Costi */}
         <div className="mb-4">

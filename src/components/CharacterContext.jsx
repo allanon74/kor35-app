@@ -1,8 +1,9 @@
-import React, { createContext, useState, useContext, useCallback, useEffect } from 'react'; // <-- FIX: Aggiunto useEffect
+import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
 import { 
   getPersonaggiList, 
   getPersonaggioDetail, 
-  getAbilitaMasterList 
+  getAbilitaMasterList,
+  getPunteggiList, // <-- Corretto
 } from '../api';
 
 // 1. Creare il Context
@@ -18,9 +19,11 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [error, setError] = useState(null);
   const [masterSkillsList, setMasterSkillsList] = useState([]);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+  // NUOVO STATE PER I PUNTEGGI
+  const [punteggiList, setPunteggiList] = useState([]);
+  const [isLoadingPunteggi, setIsLoadingPunteggi] = useState(false);
 
   // Funzione per selezionare un personaggio e caricarne i dettagli
-  // Definita PRIMA di fetchPersonaggi perché viene usata da essa
   const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
@@ -33,6 +36,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
         return;
     }
     
+    // --- ERRORE RISOLTO ---
+    // La funzione fetchPunteggi è stata spostata fuori da qui
+    // --- FINE ERRORE ---
+
     setIsLoadingDetail(true);
     setError(null);
     setSelectedCharacterId(id);
@@ -64,13 +71,28 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
   }, [onLogout]);
 
+  // --- FUNZIONE SPOSTATA QUI ---
+  // Definita prima di fetchPersonaggi
+  const fetchPunteggi = useCallback(async () => {
+    setIsLoadingPunteggi(true);
+    try {
+      const data = await getPunteggiList(onLogout); // <-- Usa la funzione API corretta
+      setPunteggiList(data || []);
+    } catch (err) {
+      console.error("Errore caricamento punteggi:", err);
+      setPunteggiList([]);
+    } finally {
+      setIsLoadingPunteggi(false);
+    }
+  }, [onLogout]);
+
 
   // Funzione per caricare la lista dei personaggi
   const fetchPersonaggi = useCallback(async () => {
     setIsLoadingList(true);
     setError(null);
     
-    // Carica entrambe le liste in parallelo
+    // Carica tutte e tre le liste in parallelo
     await Promise.all([
         (async () => {
             try {
@@ -91,15 +113,16 @@ export const CharacterProvider = ({ children, onLogout }) => {
               setPersonaggiList([]);
             }
         })(),
-        fetchMasterSkills() // <-- CHIAMA LA NUOVA FUNZIONE
+        fetchMasterSkills(), // Chiama la funzione
+        fetchPunteggi() // Chiama la funzione
     ]);
     
     setIsLoadingList(false); // Ora setIsLoadingList indica il caricamento *iniziale*
     
-  }, [onLogout, selectCharacter, fetchMasterSkills]); // Aggiunte dipendenze
+  }, [onLogout, selectCharacter, fetchMasterSkills, fetchPunteggi]); // Dipendenze corrette
 
 
-  // 6. Crea la funzione di REFRESH
+  // Crea la funzione di REFRESH
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
       // Chiama selectCharacter con 'forceRefresh = true'
@@ -120,14 +143,17 @@ export const CharacterProvider = ({ children, onLogout }) => {
     personaggiList,
     selectedCharacterId,
     selectedCharacterData,
-    isLoading: isLoadingList || isLoadingDetail || isLoadingSkills,
+    isLoading: isLoadingList || isLoadingDetail || isLoadingSkills || isLoadingPunteggi,
     isLoadingList,
     isLoadingDetail,
     isLoadingSkills,
+    isLoadingPunteggi,
     error,
     fetchPersonaggi,
     selectCharacter: handleSelectCharacter, // Usiamo la funzione wrapper
     refreshCharacterData,
+    masterSkillsList,
+    punteggiList,
   };
 
   return (

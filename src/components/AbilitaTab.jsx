@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2 } from 'lucide-react';
-import AbilitaDetailModal from './AbilitaDetailModal.jsx'; // Da creare
-import { acquireAbilita } from '../api.js'; // Da creare
+import AbilitaDetailModal from './AbilitaDetailModal.jsx';
+import { acquireAbilita } from '../api.js';
 
 // Funzione helper per unire classi
 function classNames(...classes) {
@@ -46,6 +46,15 @@ const AbilitaTab = ({ onLogout }) => {
   
   const [modalSkill, setModalSkill] = useState(null);
   const [isAcquiring, setIsAcquiring] = useState(null); // Salva l'ID dell'abilità
+
+//   // --- !!! INIZIO CODICE DI DEBUG !!! ---
+//   // Logghiamo i dati grezzi ricevuti dal context, PRIMA di usarli.
+//   // Questi dovrebbero apparire anche se i dati sono 'null' o '[]'
+//   console.log("--- DEBUG ABILITÀ (DATI GREZZI) ---");
+//   console.log("Personaggio (char):", char);
+//   console.log("Master Skills List (masterSkillsList):", masterSkillsList);
+//   // --- !!! FINE CODICE DI DEBUG !!! ---
+
 
   const handleOpenModal = (skillId) => {
     // Troviamo sempre i dati completi dalla master list
@@ -129,7 +138,6 @@ const AbilitaTab = ({ onLogout }) => {
     return { acquirableSkills: acquirable, possessedSkills: possessed };
 
   }, [char, masterSkillsList]);
-
 
 
   if (isLoadingSkills || isLoadingDetail || !char) {

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react'; // <-- Assicurati che useMemo sia importato
 import { useCharacter } from './CharacterContext';
-import { Coins, Star, Shield, Dices, Brain, BookOpen, User, Droplet, Sun, Zap } from 'lucide-react';
+import { Coins, Star } from 'lucide-react';
+import PunteggioDisplay from './PunteggioDisplay'; 
 
 // --- Componenti Helper per la Scheda ---
 
@@ -24,10 +25,15 @@ const ItemList = ({ title, items, keyField = 'id', nameField = 'nome' }) => (
         {items.map((item) => (
           <li key={item[keyField]} className="text-gray-300">
             <span className="font-semibold text-white">{item[nameField]}</span>
+            
+            {/* Interpreta l'HTML nella descrizione */}
             {item.descrizione && (
-              <p className="text-sm text-gray-400 pl-4">{item.descrizione}</p>
+              <div
+                className="text-sm text-gray-400 pl-4 prose prose-invert prose-sm"
+                dangerouslySetInnerHTML={{ __html: item.descrizione }}
+              />
             )}
-            {/* Puoi aggiungere altri dettagli qui, es. item.quantita */}
+            
           </li>
         ))}
       </ul>
@@ -47,17 +53,45 @@ const LoadingComponent = () => (
 // --- Componente Principale della Scheda ---
 
 const CharacterSheet = ({ data }) => {
-  // Estrai i dati principali. Questi nomi DEVONO corrispondere al JSON!
+  const { punteggiList } = useCharacter();
+
   const {
     nome,
     crediti,
     punti_caratteristica,
-    caratteristiche_base, // Assumiamo sia un oggetto { nome: valore, ... }
-    modificatori_calcolati, // Assumiamo sia un oggetto { nome: valore, ... }
-    abilita_possedute, // Assumiamo sia un array [ { id, nome, descrizione }, ... ]
-    oggetti, // Assumiamo sia un array [ { id, nome, descrizione }, ... ]
-    log_eventi // Assumiamo sia un array [ { id, testo_log, data }, ... ]
+    caratteristiche_base, 
+    modificatori_calcolati, // Ora è indicizzato per 'parametro' (es. 'pv')
+    abilita_possedute, 
+    oggetti, 
+    log_eventi 
   } = data;
+
+  // Calcola le liste per Statistiche Primarie e Caratteristiche
+  const { stat_primarie, caratteristiche } = useMemo(() => {
+    // Non eseguire finché entrambe le liste non sono pronte
+    if (!punteggiList || punteggiList.length === 0 || !caratteristiche_base) {
+      return { stat_primarie: [], caratteristiche: [] };
+    }
+
+    // Filtra per Statistiche Primarie (ST)
+    const primarie = punteggiList.filter(p => p.tipo === 'ST' && p.is_primaria);
+
+    // Mappa le Caratteristiche (CA) ai loro dati completi
+    const chars = Object.entries(caratteristiche_base)
+      .map(([nome, valore]) => {
+        const punteggio = punteggiList.find(p => p.nome === nome);
+        // Restituisci un oggetto solo se il punteggio è stato trovato
+        if (punteggio) {
+          return { punteggio, valore };
+        }
+        return null; // Altrimenti restituisci null
+      })
+      .filter(item => item !== null); // <-- **LA CORREZIONE**: Filtra via i null
+
+    return { stat_primarie: primarie, caratteristiche: chars };
+
+  }, [punteggiList, caratteristiche_base]);
+  // --- FINE NUOVA LOGICA ---
 
   return (
     <div className="p-4 max-w-lg mx-auto">
@@ -69,31 +103,46 @@ const CharacterSheet = ({ data }) => {
         <StatRow label="Punti Car." value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
       </div>
 
-      {/* Blocco Caratteristiche (Esempio) */}
-      {caratteristiche_base && (
+      {/* --- BLOCCO STATISTICHE PRIMARIE --- */}
+      {stat_primarie.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Caratteristiche</h3>
-          <div className="grid grid-cols-2 gap-4 bg-gray-800 p-4 rounded-lg shadow-inner">
-            {Object.entries(caratteristiche_base).map(([key, value]) => (
-              <div key={key} className="flex justify-between text-lg">
-                <span className="font-bold capitalize text-gray-400">{key}:</span>
-                <span className="text-white font-medium">{value}</span>
-              </div>
-            ))}
+          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Statistiche</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {stat_primarie.map((punteggio) => {
+              if (!punteggio.parametro) return null; 
+
+              const mods = modificatori_calcolati[punteggio.parametro] || {add: 0, mol: 1.0};
+              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+              
+              return (
+                <PunteggioDisplay
+                  key={punteggio.id}
+                  punteggio={punteggio}
+                  value={Math.round(valore_finale)} 
+                  displayText="name"
+                  iconType="inv_circle"
+                />
+              );
+            })}
           </div>
         </div>
       )}
+      {/* --- FINE BLOCCO --- */}
 
-      {/* Blocco Modificatori (Esempio) */}
-      {modificatori_calcolati && (
+
+      {/* Blocco Caratteristiche (Ora è sicuro) */}
+      {caratteristiche.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Modificatori Calcolati</h3>
-          <div className="grid grid-cols-2 gap-4 bg-gray-800 p-4 rounded-lg shadow-inner">
-            {Object.entries(modificatori_calcolati).map(([key, value]) => (
-              <div key={key} className="flex justify-between text-lg">
-                <span className="font-bold capitalize text-gray-400">{key}:</span>
-                <span className="text-white font-medium">{value > 0 ? `+${value}` : value}</span>
-              </div>
+          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Caratteristiche</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {caratteristiche.map(({ punteggio, valore }) => ( // <-- Riga 132
+                <PunteggioDisplay
+                  key={punteggio.id} // <-- Riga 134 (Ora sicuro)
+                  punteggio={punteggio} 
+                  value={valore}         
+                  displayText="name"   
+                  iconType="inv_circle"
+                />
             ))}
           </div>
         </div>
@@ -103,13 +152,13 @@ const CharacterSheet = ({ data }) => {
       <ItemList title="Abilità" items={abilita_possedute} />
       <ItemList title="Oggetti" items={oggetti} />
 
-      {/* Blocco Log Eventi (Esempio) */}
+      {/* Blocco Log Eventi */}
       {log_eventi && log_eventi.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Log Eventi</h3>
           <div className="bg-gray-800 p-4 rounded-lg shadow-inner space-y-2 max-h-60 overflow-y-auto">
-            {log_eventi.slice(0).reverse().map((log) => ( // .slice(0).reverse() per mostrare i più nuovi prima
-              <div key={log.id} className="text-sm text-gray-400 border-b border-gray-700 pb-1">
+            {log_eventi.slice(0).reverse().map((log, index) => ( // Aggiunto index per key
+              <div key={log.data || index} className="text-sm text-gray-400 border-b border-gray-700 pb-1">
                 <span className="text-gray-500">[{new Date(log.data).toLocaleString('it-IT')}]</span>
                 <p className="text-gray-300">{log.testo_log}</p>
               </div>
@@ -118,7 +167,43 @@ const CharacterSheet = ({ data }) => {
         </div>
       )}
 
-      {/* Dati Grezzi per Debug (nascosti in un <details>) */}
+      {/* Blocco Modificatori (Statistiche Secondarie) */}
+      {modificatori_calcolati && (
+        <details className="mt-4 bg-gray-800 rounded-lg shadow-inner">
+          <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
+            Statistiche Secondarie
+          </summary>
+          <div className="grid grid-cols-2 gap-4 p-4 border-t border-gray-700">
+            
+            {Object.entries(modificatori_calcolati).map(([parametro, mods]) => {
+              
+              const punteggio = punteggiList.find(p => p.parametro === parametro);
+
+              // --- CORREZIONE (identica a quella sopra) ---
+              // Se il punteggio non esiste O è una statistica primaria,
+              // non renderizzare nulla. Questo previene il crash.
+              if (!punteggio || punteggio.is_primaria) {
+                return null;
+              }
+              // --- FINE CORREZIONE ---
+
+              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+              
+              return (
+                <PunteggioDisplay
+                  key={punteggio.id}
+                  punteggio={punteggio}
+                  value={Math.round(valore_finale)} 
+                  displayText="name"
+                  iconType="inv_circle"
+                />
+              );
+            })}
+          </div>
+        </details>
+      )}
+
+      {/* Dati Grezzi per Debug */}
       <details className="mt-10 bg-gray-950 rounded-lg">
           <summary className="text-lg font-semibold text-gray-500 p-3 cursor-pointer">Mostra Dati Grezzi (per Debug)</summary>
           <pre className="p-4 overflow-x-auto text-xs text-yellow-300">
@@ -134,12 +219,14 @@ const CharacterSheet = ({ data }) => {
 const HomeTab = () => {
   const { 
     selectedCharacterData, 
-    isLoadingDetail, 
+    isLoadingDetail,
+    isLoadingPunteggi, // Aggiungi il loading dei punteggi
     selectedCharacterId, 
     error 
   } = useCharacter();
 
-  if (isLoadingDetail) {
+  // Mostra il caricamento se i dati del PG o i punteggi stanno caricando
+  if (isLoadingDetail || isLoadingPunteggi) {
     return <LoadingComponent />;
   }
   

@@ -150,3 +150,10 @@ export const acquireAbilita = (abilitaId, onLogout) => {
     onLogout
   );
 };
+
+/**
+ * Recupera la lista di tutti i punteggi di tipo Caratteristica.
+ */
+export const getPunteggiList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/punteggi/all/', { method: 'GET' }, onLogout);
+};
