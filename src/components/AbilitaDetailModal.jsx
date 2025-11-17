@@ -18,9 +18,9 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
 
 // --- DEBUG ---
   // Logghiamo i dati che stiamo usando per il "find"
-console.log("--- DEBUG POPUP ABILITÀ ---");
-  console.log("Oggetto 'skill' ricevuto:", skill);
-  console.log("Lista Punteggi (punteggiList):", punteggiList);
+//   console.log("--- DEBUG POPUP ABILITÀ ---");
+//   console.log("Oggetto 'skill' ricevuto:", skill);
+//   console.log("Lista Punteggi (punteggiList):", punteggiList);
   // --- FINE DEBUG ---
 
   

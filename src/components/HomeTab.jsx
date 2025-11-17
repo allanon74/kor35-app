@@ -204,12 +204,12 @@ const CharacterSheet = ({ data }) => {
       )}
 
       {/* Dati Grezzi per Debug */}
-      <details className="mt-10 bg-gray-950 rounded-lg">
+      {/* <details className="mt-10 bg-gray-950 rounded-lg">
           <summary className="text-lg font-semibold text-gray-500 p-3 cursor-pointer">Mostra Dati Grezzi (per Debug)</summary>
           <pre className="p-4 overflow-x-auto text-xs text-yellow-300">
             {JSON.stringify(data, null, 2)}
           </pre>
-      </details>
+      </details> */}
     </div>
   );
 };
