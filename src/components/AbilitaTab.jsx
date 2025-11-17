@@ -1,21 +1,21 @@
-import React, { useState, useMemo, Fragment } from 'react'; // Aggiunto Fragment
+import React, { useState, Fragment } from 'react'; // <-- Rimosso useMemo e Decimal
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2 } from 'lucide-react';
 import AbilitaDetailModal from './AbilitaDetailModal.jsx';
 import { acquireAbilita } from '../api.js';
-import { Decimal } from 'decimal.js'; // Importa per calcoli precisi
 
-// Il parametro della statistica di sconto (dal tuo models.py)
-const PARAMETRO_SCONTO_ABILITA = 'rid_cos_ab';
+// Rimosso: const PARAMETRO_SCONTO_ABILITA = 'rid_cos_ab';
+// Il calcolo ora è fatto dal backend.
 
 // Funzione helper per unire classi
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-// --- Componente helper SkillList (MODIFICATO) ---
-// Ora riceve i costi specifici da mostrare
+// --- Componente helper SkillList (INVARIATO) ---
+// Questa componente era già scritta perfettamente per accettare
+// i costi pre-calcolati (costo_pc_calc e costo_crediti_calc).
 const SkillList = ({ skills, openModal, actionButton, showCosts = false }) => (
   <ul className="divide-y divide-gray-700">
     {skills.map((skill) => (
@@ -23,7 +23,6 @@ const SkillList = ({ skills, openModal, actionButton, showCosts = false }) => (
         <div>
           <h3 className="text-lg font-semibold">{skill.nome}</h3>
           
-          {/* --- MODIFICA: Costi Nascosti se Zero --- */}
           {showCosts && (skill.costo_pc_calc > 0 || skill.costo_crediti_calc > 0) && (
             <p className="text-sm text-gray-400">
               {skill.costo_pc_calc > 0 && (
@@ -34,7 +33,6 @@ const SkillList = ({ skills, openModal, actionButton, showCosts = false }) => (
               )}
               {skill.costo_crediti_calc > 0 && (
                 <span>
-                  {/* Mostra il prezzo originale sbarrato se c'è uno sconto */}
                   {skill.costo_crediti_calc < skill.costo_crediti ? (
                     <>
                       <del className="text-red-400">{skill.costo_crediti}</del>
@@ -47,12 +45,11 @@ const SkillList = ({ skills, openModal, actionButton, showCosts = false }) => (
               )}
             </p>
           )}
-          {/* --- FINE MODIFICA --- */}
 
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => openModal(skill)} // Passa l'intero oggetto skill
+            onClick={() => openModal(skill)}
             className="px-3 py-1 text-sm bg-gray-600 rounded hover:bg-gray-500"
           >
             Dettagli
@@ -66,27 +63,34 @@ const SkillList = ({ skills, openModal, actionButton, showCosts = false }) => (
 
 const AbilitaTab = ({ onLogout }) => {
   const {
+    // --- MODIFICA: Usiamo i nuovi dati dal Context ---
     selectedCharacterData: char,
-    masterSkillsList,
-    isLoadingSkills,
+    acquirableSkills,     // <-- Nuovo
+    isLoadingAcquirable,  // <-- Nuovo
     isLoadingDetail,
     refreshCharacterData,
+    // Rimosso: masterSkillsList
+    // Rimosso: isLoadingSkills
+    // --- FINE MODIFICA ---
   } = useCharacter();
   
   const [modalSkill, setModalSkill] = useState(null);
   const [isAcquiring, setIsAcquiring] = useState(null);
 
   const handleOpenModal = (skill) => {
-    // Il 'skill' che riceviamo ha già i costi calcolati se viene
-    // dalla lista "Acquista". Se viene da "Possedute", non li ha.
-    // La modale gestirà entrambi i casi.
+    // I dati della skill sono già completi,
+    // sia da 'possedute' (grazie alla modifica in serializers.py)
+    // sia da 'acquistabili' (grazie alla new API view)
     setModalSkill(skill);
   };
 
+  // --- FUNZIONE INVARIATA ---
+  // Questa funzione è già corretta, perché usa
+  // skill.costo_pc_calc e skill.costo_crediti_calc
+  // che ora arrivano direttamente dal backend.
   const handleAcquire = async (skill) => {
     if (isAcquiring) return;
     
-    // Mostra il costo PC (se > 0) e il costo Crediti (se > 0)
     const pcCostString = skill.costo_pc_calc > 0 ? `${skill.costo_pc_calc} PC` : '';
     const creditCostString = skill.costo_crediti_calc > 0 ? `${skill.costo_crediti_calc} Crediti` : '';
     const joiner = pcCostString && creditCostString ? ' e ' : '';
@@ -109,67 +113,17 @@ const AbilitaTab = ({ onLogout }) => {
     }
   };
 
-  // Calcoliamo le liste solo quando i dati cambiano
-  const { acquirableSkills, possessedSkills } = useMemo(() => {
-    if (!char || !masterSkillsList || masterSkillsList.length === 0) {
-      return { acquirableSkills: [], possessedSkills: [] };
-    }
+  // --- MODIFICA PRINCIPALE: useMemo RIMOSSO ---
+  // Tutta la logica di calcolo scompare dal frontend.
+  
+  // I dati ora sono diretti:
+  // 'abilita_possedute' ha i dati completi (dal PersonaggioDetailSerializer)
+  const possessedSkills = char?.abilita_possedute || [];
+  // 'acquirableSkills' arriva già filtrato e prezzato dal context (dalla nuova API)
+  // ...ed è già disponibile dalla destrutturazione di useCharacter()
 
-    const possessedSkillIds = new Set(
-      (char.abilita_possedute || []).map(s => s.id)
-    );
-    const charScores = char.caratteristiche_base || {};
-    
-    // --- MODIFICA: Calcolo Sconto ---
-    const mods = char.modificatori_calcolati || {};
-    const sconto_stat = mods[PARAMETRO_SCONTO_ABILITA] || {add: 0, mol: 1.0};
-    const sconto_valore = Math.max(0, sconto_stat.add || 0);
-    const sconto_percent = new Decimal(sconto_valore).div(100);
-    const moltiplicatore_costo = new Decimal(1).minus(sconto_percent);
-    // --- FINE MODIFICA ---
-
-    const acquirable = masterSkillsList
-      .filter(skill => {
-        if (!skill || !skill.id) return false;
-        if (possessedSkillIds.has(skill.id)) return false;
-
-        const meetsReqs = (skill.requisiti || []).every(
-          req => (charScores[req.requisito.nome] || 0) >= req.valore
-        );
-        if (!meetsReqs) return false;
-
-        const meetsPrereqs = (skill.prerequisiti || []).every(
-          pre => possessedSkillIds.has(pre.prerequisito.id)
-        );
-        if (!meetsPrereqs) return false;
-
-        return true;
-      })
-      .map(skill => {
-        // Aggiungi i costi calcolati all'oggetto skill
-        const costo_crediti_calc = new Decimal(skill.costo_crediti)
-                                    .times(moltiplicatore_costo)
-                                    .toDecimalPlaces(2) // Arrotonda a 2 decimali
-                                    .toNumber();
-        
-        return {
-          ...skill,
-          costo_pc_calc: skill.costo_pc, // PC non è scontato
-          costo_crediti_calc: costo_crediti_calc,
-        };
-      });
-
-    const possessed = (char.abilita_possedute || []).map(possessedSkill => {
-        // Arricchisci i dati dell'abilità posseduta con i dati completi dalla master list
-        const fullSkillData = masterSkillsList.find(ms => ms.id === possessedSkill.id);
-        return fullSkillData ? { ...fullSkillData, ...possessedSkill } : possessedSkill;
-    });
-    
-    return { acquirableSkills: acquirable, possessedSkills: possessed };
-
-  }, [char, masterSkillsList]);
-
-  if (isLoadingSkills || isLoadingDetail || !char) {
+  // --- MODIFICA: Aggiornato lo stato di caricamento ---
+  if (isLoadingAcquirable || isLoadingDetail || !char) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="animate-spin" size={48} />
@@ -177,8 +131,9 @@ const AbilitaTab = ({ onLogout }) => {
     );
   }
 
+  // --- FUNZIONE INVARIATA ---
+  // Già corretta, usa i costi pre-calcolati
   const AcquirableActionButton = (skill) => {
-    // Controlla usando i costi CALCOLATI
     const canAffordPC = char.punti_caratteristica >= skill.costo_pc_calc;
     const canAffordCrediti = char.crediti >= skill.costo_crediti_calc;
     const canAfford = canAffordPC && canAffordCrediti;
@@ -202,11 +157,13 @@ const AbilitaTab = ({ onLogout }) => {
     );
   };
 
+  // --- JSX INVARIATO ---
+  // Il JSX è già corretto, usa le variabili
+  // 'possessedSkills' e 'acquirableSkills'
   return (
     <>
       <div className="w-full p-4">
         <Tab.Group>
-          {/* --- MODIFICA: ORDINE TAB --- */}
           <Tab.List className="flex space-x-1 rounded-xl bg-gray-800 p-1">
             <Tab as={Fragment}>
               {({ selected }) => (
@@ -236,7 +193,7 @@ const AbilitaTab = ({ onLogout }) => {
               <SkillList 
                 skills={possessedSkills} 
                 openModal={handleOpenModal}
-                showCosts={false} // Non mostrare i costi per le abilità possedute
+                showCosts={false}
               />
             </Tab.Panel>
             <Tab.Panel className="rounded-xl bg-gray-800 p-3 focus:outline-none">
@@ -244,11 +201,10 @@ const AbilitaTab = ({ onLogout }) => {
                 skills={acquirableSkills} 
                 openModal={handleOpenModal}
                 actionButton={AcquirableActionButton}
-                showCosts={true} // Mostra i costi per le abilità da acquistare
+                showCosts={true}
               />
             </Tab.Panel>
           </Tab.Panels>
-          {/* --- FINE MODIFICA ORDINE --- */}
         </Tab.Group>
       </div>
       

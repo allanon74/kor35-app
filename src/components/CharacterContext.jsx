@@ -2,8 +2,8 @@ import React, { createContext, useState, useContext, useCallback, useEffect } fr
 import { 
   getPersonaggiList, 
   getPersonaggioDetail, 
-  getAbilitaMasterList,
-  getPunteggiList, // <-- Corretto
+  getAcquirableSkills, // <-- MODIFICA: Sostituito getAbilitaMasterList
+  getPunteggiList,
 } from '../api';
 
 // 1. Creare il Context
@@ -17,13 +17,17 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [error, setError] = useState(null);
-  const [masterSkillsList, setMasterSkillsList] = useState([]);
-  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
-  // NUOVO STATE PER I PUNTEGGI
+
+  // --- STATI MODIFICATI ---
+  // Rimosse le righe di masterSkillsList e isLoadingSkills
+  const [acquirableSkills, setAcquirableSkills] = useState([]);
+  const [isLoadingAcquirable, setIsLoadingAcquirable] = useState(false);
+  // ---
+
   const [punteggiList, setPunteggiList] = useState([]);
   const [isLoadingPunteggi, setIsLoadingPunteggi] = useState(false);
 
-  // Funzione per selezionare un personaggio e caricarne i dettagli
+  // Funzione per selezionare un personaggio (INVARIATA DAL TUO ORIGINALE)
   const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
@@ -31,21 +35,15 @@ export const CharacterProvider = ({ children, onLogout }) => {
         return;
     }
     
-    // Non ricaricare se è già selezionato
     if (id === selectedCharacterId && !forceRefresh) {
         return;
     }
     
-    // --- ERRORE RISOLTO ---
-    // La funzione fetchPunteggi è stata spostata fuori da qui
-    // --- FINE ERRORE ---
-
     setIsLoadingDetail(true);
     setError(null);
     setSelectedCharacterId(id);
     
     try {
-      // Carica i dati completi del personaggio
       const data = await getPersonaggioDetail(id, onLogout);
       setSelectedCharacterData(data);
     } catch (err) {
@@ -57,22 +55,22 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
   }, [onLogout, selectedCharacterId]); // Dipendenze corrette
 
-  // Funzione per caricare la master list
-  const fetchMasterSkills = useCallback(async () => {
-    setIsLoadingSkills(true);
+  // --- FUNZIONE MODIFICATA ---
+  // Sostituita fetchMasterSkills con la nuova fetchAcquirableSkills
+  const fetchAcquirableSkills = useCallback(async () => {
+    setIsLoadingAcquirable(true);
     try {
-      const data = await getAbilitaMasterList(onLogout);
-      setMasterSkillsList(data || []);
+      const data = await getAcquirableSkills(onLogout);
+      setAcquirableSkills(data || []);
     } catch (err) {
-      setError(err.message || 'Impossibile caricare la lista delle abilità.');
-      setMasterSkillsList([]);
+      setError(err.message || 'Impossibile caricare la lista delle abilità acquistabili.');
+      setAcquirableSkills([]);
     } finally {
-      setIsLoadingSkills(false);
+      setIsLoadingAcquirable(false);
     }
   }, [onLogout]);
 
-  // --- FUNZIONE SPOSTATA QUI ---
-  // Definita prima di fetchPersonaggi
+  // --- FUNZIONE SPOSTATA QUI (INVARIATA DAL TUO ORIGINALE) ---
   const fetchPunteggi = useCallback(async () => {
     setIsLoadingPunteggi(true);
     try {
@@ -87,7 +85,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, [onLogout]);
 
 
-  // Funzione per caricare la lista dei personaggi
+  // Funzione per caricare la lista dei personaggi (MODIFICATA)
   const fetchPersonaggi = useCallback(async () => {
     setIsLoadingList(true);
     setError(null);
@@ -113,25 +111,41 @@ export const CharacterProvider = ({ children, onLogout }) => {
               setPersonaggiList([]);
             }
         })(),
-        fetchMasterSkills(), // Chiama la funzione
+        fetchAcquirableSkills(), // <-- MODIFICA: Chiamata aggiornata
         fetchPunteggi() // Chiama la funzione
     ]);
     
     setIsLoadingList(false); // Ora setIsLoadingList indica il caricamento *iniziale*
     
-  }, [onLogout, selectCharacter, fetchMasterSkills, fetchPunteggi]); // Dipendenze corrette
+  }, [onLogout, selectCharacter, fetchAcquirableSkills, fetchPunteggi]); // Dipendenze corrette
 
 
-  // Crea la funzione di REFRESH
+  // --- FUNZIONE DI REFRESH (MODIFICATA) ---
+  // La tua versione originale ricaricava solo il personaggio.
+  // Questa versione ricarica SIA il personaggio (per le "Possedute")
+  // SIA le abilità acquistabili (per la tab "Acquista").
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
-      // Chiama selectCharacter con 'forceRefresh = true'
-      await selectCharacter(selectedCharacterId, true);
+      setIsLoadingDetail(true);
+      setIsLoadingAcquirable(true);
+      
+      try {
+        await Promise.all([
+          selectCharacter(selectedCharacterId, true), // Forza refresh del PG
+          fetchAcquirableSkills() // Ricarica la lista delle acquistabili
+        ]);
+      } catch (err) {
+          console.error("Errore durante il refresh:", err);
+          setError(err.message || "Errore durante l'aggiornamento.");
+      } finally {
+          setIsLoadingDetail(false);
+          setIsLoadingAcquirable(false);
+      }
     }
-  }, [selectedCharacterId, selectCharacter]);
+  }, [selectedCharacterId, selectCharacter, fetchAcquirableSkills]); // Dipendenze aggiornate
 
 
-  // Funzione wrapper per cambiare personaggio E salvarlo
+  // Funzione wrapper (INVARIATA)
   const handleSelectCharacter = async (id) => {
     localStorage.setItem('kor35_last_char_id', id);
     await selectCharacter(id, false);
@@ -143,16 +157,20 @@ export const CharacterProvider = ({ children, onLogout }) => {
     personaggiList,
     selectedCharacterId,
     selectedCharacterData,
-    isLoading: isLoadingList || isLoadingDetail || isLoadingSkills || isLoadingPunteggi,
+
+    // --- VALORI MODIFICATI ---
+    isLoading: isLoadingList || isLoadingDetail || isLoadingAcquirable || isLoadingPunteggi,
     isLoadingList,
     isLoadingDetail,
-    isLoadingSkills,
+    isLoadingAcquirable, // <-- Nuovo
     isLoadingPunteggi,
     error,
     fetchPersonaggi,
-    selectCharacter: handleSelectCharacter, // Usiamo la funzione wrapper
+    selectCharacter: handleSelectCharacter,
     refreshCharacterData,
-    masterSkillsList,
+    acquirableSkills, // <-- Nuovo (sostituisce masterSkillsList)
+    // ---
+    
     punteggiList,
   };
 
@@ -163,7 +181,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   );
 };
 
-// 3. Creare l'Hook custom per usarlo facilmente
+// 3. Creare l'Hook custom (INVARIATO)
 export const useCharacter = () => {
   const context = useContext(CharacterContext);
   if (context === null) {
