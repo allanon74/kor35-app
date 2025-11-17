@@ -140,7 +140,7 @@ const CharacterSheet = ({ data }) => {
                   key={punteggio.id} // <-- Riga 134 (Ora sicuro)
                   punteggio={punteggio} 
                   value={valore}         
-                  displayText="name"   
+                  displayText="abbr"   
                   iconType="inv_circle"
                 />
             ))}
