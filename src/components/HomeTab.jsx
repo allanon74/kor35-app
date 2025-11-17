@@ -91,7 +91,7 @@ const CharacterSheet = ({ data }) => {
 
     return { stat_primarie: primarie, caratteristiche: chars, aure_possedute: aure };
 
-  }, [punteggiList, caratteristiche_base]);
+  }, [punteggiList, punteggi_base]);
 
   return (
     <div className="p-4 max-w-lg mx-auto">
