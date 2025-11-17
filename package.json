@@ -12,6 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@tailwindcss/postcss": "^4.1.16",
+    "decimal.js": "^10.6.0",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.548.0",
     "react": "^19.1.1",

@@ -1,29 +1,58 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, Fragment } from 'react'; // Aggiunto Fragment
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2 } from 'lucide-react';
 import AbilitaDetailModal from './AbilitaDetailModal.jsx';
 import { acquireAbilita } from '../api.js';
+import { Decimal } from 'decimal.js'; // Importa per calcoli precisi
+
+// Il parametro della statistica di sconto (dal tuo models.py)
+const PARAMETRO_SCONTO_ABILITA = 'rid_cos_ab';
 
 // Funzione helper per unire classi
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-// Componente helper per la lista (riutilizzabile)
-const SkillList = ({ skills, openModal, actionButton }) => (
+// --- Componente helper SkillList (MODIFICATO) ---
+// Ora riceve i costi specifici da mostrare
+const SkillList = ({ skills, openModal, actionButton, showCosts = false }) => (
   <ul className="divide-y divide-gray-700">
     {skills.map((skill) => (
       <li key={skill.id} className="p-4 flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold">{skill.nome}</h3>
-          <p className="text-sm text-gray-400">
-            {skill.costo_pc} PC / {skill.costo_crediti} Crediti
-          </p>
+          
+          {/* --- MODIFICA: Costi Nascosti se Zero --- */}
+          {showCosts && (skill.costo_pc_calc > 0 || skill.costo_crediti_calc > 0) && (
+            <p className="text-sm text-gray-400">
+              {skill.costo_pc_calc > 0 && (
+                <span>{skill.costo_pc_calc} PC</span>
+              )}
+              {skill.costo_pc_calc > 0 && skill.costo_crediti_calc > 0 && (
+                <span className="mx-1">/</span>
+              )}
+              {skill.costo_crediti_calc > 0 && (
+                <span>
+                  {/* Mostra il prezzo originale sbarrato se c'è uno sconto */}
+                  {skill.costo_crediti_calc < skill.costo_crediti ? (
+                    <>
+                      <del className="text-red-400">{skill.costo_crediti}</del>
+                      <span className="text-green-400 ml-1">{skill.costo_crediti_calc}</span>
+                    </>
+                  ) : (
+                    <span>{skill.costo_crediti_calc}</span>
+                  )} Crediti
+                </span>
+              )}
+            </p>
+          )}
+          {/* --- FINE MODIFICA --- */}
+
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => openModal(skill)}
+            onClick={() => openModal(skill)} // Passa l'intero oggetto skill
             className="px-3 py-1 text-sm bg-gray-600 rounded hover:bg-gray-500"
           >
             Dettagli
@@ -45,34 +74,33 @@ const AbilitaTab = ({ onLogout }) => {
   } = useCharacter();
   
   const [modalSkill, setModalSkill] = useState(null);
-  const [isAcquiring, setIsAcquiring] = useState(null); // Salva l'ID dell'abilità
+  const [isAcquiring, setIsAcquiring] = useState(null);
 
-//   // --- !!! INIZIO CODICE DI DEBUG !!! ---
-//   // Logghiamo i dati grezzi ricevuti dal context, PRIMA di usarli.
-//   // Questi dovrebbero apparire anche se i dati sono 'null' o '[]'
-//   console.log("--- DEBUG ABILITÀ (DATI GREZZI) ---");
-//   console.log("Personaggio (char):", char);
-//   console.log("Master Skills List (masterSkillsList):", masterSkillsList);
-//   // --- !!! FINE CODICE DI DEBUG !!! ---
-
-
-  const handleOpenModal = (skillId) => {
-    // Troviamo sempre i dati completi dalla master list
-    const fullSkill = masterSkillsList.find(s => s.id === skillId);
-    setModalSkill(fullSkill || null);
+  const handleOpenModal = (skill) => {
+    // Il 'skill' che riceviamo ha già i costi calcolati se viene
+    // dalla lista "Acquista". Se viene da "Possedute", non li ha.
+    // La modale gestirà entrambi i casi.
+    setModalSkill(skill);
   };
 
   const handleAcquire = async (skill) => {
     if (isAcquiring) return;
     
-    if (!window.confirm(`Sei sicuro di voler acquisire "${skill.nome}" per ${skill.costo_pc} PC e ${skill.costo_crediti} Crediti?`)) {
+    // Mostra il costo PC (se > 0) e il costo Crediti (se > 0)
+    const pcCostString = skill.costo_pc_calc > 0 ? `${skill.costo_pc_calc} PC` : '';
+    const creditCostString = skill.costo_crediti_calc > 0 ? `${skill.costo_crediti_calc} Crediti` : '';
+    const joiner = pcCostString && creditCostString ? ' e ' : '';
+    
+    const confirmMessage = `Sei sicuro di voler acquisire "${skill.nome}" per ${pcCostString}${joiner}${creditCostString}?`;
+    
+    if (!window.confirm(confirmMessage)) {
       return;
     }
     
     setIsAcquiring(skill.id);
     try {
       await acquireAbilita(skill.id, onLogout);
-      await refreshCharacterData(); // Forza l'aggiornamento del personaggio!
+      await refreshCharacterData(); 
     } catch (error) {
       console.error("Errore acquisto:", error);
       alert(`Errore durante l'acquisto: ${error.message}`);
@@ -83,62 +111,63 @@ const AbilitaTab = ({ onLogout }) => {
 
   // Calcoliamo le liste solo quando i dati cambiano
   const { acquirableSkills, possessedSkills } = useMemo(() => {
-    // Se il personaggio o la lista master non sono pronti, restituisci array vuoti
     if (!char || !masterSkillsList || masterSkillsList.length === 0) {
       return { acquirableSkills: [], possessedSkills: [] };
     }
 
-    // Assicurati che 'abilita_possedute' esista prima di mapparlo
     const possessedSkillIds = new Set(
       (char.abilita_possedute || []).map(s => s.id)
     );
     const charScores = char.caratteristiche_base || {};
+    
+    // --- MODIFICA: Calcolo Sconto ---
+    const mods = char.modificatori_calcolati || {};
+    const sconto_stat = mods[PARAMETRO_SCONTO_ABILITA] || {add: 0, mol: 1.0};
+    const sconto_valore = Math.max(0, sconto_stat.add || 0);
+    const sconto_percent = new Decimal(sconto_valore).div(100);
+    const moltiplicatore_costo = new Decimal(1).minus(sconto_percent);
+    // --- FINE MODIFICA ---
 
-    const acquirable = masterSkillsList.filter(skill => {
-      // Controllo di sicurezza: se 'skill' è nullo o incompleto, scartalo
-      if (!skill || !skill.id) return false;
-      
-      // 1. Non già posseduta
-      if (possessedSkillIds.has(skill.id)) return false;
+    const acquirable = masterSkillsList
+      .filter(skill => {
+        if (!skill || !skill.id) return false;
+        if (possessedSkillIds.has(skill.id)) return false;
 
-      // 2. Requisiti Punteggio (Logica "TUTTI DEVONO ESSERE SODDISFATTI")
-      const meetsReqs = (skill.requisiti || []).every(
-        req => {
-            // Se il requisito è malformato, ignoralo (non contare contro)
-            if (!req || !req.requisito || !req.requisito.nome) return true; 
-            // Altrimenti, controlla
-            return (charScores[req.requisito.nome] || 0) >= req.valore;
-        }
-      );
-      // Se anche un solo requisito fallisce, scarta l'abilità
-      if (!meetsReqs) return false;
+        const meetsReqs = (skill.requisiti || []).every(
+          req => (charScores[req.requisito.nome] || 0) >= req.valore
+        );
+        if (!meetsReqs) return false;
 
-      // 3. Prerequisiti Abilità (Logica "TUTTI DEVONO ESSERE SODDISFATTI")
-      const meetsPrereqs = (skill.prerequisiti || []).every(
-        pre => {
-            // Se il prerequisito è malformato, ignoralo
-            if (!pre || !pre.prerequisito || !pre.prerequisito.id) return true;
-            // Altrimenti, controlla
-            return possessedSkillIds.has(pre.prerequisito.id);
-        }
-      );
-      // Se anche un solo prerequisito fallisce, scarta l'abilità
-      if (!meetsPrereqs) return false;
+        const meetsPrereqs = (skill.prerequisiti || []).every(
+          pre => possessedSkillIds.has(pre.prerequisito.id)
+        );
+        if (!meetsPrereqs) return false;
 
-      // Se l'abilità ha superato tutti i controlli (non posseduta, reqs OK, prereqs OK)
-      return true;
-    });
+        return true;
+      })
+      .map(skill => {
+        // Aggiungi i costi calcolati all'oggetto skill
+        const costo_crediti_calc = new Decimal(skill.costo_crediti)
+                                    .times(moltiplicatore_costo)
+                                    .toDecimalPlaces(2) // Arrotonda a 2 decimali
+                                    .toNumber();
+        
+        return {
+          ...skill,
+          costo_pc_calc: skill.costo_pc, // PC non è scontato
+          costo_crediti_calc: costo_crediti_calc,
+        };
+      });
 
-    // Cerca di mappare le abilità possedute ai dati completi della master list
     const possessed = (char.abilita_possedute || []).map(possessedSkill => {
+        // Arricchisci i dati dell'abilità posseduta con i dati completi dalla master list
         const fullSkillData = masterSkillsList.find(ms => ms.id === possessedSkill.id);
-        return fullSkillData || possessedSkill; // Usa i dati completi se li troviamo
+        return fullSkillData ? { ...fullSkillData, ...possessedSkill } : possessedSkill;
     });
     
     return { acquirableSkills: acquirable, possessedSkills: possessed };
 
   }, [char, masterSkillsList]);
-
 
   if (isLoadingSkills || isLoadingDetail || !char) {
     return (
@@ -149,8 +178,9 @@ const AbilitaTab = ({ onLogout }) => {
   }
 
   const AcquirableActionButton = (skill) => {
-    const canAffordPC = char.punti_caratteristica >= skill.costo_pc;
-    const canAffordCrediti = char.crediti >= skill.costo_crediti;
+    // Controlla usando i costi CALCOLATI
+    const canAffordPC = char.punti_caratteristica >= skill.costo_pc_calc;
+    const canAffordCrediti = char.crediti >= skill.costo_crediti_calc;
     const canAfford = canAffordPC && canAffordCrediti;
     
     return (
@@ -176,37 +206,49 @@ const AbilitaTab = ({ onLogout }) => {
     <>
       <div className="w-full p-4">
         <Tab.Group>
+          {/* --- MODIFICA: ORDINE TAB --- */}
           <Tab.List className="flex space-x-1 rounded-xl bg-gray-800 p-1">
-            <Tab className={({ selected }) => classNames(
-                'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
-                'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-indigo-400 ring-white ring-opacity-60',
-                selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:bg-gray-700'
-            )}>
-              Acquista ({acquirableSkills.length})
+            <Tab as={Fragment}>
+              {({ selected }) => (
+                <button className={classNames(
+                    'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
+                    'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-indigo-400 ring-white ring-opacity-60',
+                    selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:bg-gray-700'
+                )}>
+                  Possedute ({possessedSkills.length})
+                </button>
+              )}
             </Tab>
-            <Tab className={({ selected }) => classNames(
-                'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
-                'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-indigo-400 ring-white ring-opacity-60',
-                selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:bg-gray-700'
-            )}>
-              Possedute ({possessedSkills.length})
+            <Tab as={Fragment}>
+               {({ selected }) => (
+                <button className={classNames(
+                    'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
+                    'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-indigo-400 ring-white ring-opacity-60',
+                    selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:bg-gray-700'
+                )}>
+                  Acquista ({acquirableSkills.length})
+                </button>
+               )}
             </Tab>
           </Tab.List>
           <Tab.Panels className="mt-2">
             <Tab.Panel className="rounded-xl bg-gray-800 p-3 focus:outline-none">
               <SkillList 
-                skills={acquirableSkills} 
-                openModal={(s) => handleOpenModal(s.id)}
-                actionButton={AcquirableActionButton}
+                skills={possessedSkills} 
+                openModal={handleOpenModal}
+                showCosts={false} // Non mostrare i costi per le abilità possedute
               />
             </Tab.Panel>
             <Tab.Panel className="rounded-xl bg-gray-800 p-3 focus:outline-none">
               <SkillList 
-                skills={possessedSkills} 
-                openModal={(s) => handleOpenModal(s.id)}
+                skills={acquirableSkills} 
+                openModal={handleOpenModal}
+                actionButton={AcquirableActionButton}
+                showCosts={true} // Mostra i costi per le abilità da acquistare
               />
             </Tab.Panel>
           </Tab.Panels>
+          {/* --- FINE MODIFICA ORDINE --- */}
         </Tab.Group>
       </div>
       
