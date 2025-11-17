@@ -30,7 +30,8 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
         }
         return null;
     })
-    .filter(item => item !== null); 
+    // CORREZIONE 1: Filtra i valori nulli E quelli con modificatore 0
+    .filter(item => item !== null && item.valore !== 0); 
 
   const statisticheModificate = (skill.statistiche_modificate || [])
     .map(link => {
@@ -40,7 +41,8 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
         }
         return null;
     })
-    .filter(item => item !== null);
+    // CORREZIONE 1: Filtra i valori nulli E quelli con modificatore 0
+    .filter(item => item !== null && item.valore !== 0);
     
   const showModifiche = punteggiModificati.length > 0 || statisticheModificate.length > 0;
   // --- Fine Logica ---
@@ -65,7 +67,7 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
           <div className="absolute top-4 right-16">
             <PunteggioDisplay
               punteggio={caratteristicaPunteggio}
-              displayText="abbr"
+              displayText="none"
               iconType="inv_circle"
             />
           </div>
@@ -119,9 +121,10 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
                 <PunteggioDisplay
                   key={`stat-${link.punteggio.id}`}
                   punteggio={link.punteggio}
+                  // CORREZIONE 2: Aggiunto uno spazio iniziale
                   value={link.tipo_modificatore === 'ADD' ? 
-                         (link.valore > 0 ? `+${link.valore}` : link.valore) : 
-                         `x${link.valore}`}
+                         (link.valore > 0 ? ` +${link.valore}` : ` ${link.valore}`) : 
+                         ` x${link.valore}`}
                   displayText="name"
                   iconType="inv_circle"
                 />
@@ -131,7 +134,8 @@ const AbilitaDetailModal = ({ skill, onClose }) => {
                 <PunteggioDisplay
                   key={`punt-${link.punteggio.id}`}
                   punteggio={link.punteggio}
-                  value={link.valore > 0 ? `+${link.valore}` : link.valore}
+                  // CORREZIONE 2: Aggiunto uno spazio iniziale
+                  value={link.valore > 0 ? ` +${link.valore}` : ` ${link.valore}`}
                   displayText="name"
                   iconType="inv_circle"
                 />
