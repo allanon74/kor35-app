@@ -65,6 +65,7 @@ const AbilitaTab = ({ onLogout }) => {
   const {
     // --- MODIFICA: Usiamo i nuovi dati dal Context ---
     selectedCharacterData: char,
+    selectedCharacterId, 
     acquirableSkills,     // <-- Nuovo
     isLoadingAcquirable,  // <-- Nuovo
     isLoadingDetail,
@@ -89,7 +90,7 @@ const AbilitaTab = ({ onLogout }) => {
   // skill.costo_pc_calc e skill.costo_crediti_calc
   // che ora arrivano direttamente dal backend.
   const handleAcquire = async (skill) => {
-    if (isAcquiring) return;
+    if (isAcquiring || !selectedCharacterId) return;
     
     const pcCostString = skill.costo_pc_calc > 0 ? `${skill.costo_pc_calc} PC` : '';
     const creditCostString = skill.costo_crediti_calc > 0 ? `${skill.costo_crediti_calc} Crediti` : '';
@@ -103,7 +104,7 @@ const AbilitaTab = ({ onLogout }) => {
     
     setIsAcquiring(skill.id);
     try {
-      await acquireAbilita(skill.id, onLogout);
+      await acquireAbilita(skill.id, selectedCharacterId, onLogout);
       await refreshCharacterData(); 
     } catch (error) {
       console.error("Errore acquisto:", error);

@@ -42,7 +42,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
     setIsLoadingAcquirable(true);
     try {
-      // Passa l'ID al chiamante API (MODIFICA PRECEDENTE)
+      // Passa l'ID al chiamante API
       const data = await getAcquirableSkills(onLogout, characterId);
       setAcquirableSkills(data || []);
     } catch (err) {
@@ -51,15 +51,14 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } finally {
       setIsLoadingAcquirable(false);
     }
-  }, [onLogout]); // Dipendenze OK
+  }, [onLogout]);
 
   // Funzione per selezionare un personaggio
-  // FIX CHIAVE: Rimosso fetchAcquirableSkills dalle dipendenze per rompere il ciclo.
   const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
         setSelectedCharacterData(null);
-        await fetchAcquirableSkills(''); // Chiama la versione più recente
+        await fetchAcquirableSkills('');
         return;
     }
     
@@ -74,7 +73,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
     try {
       const data = await getPersonaggioDetail(id, onLogout);
       setSelectedCharacterData(data);
-      // Chiama fetchAcquirableSkills con l'ID del personaggio appena selezionato
       await fetchAcquirableSkills(id); 
     } catch (err) {
       setError(err.message || `Impossibile caricare i dati per il personaggio ${id}.`);
@@ -83,7 +81,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } finally {
       setIsLoadingDetail(false);
     }
-  }, [onLogout, selectedCharacterId]); // <-- FIX: RIMOSSO fetchAcquirableSkills
+  }, [onLogout, selectedCharacterId]); // fetchAcquirableSkills rimosso per TDZ fix
 
   // Funzione punteggi
   const fetchPunteggi = useCallback(async () => {
@@ -101,7 +99,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
 
 
   // Funzione per caricare la lista dei personaggi
-  // FIX: Rimosse dipendenze da funzioni locali per evitare ReferenceError
   const fetchPersonaggi = useCallback(async () => {
     setIsLoadingList(true);
     setError(null);
@@ -110,7 +107,8 @@ export const CharacterProvider = ({ children, onLogout }) => {
     await Promise.all([
         (async () => {
             try {
-              const data = await getPersonaggiList(onLogout, viewAll);
+              // viewAll è letto correttamente dalla closure
+              const data = await getPersonaggiList(onLogout, viewAll); 
               setPersonaggiList(data || []);
               
               const lastCharId = localStorage.getItem('kor35_last_char_id');
@@ -123,7 +121,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
                   localStorage.setItem('kor35_last_char_id', data[0].id);
               }
               
-              // Chiama selectCharacter (che ora carica anche le skills acquistabili)
               await selectCharacter(charToSelect || '');
               
             } catch (err) {
@@ -136,22 +133,25 @@ export const CharacterProvider = ({ children, onLogout }) => {
     
     setIsLoadingList(false); 
     
-  }, [onLogout, viewAll]); // <-- FIX: RIMOSSE selectCharacter, fetchPunteggi
+  }, [onLogout, viewAll]); // selectCharacter e fetchPunteggi rimosse per TDZ fix
+
 
   // Funzione toggle checkbox admin
   const toggleViewAll = () => {
+      // 1. Aggiorna lo stato viewAll
       setViewAll(prev => !prev);
+      // 2. FIX: Chiama esplicitamente fetchPersonaggi per forzare il ricaricamento 
+      // della lista con il nuovo valore di viewAll (che sarà disponibile nel prossimo ciclo di render/closure)
+      fetchPersonaggi();
   };
 
   // Funzione Refresh Dati
-  // FIX: Rimosse dipendenze da funzioni locali per evitare ReferenceError
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
       setIsLoadingDetail(true);
       setIsLoadingAcquirable(true);
       
       try {
-        // selectCharacter forza il refresh dei dettagli e ricarica le abilità acquistabili
         await selectCharacter(selectedCharacterId, true); 
       } catch (err) {
           console.error("Errore durante il refresh:", err);
@@ -161,7 +161,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
           setIsLoadingAcquirable(false);
       }
     }
-  }, [selectedCharacterId]); // <-- FIX: RIMOSSO selectCharacter
+  }, [selectedCharacterId]); // selectCharacter rimosso per TDZ fix
 
 
   // Funzione wrapper selezione

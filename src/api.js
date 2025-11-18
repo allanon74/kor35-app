@@ -158,13 +158,14 @@ export const getAbilitaMasterList = (onLogout) => {
 /**
  * Tenta di acquisire un'abilità per il personaggio loggato.
  */
-export const acquireAbilita = (abilitaId, onLogout) => {
+export const acquireAbilita = (abilitaId, characterId, onLogout) => {
   return fetchAuthenticated(
     '/personaggi/api/personaggio/me/acquisisci_abilita/', 
     {
       method: 'POST',
       body: JSON.stringify({
         abilita_id: abilitaId,
+        personaggio_id: characterId, // <-- NUOVO: Passa l'ID al backend
       })
     },
     onLogout
