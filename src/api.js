@@ -188,9 +188,12 @@ export const getPunteggiList = (onLogout) => {
  * Recupera la lista *filtrata* di abilità acquistabili per il personaggio.
  * GET /personaggi/api/personaggio/me/abilita_acquistabili/
  */
-export const getAcquirableSkills = (onLogout) => {
+export const getAcquirableSkills = (onLogout, selectedCharacterId) => {
+  // Aggiunge l'ID del personaggio come query parameter. Il backend dovrà leggere 'char_id'.
+  const queryParam = selectedCharacterId ? `?char_id=${selectedCharacterId}` : '';
+  
   return fetchAuthenticated(
-    '/personaggi/api/personaggio/me/abilita_acquistabili/', 
+    `/personaggi/api/personaggio/me/abilita_acquistabili/${queryParam}`, // <--- AGGIUNTO queryParam
     { method: 'GET' }, 
     onLogout
   );
