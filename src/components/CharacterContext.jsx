@@ -34,12 +34,32 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [punteggiList, setPunteggiList] = useState([]);
   const [isLoadingPunteggi, setIsLoadingPunteggi] = useState(false);
 
+  // Funzione abilità acquistabili
+  const fetchAcquirableSkills = useCallback(async (characterId) => {
+    if (!characterId) {
+        setAcquirableSkills([]); // Pulisce se non c'è ID
+        return;
+    }
+    setIsLoadingAcquirable(true);
+    try {
+      // Passa l'ID al chiamante API (MODIFICA PRECEDENTE)
+      const data = await getAcquirableSkills(onLogout, characterId);
+      setAcquirableSkills(data || []);
+    } catch (err) {
+      setError(err.message || 'Impossibile caricare la lista delle abilità acquistabili.');
+      setAcquirableSkills([]);
+    } finally {
+      setIsLoadingAcquirable(false);
+    }
+  }, [onLogout]); // Dipendenze OK
+
   // Funzione per selezionare un personaggio
+  // FIX CHIAVE: Rimosso fetchAcquirableSkills dalle dipendenze per rompere il ciclo.
   const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
         setSelectedCharacterData(null);
-        await fetchAcquirableSkills('');
+        await fetchAcquirableSkills(''); // Chiama la versione più recente
         return;
     }
     
@@ -54,8 +74,8 @@ export const CharacterProvider = ({ children, onLogout }) => {
     try {
       const data = await getPersonaggioDetail(id, onLogout);
       setSelectedCharacterData(data);
-      await fetchAcquirableSkills(id); // Carica le abilità acquistabili per il personaggio selezionato
-
+      // Chiama fetchAcquirableSkills con l'ID del personaggio appena selezionato
+      await fetchAcquirableSkills(id); 
     } catch (err) {
       setError(err.message || `Impossibile caricare i dati per il personaggio ${id}.`);
       setSelectedCharacterData(null);
@@ -63,26 +83,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } finally {
       setIsLoadingDetail(false);
     }
-  }, [onLogout, selectedCharacterId, fetchAcquirableSkills]); 
-
-  // Funzione abilità acquistabili
-  const fetchAcquirableSkills = useCallback(async (characterId) => { // <-- AGGIUNTA characterId
-    if (!characterId) {
-        setAcquirableSkills([]); // Pulisce se non c'è ID
-        return;
-    }
-    setIsLoadingAcquirable(true);
-    try {
-      // MODIFICA: Passa l'ID al chiamante API
-      const data = await getAcquirableSkills(onLogout, characterId);
-      setAcquirableSkills(data || []);
-    } catch (err) {
-      setError(err.message || 'Impossibile caricare la lista delle abilità acquistabili.');
-      setAcquirableSkills([]);
-    } finally {
-      setIsLoadingAcquirable(false);
-    }
-  }, [onLogout]);
+  }, [onLogout, selectedCharacterId]); // <-- FIX: RIMOSSO fetchAcquirableSkills
 
   // Funzione punteggi
   const fetchPunteggi = useCallback(async () => {
@@ -100,12 +101,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
 
 
   // Funzione per caricare la lista dei personaggi
+  // FIX: Rimosse dipendenze da funzioni locali per evitare ReferenceError
   const fetchPersonaggi = useCallback(async () => {
     setIsLoadingList(true);
     setError(null);
     
     // Carica la lista personaggi e i punteggi in parallelo.
-    // fetchAcquirableSkills è ora chiamato dentro selectCharacter.
     await Promise.all([
         (async () => {
             try {
@@ -122,7 +123,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
                   localStorage.setItem('kor35_last_char_id', data[0].id);
               }
               
-              // Chiama selectCharacter (che a sua volta chiama fetchAcquirableSkills(id))
+              // Chiama selectCharacter (che ora carica anche le skills acquistabili)
               await selectCharacter(charToSelect || '');
               
             } catch (err) {
@@ -130,13 +131,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
               setPersonaggiList([]);
             }
         })(),
-        // RIMOSSA: fetchAcquirableSkills(), ora gestita da selectCharacter
-        fetchPunteggi() // MANTENUTA: lista globale
+        fetchPunteggi()
     ]);
     
     setIsLoadingList(false); 
     
-  }, [onLogout, viewAll, selectCharacter, fetchPunteggi]);
+  }, [onLogout, viewAll]); // <-- FIX: RIMOSSE selectCharacter, fetchPunteggi
 
   // Funzione toggle checkbox admin
   const toggleViewAll = () => {
@@ -144,17 +144,15 @@ export const CharacterProvider = ({ children, onLogout }) => {
   };
 
   // Funzione Refresh Dati
+  // FIX: Rimosse dipendenze da funzioni locali per evitare ReferenceError
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
       setIsLoadingDetail(true);
       setIsLoadingAcquirable(true);
       
       try {
-        await Promise.all([
-          // selectCharacter è sufficiente: forza il refresh dei dettagli e ricarica le abilità acquistabili
-          selectCharacter(selectedCharacterId, true), 
-          // RIMOSSA: fetchAcquirableSkills() è già chiamata in selectCharacter
-        ]);
+        // selectCharacter forza il refresh dei dettagli e ricarica le abilità acquistabili
+        await selectCharacter(selectedCharacterId, true); 
       } catch (err) {
           console.error("Errore durante il refresh:", err);
           setError(err.message || "Errore durante l'aggiornamento.");
@@ -163,7 +161,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
           setIsLoadingAcquirable(false);
       }
     }
-  }, [selectedCharacterId, selectCharacter]);
+  }, [selectedCharacterId]); // <-- FIX: RIMOSSO selectCharacter
 
 
   // Funzione wrapper selezione
