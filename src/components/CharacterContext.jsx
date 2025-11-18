@@ -39,6 +39,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     if (!id) {
         setSelectedCharacterId('');
         setSelectedCharacterData(null);
+        setAcquirableSkills([]);
         return;
     }
     
@@ -53,6 +54,8 @@ export const CharacterProvider = ({ children, onLogout }) => {
     try {
       const data = await getPersonaggioDetail(id, onLogout);
       setSelectedCharacterData(data);
+      await fetchAcquirableSkills(); // Carica le abilità acquistabili per il personaggio selezionato
+
     } catch (err) {
       setError(err.message || `Impossibile caricare i dati per il personaggio ${id}.`);
       setSelectedCharacterData(null);
@@ -60,7 +63,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } finally {
       setIsLoadingDetail(false);
     }
-  }, [onLogout, selectedCharacterId]); 
+  }, [onLogout, selectedCharacterId, fetchAcquirableSkills]); 
 
   // Funzione abilità acquistabili
   const fetchAcquirableSkills = useCallback(async () => {
