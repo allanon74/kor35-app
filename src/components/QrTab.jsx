@@ -1,46 +1,49 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Html5Qrcode } from 'html5-qrcode'; // Import corretto
+import { Html5Qrcode } from 'html5-qrcode';
+import { getQrCodeData } from '../api'; // IMPORTA LA NUOVA FUNZIONE API
+import { useCharacter } from './CharacterContext'; // Importa per sapere chi sta scansionando
+import { Timer } from 'lucide-react'; // Icona Timer
 
-const QrTab = ({ onScanSuccess }) => {
+const QrTab = ({ onScanSuccess, onLogout, isStealingOnCooldown, cooldownTimer, onStealSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   
-  // Usiamo useRef per tenere traccia dell'istanza dello scanner
   const html5QrCodeRef = useRef(null);
-  
-  // ID unico per il div del lettore
   const qrReaderId = "qr-reader-element";
+  
+  // Prendi il personaggio attivo dal context
+  const { selectedCharacterId } = useCharacter();
 
   const handleScanData = async (decodedText) => {
-    setIsScanning(false); // Ferma lo scanner visivamente
+    // Controlla se un personaggio è selezionato
+    if (!selectedCharacterId) {
+      setError("Per favore, seleziona un personaggio prima di scansionare.");
+      stopWebcamScan(); // Ferma lo scanner
+      return;
+    }
+
+    // Controllo cooldown globale
+    if (isStealingOnCooldown) {
+        setError(`Devi attendere la fine del cooldown (furto) prima di scansionare.`);
+        stopWebcamScan();
+        return;
+    }
+
+    setIsScanning(false);
     setIsLoading(true);
     setError('');
 
     try {
-      // Ferma la webcam
       await stopWebcamScan();
 
-      // Invia l'ID al server
-      const response = await fetch(`https://www.k-o-r-35.it/oggetti/qr/${decodedText}/`, {
-        headers: {
-          'Content-Type': 'text/html',
-          // Aggiungi qui l'header di autenticazione se necessario
-          // 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
-      });
+      // USA LA NUOVA FUNZIONE API
+      const jsonData = await getQrCodeData(decodedText, onLogout);
       
-      if (!response.ok) {
-        throw new Error(`Errore HTTP ${response.status} nel recuperare i dati.`);
-      }
-      
-      const htmlContent = await response.text();
-      onScanSuccess(htmlContent); // Passa l'HTML alla modale
+      onScanSuccess(jsonData); // Passa il JSON alla modale
       
     } catch (err) {
       setError(err.message || 'Impossibile caricare i dati QR.');
-      // Riavvia lo scanner se c'è un errore e l'utente lo desidera?
-      // Per ora, lo lasciamo fermo.
     } finally {
       setIsLoading(false);
     }
@@ -148,6 +151,18 @@ const QrTab = ({ onScanSuccess }) => {
     <div className="flex flex-col items-center p-4">
       <h2 className="text-2xl font-bold mb-6 text-indigo-400">Scansione QR Code</h2>
 
+      {/* --- NUOVO BLOCCO COOLDOWN --- */}
+      {isStealingOnCooldown && (
+        <div className="w-full max-w-md p-4 mb-6 text-center bg-red-900 bg-opacity-70 rounded-lg shadow-lg">
+          <div className="flex items-center justify-center">
+             <Timer className="text-red-300 mr-2" />
+             <h3 className="text-lg font-bold text-red-200">Cooldown Furto Attivo</h3>
+          </div>
+          <p className="text-2xl font-bold text-white mt-2">{cooldownTimer}s</p>
+          <p className="text-red-300">Non puoi scansionare personaggi in questo stato.</p>
+        </div>
+      )}
+    
       {isLoading && (
         <div className="text-center text-lg text-gray-300">
           <p>Caricamento dati...</p>
@@ -170,14 +185,15 @@ const QrTab = ({ onScanSuccess }) => {
               Avvia Scansione Webcam
             </button>
             
-            <label className="block w-full px-4 py-3 bg-gray-700 text-white text-lg text-center font-bold rounded-md shadow-lg hover:bg-gray-600 cursor-pointer">
+           <label className={`block w-full px-4 py-3 bg-gray-700 text-white text-lg text-center font-bold rounded-md shadow-lg hover:bg-gray-600 cursor-pointer
+              ${isStealingOnCooldown ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <span>Carica Immagine QR</span>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleFileScan}
                 className="hidden"
-                disabled={isLoading}
+                disabled={isLoading || isStealingOnCooldown} // Disabilitato durante il caricamento o cooldown} 
               />
             </label>
           </>

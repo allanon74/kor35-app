@@ -1,0 +1,197 @@
+const API_BASE_URL = 'https://www.k-o-r-35.it';
+
+/**
+ * Helper generico per le chiamate API autenticate.
+ * Gestisce l'header Authorization e il caso di token non valido.
+ * @param {string} endpoint - L'endpoint API (es. /personaggi/api/personaggi/)
+ * @param {object} options - Opzioni standard di fetch (method, body, etc.)
+ * @param {function} onLogout - La funzione di logout da App.jsx
+ */
+export const fetchAuthenticated = async (endpoint, options = {}, onLogout) => {
+  const token = localStorage.getItem('kor35_token');
+  
+  if (!token) {
+    console.error('Nessun token trovato, logout in corso.');
+    if (onLogout) onLogout();
+    // NOTA: Restituire una Promise reietta è corretto qui
+    return Promise.reject(new Error('Nessun token di autenticazione.'));
+  }
+
+  const headers = {
+    // 'Content-Type': 'application/json', // Rimosso: vedi nota sotto
+    'Authorization': `Token ${token}`,
+    ...options.headers,
+  };
+
+  // Aggiungi Content-Type solo se il corpo non è FormData
+  // (per gestire futuri upload di file)
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  } else if (!options.body) {
+    // Aggiungi solo se non c'è corpo (come nelle GET)
+    headers['Content-Type'] = 'application/json';
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+
+    if (response.status === 401 || response.status === 403) {
+      console.error('Token non valido o scaduto, logout in corso.');
+      if (onLogout) onLogout();
+      throw new Error('Autenticazione fallita.');
+    }
+    
+    if (!response.ok) {
+        // --- CORREZIONE: Gestione Errori "Body Stream" ---
+        // Leggiamo la risposta come testo *una sola volta*.
+        const errorText = await response.text();
+        let errorMsg = errorText; // Default all'intero testo
+        
+        try {
+            // Proviamo a parsare il testo come JSON
+            const errorData = JSON.parse(errorText);
+            // Se ci riusciamo, cerchiamo un messaggio di errore più pulito
+            errorMsg = errorData.detail || errorData.error || JSON.stringify(errorData);
+        } catch (e) {
+            // Non era JSON, va bene. 'errorMsg' rimane l'HTML/testo
+            // (es. la pagina 404 di Django)
+        }
+        
+        // Ora lanciamo l'errore in modo pulito
+        console.error(`Errore API ${response.status} (${response.statusText}) per ${endpoint}:`, errorMsg);
+        throw new Error(`Errore API (${response.status}): ${errorMsg}`);
+        // --- FINE CORREZIONE ---
+    }
+
+    if (response.status === 204) { // No Content
+        return null;
+    }
+
+    return await response.json();
+  
+  } catch (error) {
+    // Rimuoviamo il console.error qui perché lo gestiamo già sopra
+    // in modo più pulito nel blocco !response.ok
+    // console.error(`Errore durante il fetch a ${endpoint}:`, error);
+    throw error;
+  }
+};
+
+// --- Funzioni API specifiche ---
+
+/**
+ * Recupera la lista dei personaggi associati all'utente.
+ */
+export const getPersonaggiList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/personaggi/', { method: 'GET' }, onLogout);
+};
+
+/**
+ * Recupera i dettagli di un personaggio specifico.
+ */
+export const getPersonaggioDetail = (id, onLogout) => {
+  return fetchAuthenticated(`/personaggi/api/personaggi/${id}/`, { method: 'GET' }, onLogout);
+};
+
+export const getQrCodeData = (qrId, onLogout) => {
+  return fetchAuthenticated(`/personaggi/api/qrcode/${qrId}/`, { method: 'GET' }, onLogout);
+};
+
+/**
+ * Richiede un oggetto da un inventario (azione "Prendi").
+ */
+export const richiediTransazione = (oggettoId, mittenteInventarioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/transazioni/richiedi/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        oggetto_id: oggettoId,
+        mittente_id: mittenteInventarioId,
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Tenta di rubare un oggetto da un personaggio (azione "Ruba").
+ */
+export const rubaOggetto = (oggettoId, targetPersonaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/transazioni/ruba/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        oggetto_id: oggettoId,
+        target_personaggio_id: targetPersonaggioId,
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Acquisisce un oggetto/attivata da un QR code.
+ */
+export const acquisisciItem = (qrCodeId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/transazioni/acquisisci/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        qrcode_id: qrCodeId,
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Recupera la lista master di tutte le abilità.
+ * @deprecated Non più usata, sostituita da getAcquirableSkills e dati da getPersonaggioDetail
+ */
+export const getAbilitaMasterList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/abilita/master_list/', { method: 'GET' }, onLogout);
+};
+
+/**
+ * Tenta di acquisire un'abilità per il personaggio loggato.
+ */
+export const acquireAbilita = (abilitaId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/acquisisci_abilita/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        abilita_id: abilitaId,
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Recupera la lista di tutti i punteggi (Caratteristiche, Statistiche, ecc).
+ */
+export const getPunteggiList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/punteggi/all/', { method: 'GET' }, onLogout);
+};
+
+
+// --- MODIFICA CHIAVE ---
+// Questa è la versione corretta della funzione che usa il tuo
+// helper 'fetchAuthenticated' e l'URL corretto.
+// Sostituisce la versione errata che ti avevo dato.
+
+/**
+ * Recupera la lista *filtrata* di abilità acquistabili per il personaggio.
+ * GET /personaggi/api/personaggio/me/abilita_acquistabili/
+ */
+export const getAcquirableSkills = (onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/abilita_acquistabili/', 
+    { method: 'GET' }, 
+    onLogout
+  );
+};
