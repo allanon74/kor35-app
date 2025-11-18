@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import MainPage from './components/MainPage';
-import { CharacterProvider } from './components/CharacterContext'; // IMPORTA
+import { CharacterProvider } from './components/CharacterContext';
 
 export default function App() {
   const [token, setToken] = useState(null);
@@ -22,9 +22,17 @@ export default function App() {
     setToken(newToken);
   };
 
-  // Cancella il token
+  // Cancella il token e i dati di sessione
   const handleLogout = () => {
+    // 1. Rimuove il token
     localStorage.removeItem('kor35_token');
+    
+    // 2. Rimuove lo stato admin (FONDAMENTALE per la modifica checkbox)
+    localStorage.removeItem('kor35_is_staff');
+    
+    // 3. Rimuove l'ultimo personaggio selezionato (privacy)
+    localStorage.removeItem('kor35_last_char_id');
+    
     setToken(null);
   };
 

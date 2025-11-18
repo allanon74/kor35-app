@@ -27,6 +27,12 @@ const LoginPage = ({ onLoginSuccess }) => {
       const data = await response.json();
 
       if (data.token) {
+        // --- MODIFICA IMPORTANTE ---
+        // Salviamo lo stato admin nel localStorage così il Context può leggerlo
+        // data.is_staff arriva dal tuo backend Django modificato (MyAuthToken)
+        localStorage.setItem('kor35_is_staff', data.is_staff);
+        
+        // Passiamo il token al componente padre (App.jsx)
         onLoginSuccess(data.token);
       } else {
         throw new Error('Token non ricevuto dal server.');
@@ -95,4 +101,3 @@ const LoginPage = ({ onLoginSuccess }) => {
 };
 
 export default LoginPage;
-

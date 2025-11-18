@@ -2,9 +2,9 @@ import React, { createContext, useState, useContext, useCallback, useEffect } fr
 import { 
   getPersonaggiList, 
   getPersonaggioDetail, 
-  getAcquirableSkills, // <-- MODIFICA: Sostituito getAbilitaMasterList
+  getAcquirableSkills, 
   getPunteggiList,
-} from '../api';
+} from '../api'; // IMPORT STANDARD (senza estensione)
 
 // 1. Creare il Context
 const CharacterContext = createContext(null);
@@ -19,15 +19,22 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [error, setError] = useState(null);
 
   // --- STATI MODIFICATI ---
-  // Rimosse le righe di masterSkillsList e isLoadingSkills
   const [acquirableSkills, setAcquirableSkills] = useState([]);
   const [isLoadingAcquirable, setIsLoadingAcquirable] = useState(false);
   // ---
 
+  // LOGICA ADMIN
+  const [isAdmin] = useState(() => {
+      const isStaff = localStorage.getItem('kor35_is_staff');
+      console.log("🔎 DEBUG KOR-35 - Stato Admin caricato:", isStaff); 
+      return isStaff === 'true'; 
+  });
+  const [viewAll, setViewAll] = useState(false);
+
   const [punteggiList, setPunteggiList] = useState([]);
   const [isLoadingPunteggi, setIsLoadingPunteggi] = useState(false);
 
-  // Funzione per selezionare un personaggio (INVARIATA DAL TUO ORIGINALE)
+  // Funzione per selezionare un personaggio
   const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
@@ -53,10 +60,9 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } finally {
       setIsLoadingDetail(false);
     }
-  }, [onLogout, selectedCharacterId]); // Dipendenze corrette
+  }, [onLogout, selectedCharacterId]); 
 
-  // --- FUNZIONE MODIFICATA ---
-  // Sostituita fetchMasterSkills con la nuova fetchAcquirableSkills
+  // Funzione abilità acquistabili
   const fetchAcquirableSkills = useCallback(async () => {
     setIsLoadingAcquirable(true);
     try {
@@ -70,11 +76,11 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
   }, [onLogout]);
 
-  // --- FUNZIONE SPOSTATA QUI (INVARIATA DAL TUO ORIGINALE) ---
+  // Funzione punteggi
   const fetchPunteggi = useCallback(async () => {
     setIsLoadingPunteggi(true);
     try {
-      const data = await getPunteggiList(onLogout); // <-- Usa la funzione API corretta
+      const data = await getPunteggiList(onLogout);
       setPunteggiList(data || []);
     } catch (err) {
       console.error("Errore caricamento punteggi:", err);
@@ -85,7 +91,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, [onLogout]);
 
 
-  // Funzione per caricare la lista dei personaggi (MODIFICATA)
+  // Funzione per caricare la lista dei personaggi
   const fetchPersonaggi = useCallback(async () => {
     setIsLoadingList(true);
     setError(null);
@@ -94,7 +100,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     await Promise.all([
         (async () => {
             try {
-              const data = await getPersonaggiList(onLogout);
+              const data = await getPersonaggiList(onLogout, viewAll);
               setPersonaggiList(data || []);
               
               const lastCharId = localStorage.getItem('kor35_last_char_id');
@@ -104,6 +110,8 @@ export const CharacterProvider = ({ children, onLogout }) => {
               } else if (data && data.length > 0) {
                   await selectCharacter(data[0].id);
                   localStorage.setItem('kor35_last_char_id', data[0].id);
+              } else {
+                await selectCharacter('');
               }
               
             } catch (err) {
@@ -111,19 +119,20 @@ export const CharacterProvider = ({ children, onLogout }) => {
               setPersonaggiList([]);
             }
         })(),
-        fetchAcquirableSkills(), // <-- MODIFICA: Chiamata aggiornata
-        fetchPunteggi() // Chiama la funzione
+        fetchAcquirableSkills(),
+        fetchPunteggi()
     ]);
     
-    setIsLoadingList(false); // Ora setIsLoadingList indica il caricamento *iniziale*
+    setIsLoadingList(false); 
     
-  }, [onLogout, selectCharacter, fetchAcquirableSkills, fetchPunteggi]); // Dipendenze corrette
+  }, [onLogout, selectCharacter, fetchAcquirableSkills, fetchPunteggi, viewAll]); 
 
+  // Funzione toggle checkbox admin
+  const toggleViewAll = () => {
+      setViewAll(prev => !prev);
+  };
 
-  // --- FUNZIONE DI REFRESH (MODIFICATA) ---
-  // La tua versione originale ricaricava solo il personaggio.
-  // Questa versione ricarica SIA il personaggio (per le "Possedute")
-  // SIA le abilità acquistabili (per la tab "Acquista").
+  // Funzione Refresh Dati
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
       setIsLoadingDetail(true);
@@ -142,10 +151,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
           setIsLoadingAcquirable(false);
       }
     }
-  }, [selectedCharacterId, selectCharacter, fetchAcquirableSkills]); // Dipendenze aggiornate
+  }, [selectedCharacterId, selectCharacter, fetchAcquirableSkills]);
 
 
-  // Funzione wrapper (INVARIATA)
+  // Funzione wrapper selezione
   const handleSelectCharacter = async (id) => {
     localStorage.setItem('kor35_last_char_id', id);
     await selectCharacter(id, false);
@@ -158,20 +167,25 @@ export const CharacterProvider = ({ children, onLogout }) => {
     selectedCharacterId,
     selectedCharacterData,
 
-    // --- VALORI MODIFICATI ---
+    // Stati di caricamento
     isLoading: isLoadingList || isLoadingDetail || isLoadingAcquirable || isLoadingPunteggi,
     isLoadingList,
     isLoadingDetail,
-    isLoadingAcquirable, // <-- Nuovo
+    isLoadingAcquirable,
     isLoadingPunteggi,
     error,
+    
+    // Funzioni
     fetchPersonaggi,
     selectCharacter: handleSelectCharacter,
     refreshCharacterData,
-    acquirableSkills, // <-- Nuovo (sostituisce masterSkillsList)
-    // ---
-    
+    acquirableSkills,
     punteggiList,
+
+    // Admin & Filtri
+    isAdmin,
+    viewAll,
+    toggleViewAll,
   };
 
   return (
@@ -181,7 +195,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   );
 };
 
-// 3. Creare l'Hook custom (INVARIATO)
+// 3. Creare l'Hook custom
 export const useCharacter = () => {
   const context = useContext(CharacterContext);
   if (context === null) {
