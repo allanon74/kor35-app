@@ -63,7 +63,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } finally {
       setIsLoadingDetail(false);
     }
-  }, [onLogout, selectedCharacterId, fetchAcquirableSkills]); 
+  }, [onLogout, selectedCharacterId]); 
 
   // Funzione abilità acquistabili
   const fetchAcquirableSkills = useCallback(async () => {
@@ -128,7 +128,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     
     setIsLoadingList(false); 
     
-  }, [onLogout, selectCharacter, fetchAcquirableSkills, fetchPunteggi, viewAll]); 
+  }, [onLogout, viewAll]); 
 
   // Funzione toggle checkbox admin
   const toggleViewAll = () => {
@@ -154,7 +154,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
           setIsLoadingAcquirable(false);
       }
     }
-  }, [selectedCharacterId, selectCharacter, fetchAcquirableSkills]);
+  }, [selectedCharacterId]);
 
 
   // Funzione wrapper selezione
