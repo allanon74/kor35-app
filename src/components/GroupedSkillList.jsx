@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import PunteggioDisplay from './PunteggioDisplay';
 
-// Helper contrasto
 const getTextColorForBg = (hexColor) => {
   if (!hexColor) return 'white';
   try {
@@ -28,7 +27,6 @@ const GroupedSkillList = ({
   const { sortedSections } = useMemo(() => {
     if (!skills) return { sortedSections: [] };
 
-    // 1. Raggruppamento
     const groups = skills.reduce((acc, skill) => {
       let charName = "Altro";
       let charObj = null;
@@ -62,7 +60,6 @@ const GroupedSkillList = ({
       return acc;
     }, {});
 
-    // 2. Ordinamento
     Object.values(groups).forEach(group => {
         group.skills.sort((a, b) => a.nome.localeCompare(b.nome));
     });
@@ -97,39 +94,34 @@ const GroupedSkillList = ({
       {sortedSections.map((group) => {
         const charName = group.name;
         const headerBg = group.charData?.colore || '#374151';
-        const headerText = getTextColorForBg(headerBg);
-
+        
         return (
             <div 
                 key={charName} 
                 className="bg-gray-900/40 rounded-xl overflow-hidden shadow-sm"
                 style={{ border: `2px solid ${headerBg}` }}
             >
-              {/* Header */}
+              {/* Header con PunteggioDisplay */}
               <div 
-                  className="flex items-center px-4 py-3 border-b border-black/20"
+                  className="px-4 py-2 border-b border-black/20"
                   style={{ backgroundColor: headerBg }}
               >
-                 {group.charData && (
-                     <div className="mr-4">
-                        {/* Icona Grande nell'Header (Cerchio Invertito) */}
-                        <PunteggioDisplay 
-                            punteggio={group.charData} 
-                            displayText="none" 
-                            iconType="inv_circle" 
-                            size="m" 
-                        />
-                     </div>
+                 {group.charData ? (
+                     <PunteggioDisplay 
+                        punteggio={group.charData}
+                        displayText="name" 
+                        iconType="inv_circle"
+                        size="m"
+                        className="bg-transparent! shadow-none! p-0 w-full justify-start"
+                     />
+                 ) : (
+                     <h4 className="text-lg font-bold uppercase tracking-wider text-white">
+                        {charName}
+                     </h4>
                  )}
-                 <h4 
-                    className="text-xl font-bold uppercase tracking-wider"
-                    style={{ color: headerText }}
-                 >
-                    {charName}
-                 </h4>
               </div>
               
-              {/* Lista */}
+              {/* Lista Skills */}
               <ul className="divide-y divide-gray-700/50">
                 {group.skills.map((skill) => (
                   <li 
@@ -144,33 +136,33 @@ const GroupedSkillList = ({
                         <div className="flex items-center">
                             <div className="mr-3 shrink-0">
                                 {group.charData ? (
-                                    // MODIFICA: Usa 'raw' che mappa a 'normal' (solo icona colorata)
-                                    // Oppure usa 'inv_circle' se preferisci il pallino pieno.
+                                    // MODIFICA QUI: inv_circle invece di raw
+                                    // Questo assicura che l'icona abbia lo sfondo e il contrasto corretti (es. cerchio nero, icona bianca)
                                     <PunteggioDisplay 
                                         punteggio={group.charData} 
                                         displayText="none" 
                                         size="xs" 
-                                        iconType="raw" 
+                                        iconType="inv_circle" 
                                     />
                                 ) : (
                                     <div className="w-4 h-4 bg-gray-600 rounded-full" />
                                 )}
                             </div>
-                            <span className="font-semibold text-gray-200 text-lg block">{skill.nome}</span>
+                            <span className="font-semibold text-gray-200 text-base block">{skill.nome}</span>
                         </div>
                         
                         {renderSubtitle && renderSubtitle(skill)}
                         
                         {showDescription && skill.descrizione && (
                           <div
-                            className="text-sm text-gray-400 pl-8 mt-1 prose prose-invert prose-sm"
+                            className="text-xs text-gray-400 pl-7 mt-1 prose prose-invert prose-sm leading-snug"
                             dangerouslySetInnerHTML={{ __html: skill.descrizione }}
                           />
                         )}
                     </div>
                     
                     {actionRenderer && (
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center ml-8 sm:ml-0">
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center ml-7 sm:ml-0">
                             {actionRenderer(skill)}
                         </div>
                     )}
