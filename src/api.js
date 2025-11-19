@@ -82,8 +82,11 @@ export const fetchAuthenticated = async (endpoint, options = {}, onLogout) => {
 /**
  * Recupera la lista dei personaggi associati all'utente.
  */
-export const getPersonaggiList = (onLogout) => {
-  return fetchAuthenticated('/personaggi/api/personaggi/', { method: 'GET' }, onLogout);
+export const getPersonaggiList = (onLogout, viewAll = false) => {
+  // Costruisci la query string se viewAll è true
+  const queryParam = viewAll ? '?view_all=true' : '';
+  
+  return fetchAuthenticated(`/personaggi/api/personaggi/${queryParam}`, { method: 'GET' }, onLogout);
 };
 
 /**

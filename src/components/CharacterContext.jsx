@@ -142,7 +142,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
       setViewAll(prev => !prev);
       // 2. FIX: Chiama esplicitamente fetchPersonaggi per forzare il ricaricamento 
       // della lista con il nuovo valore di viewAll (che sarà disponibile nel prossimo ciclo di render/closure)
-      fetchPersonaggi();
+      // fetchPersonaggi();
   };
 
   // Funzione Refresh Dati
