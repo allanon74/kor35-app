@@ -175,16 +175,16 @@ const MainPage = ({ token, onLogout }) => {
           onClick={() => setActiveTab('home')}
         />
         <TabButton
-          icon={<QrCode size={28} />}
-          label="QR Code"
-          isActive={activeTab === 'qr'}
-          onClick={() => setActiveTab('qr')}
-        />
-        <TabButton
           icon={<Bookmark size={28} />}
           label="Abilità"
           isActive={activeTab === 'abilita'}
           onClick={() => setActiveTab('abilita')}
+        />
+        <TabButton
+          icon={<QrCode size={28} />}
+          label="QR Code"
+          isActive={activeTab === 'qr'}
+          onClick={() => setActiveTab('qr')}
         />
         <TabButton
           icon={<HelpCircle size={28} />}

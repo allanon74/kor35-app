@@ -5,6 +5,21 @@ import PunteggioDisplay from './PunteggioDisplay';
 
 // --- Componenti Helper ---
 
+// Helper per il contrasto colore (per gli header delle abilità)
+const getTextColorForBg = (hexColor) => {
+  if (!hexColor) return 'white';
+  try {
+    const hex = hexColor.replace('#', ''); 
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const luminanza = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminanza > 0.5 ? 'black' : 'white';
+  } catch (e) {
+    return 'white';
+  }
+};
+
 const StatRow = ({ label, value, icon }) => (
   <div className="flex justify-between items-center p-2 bg-gray-800 rounded-md">
     <div className="flex items-center">
@@ -15,38 +30,74 @@ const StatRow = ({ label, value, icon }) => (
   </div>
 );
 
-// Helper per raggruppare le skill
+// Helper per raggruppare le skill (Versione Potenziata con Ordinamento Backend)
 const GroupedSkillList = ({ items, punteggiList }) => {
-  // Raggruppa le abilità per nome caratteristica
-  const grouped = useMemo(() => {
-    if (!items) return {};
-    return items.reduce((acc, item) => {
-      // Cerca di ottenere il nome della caratteristica. 
-      // Nota: dipende da come arriva il dato dal backend (item.caratteristica potrebbe essere un oggetto o ID)
-      // Assumiamo che se è un oggetto ha .nome, altrimenti cerchiamo nei punteggi globali se abbiamo l'ID o il nome stringa
+  
+  const { sortedSections } = useMemo(() => {
+    if (!items) return { sortedSections: [] };
+
+    // 1. Raggruppamento
+    const groups = items.reduce((acc, item) => {
       let charName = "Altro";
       let charObj = null;
+      let charId = null;
 
+      // Recupera info caratteristica
       if (item.caratteristica) {
         if (typeof item.caratteristica === 'object') {
             charName = item.caratteristica.nome;
-            charObj = item.caratteristica; // Se è già popolato
+            charId = item.caratteristica.id;
+            charObj = item.caratteristica; 
+        } else if (typeof item.caratteristica === 'number') {
+             charId = item.caratteristica;
         } else {
-            // Se è solo un ID o stringa, potremmo doverlo cercare in punteggiList se necessario, 
-            // ma per ora raggruppiamo per la stringa disponibile
              charName = String(item.caratteristica);
         }
       }
 
-      // Se non abbiamo l'oggetto caratteristica popolato (es. icona), proviamo a trovarlo in punteggiList per nome
-      if (!charObj && punteggiList) {
-          charObj = punteggiList.find(p => p.nome === charName && p.tipo === 'CA');
+      // Arricchimento dati da punteggiList
+      if (punteggiList && punteggiList.length > 0) {
+        let found = null;
+        if (charId) found = punteggiList.find(p => p.id === charId);
+        if (!found && charName !== "Altro") found = punteggiList.find(p => p.nome === charName);
+        
+        if (found) {
+            charObj = found;
+            charName = found.nome;
+        }
       }
 
       if (!acc[charName]) acc[charName] = { skills: [], charData: charObj };
       acc[charName].skills.push(item);
       return acc;
     }, {});
+
+    // 2. Ordinamento Alfabetico Skills all'interno dei gruppi
+    Object.values(groups).forEach(group => {
+        group.skills.sort((a, b) => a.nome.localeCompare(b.nome));
+    });
+
+    // 3. Ordinamento Sezioni basato su punteggiList (backend order)
+    const sections = [];
+    const usedKeys = new Set();
+
+    if (punteggiList) {
+        punteggiList.forEach(p => {
+            if (groups[p.nome]) {
+                sections.push({ name: p.nome, ...groups[p.nome] });
+                usedKeys.add(p.nome);
+            }
+        });
+    }
+
+    // Aggiungi sezioni residue (es. "Altro")
+    Object.keys(groups).sort().forEach(key => {
+        if (!usedKeys.has(key)) {
+            sections.push({ name: key, ...groups[key] });
+        }
+    });
+
+    return { sortedSections: sections };
   }, [items, punteggiList]);
 
   if (!items || items.length === 0) {
@@ -57,41 +108,75 @@ const GroupedSkillList = ({ items, punteggiList }) => {
     <div className="mb-6 space-y-6">
       <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Abilità</h3>
       
-      {Object.entries(grouped).map(([charName, group]) => (
-        <div key={charName} className="bg-gray-800 p-4 rounded-lg shadow-inner">
-          <div className="flex items-center mb-3 border-b border-gray-700 pb-2">
-             {/* Icona Caratteristica (Size S) */}
-             {group.charData && (
-                 <div className="mr-3">
-                    <PunteggioDisplay 
-                        punteggio={group.charData} 
-                        displayText="none" 
-                        iconType="inv_circle" 
-                        size="m" 
-                    />
-                 </div>
-             )}
-             <h4 className="text-xl font-bold text-indigo-300">{charName}</h4>
-          </div>
-          
-          <ul className="space-y-2 ml-2">
-            {group.skills.map((item) => (
-              <li key={item.id} className="text-gray-300 flex flex-col">
-                <div className="flex items-center justify-between">
-                    <span className="font-semibold text-white">{item.nome}</span>
-                    {/* Eventuali badge tier o costo possono andare qui */}
-                </div>
-                {item.descrizione && (
-                  <div
-                    className="text-sm text-gray-400 pl-2 mt-1 prose prose-invert prose-sm border-l-2 border-gray-600"
-                    dangerouslySetInnerHTML={{ __html: item.descrizione }}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {sortedSections.map((group) => {
+        const charName = group.name;
+        const headerBg = group.charData?.colore || '#1f2937'; // Gray-800 default
+        const headerText = getTextColorForBg(headerBg);
+
+        return (
+            <div 
+                key={charName} 
+                className="bg-gray-800 rounded-lg shadow-inner overflow-hidden"
+                style={{ border: `2px solid ${headerBg}` }}
+            >
+              {/* Header Colorato */}
+              <div 
+                  className="flex items-center px-4 py-3 border-b border-black/20"
+                  style={{ backgroundColor: headerBg }}
+              >
+                 {group.charData && (
+                     <div className="mr-3">
+                        <PunteggioDisplay 
+                            punteggio={group.charData} 
+                            displayText="none" 
+                            iconType="inv_circle" 
+                            size="m" 
+                        />
+                     </div>
+                 )}
+                 <h4 
+                    className="text-xl font-bold uppercase tracking-wider"
+                    style={{ color: headerText }}
+                 >
+                    {charName}
+                 </h4>
+              </div>
+              
+              {/* Lista Skills */}
+              <ul className="divide-y divide-gray-700/50">
+                {group.skills.map((item) => (
+                  <li key={item.id} className="p-3 flex flex-col hover:bg-gray-700/30 transition-colors">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            {/* Icona XS davanti all'abilità */}
+                            <div className="shrink-0">
+                                {group.charData ? (
+                                    <PunteggioDisplay 
+                                        punteggio={group.charData} 
+                                        displayText="none" 
+                                        size="xs" 
+                                        iconType="raw" 
+                                    />
+                                ) : (
+                                    <div className="w-4 h-4 bg-gray-600 rounded-full" />
+                                )}
+                            </div>
+                            <span className="font-semibold text-white text-lg">{item.nome}</span>
+                        </div>
+                    </div>
+                    
+                    {item.descrizione && (
+                      <div
+                        className="text-sm text-gray-400 pl-8 mt-1 prose prose-invert prose-sm"
+                        dangerouslySetInnerHTML={{ __html: item.descrizione }}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+        );
+      })}
     </div>
   );
 };
@@ -135,32 +220,43 @@ const CharacterSheet = ({ data }) => {
     log_eventi 
   } = data;
 
+  // Calcola liste ordinate basandosi su punteggiList (che ha l'ordine del backend)
   const { stat_primarie, caratteristiche, aure_possedute } = useMemo(() => {
     if (!punteggiList || punteggiList.length === 0 || !punteggi_base) {
       return { stat_primarie: [], caratteristiche: [], aure_possedute: [] };
     }
 
-    const primarie = punteggiList.filter(p => p.tipo === 'ST' && p.is_primaria);
+    const primarie = [];
+    const chars = [];
+    const aure = [];
 
-    const punteggiMappati = Object.entries(punteggi_base)
-      .map(([nome, valore]) => {
-        const punteggio = punteggiList.find(p => p.nome === nome);
-        if (punteggio) {
-          return { punteggio, valore };
+    // Iteriamo su punteggiList per mantenere l'ordine corretto
+    punteggiList.forEach(punteggio => {
+        
+        // 1. Statistiche Primarie
+        if (punteggio.tipo === 'ST' && punteggio.is_primaria) {
+            primarie.push(punteggio);
         }
-        return null; 
-      })
-      .filter(item => item !== null); 
 
-    const chars = punteggiMappati.filter(item => item.punteggio.tipo === 'CA');
-    const aure = punteggiMappati.filter(item => item.punteggio.tipo === 'AU');
+        // 2. Caratteristiche & Aure (richiedono valore base dal PG)
+        // punteggi_base è un oggetto { "Forza": 10, ... }
+        const valore = punteggi_base[punteggio.nome];
+
+        if (valore !== undefined && valore !== null) {
+            if (punteggio.tipo === 'CA') {
+                chars.push({ punteggio, valore });
+            } else if (punteggio.tipo === 'AU') {
+                aure.push({ punteggio, valore });
+            }
+        }
+    });
 
     return { stat_primarie: primarie, caratteristiche: chars, aure_possedute: aure };
 
   }, [punteggiList, punteggi_base]);
 
   return (
-    <div className="p-4 max-w-lg mx-auto">
+    <div className="p-4 max-w-lg mx-auto pb-20">
       <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center">{nome}</h2>
       
       {/* Blocco Valute */}
@@ -186,7 +282,7 @@ const CharacterSheet = ({ data }) => {
                   value={Math.round(valore_finale)} 
                   displayText="name" 
                   iconType="inv_circle"
-                  size="l" // <--- MODIFICA
+                  size="l" // Taglia L
                 />
               );
             })}
@@ -206,7 +302,7 @@ const CharacterSheet = ({ data }) => {
                   value={valore}         
                   displayText="name"   
                   iconType="inv_circle"
-                  size="m" // Default
+                  size="m" // Default M
                 />
             ))}
           </div>
@@ -247,7 +343,7 @@ const CharacterSheet = ({ data }) => {
                 value={valore}
                 displayText="name"
                 iconType="inv_circle"
-                size="l" // <--- MODIFICA
+                size="l" // Taglia L
               />
             ))}
           </div>
@@ -260,25 +356,25 @@ const CharacterSheet = ({ data }) => {
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
             Statistiche Secondarie
           </summary>
-          <div className="grid grid-cols-3 gap-2 p-4 border-t border-gray-700"> {/* Grid modificata per items piccoli */}
+          <div className="grid grid-cols-3 gap-2 p-4 border-t border-gray-700">
             
-            {Object.entries(modificatori_calcolati).map(([parametro, mods]) => {
-              const punteggio = punteggiList.find(p => p.parametro === parametro);
+            {/* Iteriamo su punteggiList per mantenere l'ordine del backend anche qui */}
+            {punteggiList.map((punteggio) => {
+               // Filtra solo quelle secondarie che hanno un calcolo presente
+               if (!punteggio.parametro || punteggio.is_primaria) return null;
+               const mods = modificatori_calcolati[punteggio.parametro];
+               if (!mods) return null;
 
-              if (!punteggio || punteggio.is_primaria) {
-                return null;
-              }
-
-              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
-              
-              return (
+               const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+               
+               return (
                 <PunteggioDisplay
                   key={punteggio.id}
                   punteggio={punteggio}
                   value={Math.round(valore_finale)} 
                   displayText="name"
                   iconType="inv_circle"
-                  size="s" // <--- MODIFICA
+                  size="s" // Taglia S
                 />
               );
             })}
@@ -289,7 +385,6 @@ const CharacterSheet = ({ data }) => {
   );
 };
 
-// ... resto del codice HomeTab (LoadingComponent, HomeTab export) rimane uguale ...
 const LoadingComponent = () => (
     <div className="p-8 text-center text-lg text-gray-400">
       Caricamento dati personaggio...
