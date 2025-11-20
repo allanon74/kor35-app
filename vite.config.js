@@ -54,13 +54,13 @@ export default defineConfig(({ command, mode }) => {
         screenshots: [
           {
             src: 'screenshots/desktop-home.png',
-            sizes: '1920x1080',
+            sizes: '1577x998',
             type: 'image/png',
             form_factor: 'wide'
           },
           {
             src: 'screenshots/mobile-home.png',
-            sizes: '750x1334',
+            sizes: '981x2048',
             type: 'image/png'
           }
         ]
