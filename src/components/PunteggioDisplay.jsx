@@ -66,12 +66,12 @@ const PunteggioDisplay = ({
 
   return (
     <div 
-      className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} ${layout.text} ${className}`}
+      className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} grow ${className}`}
       style={{ backgroundColor: punteggio.colore }}
     >
       {/* --- 1. SEZIONE SINISTRA (Icona + Testo) --- */}
-      {/* Usiamo 'grow' per occupare lo spazio, ma rimuoviamo min-w-0 che causava problemi. */}
-      <div className={`flex items-center ${layout.gap} grow`}> 
+      {/* Fix: 'grow min-w-0' permette all'elemento di restringersi senza scomparire */}
+      <div className={`flex items-center ${layout.gap} grow min-w-0`}> 
         
         {/* Icona (impediamo il restringimento) */}
         {iconMode && url && (
@@ -96,6 +96,7 @@ const PunteggioDisplay = ({
       </div>
       
       {/* --- 2. SEZIONE DESTRA (Valore) --- */}
+      {/* 'shrink-0' e 'ml-2' mantengono il valore fisso a destra */}
       {value !== undefined && (
         <span 
           className={`font-bold font-mono ${layout.val} shrink-0 ml-2 whitespace-nowrap`} 
