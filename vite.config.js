@@ -1,12 +1,55 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-// import mkcert from 'vite-plugin-mkcert' // Rimuovi o commenta questo
-import basicSsl from '@vitejs/plugin-basic-ssl' // Aggiungi questo
+import basicSsl from '@vitejs/plugin-basic-ssl'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig(({ command, mode }) => {
-  const plugins = [react()];
+  const plugins = [
+    react(),
+    // Configurazione PWA
+    VitePWA({
+      registerType: 'autoUpdate', // Aggiorna l'app appena c'è una nuova versione
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      
+      // Permette di testare la PWA in modalità dev (npm run dev)
+      devOptions: {
+        enabled: true
+      },
+
+      manifest: {
+        name: 'Nome La Tua App', // Cambia questo
+        short_name: 'NomeApp',   // Cambia questo (max 12 caratteri circa)
+        description: 'La mia web app React ottimizzata per mobile',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone', // FONDAMENTALE: Nasconde la barra del browser
+        orientation: 'portrait', // Opzionale: blocca in verticale
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: '/pwa-192x192.png', // Assicurati che questi file esistano in /public
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable' // Importante per Android
+          }
+        ]
+      }
+    })
+  ];
 
   // Attiva basicSsl SOLO se stiamo eseguendo il server di sviluppo ('serve')
+  // Questo è utile per testare la PWA in locale, dato che i Service Worker richiedono HTTPS
   if (command === 'serve') {
     plugins.push(basicSsl());
   }
@@ -15,7 +58,8 @@ export default defineConfig(({ command, mode }) => {
     plugins: plugins,
     server: {
       host: true,
-      // basicSsl abiliterà automaticamente https
+      // basicSsl abiliterà automaticamente https, ma per sicurezza lo esplicitiamo se il plugin è attivo
+      https: command === 'serve', 
     }
   };
 });
