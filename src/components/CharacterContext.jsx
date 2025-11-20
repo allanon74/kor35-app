@@ -92,7 +92,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
         
         if (!subscription) {
             // *** SOSTITUISCI CON LA TUA CHIAVE VAPID REALE ***
-            const vapidPublicKey = "INSERISCI_QUI_LA_TUA_VAPID_PUBLIC_KEY"; 
+            const vapidPublicKey = "BIOIApSIeJdV1tp5iVxyLtm8KzM43_AQWV2ymS4iMjkIG1R5g399o6WRdZJY-xcUBZPyJ7EFRVgWqlbalOkGSYw"; 
             
             if (vapidPublicKey === "INSERISCI_QUI_LA_TUA_VAPID_PUBLIC_KEY") {
                  console.warn("VAPID Key non configurata nel CharacterContext. Le notifiche Push non funzioneranno.");
