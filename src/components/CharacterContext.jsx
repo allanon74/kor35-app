@@ -41,15 +41,20 @@ export const CharacterProvider = ({ children, onLogout }) => {
 
   // --- WEBSOCKET SETUP ---
   useEffect(() => {
-    // LOGICA URL WEBSOCKET CORRETTA [MODIFICATA]
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const hostname = window.location.hostname;
+    // LOGICA URL WEBSOCKET AGGIORNATA PER PRODUZIONE
+    let wsUrl = '';
     
-    // Se siamo in locale (localhost), usiamo la porta 8000.
-    // Se siamo in produzione (app.kor35.it), NON specifichiamo la porta (usa la 443 di default gestita da Apache).
-    const port = hostname === 'localhost' || hostname === '127.0.0.1' ? ':8000' : '';
-    
-    const wsUrl = `${protocol}//${hostname}${port}/ws/notifications/`;
+    // Controlliamo se siamo in ambiente di sviluppo locale
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // LOCALE: Connettiti alla porta 8000
+        wsUrl = 'ws://127.0.0.1:8000/ws/notifications/';
+    } else {
+        // PRODUZIONE / PRE-PRODUZIONE: 
+        // Il frontend è su 'app.kor35.it', ma il WebSocket deve connettersi al Backend su 'www.kor35.it'
+        // per condividere i cookie di sessione e l'autenticazione.
+        const backendHost = 'www.kor35.it'; 
+        wsUrl = `wss://${backendHost}/ws/notifications/`;
+    }
     
     console.log('Tentativo connessione WebSocket a:', wsUrl);
 
@@ -77,6 +82,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
            } else if (msg.tipo === 'INDV' && msg.destinatario_id === myCharId) {
                shouldShow = true;
            } else if (msg.tipo === 'GROUP') {
+               // Qui potresti aggiungere logica per verificare l'appartenenza al gruppo
                shouldShow = true; 
            }
 
