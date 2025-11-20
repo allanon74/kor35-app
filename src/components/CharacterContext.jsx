@@ -4,6 +4,7 @@ import {
   getPersonaggioDetail, 
   getAcquirableSkills, 
   getPunteggiList,
+  saveWebPushSubscription,
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
@@ -91,7 +92,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
         let subscription = await registration.pushManager.getSubscription();
         
         if (!subscription) {
-            // *** SOSTITUISCI CON LA TUA CHIAVE VAPID REALE ***
+            
             const vapidPublicKey = "BIOIApSIeJdV1tp5iVxyLtm8KzM43_AQWV2ymS4iMjkIG1R5g399o6WRdZJY-xcUBZPyJ7EFRVgWqlbalOkGSYw"; 
             
             if (vapidPublicKey === "INSERISCI_QUI_LA_TUA_VAPID_PUBLIC_KEY") {
@@ -110,22 +111,25 @@ export const CharacterProvider = ({ children, onLogout }) => {
         // Invia la sottoscrizione al backend Django
         // Nota: Includiamo le credenziali per associare la sottoscrizione all'utente loggato
         // (Assumendo che il backend usi sessioni/cookie per l'auth)
-        await fetch('https://www.kor35.it/webpush/save_information', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // Se usi un token CSRF, aggiungilo qui, es:
-                // 'X-CSRFToken': getCookie('csrftoken') 
-            },
-            body: JSON.stringify(subscription)
-        });
+        // await fetch('https://www.kor35.it/webpush/save_information', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         // Se usi un token CSRF, aggiungilo qui, es:
+        //         // 'X-CSRFToken': getCookie('csrftoken') 
+        //     },
+        //     body: JSON.stringify(subscription)
+        // });
+        // console.log("✅ WebPush Sottoscritto con successo!");        
 
-        console.log("✅ WebPush Sottoscritto con successo!");
+        await saveWebPushSubscription(subscription, onLogout);
+
+        console.log("✅ WebPush Sottoscritto con successo (Salvataggio confermato dal server)!");
 
     } catch (error) {
         console.error("❌ Errore sottoscrizione WebPush:", error);
     }
-  }, []);
+  }, [onLogout]);
 
   // Effettua la sottoscrizione quando c'è un personaggio selezionato (utente loggato)
   useEffect(() => {

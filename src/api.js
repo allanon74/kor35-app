@@ -235,3 +235,25 @@ export const postBroadcastMessage = (messageData, onLogout) => {
 export const getAdminSentMessages = (onLogout) => {
   return fetchAuthenticated('/personaggi/api/messaggi/admin/sent/', { method: 'GET' }, onLogout);
 };
+
+export const saveWebPushSubscription = async (subscription, onLogout) => {
+    const token = localStorage.getItem('token'); // O il nome chiave che usi tu
+    
+    if (!token) return;
+
+    const response = await fetch('https://www.kor35.it/personaggi/api/webpush/subscribe/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${token}` // FONDAMENTALE: Invia l'identità dell'utente
+        },
+        body: JSON.stringify(subscription)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Errore server (${response.status}): ${errorText}`);
+    }
+
+    return await response.json();
+};
