@@ -206,8 +206,13 @@ export const getAcquirableSkills = (onLogout, selectedCharacterId) => {
 /**
  * GET /personaggi/api/messaggi/ - Ottiene la lista dei messaggi per il PG loggato.
  */
-export const getMessages = (onLogout) => {
-  return fetchAuthenticated('/personaggi/api/messaggi/', { method: 'GET' }, onLogout);
+export const getMessages = (personaggioId, onLogout) => {
+  if (!personaggioId) {
+    return Promise.resolve([]); // Ritorna un array vuoto se l'ID non è fornito
+  }
+  const url = `/personaggi/api/messaggi/?personaggio_id=${personaggioId}`;
+
+  return fetchAuthenticated(url, { method: 'GET' }, onLogout);
 };
 
 /**

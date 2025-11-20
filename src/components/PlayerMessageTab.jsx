@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from './CharacterContext';
-import { getMessages } from '../api'; // Da creare in api.js
+import { getMessages } from '../api'; 
 
 const PlayerMessageTab = ({ onLogout }) => {
-    const { selectedCharacterData, isLoadingDetail, error } = useCharacter();
+    const { selectedCharacterData, selectedCharacterId, isLoadingDetail } = useCharacter();
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [fetchError, setFetchError] = useState(null);
 
     useEffect(() => {
         const fetchMessages = async () => {
-            if (!selectedCharacterData) return;
+            // Usa selectedCharacterId, che è quello che determina la selezione
+            if (!selectedCharacterId) {
+                setMessages([]); 
+                return;
+            }
             setIsLoading(true);
             setFetchError(null);
             try {
-                // Chiama la vista MessaggioListView
-                const data = await getMessages(onLogout);
+                // Passa l'ID selezionato all'API
+                const data = await getMessages(selectedCharacterId, onLogout);
                 setMessages(data || []);
             } catch (err) {
                 setFetchError('Impossibile caricare i messaggi: ' + err.message);
@@ -23,12 +27,16 @@ const PlayerMessageTab = ({ onLogout }) => {
                 setIsLoading(false);
             }
         };
-        fetchMessages();
-    }, [selectedCharacterData, onLogout]);
+        // Ricarica la lista messaggi ogni volta che l'ID del personaggio cambia
+    }, [selectedCharacterId, onLogout]); 
 
 
     if (isLoadingDetail || isLoading) {
         return <div className="p-4 text-center text-gray-400">Caricamento messaggi...</div>;
+    }
+
+    if (!selectedCharacterId) {
+        return <div className="p-4 text-center text-gray-500">Seleziona un personaggio per vedere i messaggi.</div>;
     }
 
     if (fetchError) {
