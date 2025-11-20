@@ -1,7 +1,7 @@
-import React, { useState, Fragment } from 'react';
-import { Tab } from '@headlessui/react'; 
+import React, { useState, useEffect, Fragment } from 'react'; // Aggiunto useEffect
+import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { postBroadcastMessage } from '../api'; 
+import { postBroadcastMessage, getAdminSentMessages } from '../api'; // Importa la nuova funzione
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -10,16 +10,34 @@ function classNames(...classes) {
 const AdminMessageTab = ({ onLogout }) => {
     const { selectedCharacterData } = useCharacter();
     
-    // Stati per il form
     const [title, setTitle] = useState('');
     const [text, setText] = useState('');
     const [saveHistory, setSaveHistory] = useState(true);
     const [isSending, setIsSending] = useState(false);
     
-    // Dati finti per la cronologia (in attesa dell'API dedicata)
+    // Stato per la cronologia vera
     const [history, setHistory] = useState([]); 
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-    // Controllo permessi corretto
+    // Carica la cronologia quando il componente monta
+    useEffect(() => {
+        if (selectedCharacterData?.is_staff) {
+            fetchHistory();
+        }
+    }, [selectedCharacterData]);
+
+    const fetchHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+            const data = await getAdminSentMessages(onLogout);
+            setHistory(data || []);
+        } catch (err) {
+            console.error("Errore caricamento cronologia admin:", err);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
     if (!selectedCharacterData?.is_staff) {
         return <div className="p-4 text-red-400">Accesso negato.</div>;
     }
@@ -33,7 +51,6 @@ const AdminMessageTab = ({ onLogout }) => {
         
         setIsSending(true);
         try {
-            // --- CORREZIONE: Mappiamo i nomi in snake_case per il backend ---
             const payload = {
                 titolo: title, 
                 testo: text,   
@@ -42,8 +59,10 @@ const AdminMessageTab = ({ onLogout }) => {
 
             await postBroadcastMessage(payload, onLogout);
             alert('Messaggio Broadcast inviato con successo!');
-            // Aggiorna cronologia locale
-            setHistory([{ id: Date.now(), titolo: title, testo: text, data_invio: new Date().toISOString() }, ...history]);
+            
+            // Ricarica la cronologia dal server per essere sicuri
+            fetchHistory();
+            
             setTitle('');
             setText('');
         } catch (err) {
@@ -68,7 +87,10 @@ const AdminMessageTab = ({ onLogout }) => {
                     </Tab>
                     <Tab as={Fragment}>
                         {({ selected }) => (
-                            <button className={classNames('w-full rounded-lg py-2 text-sm font-medium', selected ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white')}>
+                            <button 
+                                onClick={fetchHistory} // Ricarica quando clicchi la tab
+                                className={classNames('w-full rounded-lg py-2 text-sm font-medium', selected ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white')}
+                            >
                                 Cronologia Inviati
                             </button>
                         )}
@@ -109,7 +131,7 @@ const AdminMessageTab = ({ onLogout }) => {
                                     id="saveHistory"
                                     className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded"
                                 />
-                                <label htmlFor="saveHistory" className="ml-2 text-sm text-gray-300">Salva nella cronologia pubblica</label>
+                                <label htmlFor="saveHistory" className="ml-2 text-sm text-gray-300">Salva nella cronologia (visibile in questa lista)</label>
                             </div>
                             <button
                                 type="submit"
@@ -121,22 +143,32 @@ const AdminMessageTab = ({ onLogout }) => {
                         </form>
                     </Tab.Panel>
 
-                    {/* SUBTAB 2: CRONOLOGIA (Placeholder) */}
+                    {/* SUBTAB 2: CRONOLOGIA REALE */}
                     <Tab.Panel>
-                        <div className="space-y-2">
-                            {history.length > 0 ? (
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {isLoadingHistory && <p className="text-center text-gray-400">Caricamento...</p>}
+                            
+                            {!isLoadingHistory && history.length > 0 ? (
                                 history.map(msg => (
                                     <div key={msg.id} className="p-3 bg-gray-700 rounded border-l-4 border-gray-500">
-                                        <p className="font-bold text-white">{msg.titolo}</p>
-                                        <p className="text-sm text-gray-400">{msg.testo.substring(0, 50)}...</p>
-                                        <p className="text-xs text-gray-500">Mittente: {msg.mittente} | Inviato il: {new Date(msg.data_invio).toLocaleDateString()}</p>
+                                        <div className="flex justify-between">
+                                            <p className="font-bold text-white">{msg.titolo}</p>
+                                            <span className="text-xs px-2 py-1 rounded bg-gray-800 text-gray-300">
+                                                {msg.tipo_messaggio === 'BROAD' ? 'Broadcast' : msg.tipo_messaggio}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{msg.testo}</p>
+                                        <p className="text-xs text-gray-500 mt-2 text-right">
+                                            Inviato il: {new Date(msg.data_invio).toLocaleString()}
+                                        </p>
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-center text-gray-500 py-8">
-                                    Nessun messaggio inviato in questa sessione.
-                                    <br/><span className="text-xs">(La cronologia persistente richiede un endpoint API dedicato)</span>
-                                </p>
+                                !isLoadingHistory && (
+                                    <p className="text-center text-gray-500 py-8">
+                                        Nessun messaggio trovato nella cronologia inviati.
+                                    </p>
+                                )
                             )}
                         </div>
                     </Tab.Panel>

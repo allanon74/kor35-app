@@ -228,3 +228,10 @@ export const postBroadcastMessage = (messageData, onLogout) => {
     onLogout
   );
 };
+
+/**
+ * GET /personaggi/api/messaggi/admin/sent/ - Ottiene i messaggi inviati dall'admin.
+ */
+export const getAdminSentMessages = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/messaggi/admin/sent/', { method: 'GET' }, onLogout);
+};
