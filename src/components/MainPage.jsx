@@ -4,12 +4,12 @@ import QrTab from './QrTab.jsx';
 import PlaceholderTab from './PlaceholderTab.jsx';
 import QrResultModal from './QrResultModal.jsx';
 import { useCharacter } from './CharacterContext';
-import { Home, QrCode, Bookmark, HelpCircle, LogOut } from 'lucide-react';
+import { Home, QrCode, Bookmark, HelpCircle, LogOut, Mail } from 'lucide-react'; // Import Mail qui
 import AbilitaTab from './AbilitaTab.jsx';
 import MessaggiTab from './MessaggiTab.jsx';
 
-import { Mail } from 'lucide-react';
-import PlayerMessageTab from './PlayerMessageTab.jsx'; // Importa la tab del giocatore
+// Rimuovi l'import di PlayerMessageTab, non serve qui perché usi MessaggiTab
+// import PlayerMessageTab from './PlayerMessageTab.jsx'; 
 
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
@@ -50,7 +50,6 @@ const MainPage = ({ token, onLogout }) => {
     fetchPersonaggi,
     isLoading: isCharacterLoading,
     error: characterError,
-    // Nuovi valori dal Context per la gestione Admin
     isAdmin,
     viewAll,
     toggleViewAll
@@ -90,12 +89,10 @@ const MainPage = ({ token, onLogout }) => {
         );
       case 'abilita':
         return <AbilitaTab onLogout={onLogout} />;
+      case 'messaggi': 
+        return <MessaggiTab onLogout={onLogout} />;
       case 'info':
         return <PlaceholderTab tabName="Info" />;
-        case 'abilita': 
-          return <AbilitaTab onLogout={onLogout} />;
-        case 'messaggi': 
-          return <MessaggiTab onLogout={onLogout} />;
       default:
         return <HomeTab />;
     }
@@ -118,7 +115,7 @@ const MainPage = ({ token, onLogout }) => {
         
         <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 items-center">
             
-          {/* --- CHECKBOX ADMIN (Visibile solo se isAdmin è true) --- */}
+          {/* --- CHECKBOX ADMIN --- */}
           {isAdmin && (
             <label className="flex items-center space-x-2 cursor-pointer select-none bg-gray-700 px-3 py-2 rounded-md border border-gray-600 hover:bg-gray-600">
               <input
@@ -130,7 +127,6 @@ const MainPage = ({ token, onLogout }) => {
               <span className="text-sm text-gray-300 font-medium whitespace-nowrap">Tutti i PG</span>
             </label>
           )}
-          {/* ------------------------------------------------------- */}
 
           <div className="w-full md:w-64">
             {isCharacterLoading && personaggiList.length === 0 ? (
@@ -147,7 +143,6 @@ const MainPage = ({ token, onLogout }) => {
                 <option value="">-- Seleziona Personaggio --</option>
                 {personaggiList.map((pg) => (
                   <option key={pg.id} value={pg.id}>
-                    {/* Mostra il proprietario se si visualizzano tutti i PG */}
                     {viewAll && isAdmin 
                       ? `${pg.nome} (${pg.proprietario_nome || 'Utente'})` 
                       : pg.nome
@@ -175,7 +170,8 @@ const MainPage = ({ token, onLogout }) => {
       </main>
 
       {/* Navigazione */}
-      <nav className="grid grid-cols-4 gap-1 p-2 bg-gray-800 shadow-lg shrink-0">
+      {/* --- MODIFICA QUI: grid-cols-5 --- */}
+      <nav className="grid grid-cols-5 gap-1 p-2 bg-gray-800 shadow-lg shrink-0">
         <TabButton
           icon={<Home size={28} />}
           label="Home"
