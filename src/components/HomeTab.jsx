@@ -3,7 +3,7 @@ import { useCharacter } from './CharacterContext';
 import { Coins, Star } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay'; 
 
-// --- Componenti Helper per la Scheda ---
+// --- Componenti Helper (StatRow, ItemList, LoadingComponent) ---
 
 const StatRow = ({ label, value, icon }) => (
   <div className="flex justify-between items-center p-2 bg-gray-800 rounded-md">
@@ -46,6 +46,7 @@ const LoadingComponent = () => (
   </div>
 );
 
+
 // --- Componente Principale della Scheda ---
 
 const CharacterSheet = ({ data }) => {
@@ -55,9 +56,7 @@ const CharacterSheet = ({ data }) => {
     nome,
     crediti,
     punti_caratteristica,
-    // --- MODIFICA: Usa il nuovo nome del campo inviato dal backend ---
-    punteggi_base, // (Era caratteristiche_base)
-    // --- FINE MODIFICA ---
+    punteggi_base, // <-- Campo corretto (contiene CA, AU, etc.)
     modificatori_calcolati, 
     abilita_possedute, 
     oggetti, 
@@ -66,41 +65,34 @@ const CharacterSheet = ({ data }) => {
 
   // Calcola le liste per Statistiche Primarie, Caratteristiche e Aure
   const { stat_primarie, caratteristiche, aure_possedute } = useMemo(() => {
-    // --- MODIFICA: Controllo su punteggi_base ---
-    if (!punteggiList || punteggiList.length === 0 || !punteggi_base) {
+    if (!punteggiList || punteggiList.length === 0 || !punteggi_base) { 
       return { stat_primarie: [], caratteristiche: [], aure_possedute: [] };
     }
 
-    // Filtra per Statistiche Primarie (ST)
     const primarie = punteggiList.filter(p => p.tipo === 'ST' && p.is_primaria);
 
-    // --- MODIFICA: Mappatura di punteggi_base ---
-    // Mappa TUTTI i punteggi base (Caratteristiche, Aure, etc.)
-    const punteggiMappati = Object.entries(punteggi_base)
+    // Mappa tutti i punteggi base (Caratteristiche, Aure, etc.)
+    const punteggiMappati = Object.entries(punteggi_base) 
       .map(([nome, valore]) => {
-        // Cerca l'oggetto Punteggio completo nella lista master
         const punteggio = punteggiList.find(p => p.nome === nome);
         if (punteggio) {
           return { punteggio, valore };
         }
         return null; 
       })
-      .filter(item => item !== null); // Filtra via quelli non trovati
-    // --- FINE MODIFICA ---
+      .filter(item => item !== null); // Filtra via i null per prevenire crash
 
-    // Filtra per Caratteristiche (CA)
     const chars = punteggiMappati.filter(
       item => item.punteggio.tipo === 'CA'
     );
     
-    // Filtra per Aure (AU)
     const aure = punteggiMappati.filter(
       item => item.punteggio.tipo === 'AU'
     );
 
     return { stat_primarie: primarie, caratteristiche: chars, aure_possedute: aure };
 
-  }, [punteggiList, punteggi_base]); // <-- Dipendenza aggiornata
+  }, [punteggiList, punteggi_base]);
 
   return (
     <div className="p-4 max-w-lg mx-auto">
@@ -108,15 +100,15 @@ const CharacterSheet = ({ data }) => {
       
       {/* Blocco Valute */}
       <div className="grid grid-cols-2 gap-4 mb-6"> 
-        <StatRow label="CR" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
-        <StatRow label="PC" value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
+        <StatRow label="Crediti" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
+        <StatRow label="Punti Car." value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
       </div>
 
       {/* Blocco Statistiche Primarie */}
       {stat_primarie.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Statistiche</h3>
-          {/* GRIGLIA RESPONSIVE: 1 colonna su mobile, 2 su desktop */}
+          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
             {stat_primarie.map((punteggio) => {
               if (!punteggio.parametro) return null; 
@@ -226,7 +218,7 @@ const CharacterSheet = ({ data }) => {
                   value={Math.round(valore_finale)} 
                   displayText="name"
                   iconType="inv_circle"
-                  size="s"
+                  size="m"
                 />
               );
             })}
