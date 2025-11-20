@@ -7,6 +7,9 @@ import { useCharacter } from './CharacterContext';
 import { Home, QrCode, Bookmark, HelpCircle, LogOut } from 'lucide-react';
 import AbilitaTab from './AbilitaTab.jsx';
 
+import { Mail } from 'lucide-react';
+import PlayerMessageTab from './PlayerMessageTab.jsx'; // Importa la tab del giocatore
+
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [qrResultData, setQrResultData] = useState(null);
@@ -88,6 +91,10 @@ const MainPage = ({ token, onLogout }) => {
         return <AbilitaTab onLogout={onLogout} />;
       case 'info':
         return <PlaceholderTab tabName="Info" />;
+        case 'abilita': 
+          return <AbilitaTab onLogout={onLogout} />;
+        case 'messaggi': 
+          return <PlayerMessageTab onLogout={onLogout} />;
       default:
         return <HomeTab />;
     }
@@ -185,6 +192,12 @@ const MainPage = ({ token, onLogout }) => {
           label="QR Code"
           isActive={activeTab === 'qr'}
           onClick={() => setActiveTab('qr')}
+        />
+        <TabButton
+          icon={<Mail size={28} />}
+          label="Messaggi"
+          isActive={activeTab === 'messaggi'}
+          onClick={() => setActiveTab('messaggi')}
         />
         <TabButton
           icon={<HelpCircle size={28} />}

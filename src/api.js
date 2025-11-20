@@ -202,3 +202,24 @@ export const getAcquirableSkills = (onLogout, selectedCharacterId) => {
     onLogout
   );
 };
+
+/**
+ * GET /personaggi/api/messaggi/ - Ottiene la lista dei messaggi per il PG loggato.
+ */
+export const getMessages = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/messaggi/', { method: 'GET' }, onLogout);
+};
+
+/**
+ * POST /personaggi/api/messaggi/broadcast/send/ - Invia un messaggio Broadcast.
+ */
+export const postBroadcastMessage = (messageData, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/messaggi/broadcast/send/',
+    {
+      method: 'POST',
+      body: JSON.stringify(messageData)
+    },
+    onLogout
+  );
+};
