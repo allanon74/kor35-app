@@ -125,8 +125,8 @@ const CharacterSheet = ({ data }) => {
       
       {/* Blocco Valute */}
       <div className="grid grid-cols-2 gap-4 mb-6"> 
-        <StatRow label="Crediti" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
-        <StatRow label="Punti Car." value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
+        <StatRow label="CR" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
+        <StatRow label="PC" value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
       </div>
 
       {/* Blocco Statistiche Primarie */}
