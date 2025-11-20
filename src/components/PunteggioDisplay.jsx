@@ -1,7 +1,7 @@
 import React from 'react';
 import IconaPunteggio from './IconaPunteggio';
 
-// Helper robusto anche qui (per il testo)
+// Helper robusto (per il testo)
 const getTextColorForBg = (hexColor) => {
   if (!hexColor) return 'white';
   try {
@@ -70,23 +70,24 @@ const PunteggioDisplay = ({
       style={{ backgroundColor: punteggio.colore }}
     >
       {/* --- 1. SEZIONE SINISTRA (Icona + Testo) --- */}
+      {/* flex-grow min-w-0 permette il restringimento */}
       <div className={`flex items-center ${layout.gap} grow min-w-0`}> 
         
-        {/* Icona (se presente) */}
+        {/* Icona (impediamo il restringimento) */}
         {iconMode && url && (
           <IconaPunteggio 
             url={url} 
             color={punteggio.colore} 
             mode={iconMode} 
             size={size}
-            className="shrink-0" // Impedisce all'icona di restringersi
+            className="shrink-0" // <-- Fix: Mantiene la dimensione
           />
         )}
         
         {/* Testo (Nome/Sigla) */}
         {textToShow && (
           <span 
-            className={`font-bold uppercase tracking-wider truncate ${layout.text} whitespace-nowrap`} // <-- Aggiunto 'truncate'
+            className={`font-bold uppercase tracking-wider ${layout.text} truncate whitespace-nowrap`} // <-- Fix: Trunca il testo
             style={{ color: textColor }}
           >
             {textToShow}
@@ -97,7 +98,7 @@ const PunteggioDisplay = ({
       {/* --- 2. SEZIONE DESTRA (Valore) --- */}
       {value !== undefined && (
         <span 
-          className={`font-bold font-mono ${layout.val} shrink-0 ml-2 whitespace-nowrap`} // <-- Aggiunto flex-shrink-0 e whitespace-nowrap
+          className={`font-bold font-mono ${layout.val} shrink-0 ml-2 whitespace-nowrap`} // <-- Fix: Mantiene la dimensione e non va a capo
           style={{ color: textColor }}
         >
           {value}
