@@ -10,7 +10,26 @@ import NotificationPopup from './NotificationPopup';
 // 1. Creare il Context
 const CharacterContext = createContext(null);
 
-// 2. Creare il Provider (il "contenitore" dei dati)
+// Helper per inviare notifica di sistema
+const sendSystemNotification = (title, body) => {
+    if (!("Notification" in window)) {
+      return;
+    }
+    
+    if (Notification.permission === "granted") {
+      try {
+          new Notification(title, {
+            body: body,
+            icon: '/pwa-192x192.png', // Usa l'icona della tua PWA
+            vibrate: [200, 100, 200]
+          });
+      } catch (e) {
+          console.error("Errore invio notifica sistema:", e);
+      }
+    }
+};
+
+// 2. Creare il Provider
 export const CharacterProvider = ({ children, onLogout }) => {
   const [personaggiList, setPersonaggiList] = useState([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState('');
@@ -39,26 +58,26 @@ export const CharacterProvider = ({ children, onLogout }) => {
   });
   const [viewAll, setViewAll] = useState(false);
 
+  // Richiedi permessi notifiche al primo caricamento o login
+  useEffect(() => {
+      if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+      }
+  }, []);
+
   // --- WEBSOCKET SETUP ---
   useEffect(() => {
-    // LOGICA URL WEBSOCKET AGGIORNATA PER PRODUZIONE
     let wsUrl = '';
     
-    // Controlliamo se siamo in ambiente di sviluppo locale
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        // LOCALE: Connettiti alla porta 8000
         wsUrl = 'ws://127.0.0.1:8000/ws/notifications/';
     } else {
-        // PRODUZIONE / PRE-PRODUZIONE: 
-        // Il frontend è su 'app.kor35.it', ma il WebSocket deve connettersi al Backend su 'www.kor35.it'
-        // per condividere i cookie di sessione e l'autenticazione.
         const backendHost = 'www.kor35.it'; 
         wsUrl = `wss://${backendHost}/ws/notifications/`;
     }
     
     console.log('Tentativo connessione WebSocket a:', wsUrl);
 
-    // 2. Inizializza connessione
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
@@ -82,13 +101,17 @@ export const CharacterProvider = ({ children, onLogout }) => {
            } else if (msg.tipo === 'INDV' && msg.destinatario_id === myCharId) {
                shouldShow = true;
            } else if (msg.tipo === 'GROUP') {
-               // Qui potresti aggiungere logica per verificare l'appartenenza al gruppo
                shouldShow = true; 
            }
 
            if (shouldShow) {
               console.log("📩 Nuova notifica ricevuta:", msg.titolo);
-              setNotification(msg);
+              setNotification(msg); // Notifica In-App (Popup React)
+              
+              // --- NOTIFICA DI SISTEMA (Windows/Android/iOS) ---
+              // Rimuoviamo i tag HTML dal testo per la notifica di sistema
+              const plainText = msg.testo.replace(/<[^>]+>/g, '');
+              sendSystemNotification(msg.titolo, plainText);
            }
         }
       } catch (e) {
@@ -97,7 +120,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
     };
 
     ws.current.onclose = () => {
-      // Non loggare come errore, è normale durante i refresh o logout
       console.log('ℹ️ WebSocket Disconnesso');
     };
 
@@ -105,7 +127,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
       console.error('⚠️ WebSocket Errore (Controlla console Network per dettagli)');
     };
 
-    // Cleanup alla chiusura del componente o cambio personaggio
     return () => {
       if (ws.current) {
         ws.current.close();
@@ -117,8 +138,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
       setNotification(null);
   };
 
-  // --- FUNZIONI API ---
-
+  // --- FUNZIONI API (INVARIATE) ---
   const fetchAcquirableSkills = useCallback(async (characterId) => {
     if (!characterId) {
         setAcquirableSkills([]); 
@@ -241,23 +261,17 @@ export const CharacterProvider = ({ children, onLogout }) => {
     personaggiList,
     selectedCharacterId,
     selectedCharacterData,
-    
-    // Stati Loading
     isLoading: isLoadingList || isLoadingDetail || isLoadingAcquirable || isLoadingPunteggi,
     isLoadingList,
     isLoadingDetail,
     isLoadingAcquirable,
     isLoadingPunteggi,
     error,
-    
-    // Funzioni
     fetchPersonaggi,
     selectCharacter: handleSelectCharacter,
     refreshCharacterData,
     acquirableSkills,
     punteggiList,
-
-    // Admin
     isAdmin,
     viewAll,
     toggleViewAll,

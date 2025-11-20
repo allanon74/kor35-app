@@ -10,7 +10,6 @@ const PlayerMessageTab = ({ onLogout }) => {
 
     useEffect(() => {
         const fetchMessages = async () => {
-            // Usa selectedCharacterId, che è quello che determina la selezione
             if (!selectedCharacterId) {
                 setMessages([]); 
                 return;
@@ -18,7 +17,6 @@ const PlayerMessageTab = ({ onLogout }) => {
             setIsLoading(true);
             setFetchError(null);
             try {
-                // Passa l'ID selezionato all'API
                 const data = await getMessages(selectedCharacterId, onLogout);
                 setMessages(data || []);
             } catch (err) {
@@ -28,9 +26,7 @@ const PlayerMessageTab = ({ onLogout }) => {
             }
         };
 
-        // --- CORREZIONE: Chiamata della funzione ---
         fetchMessages(); 
-        // -------------------------------------------
 
     }, [selectedCharacterId, onLogout]); 
 
@@ -53,9 +49,16 @@ const PlayerMessageTab = ({ onLogout }) => {
             {messages.length > 0 ? (
                 messages.map(msg => (
                     <div key={msg.id} className="p-3 bg-gray-800 rounded mb-3 shadow-md">
-                        <p className="font-semibold text-indigo-400">{msg.titolo}</p>
-                        <p className="text-sm text-gray-300 whitespace-pre-wrap">{msg.testo}</p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="font-semibold text-indigo-400 mb-1">{msg.titolo}</p>
+                        
+                        {/* --- CORREZIONE: Rendering HTML --- */}
+                        <div 
+                            className="text-sm text-gray-300 prose prose-invert max-w-none"
+                            dangerouslySetInnerHTML={{ __html: msg.testo }}
+                        />
+                        {/* ---------------------------------- */}
+
+                        <p className="text-xs text-gray-500 mt-2 border-t border-gray-700 pt-1">
                             Mittente: {msg.mittente} | Data: {new Date(msg.data_invio).toLocaleDateString()}
                         </p>
                     </div>

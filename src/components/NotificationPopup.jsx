@@ -3,11 +3,11 @@ import React, { useEffect } from 'react';
 const NotificationPopup = ({ notification, onClose }) => {
   if (!notification) return null;
 
-  // Chiudi automaticamente dopo 5 secondi
+  // Chiudi automaticamente dopo 10 secondi (10000 ms)
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
-    }, 5000);
+    }, 10000); // <--- MODIFICATO: Durata più lunga
     return () => clearTimeout(timer);
   }, [notification, onClose]);
 
@@ -16,7 +16,6 @@ const NotificationPopup = ({ notification, onClose }) => {
       <div className="p-4">
         <div className="flex items-start">
           <div className="shrink-0">
-            {/* Icona Campana */}
             <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
@@ -25,9 +24,13 @@ const NotificationPopup = ({ notification, onClose }) => {
             <p className="text-sm font-medium text-gray-900">
               {notification.titolo}
             </p>
-            <p className="mt-1 text-sm text-gray-500">
-              {notification.testo.substring(0, 100)}{notification.testo.length > 100 ? '...' : ''}
-            </p>
+            
+            {/* MODIFICA QUI: Renderizza HTML invece di testo puro */}
+            <div 
+                className="mt-1 text-sm text-gray-500"
+                dangerouslySetInnerHTML={{ __html: notification.testo }}
+            />
+            
             <p className="mt-1 text-xs text-gray-400">
                 Da: {notification.mittente}
             </p>
@@ -39,7 +42,7 @@ const NotificationPopup = ({ notification, onClose }) => {
             >
               <span className="sr-only">Chiudi</span>
               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </button>
           </div>
