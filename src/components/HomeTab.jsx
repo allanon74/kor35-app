@@ -3,7 +3,8 @@ import { useCharacter } from './CharacterContext';
 import { Coins, Star } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay'; 
 
-// --- Componenti Helper (StatRow, ItemList, LoadingComponent) ---
+// --- Componenti Helper per la Scheda ---
+
 const StatRow = ({ label, value, icon }) => (
   <div className="flex justify-between items-center p-2 bg-gray-800 rounded-md">
     <div className="flex items-center">
@@ -54,7 +55,9 @@ const CharacterSheet = ({ data }) => {
     nome,
     crediti,
     punti_caratteristica,
-    caratteristiche_base, 
+    // --- MODIFICA: Usa il nuovo nome del campo inviato dal backend ---
+    punteggi_base, // (Era caratteristiche_base)
+    // --- FINE MODIFICA ---
     modificatori_calcolati, 
     abilita_possedute, 
     oggetti, 
@@ -63,40 +66,47 @@ const CharacterSheet = ({ data }) => {
 
   // Calcola le liste per Statistiche Primarie, Caratteristiche e Aure
   const { stat_primarie, caratteristiche, aure_possedute } = useMemo(() => {
-    if (!punteggiList || punteggiList.length === 0 || !caratteristiche_base) {
+    // --- MODIFICA: Controllo su punteggi_base ---
+    if (!punteggiList || punteggiList.length === 0 || !punteggi_base) {
       return { stat_primarie: [], caratteristiche: [], aure_possedute: [] };
     }
 
+    // Filtra per Statistiche Primarie (ST)
     const primarie = punteggiList.filter(p => p.tipo === 'ST' && p.is_primaria);
 
-    const punteggiMappati = Object.entries(caratteristiche_base)
+    // --- MODIFICA: Mappatura di punteggi_base ---
+    // Mappa TUTTI i punteggi base (Caratteristiche, Aure, etc.)
+    const punteggiMappati = Object.entries(punteggi_base)
       .map(([nome, valore]) => {
+        // Cerca l'oggetto Punteggio completo nella lista master
         const punteggio = punteggiList.find(p => p.nome === nome);
         if (punteggio) {
           return { punteggio, valore };
         }
-        return null;
+        return null; 
       })
-      .filter(item => item !== null); 
+      .filter(item => item !== null); // Filtra via quelli non trovati
+    // --- FINE MODIFICA ---
 
+    // Filtra per Caratteristiche (CA)
     const chars = punteggiMappati.filter(
       item => item.punteggio.tipo === 'CA'
     );
     
+    // Filtra per Aure (AU)
     const aure = punteggiMappati.filter(
       item => item.punteggio.tipo === 'AU'
     );
 
     return { stat_primarie: primarie, caratteristiche: chars, aure_possedute: aure };
 
-  }, [punteggiList, caratteristiche_base]);
+  }, [punteggiList, punteggi_base]); // <-- Dipendenza aggiornata
 
   return (
     <div className="p-4 max-w-lg mx-auto">
       <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center">{nome}</h2>
       
       {/* Blocco Valute */}
-      {/* Questo blocco resta a 2 colonne, è abbastanza compatto */}
       <div className="grid grid-cols-2 gap-4 mb-6"> 
         <StatRow label="Crediti" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
         <StatRow label="Punti Car." value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
@@ -106,7 +116,7 @@ const CharacterSheet = ({ data }) => {
       {stat_primarie.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Statistiche</h3>
-          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          {/* GRIGLIA RESPONSIVE: 1 colonna su mobile, 2 su desktop */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
             {stat_primarie.map((punteggio) => {
               if (!punteggio.parametro) return null; 
@@ -121,7 +131,7 @@ const CharacterSheet = ({ data }) => {
                   value={Math.round(valore_finale)} 
                   displayText="name"
                   iconType="inv_circle"
-                  // RIMOZIONE SIZE "s" - Ora usa la dimensione "m" di default su full width
+                  size="m"
                 />
               );
             })}
@@ -133,7 +143,7 @@ const CharacterSheet = ({ data }) => {
       {caratteristiche.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Caratteristiche</h3>
-          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {caratteristiche.map(({ punteggio, valore }) => (
                 <PunteggioDisplay
@@ -142,7 +152,7 @@ const CharacterSheet = ({ data }) => {
                   value={valore}         
                   displayText="name"   
                   iconType="inv_circle"
-                  // RIMOZIONE SIZE "s"
+                  size="m"
                 />
             ))}
           </div>
@@ -174,7 +184,7 @@ const CharacterSheet = ({ data }) => {
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
             Aure Possedute
           </summary>
-          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-t border-gray-700">
             {aure_possedute.map(({ punteggio, valore }) => (
               <PunteggioDisplay
@@ -183,7 +193,7 @@ const CharacterSheet = ({ data }) => {
                 value={valore}
                 displayText="name"
                 iconType="inv_circle"
-                // RIMOZIONE SIZE "s"
+                size="m"
               />
             ))}
           </div>
@@ -196,7 +206,7 @@ const CharacterSheet = ({ data }) => {
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
             Statistiche Secondarie
           </summary>
-          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-t border-gray-700">
             
             {Object.entries(modificatori_calcolati).map(([parametro, mods]) => {
@@ -216,16 +226,13 @@ const CharacterSheet = ({ data }) => {
                   value={Math.round(valore_finale)} 
                   displayText="name"
                   iconType="inv_circle"
-                  // RIMOZIONE SIZE "s"
+                  size="m"
                 />
               );
             })}
           </div>
         </details>
       )}
-
-      {/* Dati Grezzi (commentati) */}
-      {/* ... */}
     </div>
   );
 };
