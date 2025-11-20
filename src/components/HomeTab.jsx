@@ -2,10 +2,8 @@ import React, { useMemo } from 'react';
 import { useCharacter } from './CharacterContext';
 import { Coins, Star } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay'; 
-import GroupedSkillList from './GroupedSkillList'; // <--- IMPORT
 
-// --- Componenti Helper ---
-
+// --- Componenti Helper (StatRow, ItemList, LoadingComponent) ---
 const StatRow = ({ label, value, icon }) => (
   <div className="flex justify-between items-center p-2 bg-gray-800 rounded-md">
     <div className="flex items-center">
@@ -24,12 +22,14 @@ const ItemList = ({ title, items, keyField = 'id', nameField = 'nome' }) => (
         {items.map((item) => (
           <li key={item[keyField]} className="text-gray-300">
             <span className="font-semibold text-white">{item[nameField]}</span>
+            
             {item.descrizione && (
               <div
                 className="text-sm text-gray-400 pl-4 prose prose-invert prose-sm"
                 dangerouslySetInnerHTML={{ __html: item.descrizione }}
               />
             )}
+            
           </li>
         ))}
       </ul>
@@ -40,12 +40,12 @@ const ItemList = ({ title, items, keyField = 'id', nameField = 'nome' }) => (
 );
 
 const LoadingComponent = () => (
-    <div className="p-8 text-center text-lg text-gray-400">
-      Caricamento dati personaggio...
-    </div>
+  <div className="p-8 text-center text-lg text-gray-400">
+    Caricamento dati personaggio...
+  </div>
 );
 
-// --- Componente Principale ---
+// --- Componente Principale della Scheda ---
 
 const CharacterSheet = ({ data }) => {
   const { punteggiList } = useCharacter();
@@ -54,48 +54,50 @@ const CharacterSheet = ({ data }) => {
     nome,
     crediti,
     punti_caratteristica,
-    punteggi_base, 
+    caratteristiche_base, 
     modificatori_calcolati, 
     abilita_possedute, 
     oggetti, 
     log_eventi 
   } = data;
 
-  // Calcola liste ordinate basandosi su punteggiList (che ha l'ordine del backend)
+  // Calcola le liste per Statistiche Primarie, Caratteristiche e Aure
   const { stat_primarie, caratteristiche, aure_possedute } = useMemo(() => {
-    if (!punteggiList || punteggiList.length === 0 || !punteggi_base) {
+    if (!punteggiList || punteggiList.length === 0 || !caratteristiche_base) {
       return { stat_primarie: [], caratteristiche: [], aure_possedute: [] };
     }
 
-    const primarie = [];
-    const chars = [];
-    const aure = [];
+    const primarie = punteggiList.filter(p => p.tipo === 'ST' && p.is_primaria);
 
-    punteggiList.forEach(punteggio => {
-        if (punteggio.tipo === 'ST' && punteggio.is_primaria) {
-            primarie.push(punteggio);
+    const punteggiMappati = Object.entries(caratteristiche_base)
+      .map(([nome, valore]) => {
+        const punteggio = punteggiList.find(p => p.nome === nome);
+        if (punteggio) {
+          return { punteggio, valore };
         }
+        return null;
+      })
+      .filter(item => item !== null); 
 
-        const valore = punteggi_base[punteggio.nome];
-        if (valore !== undefined && valore !== null) {
-            if (punteggio.tipo === 'CA') {
-                chars.push({ punteggio, valore });
-            } else if (punteggio.tipo === 'AU') {
-                aure.push({ punteggio, valore });
-            }
-        }
-    });
+    const chars = punteggiMappati.filter(
+      item => item.punteggio.tipo === 'CA'
+    );
+    
+    const aure = punteggiMappati.filter(
+      item => item.punteggio.tipo === 'AU'
+    );
 
     return { stat_primarie: primarie, caratteristiche: chars, aure_possedute: aure };
 
-  }, [punteggiList, punteggi_base]);
+  }, [punteggiList, caratteristiche_base]);
 
   return (
-    <div className="p-4 max-w-lg mx-auto pb-20">
+    <div className="p-4 max-w-lg mx-auto">
       <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center">{nome}</h2>
       
       {/* Blocco Valute */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      {/* Questo blocco resta a 2 colonne, è abbastanza compatto */}
+      <div className="grid grid-cols-2 gap-4 mb-6"> 
         <StatRow label="Crediti" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
         <StatRow label="Punti Car." value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
       </div>
@@ -104,9 +106,11 @@ const CharacterSheet = ({ data }) => {
       {stat_primarie.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Statistiche</h3>
-          <div className="grid grid-cols-2 gap-4">
+          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
             {stat_primarie.map((punteggio) => {
               if (!punteggio.parametro) return null; 
+
               const mods = modificatori_calcolati[punteggio.parametro] || {add: 0, mol: 1.0};
               const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
               
@@ -115,9 +119,9 @@ const CharacterSheet = ({ data }) => {
                   key={punteggio.id}
                   punteggio={punteggio}
                   value={Math.round(valore_finale)} 
-                  displayText="name" 
+                  displayText="name"
                   iconType="inv_circle"
-                  size="l"
+                  // RIMOZIONE SIZE "s" - Ora usa la dimensione "m" di default su full width
                 />
               );
             })}
@@ -129,7 +133,8 @@ const CharacterSheet = ({ data }) => {
       {caratteristiche.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Caratteristiche</h3>
-          <div className="grid grid-cols-2 gap-4">
+          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {caratteristiche.map(({ punteggio, valore }) => (
                 <PunteggioDisplay
                   key={punteggio.id} 
@@ -137,26 +142,18 @@ const CharacterSheet = ({ data }) => {
                   value={valore}         
                   displayText="name"   
                   iconType="inv_circle"
-                  size="m"
+                  // RIMOZIONE SIZE "s"
                 />
             ))}
           </div>
         </div>
       )}
 
-      {/* Blocco Abilità Raggruppate (COMPONENTE CONDIVISO) */}
-      <div className="mb-6">
-        <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Abilità</h3>
-        <GroupedSkillList 
-            skills={abilita_possedute} 
-            punteggiList={punteggiList} 
-            showDescription={true} // <--- Attiva descrizione
-        />
-      </div>
-
+      {/* Blocchi Liste */}
+      <ItemList title="Abilità" items={abilita_possedute} />
       <ItemList title="Oggetti" items={oggetti} />
 
-      {/* Log Eventi */}
+      {/* Blocco Log Eventi */}
       {log_eventi && log_eventi.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Log Eventi</h3>
@@ -171,13 +168,14 @@ const CharacterSheet = ({ data }) => {
         </div>
       )}
 
-      {/* Aure */}
+      {/* Blocco Aure Possedute */}
       {aure_possedute.length > 0 && (
         <details className="mt-4 bg-gray-800 rounded-lg shadow-inner" open>
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
             Aure Possedute
           </summary>
-          <div className="grid grid-cols-2 gap-4 p-4 border-t border-gray-700">
+          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-t border-gray-700">
             {aure_possedute.map(({ punteggio, valore }) => (
               <PunteggioDisplay
                 key={punteggio.id}
@@ -185,80 +183,90 @@ const CharacterSheet = ({ data }) => {
                 value={valore}
                 displayText="name"
                 iconType="inv_circle"
-                size="l"
+                // RIMOZIONE SIZE "s"
               />
             ))}
           </div>
         </details>
       )}
 
-      {/* Secondarie */}
+      {/* Blocco Modificatori (Statistiche Secondarie) */}
       {modificatori_calcolati && (
         <details className="mt-4 bg-gray-800 rounded-lg shadow-inner">
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
             Statistiche Secondarie
           </summary>
-          <div className="grid grid-cols-3 gap-2 p-4 border-t border-gray-700">
-            {punteggiList.map((punteggio) => {
-               if (!punteggio.parametro || punteggio.is_primaria) return null;
-               const mods = modificatori_calcolati[punteggio.parametro];
-               if (!mods) return null;
+          {/* --- MODIFICA: GRIGLIA RESPONSIVE --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-t border-gray-700">
+            
+            {Object.entries(modificatori_calcolati).map(([parametro, mods]) => {
+              
+              const punteggio = punteggiList.find(p => p.parametro === parametro);
 
-               const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
-               
-               return (
+              if (!punteggio || punteggio.is_primaria) {
+                return null;
+              }
+
+              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+              
+              return (
                 <PunteggioDisplay
                   key={punteggio.id}
                   punteggio={punteggio}
                   value={Math.round(valore_finale)} 
                   displayText="name"
                   iconType="inv_circle"
-                  size="s"
+                  // RIMOZIONE SIZE "s"
                 />
               );
             })}
           </div>
         </details>
       )}
+
+      {/* Dati Grezzi (commentati) */}
+      {/* ... */}
     </div>
   );
 };
 
+
+// --- Componente Tab ---
 const HomeTab = () => {
-    const { 
-      selectedCharacterData, 
-      isLoadingDetail,
-      isLoadingPunteggi, 
-      selectedCharacterId, 
-      error 
-    } = useCharacter();
+  const { 
+    selectedCharacterData, 
+    isLoadingDetail,
+    isLoadingPunteggi, 
+    selectedCharacterId, 
+    error 
+  } = useCharacter();
+
+  if (isLoadingDetail || isLoadingPunteggi) {
+    return <LoadingComponent />;
+  }
   
-    if (isLoadingDetail || isLoadingPunteggi) {
-      return <LoadingComponent />;
-    }
-    
-    if (error && !selectedCharacterData) {
-        return <div className="p-4 text-center text-red-400">Errore nel caricamento del personaggio. Riprova.</div>;
-    }
+  if (error && !selectedCharacterData) {
+      return <div className="p-4 text-center text-red-400">Errore nel caricamento del personaggio. Riprova.</div>;
+  }
+
+  if (!selectedCharacterId) {
+    return (
+      <div className="p-8 text-center text-gray-400">
+        <h2 className="text-2xl font-bold mb-4">Benvenuto!</h2>
+        <p className="text-lg">Seleziona un personaggio dal menu in alto per visualizzare la sua scheda.</p>
+      </div>
+    );
+  }
   
-    if (!selectedCharacterId) {
+  if (!selectedCharacterData) {
       return (
-        <div className="p-8 text-center text-gray-400">
-          <h2 className="text-2xl font-bold mb-4">Benvenuto!</h2>
-          <p className="text-lg">Seleziona un personaggio dal menu in alto per visualizzare la sua scheda.</p>
-        </div>
+      <div className="p-8 text-center text-gray-400">
+        <p>Nessun dato trovato per il personaggio selezionato.</p>
+      </div>
       );
-    }
-    
-    if (!selectedCharacterData) {
-        return (
-        <div className="p-8 text-center text-gray-400">
-          <p>Nessun dato trovato per il personaggio selezionato.</p>
-        </div>
-        );
-    }
-  
-    return <CharacterSheet data={selectedCharacterData} />;
+  }
+
+  return <CharacterSheet data={selectedCharacterData} />;
 };
-  
+
 export default HomeTab;
