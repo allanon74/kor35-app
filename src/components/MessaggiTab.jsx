@@ -9,18 +9,21 @@ function classNames(...classes) {
 }
 
 const MessaggiTab = ({ onLogout }) => {
-  const { selectedCharacterData: char } = useCharacter();
+  // Prendi anche 'viewAll' dal context
+  const { selectedCharacterData: char, viewAll } = useCharacter(); 
 
   if (!char) return <div className="p-4 text-gray-400">Caricamento...</div>;
 
-  // Usa il nuovo campo che abbiamo aggiunto al serializer
-  const isAdmin = char.is_staff; 
+  // Mostra la tab Admin SOLO SE:
+  // 1. Il personaggio è staff (è un admin)
+  // 2. E NON siamo in modalità "Vedi Tutti" (quindi stiamo guardando il nostro PG)
+  //    (Questo assume che tu usi la checkbox "Tutti i PG" per spiare gli altri)
+  const showAdminTab = char.is_staff && !viewAll;
 
   return (
     <div className="w-full p-4">
       <Tab.Group>
         <Tab.List className="flex space-x-1 rounded-xl bg-gray-800 p-1">
-          {/* Tab 1: Messaggi Ricevuti (Per tutti) */}
           <Tab as={Fragment}>
             {({ selected }) => (
               <button className={classNames(
@@ -33,8 +36,7 @@ const MessaggiTab = ({ onLogout }) => {
             )}
           </Tab>
           
-          {/* Tab 2: Amministrazione (Solo per Admin) */}
-          {isAdmin && (
+          {showAdminTab && (
             <Tab as={Fragment}>
               {({ selected }) => (
                 <button className={classNames(
