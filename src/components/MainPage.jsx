@@ -6,6 +6,7 @@ import QrResultModal from './QrResultModal.jsx';
 import { useCharacter } from './CharacterContext';
 import { Home, QrCode, Bookmark, HelpCircle, LogOut } from 'lucide-react';
 import AbilitaTab from './AbilitaTab.jsx';
+import MessaggiTab from './MessaggiTab.jsx';
 
 import { Mail } from 'lucide-react';
 import PlayerMessageTab from './PlayerMessageTab.jsx'; // Importa la tab del giocatore
@@ -94,7 +95,7 @@ const MainPage = ({ token, onLogout }) => {
         case 'abilita': 
           return <AbilitaTab onLogout={onLogout} />;
         case 'messaggi': 
-          return <PlayerMessageTab onLogout={onLogout} />;
+          return <MessaggiTab onLogout={onLogout} />;
       default:
         return <HomeTab />;
     }
