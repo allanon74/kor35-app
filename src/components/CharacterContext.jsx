@@ -5,7 +5,7 @@ import {
   getAcquirableSkills, 
   getPunteggiList,
 } from '../api'; 
-import NotificationPopup from './NotificationPopup'; // Assicurati di aver creato questo file come da istruzioni precedenti
+import NotificationPopup from './NotificationPopup';
 
 // 1. Creare il Context
 const CharacterContext = createContext(null);
@@ -41,15 +41,18 @@ export const CharacterProvider = ({ children, onLogout }) => {
 
   // --- WEBSOCKET SETUP ---
   useEffect(() => {
-    // 1. Determina l'URL del WebSocket
-    // Nota: In produzione con Apache/ProxyPass, la porta potrebbe non essere necessaria se mappata su /ws/
-    // In sviluppo locale React -> Django, si usa spesso la porta 8000.
+    // LOGICA URL WEBSOCKET CORRETTA [MODIFICATA]
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
-    const port = '8000'; // Assumiamo porta standard Django Dev. In produzione rimuovi o gestisci via ENV.
     
-    const wsUrl = `${protocol}//${hostname}:${port}/ws/notifications/`;
+    // Se siamo in locale (localhost), usiamo la porta 8000.
+    // Se siamo in produzione (app.kor35.it), NON specifichiamo la porta (usa la 443 di default gestita da Apache).
+    const port = hostname === 'localhost' || hostname === '127.0.0.1' ? ':8000' : '';
     
+    const wsUrl = `${protocol}//${hostname}${port}/ws/notifications/`;
+    
+    console.log('Tentativo connessione WebSocket a:', wsUrl);
+
     // 2. Inizializza connessione
     ws.current = new WebSocket(wsUrl);
 
@@ -65,21 +68,15 @@ export const CharacterProvider = ({ children, onLogout }) => {
            const msg = data.payload;
            
            // --- FILTRO MESSAGGI ---
-           // Mostriamo la notifica solo se pertinente al personaggio loggato
            const myCharId = parseInt(selectedCharacterId); 
            
            let shouldShow = false;
 
            if (msg.tipo === 'BROAD') {
-               // Messaggio Broadcast: per tutti
                shouldShow = true;
            } else if (msg.tipo === 'INDV' && msg.destinatario_id === myCharId) {
-               // Messaggio Privato: solo se l'ID corrisponde
                shouldShow = true;
            } else if (msg.tipo === 'GROUP') {
-               // Messaggio di Gruppo: (Logica semplificata: mostra se il pg è in un gruppo)
-               // Se vuoi essere preciso, dovresti controllare se myCharId appartiene a msg.gruppo_id
-               // Per ora mostriamo i messaggi di gruppo generici se implementato
                shouldShow = true; 
            }
 
@@ -94,11 +91,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
     };
 
     ws.current.onclose = () => {
-      console.log('❌ WebSocket Disconnesso');
+      // Non loggare come errore, è normale durante i refresh o logout
+      console.log('ℹ️ WebSocket Disconnesso');
     };
 
     ws.current.onerror = (err) => {
-      console.error('⚠️ WebSocket Errore:', err);
+      console.error('⚠️ WebSocket Errore (Controlla console Network per dettagli)');
     };
 
     // Cleanup alla chiusura del componente o cambio personaggio
@@ -107,7 +105,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
         ws.current.close();
       }
     };
-  }, [selectedCharacterId]); // Si riconnette se cambia il personaggio selezionato per aggiornare il filtro (closure)
+  }, [selectedCharacterId]); 
 
   const closeNotification = () => {
       setNotification(null);
@@ -262,7 +260,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
   return (
     <CharacterContext.Provider value={value}>
       {children}
-      {/* POPUP GLOBALE PER LE NOTIFICHE */}
       <NotificationPopup 
           notification={notification} 
           onClose={closeNotification} 
@@ -271,7 +268,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
   );
 };
 
-// 3. Creare l'Hook custom
 export const useCharacter = () => {
   const context = useContext(CharacterContext);
   if (context === null) {
