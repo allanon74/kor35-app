@@ -1,10 +1,11 @@
-import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
+import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { 
   getPersonaggiList, 
   getPersonaggioDetail, 
   getAcquirableSkills, 
   getPunteggiList,
-} from '../api'; // IMPORT STANDARD (senza estensione)
+} from '../api'; 
+import NotificationPopup from './NotificationPopup'; // Assicurati di aver creato questo file come da istruzioni precedenti
 
 // 1. Creare il Context
 const CharacterContext = createContext(null);
@@ -14,35 +15,113 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [personaggiList, setPersonaggiList] = useState([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState('');
   const [selectedCharacterData, setSelectedCharacterData] = useState(null);
+  
+  // Stati di caricamento
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [isLoadingAcquirable, setIsLoadingAcquirable] = useState(false);
+  const [isLoadingPunteggi, setIsLoadingPunteggi] = useState(false);
+  
   const [error, setError] = useState(null);
 
-  // --- STATI MODIFICATI ---
+  // Stati aggiuntivi
   const [acquirableSkills, setAcquirableSkills] = useState([]);
-  const [isLoadingAcquirable, setIsLoadingAcquirable] = useState(false);
-  // ---
+  const [punteggiList, setPunteggiList] = useState([]);
+
+  // --- NOTIFICHE REAL-TIME ---
+  const [notification, setNotification] = useState(null);
+  const ws = useRef(null);
 
   // LOGICA ADMIN
   const [isAdmin] = useState(() => {
       const isStaff = localStorage.getItem('kor35_is_staff');
-      console.log("🔎 DEBUG KOR-35 - Stato Admin caricato:", isStaff); 
       return isStaff === 'true'; 
   });
   const [viewAll, setViewAll] = useState(false);
 
-  const [punteggiList, setPunteggiList] = useState([]);
-  const [isLoadingPunteggi, setIsLoadingPunteggi] = useState(false);
+  // --- WEBSOCKET SETUP ---
+  useEffect(() => {
+    // 1. Determina l'URL del WebSocket
+    // Nota: In produzione con Apache/ProxyPass, la porta potrebbe non essere necessaria se mappata su /ws/
+    // In sviluppo locale React -> Django, si usa spesso la porta 8000.
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const hostname = window.location.hostname;
+    const port = '8000'; // Assumiamo porta standard Django Dev. In produzione rimuovi o gestisci via ENV.
+    
+    const wsUrl = `${protocol}//${hostname}:${port}/ws/notifications/`;
+    
+    // 2. Inizializza connessione
+    ws.current = new WebSocket(wsUrl);
 
-  // Funzione abilità acquistabili
+    ws.current.onopen = () => {
+      console.log('✅ WebSocket Connesso a:', wsUrl);
+    };
+
+    ws.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'notification') {
+           const msg = data.payload;
+           
+           // --- FILTRO MESSAGGI ---
+           // Mostriamo la notifica solo se pertinente al personaggio loggato
+           const myCharId = parseInt(selectedCharacterId); 
+           
+           let shouldShow = false;
+
+           if (msg.tipo === 'BROAD') {
+               // Messaggio Broadcast: per tutti
+               shouldShow = true;
+           } else if (msg.tipo === 'INDV' && msg.destinatario_id === myCharId) {
+               // Messaggio Privato: solo se l'ID corrisponde
+               shouldShow = true;
+           } else if (msg.tipo === 'GROUP') {
+               // Messaggio di Gruppo: (Logica semplificata: mostra se il pg è in un gruppo)
+               // Se vuoi essere preciso, dovresti controllare se myCharId appartiene a msg.gruppo_id
+               // Per ora mostriamo i messaggi di gruppo generici se implementato
+               shouldShow = true; 
+           }
+
+           if (shouldShow) {
+              console.log("📩 Nuova notifica ricevuta:", msg.titolo);
+              setNotification(msg);
+           }
+        }
+      } catch (e) {
+        console.error("Errore parsing messaggio WS:", e);
+      }
+    };
+
+    ws.current.onclose = () => {
+      console.log('❌ WebSocket Disconnesso');
+    };
+
+    ws.current.onerror = (err) => {
+      console.error('⚠️ WebSocket Errore:', err);
+    };
+
+    // Cleanup alla chiusura del componente o cambio personaggio
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, [selectedCharacterId]); // Si riconnette se cambia il personaggio selezionato per aggiornare il filtro (closure)
+
+  const closeNotification = () => {
+      setNotification(null);
+  };
+
+  // --- FUNZIONI API ---
+
   const fetchAcquirableSkills = useCallback(async (characterId) => {
     if (!characterId) {
-        setAcquirableSkills([]); // Pulisce se non c'è ID
+        setAcquirableSkills([]); 
         return;
     }
     setIsLoadingAcquirable(true);
     try {
-      // Passa l'ID al chiamante API
       const data = await getAcquirableSkills(onLogout, characterId);
       setAcquirableSkills(data || []);
     } catch (err) {
@@ -53,7 +132,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
   }, [onLogout]);
 
-  // Funzione per selezionare un personaggio
   const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
@@ -77,13 +155,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } catch (err) {
       setError(err.message || `Impossibile caricare i dati per il personaggio ${id}.`);
       setSelectedCharacterData(null);
-      setSelectedCharacterId(''); // Resetta l'ID se il caricamento fallisce
+      setSelectedCharacterId(''); 
     } finally {
       setIsLoadingDetail(false);
     }
-  }, [onLogout, selectedCharacterId]); // fetchAcquirableSkills rimosso per TDZ fix
+  }, [onLogout, selectedCharacterId]); 
 
-  // Funzione punteggi
   const fetchPunteggi = useCallback(async () => {
     setIsLoadingPunteggi(true);
     try {
@@ -97,17 +174,13 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
   }, [onLogout]);
 
-
-  // Funzione per caricare la lista dei personaggi
   const fetchPersonaggi = useCallback(async () => {
     setIsLoadingList(true);
     setError(null);
     
-    // Carica la lista personaggi e i punteggi in parallelo.
     await Promise.all([
         (async () => {
             try {
-              // viewAll è letto correttamente dalla closure
               const data = await getPersonaggiList(onLogout, viewAll); 
               setPersonaggiList(data || []);
               
@@ -132,20 +205,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
     ]);
     
     setIsLoadingList(false); 
-    
-  }, [onLogout, viewAll]); // selectCharacter e fetchPunteggi rimosse per TDZ fix
+  }, [onLogout, viewAll]); 
 
-
-  // Funzione toggle checkbox admin
   const toggleViewAll = () => {
-      // 1. Aggiorna lo stato viewAll
       setViewAll(prev => !prev);
-      // 2. FIX: Chiama esplicitamente fetchPersonaggi per forzare il ricaricamento 
-      // della lista con il nuovo valore di viewAll (che sarà disponibile nel prossimo ciclo di render/closure)
-      // fetchPersonaggi();
   };
 
-  // Funzione Refresh Dati
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
       setIsLoadingDetail(true);
@@ -161,23 +226,19 @@ export const CharacterProvider = ({ children, onLogout }) => {
           setIsLoadingAcquirable(false);
       }
     }
-  }, [selectedCharacterId]); // selectCharacter rimosso per TDZ fix
+  }, [selectedCharacterId]); 
 
-
-  // Funzione wrapper selezione
   const handleSelectCharacter = async (id) => {
     localStorage.setItem('kor35_last_char_id', id);
     await selectCharacter(id, false);
   };
 
-
-  // Dati che rendiamo disponibili a tutta l'app
   const value = {
     personaggiList,
     selectedCharacterId,
     selectedCharacterData,
-
-    // Stati di caricamento
+    
+    // Stati Loading
     isLoading: isLoadingList || isLoadingDetail || isLoadingAcquirable || isLoadingPunteggi,
     isLoadingList,
     isLoadingDetail,
@@ -192,7 +253,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     acquirableSkills,
     punteggiList,
 
-    // Admin & Filtri
+    // Admin
     isAdmin,
     viewAll,
     toggleViewAll,
@@ -201,6 +262,11 @@ export const CharacterProvider = ({ children, onLogout }) => {
   return (
     <CharacterContext.Provider value={value}>
       {children}
+      {/* POPUP GLOBALE PER LE NOTIFICHE */}
+      <NotificationPopup 
+          notification={notification} 
+          onClose={closeNotification} 
+      />
     </CharacterContext.Provider>
   );
 };
