@@ -10,7 +10,22 @@ import NotificationPopup from './NotificationPopup';
 // 1. Creare il Context
 const CharacterContext = createContext(null);
 
-// Helper per inviare notifica di sistema
+// --- HELPER FUNCTION PER WEBPUSH ---
+// Converte la chiave VAPID da base64 url-safe a Uint8Array richiesto dal browser
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Helper per inviare notifica di sistema locale (Livello 1)
 const sendSystemNotification = (title, body) => {
     if (!("Notification" in window)) {
       return;
@@ -20,7 +35,7 @@ const sendSystemNotification = (title, body) => {
       try {
           new Notification(title, {
             body: body,
-            icon: '/pwa-192x192.png', // Usa l'icona della tua PWA
+            icon: '/pwa-192x192.png',
             vibrate: [200, 100, 200]
           });
       } catch (e) {
@@ -58,14 +73,69 @@ export const CharacterProvider = ({ children, onLogout }) => {
   });
   const [viewAll, setViewAll] = useState(false);
 
-  // Richiedi permessi notifiche al primo caricamento o login
-  useEffect(() => {
-      if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission();
-      }
+  // --- SOTTOSCRIZIONE WEB PUSH (Livello 2) ---
+  const subscribeToPush = useCallback(async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    
+    try {
+        // Richiede i permessi se non già concessi o negati
+        if (Notification.permission === 'default') {
+             await Notification.requestPermission();
+        }
+        
+        if (Notification.permission !== 'granted') return;
+
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Controlla se esiste già una sottoscrizione
+        let subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+            // *** SOSTITUISCI CON LA TUA CHIAVE VAPID REALE ***
+            const vapidPublicKey = "INSERISCI_QUI_LA_TUA_VAPID_PUBLIC_KEY"; 
+            
+            if (vapidPublicKey === "INSERISCI_QUI_LA_TUA_VAPID_PUBLIC_KEY") {
+                 console.warn("VAPID Key non configurata nel CharacterContext. Le notifiche Push non funzioneranno.");
+                 return;
+            }
+
+            const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+            
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedVapidKey
+            });
+        }
+
+        // Invia la sottoscrizione al backend Django
+        // Nota: Includiamo le credenziali per associare la sottoscrizione all'utente loggato
+        // (Assumendo che il backend usi sessioni/cookie per l'auth)
+        await fetch('https://www.kor35.it/webpush/save_information', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Se usi un token CSRF, aggiungilo qui, es:
+                // 'X-CSRFToken': getCookie('csrftoken') 
+            },
+            body: JSON.stringify(subscription)
+        });
+
+        console.log("✅ WebPush Sottoscritto con successo!");
+
+    } catch (error) {
+        console.error("❌ Errore sottoscrizione WebPush:", error);
+    }
   }, []);
 
-  // --- WEBSOCKET SETUP ---
+  // Effettua la sottoscrizione quando c'è un personaggio selezionato (utente loggato)
+  useEffect(() => {
+      if (selectedCharacterId) {
+          subscribeToPush();
+      }
+  }, [selectedCharacterId, subscribeToPush]);
+
+
+  // --- WEBSOCKET SETUP (Livello 1) ---
   useEffect(() => {
     let wsUrl = '';
     
@@ -78,10 +148,13 @@ export const CharacterProvider = ({ children, onLogout }) => {
     
     console.log('Tentativo connessione WebSocket a:', wsUrl);
 
+    // Chiudi eventuale connessione precedente
+    if (ws.current) ws.current.close();
+
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-      console.log('✅ WebSocket Connesso a:', wsUrl);
+      console.log('✅ WebSocket Connesso');
     };
 
     ws.current.onmessage = (event) => {
@@ -101,16 +174,19 @@ export const CharacterProvider = ({ children, onLogout }) => {
            } else if (msg.tipo === 'INDV' && msg.destinatario_id === myCharId) {
                shouldShow = true;
            } else if (msg.tipo === 'GROUP') {
+               // Logica base: mostra se appartiene a un gruppo (raffinabile)
                shouldShow = true; 
            }
 
            if (shouldShow) {
               console.log("📩 Nuova notifica ricevuta:", msg.titolo);
-              setNotification(msg); // Notifica In-App (Popup React)
               
-              // --- NOTIFICA DI SISTEMA (Windows/Android/iOS) ---
-              // Rimuoviamo i tag HTML dal testo per la notifica di sistema
-              const plainText = msg.testo.replace(/<[^>]+>/g, '');
+              // 1. Notifica In-App (Popup React)
+              setNotification(msg); 
+              
+              // 2. Notifica di Sistema Locale (se l'app è aperta/in background)
+              // Utile su Desktop per avvisare senza guardare la tab
+              const plainText = msg.testo.replace(/<[^>]+>/g, ''); // Rimuovi HTML
               sendSystemNotification(msg.titolo, plainText);
            }
         }
@@ -124,7 +200,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     };
 
     ws.current.onerror = (err) => {
-      console.error('⚠️ WebSocket Errore (Controlla console Network per dettagli)');
+      console.error('⚠️ WebSocket Errore (Vedi Network tab)');
     };
 
     return () => {
@@ -138,7 +214,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
       setNotification(null);
   };
 
-  // --- FUNZIONI API (INVARIATE) ---
+  // --- FUNZIONI API ---
   const fetchAcquirableSkills = useCallback(async (characterId) => {
     if (!characterId) {
         setAcquirableSkills([]); 
