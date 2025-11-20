@@ -226,7 +226,7 @@ const CharacterSheet = ({ data }) => {
                   value={Math.round(valore_finale)} 
                   displayText="name"
                   iconType="inv_circle"
-                  size="m"
+                  size="s"
                 />
               );
             })}
