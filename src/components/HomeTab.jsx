@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useCharacter } from './CharacterContext';
-import { Coins, Star } from 'lucide-react';
+import { Coins, Star, Bell } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay'; 
 
 // --- Componenti Helper (StatRow, ItemList, LoadingComponent) ---
@@ -50,13 +50,14 @@ const LoadingComponent = () => (
 // --- Componente Principale della Scheda ---
 
 const CharacterSheet = ({ data }) => {
-  const { punteggiList } = useCharacter();
+  // Recuperiamo anche subscribeToPush dal context
+  const { punteggiList, subscribeToPush } = useCharacter();
 
   const {
     nome,
     crediti,
     punti_caratteristica,
-    punteggi_base, // <-- Campo corretto (contiene CA, AU, etc.)
+    punteggi_base, 
     modificatori_calcolati, 
     abilita_possedute, 
     oggetti, 
@@ -80,7 +81,7 @@ const CharacterSheet = ({ data }) => {
         }
         return null; 
       })
-      .filter(item => item !== null); // Filtra via i null per prevenire crash
+      .filter(item => item !== null); 
 
     const chars = punteggiMappati.filter(
       item => item.punteggio.tipo === 'CA'
@@ -96,6 +97,30 @@ const CharacterSheet = ({ data }) => {
 
   return (
     <div className="p-4 max-w-lg mx-auto">
+      
+      {/* --- BANNER ATTIVAZIONE NOTIFICHE PUSH --- */}
+      {/* Appare solo se le notifiche non sono già concesse */}
+      {'Notification' in window && Notification.permission !== 'granted' && (
+         <div className="mb-6 p-4 bg-indigo-900/50 rounded-lg border border-indigo-500 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div className="flex items-center gap-3">
+                <div className="bg-indigo-600 p-2 rounded-full">
+                    <Bell size={20} className="text-white" />
+                </div>
+                <div>
+                    <p className="font-bold text-white text-sm">Notifiche Push</p>
+                    <p className="text-xs text-indigo-200">Ricevi messaggi anche ad app chiusa.</p>
+                </div>
+            </div>
+            <button 
+                onClick={() => subscribeToPush()} 
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded shadow transition-colors w-full sm:w-auto"
+            >
+                Attiva
+            </button>
+         </div>
+      )}
+      {/* ----------------------------------------- */}
+
       <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center">{nome}</h2>
       
       {/* Blocco Valute */}
@@ -108,7 +133,6 @@ const CharacterSheet = ({ data }) => {
       {stat_primarie.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Statistiche</h3>
-          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
             {stat_primarie.map((punteggio) => {
               if (!punteggio.parametro) return null; 
@@ -135,7 +159,6 @@ const CharacterSheet = ({ data }) => {
       {caratteristiche.length > 0 && (
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Caratteristiche</h3>
-          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {caratteristiche.map(({ punteggio, valore }) => (
                 <PunteggioDisplay
@@ -176,7 +199,6 @@ const CharacterSheet = ({ data }) => {
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
             Aure Possedute
           </summary>
-          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-t border-gray-700">
             {aure_possedute.map(({ punteggio, valore }) => (
               <PunteggioDisplay
@@ -198,7 +220,6 @@ const CharacterSheet = ({ data }) => {
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer">
             Statistiche Secondarie
           </summary>
-          {/* GRIGLIA RESPONSIVE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-t border-gray-700">
             
             {Object.entries(modificatori_calcolati).map(([parametro, mods]) => {

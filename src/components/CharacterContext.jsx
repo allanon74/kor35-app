@@ -351,6 +351,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     isAdmin,
     viewAll,
     toggleViewAll,
+    subscribeToPush,
   };
 
   return (

@@ -1,7 +1,6 @@
-// src/sw.js
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 
-// 1. Gestione Cache standard (PWA)
+// 1. Gestione Cache PWA standard
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
@@ -9,12 +8,15 @@ precacheAndRoute(self.__WB_MANIFEST);
 self.addEventListener('push', function(event) {
   const eventData = event.data ? event.data.json() : {};
   
-  const title = eventData.head || 'Nuovo messaggio KOR-35';
+  const title = eventData.head || 'KOR-35';
   const options = {
-    body: eventData.body || 'Hai ricevuto una nuova notifica.',
-    icon: eventData.icon || '/pwa-192x192.png',
+    body: eventData.body || 'Nuovo messaggio ricevuto.',
+    icon: '/pwa-192x192.png', // Assicurati che l'icona esista in /public
     badge: '/pwa-192x192.png',
-    data: { url: eventData.url || '/' } // URL da aprire al click
+    vibrate: [100, 50, 100],
+    data: { 
+        url: eventData.url || '/' 
+    }
   };
 
   event.waitUntil(
@@ -22,9 +24,10 @@ self.addEventListener('push', function(event) {
   );
 });
 
-// 3. Gestione Click sulla Notifica
+// 3. Gestione Click sulla Notifica (Apre l'app)
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
+  // Apre la finestra relativa alla URL
   event.waitUntil(
     clients.openWindow(event.notification.data.url)
   );
