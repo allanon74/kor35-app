@@ -237,7 +237,7 @@ export const getAdminSentMessages = (onLogout) => {
 };
 
 export const saveWebPushSubscription = async (subscription, onLogout) => {
-    const token = localStorage.getItem('token'); // O il nome chiave che usi tu
+    const token = localStorage.getItem('kor35_token'); // O il nome chiave che usi tu
     
     if (!token) return;
 
