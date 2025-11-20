@@ -1,5 +1,5 @@
 import React, { useState, Fragment } from 'react';
-import { Tab } from '@headlessui/react'; // Per le sub-tab
+import { Tab } from '@headlessui/react'; 
 import { useCharacter } from './CharacterContext';
 import { postBroadcastMessage } from '../api'; 
 
@@ -26,18 +26,28 @@ const AdminMessageTab = ({ onLogout }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!title || !text) return;
+        if (!title || !text) {
+             alert('Titolo e contenuto sono obbligatori.');
+             return;
+        }
         
         setIsSending(true);
         try {
-            await postBroadcastMessage({ title, text, save_in_cronologia: saveHistory }, onLogout);
-            alert('Messaggio Broadcast inviato!');
-            // Aggiungi alla cronologia locale (simulazione feedback immediato)
-            setHistory([{ id: Date.now(), title, testo: text, data_invio: new Date().toISOString() }, ...history]);
+            // --- CORREZIONE: Mappiamo i nomi in snake_case per il backend ---
+            const payload = {
+                titolo: title, 
+                testo: text,   
+                salva_in_cronologia: saveHistory 
+            };
+
+            await postBroadcastMessage(payload, onLogout);
+            alert('Messaggio Broadcast inviato con successo!');
+            // Aggiorna cronologia locale
+            setHistory([{ id: Date.now(), titolo: title, testo: text, data_invio: new Date().toISOString() }, ...history]);
             setTitle('');
             setText('');
         } catch (err) {
-            alert(`Errore: ${err.message}`);
+            alert(`Errore nell'invio: ${err.message}`);
         } finally {
             setIsSending(false);
         }
@@ -71,23 +81,41 @@ const AdminMessageTab = ({ onLogout }) => {
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-400">Titolo</label>
-                                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                                <input
+                                    type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder="Titolo Breve"
                                     className="w-full p-2 mt-1 bg-gray-700 border border-gray-600 rounded text-white focus:border-indigo-500 focus:ring-indigo-500"
-                                    required />
+                                    required
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-400">Contenuto</label>
-                                <textarea value={text} onChange={(e) => setText(e.target.value)} rows="5"
+                                <textarea
+                                    value={text}
+                                    onChange={(e) => setText(e.target.value)}
+                                    placeholder="Contenuto del messaggio..."
+                                    rows="5"
                                     className="w-full p-2 mt-1 bg-gray-700 border border-gray-600 rounded text-white focus:border-indigo-500 focus:ring-indigo-500"
-                                    required />
+                                    required
+                                />
                             </div>
                             <div className="flex items-center">
-                                <input type="checkbox" checked={saveHistory} onChange={(e) => setSaveHistory(e.target.checked)}
-                                    id="saveHistory" className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded" />
+                                <input
+                                    type="checkbox"
+                                    checked={saveHistory}
+                                    onChange={(e) => setSaveHistory(e.target.checked)}
+                                    id="saveHistory"
+                                    className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded"
+                                />
                                 <label htmlFor="saveHistory" className="ml-2 text-sm text-gray-300">Salva nella cronologia pubblica</label>
                             </div>
-                            <button type="submit" disabled={isSending}
-                                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50">
+                            <button
+                                type="submit"
+                                disabled={isSending}
+                                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                            >
                                 {isSending ? 'Invio in corso...' : 'INVIA BROADCAST'}
                             </button>
                         </form>
@@ -99,11 +127,9 @@ const AdminMessageTab = ({ onLogout }) => {
                             {history.length > 0 ? (
                                 history.map(msg => (
                                     <div key={msg.id} className="p-3 bg-gray-700 rounded border-l-4 border-gray-500">
-                                        <p className="font-bold text-white">{msg.title}</p>
-                                        <p className="text-sm text-gray-300 mt-1">{msg.testo}</p>
-                                        <p className="text-xs text-gray-500 mt-2 text-right">
-                                            Inviato il: {new Date(msg.data_invio).toLocaleString()}
-                                        </p>
+                                        <p className="font-bold text-white">{msg.titolo}</p>
+                                        <p className="text-sm text-gray-400">{msg.testo.substring(0, 50)}...</p>
+                                        <p className="text-xs text-gray-500">Mittente: {msg.mittente} | Inviato il: {new Date(msg.data_invio).toLocaleDateString()}</p>
                                     </div>
                                 ))
                             ) : (
