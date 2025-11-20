@@ -66,12 +66,12 @@ const PunteggioDisplay = ({
 
   return (
     <div 
-      className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} ${className}`}
+      className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} ${layout.text} ${className}`}
       style={{ backgroundColor: punteggio.colore }}
     >
       {/* --- 1. SEZIONE SINISTRA (Icona + Testo) --- */}
-      {/* flex-grow min-w-0 permette il restringimento */}
-      <div className={`flex items-center ${layout.gap} grow min-w-0`}> 
+      {/* Usiamo 'grow' per occupare lo spazio, ma rimuoviamo min-w-0 che causava problemi. */}
+      <div className={`flex items-center ${layout.gap} grow`}> 
         
         {/* Icona (impediamo il restringimento) */}
         {iconMode && url && (
@@ -80,14 +80,14 @@ const PunteggioDisplay = ({
             color={punteggio.colore} 
             mode={iconMode} 
             size={size}
-            className="shrink-0" // <-- Fix: Mantiene la dimensione
+            className="shrink-0" 
           />
         )}
         
         {/* Testo (Nome/Sigla) */}
         {textToShow && (
           <span 
-            className={`font-bold uppercase tracking-wider ${layout.text} truncate whitespace-nowrap`} // <-- Fix: Trunca il testo
+            className={`font-bold uppercase tracking-wider ${layout.text} truncate whitespace-nowrap`} 
             style={{ color: textColor }}
           >
             {textToShow}
@@ -98,7 +98,7 @@ const PunteggioDisplay = ({
       {/* --- 2. SEZIONE DESTRA (Valore) --- */}
       {value !== undefined && (
         <span 
-          className={`font-bold font-mono ${layout.val} shrink-0 ml-2 whitespace-nowrap`} // <-- Fix: Mantiene la dimensione e non va a capo
+          className={`font-bold font-mono ${layout.val} shrink-0 ml-2 whitespace-nowrap`} 
           style={{ color: textColor }}
         >
           {value}
