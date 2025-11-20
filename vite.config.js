@@ -17,9 +17,9 @@ export default defineConfig(({ command, mode }) => {
       },
 
       manifest: {
-        name: 'Nome La Tua App', // Cambia questo
-        short_name: 'NomeApp',   // Cambia questo (max 12 caratteri circa)
-        description: 'La mia web app React ottimizzata per mobile',
+        name: 'KOR-35 Gestione personaggi', // Cambia questo
+        short_name: 'KOR-35 PG',   // Cambia questo (max 12 caratteri circa)
+        description: 'Web app per il gioco di ruolo dal vivo (LARP) KOR-35 per la gestione dei propri personaggi',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone', // FONDAMENTALE: Nasconde la barra del browser
@@ -43,7 +43,23 @@ export default defineConfig(({ command, mode }) => {
             type: 'image/png',
             purpose: 'any maskable' // Importante per Android
           }
+        ],
+        screenshots: [
+          // Aggiunta avviso 'wide':
+          {
+            src: 'screenshots/desktop-home.png',
+            sizes: '1920x1080',
+            type: 'image/png',
+            form_factor: 'wide'
+          },
+          // Aggiunta avviso mobile:
+          {
+            src: 'screenshots/mobile-home.png',
+            sizes: '750x1334',
+            type: 'image/png'
+          }
         ]
+
       }
     })
   ];
