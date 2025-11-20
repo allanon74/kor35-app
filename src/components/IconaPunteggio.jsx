@@ -2,7 +2,7 @@ import React from 'react';
 import { API_BASE_URL } from '../api';
 
 // Helper per il contrasto (ROBUSTO: gestisce anche hex a 3 cifre)
-const getContrastColor = (hexColor) => {
+export const getContrastColor = (hexColor) => {
   if (!hexColor) return 'white';
   try {
     let hex = hexColor.replace('#', '');
