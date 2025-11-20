@@ -9,21 +9,21 @@ function classNames(...classes) {
 }
 
 const MessaggiTab = ({ onLogout }) => {
-  // Prendi anche 'viewAll' dal context
-  const { selectedCharacterData: char, viewAll } = useCharacter(); 
+  const { selectedCharacterData: char, viewAll } = useCharacter();
 
   if (!char) return <div className="p-4 text-gray-400">Caricamento...</div>;
 
-  // Mostra la tab Admin SOLO SE:
-  // 1. Il personaggio è staff (è un admin)
-  // 2. E NON siamo in modalità "Vedi Tutti" (quindi stiamo guardando il nostro PG)
-  //    (Questo assume che tu usi la checkbox "Tutti i PG" per spiare gli altri)
+  // Logica corretta per mostrare la tab Admin
+  // Mostra SOLO SE:
+  // 1. Il personaggio è staff
+  // 2. E non stiamo visualizzando "Tutti i PG" (quindi stiamo usando il nostro PG admin)
   const showAdminTab = char.is_staff && !viewAll;
 
   return (
     <div className="w-full p-4">
       <Tab.Group>
         <Tab.List className="flex space-x-1 rounded-xl bg-gray-800 p-1">
+          {/* Tab 1: Messaggi Ricevuti (Sempre visibile) */}
           <Tab as={Fragment}>
             {({ selected }) => (
               <button className={classNames(
@@ -36,6 +36,7 @@ const MessaggiTab = ({ onLogout }) => {
             )}
           </Tab>
           
+          {/* Tab 2: Amministrazione (Solo se showAdminTab è true) */}
           {showAdminTab && (
             <Tab as={Fragment}>
               {({ selected }) => (
@@ -52,13 +53,13 @@ const MessaggiTab = ({ onLogout }) => {
         </Tab.List>
 
         <Tab.Panels className="mt-2">
-          {/* Pannello 1 */}
+          {/* Pannello 1: Player */}
           <Tab.Panel className="rounded-xl bg-gray-800 p-3 focus:outline-none">
             <PlayerMessageTab onLogout={onLogout} />
           </Tab.Panel>
           
-          {/* Pannello 2 */}
-          {isAdmin && (
+          {/* Pannello 2: Admin (Solo se showAdminTab è true) */}
+          {showAdminTab && (
             <Tab.Panel className="rounded-xl bg-gray-800 p-3 focus:outline-none">
               <AdminMessageTab onLogout={onLogout} />
             </Tab.Panel>
