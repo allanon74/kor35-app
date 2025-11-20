@@ -27,7 +27,11 @@ const PlayerMessageTab = ({ onLogout }) => {
                 setIsLoading(false);
             }
         };
-        // Ricarica la lista messaggi ogni volta che l'ID del personaggio cambia
+
+        // --- CORREZIONE: Chiamata della funzione ---
+        fetchMessages(); 
+        // -------------------------------------------
+
     }, [selectedCharacterId, onLogout]); 
 
 
@@ -59,7 +63,6 @@ const PlayerMessageTab = ({ onLogout }) => {
             ) : (
                 <p className="text-gray-500">Nessun messaggio trovato.</p>
             )}
-            {/* TODO: Aggiungere logica per l'infinito scroll qui */}
         </div>
     );
 };
