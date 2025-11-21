@@ -1,4 +1,11 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { clientsClaim } from 'workbox-core';
+
+// --- FORZA AGGIORNAMENTO ---
+// Dice al Service Worker di attivarsi subito senza aspettare la chiusura dell'app
+self.skipWaiting();
+// Dice al Service Worker di prendere il controllo immediato di tutte le pagine aperte
+clientsClaim();
 
 // 1. Gestione Cache PWA standard
 cleanupOutdatedCaches();
@@ -11,7 +18,7 @@ self.addEventListener('push', function(event) {
   const title = eventData.head || 'KOR-35';
   const options = {
     body: eventData.body || 'Nuovo messaggio ricevuto.',
-    icon: '/pwa-192x192.png', // Assicurati che l'icona esista in /public
+    icon: '/pwa-192x192.png',
     badge: '/pwa-192x192.png',
     vibrate: [100, 50, 100],
     data: { 
