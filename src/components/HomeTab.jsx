@@ -1,143 +1,333 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useCharacter } from './CharacterContext';
+import { Coins, Star, Bell, Backpack } from 'lucide-react';
+import PunteggioDisplay from './PunteggioDisplay';
 import GenericGroupedList from './GenericGroupedList';
-import { ScrollText, Coins, Dna } from 'lucide-react'; // Icone opzionali per abbellire (o usa le tue)
+import IconaPunteggio from './IconaPunteggio';
 
-const HomeTab = () => {
-  const { character, loading, error } = useCharacter();
+// --- Componenti Helper ---
 
-  if (loading) {
+const StatRow = ({ label, value, icon }) => (
+  <div className="flex justify-between items-center p-2 bg-gray-800 rounded-md">
+    <div className="flex items-center">
+      {icon}
+      <span className="ml-2 font-semibold text-gray-300 capitalize">{label}</span>
+    </div>
+    <span className="text-xl font-bold text-white">{value}</span>
+  </div>
+);
+
+const ItemList = ({ title, items, keyField = 'id', nameField = 'nome' }) => (
+  <div className="mb-6">
+    <div className="flex items-center gap-2 mb-3 border-b border-gray-700 pb-2">
+       <Backpack className="w-5 h-5 text-gray-400" />
+       <h3 className="text-2xl font-semibold text-gray-200">{title}</h3>
+    </div>
+    {items && items.length > 0 ? (
+      <ul className="list-disc list-inside bg-gray-800 p-4 rounded-lg shadow-inner space-y-2">
+        {items.map((item) => (
+          <li key={item[keyField]} className="text-gray-300">
+            <span className="font-semibold text-white">{item[nameField]}</span>
+            
+            {item.descrizione && (
+              <div
+                className="text-sm text-gray-400 pl-4 prose prose-invert prose-sm mt-1"
+                dangerouslySetInnerHTML={{ __html: item.descrizione }}
+              />
+            )}
+            
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-gray-500 bg-gray-800 p-4 rounded-lg shadow-inner">Nessun {title.toLowerCase()} trovato.</p>
+    )}
+  </div>
+);
+
+const LoadingComponent = () => (
+  <div className="p-8 text-center text-lg text-gray-400">
+    Caricamento dati personaggio...
+  </div>
+);
+
+
+// --- Componente Scheda ---
+
+const CharacterSheet = ({ data }) => {
+  const { punteggiList, subscribeToPush } = useCharacter();
+
+  const {
+    nome,
+    crediti,
+    punti_caratteristica,
+    punteggi_base, 
+    modificatori_calcolati, 
+    abilita_possedute, 
+    oggetti, 
+    log_eventi 
+  } = data;
+
+  // Calcolo Statistiche
+  const { stat_primarie, caratteristiche, aure_possedute } = useMemo(() => {
+    if (!punteggiList || punteggiList.length === 0 || !punteggi_base) { 
+      return { stat_primarie: [], caratteristiche: [], aure_possedute: [] };
+    }
+
+    const sortByOrdine = (a, b) => (a.ordine || 0) - (b.ordine || 0);
+    const sortByPunteggioOrdine = (a, b) => (a.punteggio.ordine || 0) - (b.punteggio.ordine || 0);
+
+    const primarie = punteggiList
+        .filter(p => p.tipo === 'ST' && p.is_primaria)
+        .sort(sortByOrdine);
+
+    const punteggiMappati = Object.entries(punteggi_base) 
+      .map(([nome, valore]) => {
+        const punteggio = punteggiList.find(p => p.nome === nome);
+        if (punteggio) return { punteggio, valore };
+        return null; 
+      })
+      .filter(Boolean); 
+
+    const chars = punteggiMappati
+        .filter(item => item.punteggio.tipo === 'CA')
+        .sort(sortByPunteggioOrdine);
+    
+    const aure = punteggiMappati
+        .filter(item => item.punteggio.tipo === 'AU')
+        .sort(sortByPunteggioOrdine);
+
+    return { stat_primarie: primarie, caratteristiche: chars, aure_possedute: aure };
+
+  }, [punteggiList, punteggi_base]);
+
+  // --- RENDER ITEM ABILITÀ ---
+  const renderAbilitaItem = (abilita) => {
+    const iconUrl = abilita.caratteristica?.icona_url;
+    const iconColor = abilita.caratteristica?.colore;
+
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 text-center text-red-500 bg-red-50 rounded-lg border border-red-200">
-        <p>Errore nel caricamento del personaggio.</p>
-        <p className="text-sm">{error}</p>
-      </div>
-    );
-  }
-
-  if (!character) return null;
-
-  // --- Render Item per le Abilità ---
-  // Definisce come appare ogni singola riga dell'abilità dentro la lista
-  const renderAbilitaItem = (abilita) => (
-    <li className="flex justify-between items-center py-1 px-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors rounded-sm cursor-default">
-      <div className="flex flex-col">
-        <span className="font-medium text-gray-800 dark:text-gray-200 text-sm">
-          {abilita.nome}
-        </span>
-        {/* Opzionale: Mostra costo se vuoi renderlo visibile */}
-        {/* <span className="text-[10px] text-gray-400">Cost: {abilita.costo_pc} PC</span> */}
-      </div>
-      
-      {/* Esempio: Icona info o altro (opzionale) */}
-      {/* <Info className="w-3 h-3 text-gray-300" /> */}
-    </li>
-  );
-
-  // --- Render Item per l'Inventario (Bonus: riutilizziamo GenericGroupedList!) ---
-  // Raggruppiamo per "Aura" se presente, altrimenti finisce in "Altro"
-  const renderOggettoItem = (oggetto) => (
-    <li className="flex justify-between items-center py-2 px-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-        <div className="flex flex-col">
-            <span className="font-semibold text-sm">{oggetto.nome}</span>
-            <span className="text-xs text-gray-500">Liv. {oggetto.livello}</span>
-        </div>
-        {oggetto.statistiche && oggetto.statistiche.length > 0 && (
-            <div className="flex gap-1">
-                {oggetto.statistiche.map((stat, idx) => (
-                    <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded text-gray-600">
-                        {stat.statistica.sigla} {stat.valore > 0 ? '+' : ''}{stat.valore}
-                    </span>
-                ))}
+        <li className="py-2 px-2 hover:bg-gray-700/50 transition-colors rounded-sm cursor-default border-b border-gray-700/50 last:border-0">
+            <div className="flex items-center gap-2">
+                <div className="mt-1 self-start shrink-0">
+                    <IconaPunteggio 
+                        url={iconUrl}
+                        color={iconColor}
+                        mode="cerchio_inv" 
+                        size="xs"
+                    />
+                </div>
+                <span className="font-bold text-gray-200 text-base">
+                    {abilita.nome}
+                </span>
             </div>
-        )}
-    </li>
-  );
+
+            {abilita.descrizione && (
+                <div
+                    className="text-sm text-gray-400 pl-8 mt-1 prose prose-invert prose-sm max-w-none leading-snug"
+                    dangerouslySetInnerHTML={{ __html: abilita.descrizione }}
+                />
+            )}
+        </li>
+    );
+  };
+
+  // --- RENDER HEADER GRUPPO (PunteggioDisplay) ---
+  const renderGroupHeader = (group) => {
+    // Costruiamo un oggetto finto "punteggio" compatibile con PunteggioDisplay
+    const fakePunteggio = {
+        nome: group.name,
+        colore: group.color,
+        icona_url: group.icon
+    };
+
+    return (
+        <PunteggioDisplay 
+            punteggio={fakePunteggio}
+            value={group.items.length} // Mostriamo il numero di abilità come valore
+            displayText="name"
+            iconType="inv_circle" // Richiesta specifica
+            size="s"              // Richiesta specifica
+            className="rounded-b-none" // Rimuoviamo l'arrotondamento inferiore per attaccarlo alla lista
+        />
+    );
+  };
 
   return (
-    <div className="p-4 space-y-6 max-w-3xl mx-auto pb-20">
+    <div className="p-4 max-w-4xl mx-auto">
       
-      {/* --- HEADER PERSONAGGIO --- */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700 text-center">
-        <div className="w-24 h-24 mx-auto bg-gray-200 rounded-full mb-4 overflow-hidden ring-4 ring-white shadow-lg">
-            {/* Placeholder Avatar - Sostituire con immagine reale se disponibile */}
-            <img 
-                src={`https://ui-avatars.com/api/?name=${character.nome}&background=1976D2&color=fff&size=128`} 
-                alt={character.nome} 
-                className="w-full h-full object-cover"
-            />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{character.nome}</h2>
-        <p className="text-gray-500 dark:text-gray-400 text-sm uppercase tracking-wider font-semibold">
-            {character.tipologia ? character.tipologia.nome : 'Nessuna Tipologia'}
-        </p>
-        
-        {/* STATISTICHE RAPIDE */}
-        <div className="flex justify-center gap-6 mt-6">
-            <div className="flex flex-col items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg min-w-20">
-                <Coins className="w-5 h-5 text-blue-600 mb-1" />
-                <span className="text-xl font-bold text-blue-700 dark:text-blue-400">{character.crediti}</span>
-                <span className="text-xs text-blue-600/80 uppercase font-bold">Crediti</span>
+      {/* Banner Notifiche */}
+      {'Notification' in window && Notification.permission !== 'granted' && (
+         <div className="mb-6 p-4 bg-indigo-900/50 rounded-lg border border-indigo-500 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div className="flex items-center gap-3">
+                <div className="bg-indigo-600 p-2 rounded-full">
+                    <Bell size={20} className="text-white" />
+                </div>
+                <div>
+                    <p className="font-bold text-white text-sm">Notifiche Push</p>
+                    <p className="text-xs text-indigo-200">Ricevi messaggi anche ad app chiusa.</p>
+                </div>
             </div>
-            <div className="flex flex-col items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg min-w-20">
-                <Dna className="w-5 h-5 text-purple-600 mb-1" />
-                <span className="text-xl font-bold text-purple-700 dark:text-purple-400">{character.punti_caratteristica}</span>
-                <span className="text-xs text-purple-600/80 uppercase font-bold">Punti Car.</span>
-            </div>
-        </div>
+            <button onClick={() => subscribeToPush()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded shadow transition-colors w-full sm:w-auto">
+                Attiva
+            </button>
+         </div>
+      )}
+
+      <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center">{nome}</h2>
+      
+      {/* Valute */}
+      <div className="grid grid-cols-2 gap-4 mb-6 max-w-lg mx-auto"> 
+        <StatRow label="CR" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
+        <StatRow label="PC" value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
       </div>
 
-      {/* --- ABILITA' POSSEDUTE (CON GENERIC GROUPED LIST) --- */}
-      <div>
-        <div className="flex items-center gap-2 mb-4 px-1">
-            <ScrollText className="w-5 h-5 text-gray-600" />
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white">Abilità Acquisite</h3>
+      {/* Statistiche Primarie */}
+      {stat_primarie.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Statistiche</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"> 
+            {stat_primarie.map((punteggio) => {
+              if (!punteggio.parametro) return null; 
+              const mods = modificatori_calcolati[punteggio.parametro] || {add: 0, mol: 1.0};
+              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+              
+              return (
+                <PunteggioDisplay
+                  key={punteggio.id}
+                  punteggio={punteggio}
+                  value={Math.round(valore_finale)} 
+                  displayText="name"
+                  iconType="inv_circle"
+                  size="m"
+                />
+              );
+            })}
+          </div>
         </div>
+      )}
 
-        {character.abilita_possedute && character.abilita_possedute.length > 0 ? (
+      {/* Caratteristiche */}
+      {caratteristiche.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Caratteristiche</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {caratteristiche.map(({ punteggio, valore }) => (
+                <PunteggioDisplay
+                  key={punteggio.id} 
+                  punteggio={punteggio} 
+                  value={valore}         
+                  displayText="name"   
+                  iconType="inv_circle"
+                  size="m"
+                />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Aure Possedute */}
+      {aure_possedute.length > 0 && (
+        <div className="mb-6">
+            <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Aure Possedute</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {aure_possedute.map(({ punteggio, valore }) => (
+                    <PunteggioDisplay
+                        key={punteggio.id}
+                        punteggio={punteggio}
+                        value={valore}
+                        displayText="name"
+                        iconType="inv_circle"
+                        size="m"
+                    />
+                ))}
+            </div>
+        </div>
+      )}
+
+      {/* Abilità (Raggruppate con Header Custom) */}
+      <div className="mb-6">
+        <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Abilità</h3>
+        {abilita_possedute && abilita_possedute.length > 0 ? (
             <GenericGroupedList 
-                items={character.abilita_possedute}
-                groupByKey="caratteristica" // Raggruppa per l'oggetto 'caratteristica' (che è un Punteggio)
-                titleKey="nome"             // Usa il campo 'nome' della caratteristica come titolo
-                colorKey="colore"           // Usa il campo 'colore' per lo stile
-                iconKey="icona_url"         // Usa l'icona SVG
+                items={abilita_possedute}
+                groupByKey="caratteristica"
+                orderKey="ordine"
+                titleKey="nome"             
+                colorKey="colore"           
+                iconKey="icona_url"         
                 renderItem={renderAbilitaItem}
-                compact={true}              // Stile compatto come richiesto
+                renderHeader={renderGroupHeader} // Passiamo il render personalizzato per l'header
+                compact={false} 
             />
         ) : (
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 text-center border border-dashed border-gray-300">
-                <p className="text-gray-500 italic">Nessuna abilità ancora appresa.</p>
-            </div>
+            <p className="text-gray-500 bg-gray-800 p-4 rounded-lg shadow-inner">Nessuna abilità trovata.</p>
         )}
       </div>
 
-      {/* --- INVENTARIO (BONUS: RAGGRUPPATO PER AURA) --- */}
-      {/* Se vuoi mantenere l'inventario semplice, puoi usare una lista normale. 
-          Qui ti mostro come usare GenericGroupedList anche per gli oggetti! */}
-      {character.oggetti && character.oggetti.length > 0 && (
-          <div className="mt-8">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 px-1 border-b pb-2">Inventario</h3>
-            
-            {/* Gli oggetti hanno un campo 'aura'. Se è null, il componente li metterà sotto 'Altro' */}
-            <GenericGroupedList 
-                items={character.oggetti}
-                groupByKey="aura" 
-                renderItem={renderOggettoItem}
-                compact={false} // Stile normale per gli oggetti
-            />
+      {/* Oggetti */}
+      <ItemList title="Oggetti" items={oggetti} />
+
+      {/* Log Eventi */}
+      {log_eventi && log_eventi.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Log Eventi</h3>
+          <div className="bg-gray-800 p-4 rounded-lg shadow-inner space-y-2 max-h-60 overflow-y-auto">
+            {log_eventi.slice(0).reverse().map((log, index) => (
+              <div key={log.data || index} className="text-sm text-gray-400 border-b border-gray-700 pb-1">
+                <span className="text-gray-500">[{new Date(log.data).toLocaleString('it-IT')}]</span>
+                <p className="text-gray-300">{log.testo_log}</p>
+              </div>
+            ))}
           </div>
+        </div>
       )}
 
+      {/* Modificatori (Accordion) */}
+      {modificatori_calcolati && (
+        <details className="mt-4 bg-gray-800 rounded-lg shadow-inner">
+          <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer select-none">
+            Statistiche Secondarie (Dettagli)
+          </summary>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border-t border-gray-700">
+            {Object.entries(modificatori_calcolati).map(([parametro, mods]) => {
+              const punteggio = punteggiList.find(p => p.parametro === parametro);
+              if (!punteggio || punteggio.is_primaria) return null;
+              
+              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+              return (
+                <PunteggioDisplay
+                  key={punteggio.id}
+                  punteggio={punteggio}
+                  value={Math.round(valore_finale)} 
+                  displayText="name"
+                  iconType="inv_circle"
+                  size="m"
+                />
+              );
+            })}
+          </div>
+        </details>
+      )}
     </div>
   );
+};
+
+const HomeTab = () => {
+  const { 
+    selectedCharacterData, 
+    isLoadingDetail,
+    isLoadingPunteggi, 
+    selectedCharacterId, 
+    error 
+  } = useCharacter();
+
+  if (isLoadingDetail || isLoadingPunteggi) return <LoadingComponent />;
+  if (error && !selectedCharacterData) return <div className="p-4 text-center text-red-400">Errore nel caricamento. Riprova.</div>;
+  if (!selectedCharacterId) return <div className="p-8 text-center text-gray-400"><h2 className="text-2xl font-bold mb-4">Benvenuto!</h2><p>Seleziona un personaggio.</p></div>;
+  if (!selectedCharacterData) return <div className="p-8 text-center text-gray-400"><p>Nessun dato trovato.</p></div>;
+
+  return <CharacterSheet data={selectedCharacterData} />;
 };
 
 export default HomeTab;

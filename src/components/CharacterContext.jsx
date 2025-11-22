@@ -5,6 +5,8 @@ import {
   getAcquirableSkills, 
   getPunteggiList,
   saveWebPushSubscription,
+  getAcquirableInfusioni, 
+  getAcquirableTessiture,
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
@@ -74,6 +76,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
   });
   const [viewAll, setViewAll] = useState(false);
 
+  // Stati per Infusioni e Tessiture
+  const [acquirableInfusioni, setAcquirableInfusioni] = useState([]);
+  const [acquirableTessiture, setAcquirableTessiture] = useState([]);
+
   // --- SOTTOSCRIZIONE WEB PUSH (Livello 2) ---
   const subscribeToPush = useCallback(async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -93,6 +99,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
         
         if (!subscription) {
             
+            // ATTENZIONE: Inserisci la tua chiave VAPID pubblica qui
             const vapidPublicKey = "BIOIApSIeJdV1tp5iVxyLtm8KzM43_AQWV2ymS4iMjkIG1R5g399o6WRdZJY-xcUBZPyJ7EFRVgWqlbalOkGSYw"; 
             
             if (vapidPublicKey === "INSERISCI_QUI_LA_TUA_VAPID_PUBLIC_KEY") {
@@ -107,20 +114,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
                 applicationServerKey: convertedVapidKey
             });
         }
-
-        // Invia la sottoscrizione al backend Django
-        // Nota: Includiamo le credenziali per associare la sottoscrizione all'utente loggato
-        // (Assumendo che il backend usi sessioni/cookie per l'auth)
-        // await fetch('https://www.kor35.it/webpush/save_information', {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         // Se usi un token CSRF, aggiungilo qui, es:
-        //         // 'X-CSRFToken': getCookie('csrftoken') 
-        //     },
-        //     body: JSON.stringify(subscription)
-        // });
-        // console.log("✅ WebPush Sottoscritto con successo!");        
 
         await saveWebPushSubscription(subscription, onLogout);
 
@@ -188,9 +181,8 @@ export const CharacterProvider = ({ children, onLogout }) => {
               // 1. Notifica In-App (Popup React)
               setNotification(msg); 
               
-              // 2. Notifica di Sistema Locale (se l'app è aperta/in background)
-              // Utile su Desktop per avvisare senza guardare la tab
-              const plainText = msg.testo.replace(/<[^>]+>/g, ''); // Rimuovi HTML
+              // 2. Notifica di Sistema Locale
+              const plainText = msg.testo.replace(/<[^>]+>/g, ''); 
               sendSystemNotification(msg.titolo, plainText);
            }
         }
@@ -218,29 +210,62 @@ export const CharacterProvider = ({ children, onLogout }) => {
       setNotification(null);
   };
 
-  // --- FUNZIONI API ---
+  // --- FUNZIONI API (ABILITÀ) ---
   const fetchAcquirableSkills = useCallback(async (characterId) => {
     if (!characterId) {
         setAcquirableSkills([]); 
         return;
     }
-    setIsLoadingAcquirable(true);
+    // Nota: setIsLoadingAcquirable è gestito da selectCharacter/refreshCharacterData
     try {
       const data = await getAcquirableSkills(onLogout, characterId);
       setAcquirableSkills(data || []);
     } catch (err) {
-      setError(err.message || 'Impossibile caricare la lista delle abilità acquistabili.');
+      console.error('Errore caricamento abilità:', err);
       setAcquirableSkills([]);
-    } finally {
-      setIsLoadingAcquirable(false);
-    }
+    } 
   }, [onLogout]);
 
+  // --- NUOVE FUNZIONI API (INFUSIONI E TESSITURE) ---
+  
+  const fetchAcquirableInfusioni = useCallback(async (characterId) => {
+    if (!characterId) {
+        setAcquirableInfusioni([]);
+        return;
+    }
+    try {
+      // Nota: Se l'API richiede onLogout passalo, altrimenti solo ID
+      const data = await getAcquirableInfusioni(characterId);
+      setAcquirableInfusioni(data || []);
+    } catch (err) {
+      console.error("Errore caricamento infusioni:", err);
+      setAcquirableInfusioni([]);
+    }
+  }, []);
+
+  const fetchAcquirableTessiture = useCallback(async (characterId) => {
+    if (!characterId) {
+        setAcquirableTessiture([]);
+        return;
+    }
+    try {
+      const data = await getAcquirableTessiture(characterId);
+      setAcquirableTessiture(data || []);
+    } catch (err) {
+      console.error("Errore caricamento tessiture:", err);
+      setAcquirableTessiture([]);
+    }
+  }, []);
+
+
+  // --- SELEZIONE PERSONAGGIO ---
   const selectCharacter = useCallback(async (id, forceRefresh = false) => {
     if (!id) {
         setSelectedCharacterId('');
         setSelectedCharacterData(null);
-        await fetchAcquirableSkills('');
+        setAcquirableSkills([]);
+        setAcquirableInfusioni([]);
+        setAcquirableTessiture([]);
         return;
     }
     
@@ -249,21 +274,31 @@ export const CharacterProvider = ({ children, onLogout }) => {
     }
     
     setIsLoadingDetail(true);
+    setIsLoadingAcquirable(true);
     setError(null);
     setSelectedCharacterId(id);
     
     try {
+      // 1. Dettaglio Personaggio
       const data = await getPersonaggioDetail(id, onLogout);
       setSelectedCharacterData(data);
-      await fetchAcquirableSkills(id); 
+      
+      // 2. Caricamento Parallelo di TUTTE le liste acquistabili
+      await Promise.all([
+          fetchAcquirableSkills(id),
+          fetchAcquirableInfusioni(id),
+          fetchAcquirableTessiture(id)
+      ]);
+
     } catch (err) {
       setError(err.message || `Impossibile caricare i dati per il personaggio ${id}.`);
       setSelectedCharacterData(null);
       setSelectedCharacterId(''); 
     } finally {
       setIsLoadingDetail(false);
+      setIsLoadingAcquirable(false);
     }
-  }, [onLogout, selectedCharacterId]); 
+  }, [onLogout, selectedCharacterId, fetchAcquirableSkills, fetchAcquirableInfusioni, fetchAcquirableTessiture]); 
 
   const fetchPunteggi = useCallback(async () => {
     setIsLoadingPunteggi(true);
@@ -309,28 +344,19 @@ export const CharacterProvider = ({ children, onLogout }) => {
     ]);
     
     setIsLoadingList(false); 
-  }, [onLogout, viewAll]); 
+  }, [onLogout, viewAll, selectCharacter, fetchPunteggi]); 
 
   const toggleViewAll = () => {
       setViewAll(prev => !prev);
   };
 
+  // --- REFRESH DOPO ACQUISTO ---
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
-      setIsLoadingDetail(true);
-      setIsLoadingAcquirable(true);
-      
-      try {
-        await selectCharacter(selectedCharacterId, true); 
-      } catch (err) {
-          console.error("Errore durante il refresh:", err);
-          setError(err.message || "Errore durante l'aggiornamento.");
-      } finally {
-          setIsLoadingDetail(false);
-          setIsLoadingAcquirable(false);
-      }
+      // Riusa selectCharacter forzando il refresh per aggiornare tutto
+      await selectCharacter(selectedCharacterId, true);
     }
-  }, [selectedCharacterId]); 
+  }, [selectedCharacterId, selectCharacter]); 
 
   const handleSelectCharacter = async (id) => {
     localStorage.setItem('kor35_last_char_id', id);
@@ -350,8 +376,13 @@ export const CharacterProvider = ({ children, onLogout }) => {
     fetchPersonaggi,
     selectCharacter: handleSelectCharacter,
     refreshCharacterData,
-    acquirableSkills,
+    
+    // Liste
     punteggiList,
+    acquirableSkills,
+    acquirableInfusioni, // NUOVO
+    acquirableTessiture, // NUOVO
+    
     isAdmin,
     viewAll,
     toggleViewAll,

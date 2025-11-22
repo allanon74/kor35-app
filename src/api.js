@@ -257,3 +257,74 @@ export const saveWebPushSubscription = async (subscription, onLogout) => {
 
     return await response.json();
 };
+
+// --- NUOVE FUNZIONI PER INFUSIONI E TESSITURE ---
+
+/**
+ * Recupera la lista delle infusioni acquistabili.
+ */
+export const getAcquirableInfusioni = (characterId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/personaggio/me/infusioni_acquistabili/?char_id=${characterId}`, 
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Acquisisce un'infusione.
+ */
+export const acquireInfusione = (infusioneId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/acquisisci_infusione/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        infusione_id: infusioneId, 
+        personaggio_id: personaggioId 
+      }),
+    }, 
+    onLogout
+  );
+};
+
+/**
+ * Recupera la lista delle tessiture acquistabili.
+ */
+export const getAcquirableTessiture = (characterId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/personaggio/me/tessiture_acquistabili/?char_id=${characterId}`, 
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Acquisisce una tessitura.
+ */
+export const acquireTessitura = (tessituraId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/acquisisci_tessitura/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        tessitura_id: tessituraId, 
+        personaggio_id: personaggioId 
+      }),
+    }, 
+    onLogout
+  );
+};
+
+export const getModelliAura = (auraId) => {
+  return fetchAuthenticated(`/personaggi/api/punteggio/${auraId}/modelli/`, { method: 'GET' });
+};
+
+export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/seleziona_modello_aura/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ personaggio_id: personaggioId, modello_id: modelloId })
+    }, 
+    onLogout
+  );
+};
