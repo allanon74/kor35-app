@@ -106,7 +106,7 @@ const TessitureTab = ({ onLogout }) => {
                             </span>
                         )}
                         <span className={`text-[11px] font-mono font-bold ${canAfford ? (hasDiscount ? 'text-green-400' : 'text-gray-400') : 'text-red-500'}`}>
-                            {hasDiscount ? 'Offerta: ' : 'Costo: '} {costoEffettivo} CR
+                            {hasDiscount ? 'Costo scontato: ' : 'Costo: '} {costoEffettivo} CR
                         </span>
                     </div>
                 )}
