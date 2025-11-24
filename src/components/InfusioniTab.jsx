@@ -31,7 +31,6 @@ const InfusioniTab = ({ onLogout }) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
     
-    // --- MODIFICA: Uso costo_effettivo ---
     const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
     if (!window.confirm(`Acquisire Infusione "${item.nome}" per ${costoFinale} Crediti?`)) return;
@@ -83,7 +82,6 @@ const InfusioniTab = ({ onLogout }) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
     
-    // --- MODIFICA: Calcolo Costi e Sconti ---
     const costoPieno = item.costo_pieno ?? (item.costo_crediti || item.livello * 100);
     const costoEffettivo = item.costo_effettivo ?? costoPieno;
     const hasDiscount = costoEffettivo < costoPieno;
@@ -103,8 +101,6 @@ const InfusioniTab = ({ onLogout }) => {
                 <span className="font-bold text-gray-200 text-sm group-hover:text-indigo-300 transition-colors">
                     {item.nome}
                 </span>
-                
-                {/* --- VISUALIZZAZIONE PREZZO MODIFICATA --- */}
                 {isAcquirable && (
                     <div className="flex flex-col items-start leading-tight mt-1">
                         {hasDiscount && (
