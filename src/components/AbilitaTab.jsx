@@ -229,6 +229,7 @@ const AbilitaTab = ({ onLogout }) => {
       renderItem={renderPossessedItem}
       renderHeader={renderGroupHeader}
       compact={false}
+      itemSortFn={(a, b) => a.nome.localeCompare(b.nome)}
     />
   );
 
@@ -243,6 +244,7 @@ const AbilitaTab = ({ onLogout }) => {
       renderItem={renderAcquirableItem}
       renderHeader={renderGroupHeader}
       compact={false}
+      itemSortFn={(a, b) => a.nome.localeCompare(b.nome)}
     />
   );
 

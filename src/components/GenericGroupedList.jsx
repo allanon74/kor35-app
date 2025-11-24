@@ -17,11 +17,12 @@ const GenericGroupedList = ({
     items, 
     groupByKey, 
     renderItem, 
-    renderHeader, // <--- Nuova prop: funzione per renderizzare l'header personalizzato
+    renderHeader, 
     titleKey = "nome", 
     colorKey = "colore", 
     iconKey = "icona_url", 
     orderKey = "ordine",
+    itemSortFn, // <--- NUOVA PROP: Funzione opzionale per ordinare gli item dentro il gruppo
     compact = false 
 }) => {
 
@@ -35,6 +36,7 @@ const GenericGroupedList = ({
         const groupName = groupObj ? groupObj[titleKey] : 'Altro';
         const groupColor = groupObj ? groupObj[colorKey] : '#cccccc';
         const groupIcon = groupObj ? groupObj[iconKey] : null;
+        // Se orderKey non esiste sull'oggetto, mettilo in fondo (9999)
         const groupOrder = groupObj && groupObj[orderKey] !== undefined ? groupObj[orderKey] : 9999;
 
         if (!acc[groupId]) {
@@ -51,7 +53,7 @@ const GenericGroupedList = ({
         return acc;
     }, {});
 
-    // 2. Ordina i gruppi
+    // 2. Ordina i GRUPPI (Le schede/header)
     const sortedGroups = Object.values(groupedItems).sort((a, b) => {
         if (a.order !== b.order) return a.order - b.order;
         return a.name.localeCompare(b.name);
@@ -60,7 +62,12 @@ const GenericGroupedList = ({
     return (
         <div className="space-y-4">
             {sortedGroups.map(group => {
-                // Se c'è una funzione custom per l'header, usala. Altrimenti usa il default.
+                // 3. Ordina gli ITEMS dentro il gruppo (se fornita la funzione)
+                const sortedItems = itemSortFn 
+                    ? [...group.items].sort(itemSortFn) 
+                    : group.items;
+
+                // Se c'è una funzione custom per l'header, usala.
                 if (renderHeader) {
                     return (
                         <div 
@@ -68,13 +75,11 @@ const GenericGroupedList = ({
                             className="border border-gray-700 rounded-lg overflow-hidden shadow-sm mb-4 bg-gray-800"
                             style={{ borderColor: group.color }}
                         >
-                            {/* Header Custom (es. PunteggioDisplay) */}
                             {renderHeader(group)}
 
-                            {/* Lista Elementi */}
                             <div className="p-2">
                                 <ul className={`divide-y divide-gray-700 ${compact ? 'text-sm' : ''}`}>
-                                    {group.items.map((item, index) => (
+                                    {sortedItems.map((item, index) => (
                                         <React.Fragment key={index}>
                                             {renderItem(item)}
                                         </React.Fragment>
@@ -119,7 +124,7 @@ const GenericGroupedList = ({
 
                         <div className="p-2">
                             <ul className={`divide-y divide-gray-700 ${compact ? 'text-sm' : ''}`}>
-                                {group.items.map((item, index) => (
+                                {sortedItems.map((item, index) => (
                                     <React.Fragment key={index}>
                                         {renderItem(item)}
                                     </React.Fragment>

@@ -151,6 +151,7 @@ const InfusioniTab = ({ onLogout }) => {
         iconKey="icona_url"
         renderItem={(item) => renderItem(item, false)}
         renderHeader={renderGroupHeader}
+        itemSortFn={(a, b) => a.livello - b.livello} 
       />
   );
 
@@ -164,6 +165,7 @@ const InfusioniTab = ({ onLogout }) => {
         iconKey="icona_url"
         renderItem={(item) => renderItem(item, true)}
         renderHeader={renderGroupHeader}
+        itemSortFn={(a, b) => a.livello - b.livello}
       />
   );
 
