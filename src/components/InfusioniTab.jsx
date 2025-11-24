@@ -1,3 +1,4 @@
+// src/components/InfusioniTab.jsx
 import React, { useState, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
@@ -31,6 +32,7 @@ const InfusioniTab = ({ onLogout }) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
     
+    // LOGICA COSTO
     const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
     if (!window.confirm(`Acquisire Infusione "${item.nome}" per ${costoFinale} Crediti?`)) return;
@@ -60,20 +62,10 @@ const InfusioniTab = ({ onLogout }) => {
   }
 
   const renderGroupHeader = (group) => {
-    const fakePunteggio = {
-        nome: group.name,
-        colore: group.color,
-        icona_url: group.icon 
-    };
-
+    const fakePunteggio = { nome: group.name, colore: group.color, icona_url: group.icon };
     return (
         <PunteggioDisplay 
-            punteggio={fakePunteggio}
-            value={group.items.length}
-            displayText="name"
-            iconType="inv_circle"
-            size="s"
-            className="rounded-b-none"
+            punteggio={fakePunteggio} value={group.items.length} displayText="name" iconType="inv_circle" size="s" className="rounded-b-none"
         />
     );
   };
@@ -82,6 +74,7 @@ const InfusioniTab = ({ onLogout }) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
     
+    // LOGICA STILE PREZZI
     const costoPieno = item.costo_pieno ?? (item.costo_crediti || item.livello * 100);
     const costoEffettivo = item.costo_effettivo ?? costoPieno;
     const hasDiscount = costoEffettivo < costoPieno;
@@ -101,14 +94,16 @@ const InfusioniTab = ({ onLogout }) => {
                 <span className="font-bold text-gray-200 text-sm group-hover:text-indigo-300 transition-colors">
                     {item.nome}
                 </span>
+                
+                {/* PREZZI */}
                 {isAcquirable && (
-                    <div className="flex flex-col items-start leading-tight mt-1">
+                    <div className="flex flex-col items-start leading-none mt-1">
                         {hasDiscount && (
-                            <span className="text-[10px] text-red-400 line-through decoration-red-500 opacity-70">
+                            <span className="text-[10px] text-red-400 line-through decoration-red-500 opacity-70 mb-0.5">
                                 {costoPieno} CR
                             </span>
                         )}
-                        <span className={`text-[10px] font-medium ${canAfford ? (hasDiscount ? 'text-green-400' : 'text-gray-500') : 'text-red-500'}`}>
+                        <span className={`text-[11px] font-mono font-bold ${canAfford ? (hasDiscount ? 'text-green-400' : 'text-gray-400') : 'text-red-500'}`}>
                             {hasDiscount ? 'Offerta: ' : 'Costo: '} {costoEffettivo} CR
                         </span>
                     </div>
@@ -121,10 +116,10 @@ const InfusioniTab = ({ onLogout }) => {
                 <button
                     onClick={(e) => handleAcquire(item, e)}
                     disabled={!canAfford || isAcquiring === item.id}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2 rounded-lg transition-colors shadow-md ${
                         canAfford 
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg' 
-                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-500 hover:shadow-indigo-500/20' 
+                        : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-60'
                     }`}
                 >
                     {isAcquiring === item.id ? <Loader2 className="animate-spin" size={16} /> : <ShoppingCart size={16} />}
@@ -143,28 +138,16 @@ const InfusioniTab = ({ onLogout }) => {
 
   const PossessedList = (
       <GenericGroupedList 
-        items={possessed} 
-        groupByKey="aura_richiesta"
-        orderKey="ordine"
-        titleKey="nome"
-        colorKey="colore"
-        iconKey="icona_url"
-        renderItem={(item) => renderItem(item, false)}
-        renderHeader={renderGroupHeader}
+        items={possessed} groupByKey="aura_richiesta" orderKey="ordine" titleKey="nome" colorKey="colore" iconKey="icona_url"
+        renderItem={(item) => renderItem(item, false)} renderHeader={renderGroupHeader}
         itemSortFn={(a, b) => a.livello - b.livello} 
       />
   );
 
   const AcquirableList = (
       <GenericGroupedList 
-        items={acquirable} 
-        groupByKey="aura_richiesta"
-        orderKey="ordine"
-        titleKey="nome"
-        colorKey="colore"
-        iconKey="icona_url"
-        renderItem={(item) => renderItem(item, true)}
-        renderHeader={renderGroupHeader}
+        items={acquirable} groupByKey="aura_richiesta" orderKey="ordine" titleKey="nome" colorKey="colore" iconKey="icona_url"
+        renderItem={(item) => renderItem(item, true)} renderHeader={renderGroupHeader}
         itemSortFn={(a, b) => a.livello - b.livello}
       />
   );
@@ -172,7 +155,6 @@ const InfusioniTab = ({ onLogout }) => {
   return (
     <>
       <div className="w-full p-4 max-w-6xl mx-auto pb-24">
-        
         {/* Riepilogo Valute */}
         <div className="mb-6 flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm max-w-3xl mx-auto">
             <div className="text-sm text-gray-400">Disponibilità:</div>
@@ -202,14 +184,9 @@ const InfusioniTab = ({ onLogout }) => {
                   </Tab>
                 ))}
               </Tab.List>
-              
               <Tab.Panels>
-                <Tab.Panel className="focus:outline-none animate-fadeIn">
-                  {PossessedList}
-                </Tab.Panel>
-                <Tab.Panel className="focus:outline-none animate-fadeIn">
-                  {AcquirableList}
-                </Tab.Panel>
+                <Tab.Panel className="focus:outline-none animate-fadeIn">{PossessedList}</Tab.Panel>
+                <Tab.Panel className="focus:outline-none animate-fadeIn">{AcquirableList}</Tab.Panel>
               </Tab.Panels>
             </Tab.Group>
         </div>
@@ -226,7 +203,6 @@ const InfusioniTab = ({ onLogout }) => {
                 </div>
                 {PossessedList}
             </div>
-
             <div>
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
                     <PlusCircle className="w-6 h-6 text-indigo-500" />
@@ -238,15 +214,10 @@ const InfusioniTab = ({ onLogout }) => {
                 {AcquirableList}
             </div>
         </div>
-
       </div>
       
       {modalItem && (
-        <TecnicaDetailModal
-          tecnica={modalItem}
-          type="Infusione"
-          onClose={() => setModalItem(null)}
-        />
+        <TecnicaDetailModal tecnica={modalItem} type="Infusione" onClose={() => setModalItem(null)} />
       )}
     </>
   );
