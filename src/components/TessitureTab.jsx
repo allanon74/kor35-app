@@ -13,7 +13,6 @@ function classNames(...classes) {
 }
 
 const TessitureTab = ({ onLogout }) => {
-  // ... (useCharacter hook rimane uguale) ...
   const {
     selectedCharacterData: char,
     selectedCharacterId, 
@@ -28,12 +27,10 @@ const TessitureTab = ({ onLogout }) => {
 
   const handleOpenModal = (item) => setModalItem(item);
 
-  // 1. AGGIORNATA LOGICA ACQUISTO
   const handleAcquire = async (item, e) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
     
-    // Usa costo_effettivo se esiste, altrimenti fallback
     const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
     if (!window.confirm(`Acquisire Tessitura "${item.nome}" per ${costoFinale} Crediti?`)) return;
@@ -50,6 +47,7 @@ const TessitureTab = ({ onLogout }) => {
   };
 
   const sortItems = (items) => [...items].sort((a, b) => a.livello - b.livello);
+  
   const possessed = sortItems(char?.tessiture_possedute || []);
   const acquirable = sortItems(acquirableTessiture || []);
 
@@ -61,75 +59,133 @@ const TessitureTab = ({ onLogout }) => {
     );
   }
 
+  // --- RENDERERS ---
+
   const renderGroupHeader = (group) => {
-     // ... (rimane uguale) ...
-    const fakePunteggio = { nome: group.name, colore: group.color, icona_url: group.icon };
+    const fakePunteggio = {
+        nome: group.name,
+        colore: group.color,
+        icona_url: group.icon 
+    };
+
     return (
         <PunteggioDisplay 
-            punteggio={fakePunteggio} value={group.items.length} displayText="name" iconType="inv_circle" size="s" className="rounded-b-none"
+            punteggio={fakePunteggio}
+            value={group.items.length}
+            displayText="name"
+            iconType="inv_circle"
+            size="s"
+            className="rounded-b-none"
         />
     );
   };
 
-  // 2. AGGIORNATO RENDER ITEM CON STILE SCONTI
-  const renderItem = (item, isAcquirable = false) => {
+  // 1. RENDER ITEM POSSEDUTO (Stile Semplice come Abilità)
+  const renderPossessedItem = (item) => {
+    const iconUrl = item.aura_richiesta?.icona_url;
+    const iconColor = item.aura_richiesta?.colore;
+
+    return (
+      <li className="flex justify-between items-center py-2 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0">
+        <div className="flex items-center gap-3 cursor-pointer grow" onClick={() => handleOpenModal(item)}>
+            <div className="shrink-0 mt-0.5 relative">
+                <IconaPunteggio url={iconUrl} color={iconColor} mode="cerchio_inv" size="xs" />
+                <span className="absolute -top-2 -right-2 bg-gray-900 text-gray-200 text-[9px] font-bold px-1 py-0.5 rounded-full border border-gray-600 leading-none">
+                    L{item.livello}
+                </span>
+            </div>
+            <span className="font-bold text-gray-200 text-base">{item.nome}</span>
+        </div>
+        <button
+            onClick={(e) => {e.stopPropagation(); handleOpenModal(item)}}
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors ml-2"
+        >
+            <Info size={18} />
+        </button>
+      </li>
+    );
+  };
+
+  // 2. RENDER ITEM ACQUISTABILE (Stile Ricco e Responsive come Abilità)
+  const renderAcquirableItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
     
-    // Calcolo Costi
     const costoPieno = item.costo_pieno ?? (item.costo_crediti || item.livello * 100);
     const costoEffettivo = item.costo_effettivo ?? costoPieno;
     const hasDiscount = costoEffettivo < costoPieno;
     const canAfford = char.crediti >= costoEffettivo;
 
     return (
-      <li className="flex justify-between items-center py-3 px-3 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0 group">
+      <li className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0 gap-2">
+        
+        {/* Parte Sinistra: Icona + Nome + Prezzo Mobile */}
         <div className="flex items-center gap-3 cursor-pointer grow" onClick={() => handleOpenModal(item)}>
-            <div className="shrink-0 relative">
+            <div className="shrink-0 mt-0.5 relative">
                 <IconaPunteggio url={iconUrl} color={iconColor} mode="cerchio_inv" size="xs" />
-                <span className="absolute -top-2 -right-2 bg-gray-900 text-gray-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-gray-600">
+                <span className="absolute -top-2 -right-2 bg-gray-900 text-gray-200 text-[9px] font-bold px-1 py-0.5 rounded-full border border-gray-600 leading-none">
                     L{item.livello}
                 </span>
             </div>
             
             <div className="flex flex-col">
-                <span className="font-bold text-gray-200 text-sm group-hover:text-indigo-300 transition-colors">
-                    {item.nome}
-                </span>
-                
-                {/* Visualizzazione Prezzi */}
-                {isAcquirable && (
-                    <div className="flex flex-col items-start leading-none mt-1">
-                        {hasDiscount && (
-                            <span className="text-[10px] text-red-400 line-through decoration-red-500 opacity-70 mb-0.5">
-                                {costoPieno} CR
-                            </span>
-                        )}
-                        <span className={`text-[11px] font-mono font-bold ${canAfford ? (hasDiscount ? 'text-green-400' : 'text-gray-400') : 'text-red-500'}`}>
-                            {hasDiscount ? 'Costo scontato: ' : 'Costo: '} {costoEffettivo} CR
-                        </span>
-                    </div>
-                )}
+                <span className="font-bold text-gray-200 text-base">{item.nome}</span>
+                {/* Prezzo Mobile */}
+                <div className="text-xs text-gray-400 flex gap-2 mt-0.5 sm:hidden">
+                    {hasDiscount ? (
+                        <div className="flex items-center gap-1">
+                             <span className="text-red-500 line-through decoration-red-500 opacity-70">{costoPieno}</span>
+                             <span className={canAfford ? "text-green-400 font-bold" : "text-red-400 font-bold"}>{costoEffettivo} CR</span>
+                        </div>
+                    ) : (
+                        <span className={canAfford ? "text-yellow-300" : "text-red-400"}>{costoEffettivo} CR</span>
+                    )}
+                </div>
             </div>
         </div>
 
-        <div className="flex items-center gap-2">
-            {isAcquirable && (
-                <button
-                    onClick={(e) => handleAcquire(item, e)}
-                    disabled={!canAfford || isAcquiring === item.id}
-                    className={`p-2 rounded-lg transition-colors shadow-md ${
-                        canAfford 
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-500 hover:shadow-indigo-500/20' 
-                        : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-60'
-                    }`}
-                >
-                    {isAcquiring === item.id ? <Loader2 className="animate-spin" size={16} /> : <ShoppingCart size={16} />}
-                </button>
-            )}
+        {/* Parte Destra: Prezzo Desktop + Bottoni */}
+        <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
+            {/* Prezzo Desktop */}
+            <div className="hidden sm:flex flex-col items-end text-xs font-mono mr-1">
+                {hasDiscount ? (
+                    <div className="flex flex-col items-end leading-none mt-1">
+                        <span className="text-[10px] text-red-500 line-through decoration-red-500 opacity-80">
+                            {costoPieno}
+                        </span>
+                        <span className="text-green-400 font-bold">
+                            {costoEffettivo} CR
+                        </span>
+                    </div>
+                ) : (
+                    <span className={canAfford ? "text-yellow-300" : "text-red-400 font-bold"}>
+                        {costoEffettivo} CR
+                    </span>
+                )}
+            </div>
+
+            <button
+                onClick={(e) => handleAcquire(item, e)}
+                disabled={!canAfford || isAcquiring === item.id}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all shadow-md ml-auto sm:ml-0 ${
+                    canAfford 
+                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/20' 
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+            >
+                {isAcquiring === item.id ? (
+                    <Loader2 className="animate-spin" size={16} />
+                ) : (
+                    <>
+                        <ShoppingCart size={16} />
+                        <span className="hidden sm:inline">Acquista</span>
+                    </>
+                )}
+            </button>
+            
             <button
                 onClick={(e) => {e.stopPropagation(); handleOpenModal(item)}}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full"
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"
             >
                 <Info size={18} />
             </button>
@@ -140,16 +196,28 @@ const TessitureTab = ({ onLogout }) => {
 
   const PossessedList = (
       <GenericGroupedList 
-        items={possessed} groupByKey="aura_richiesta" orderKey="ordine" titleKey="nome" colorKey="colore" iconKey="icona_url"
-        renderItem={(item) => renderItem(item, false)} renderHeader={renderGroupHeader}
+        items={possessed} 
+        groupByKey="aura_richiesta"
+        orderKey="ordine"
+        titleKey="nome"
+        colorKey="colore"
+        iconKey="icona_url"
+        renderItem={renderPossessedItem} // Usa il renderer semplice
+        renderHeader={renderGroupHeader}
         itemSortFn={(a, b) => a.livello - b.livello} 
       />
   );
 
   const AcquirableList = (
       <GenericGroupedList 
-        items={acquirable} groupByKey="aura_richiesta" orderKey="ordine" titleKey="nome" colorKey="colore" iconKey="icona_url"
-        renderItem={(item) => renderItem(item, true)} renderHeader={renderGroupHeader}
+        items={acquirable} 
+        groupByKey="aura_richiesta"
+        orderKey="ordine"
+        titleKey="nome"
+        colorKey="colore"
+        iconKey="icona_url"
+        renderItem={renderAcquirableItem} // Usa il renderer complesso
+        renderHeader={renderGroupHeader}
         itemSortFn={(a, b) => a.livello - b.livello}
       />
   );
