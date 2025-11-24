@@ -31,9 +31,10 @@ const TessitureTab = ({ onLogout }) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
     
-    const costo = item.costo_crediti || (item.livello * 100);
+    // --- MODIFICA: Uso costo_effettivo per l'acquisto ---
+    const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
-    if (!window.confirm(`Acquisire Tessitura "${item.nome}" per ${costo} Crediti?`)) return;
+    if (!window.confirm(`Acquisire Tessitura "${item.nome}" per ${costoFinale} Crediti?`)) return;
     
     setIsAcquiring(item.id);
     try {
@@ -83,7 +84,12 @@ const TessitureTab = ({ onLogout }) => {
   const renderItem = (item, isAcquirable = false) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
-    const canAfford = char.crediti >= (item.costo_crediti || item.livello * 100);
+    
+    // --- MODIFICA: Calcolo Costi e Sconti ---
+    const costoPieno = item.costo_pieno ?? (item.costo_crediti || item.livello * 100);
+    const costoEffettivo = item.costo_effettivo ?? costoPieno;
+    const hasDiscount = costoEffettivo < costoPieno;
+    const canAfford = char.crediti >= costoEffettivo;
 
     return (
       <li className="flex justify-between items-center py-3 px-3 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0 group">
@@ -99,10 +105,19 @@ const TessitureTab = ({ onLogout }) => {
                 <span className="font-bold text-gray-200 text-sm group-hover:text-indigo-300 transition-colors">
                     {item.nome}
                 </span>
+                
+                {/* --- VISUALIZZAZIONE PREZZO MODIFICATA --- */}
                 {isAcquirable && (
-                    <span className={`text-[10px] ${canAfford ? 'text-gray-500' : 'text-red-400'}`}>
-                        Costo: {item.costo_crediti || item.livello * 100} CR
-                    </span>
+                    <div className="flex flex-col items-start leading-tight mt-1">
+                        {hasDiscount && (
+                            <span className="text-[10px] text-red-400 line-through decoration-red-500 opacity-70">
+                                {costoPieno} CR
+                            </span>
+                        )}
+                        <span className={`text-[10px] font-medium ${canAfford ? (hasDiscount ? 'text-green-400' : 'text-gray-500') : 'text-red-500'}`}>
+                            {hasDiscount ? 'Offerta: ' : 'Costo: '} {costoEffettivo} CR
+                        </span>
+                    </div>
                 )}
             </div>
         </div>

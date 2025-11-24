@@ -31,9 +31,10 @@ const InfusioniTab = ({ onLogout }) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
     
-    const costo = item.costo_crediti || (item.livello * 100);
+    // --- MODIFICA: Uso costo_effettivo ---
+    const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
-    if (!window.confirm(`Acquisire "${item.nome}" per ${costo} Crediti?`)) return;
+    if (!window.confirm(`Acquisire Infusione "${item.nome}" per ${costoFinale} Crediti?`)) return;
     
     setIsAcquiring(item.id);
     try {
@@ -46,10 +47,8 @@ const InfusioniTab = ({ onLogout }) => {
     }
   };
 
-  const sortItems = (items) => {
-      return [...items].sort((a, b) => a.livello - b.livello);
-  };
-
+  const sortItems = (items) => [...items].sort((a, b) => a.livello - b.livello);
+  
   const possessed = sortItems(char?.infusioni_possedute || []);
   const acquirable = sortItems(acquirableInfusioni || []);
 
@@ -61,11 +60,7 @@ const InfusioniTab = ({ onLogout }) => {
     );
   }
 
-  // --- RENDERERS ---
-
   const renderGroupHeader = (group) => {
-    // Mappiamo le proprietà del gruppo (create da GenericGroupedList) 
-    // per farle capire a PunteggioDisplay
     const fakePunteggio = {
         nome: group.name,
         colore: group.color,
@@ -87,15 +82,18 @@ const InfusioniTab = ({ onLogout }) => {
   const renderItem = (item, isAcquirable = false) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
-    const canAfford = char.crediti >= (item.costo_crediti || item.livello * 100);
+    
+    // --- MODIFICA: Calcolo Costi e Sconti ---
+    const costoPieno = item.costo_pieno ?? (item.costo_crediti || item.livello * 100);
+    const costoEffettivo = item.costo_effettivo ?? costoPieno;
+    const hasDiscount = costoEffettivo < costoPieno;
+    const canAfford = char.crediti >= costoEffettivo;
 
     return (
       <li className="flex justify-between items-center py-3 px-3 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0 group">
-        
         <div className="flex items-center gap-3 cursor-pointer grow" onClick={() => handleOpenModal(item)}>
             <div className="shrink-0 relative">
                 <IconaPunteggio url={iconUrl} color={iconColor} mode="cerchio_inv" size="xs" />
-                {/* Badge Livello */}
                 <span className="absolute -top-2 -right-2 bg-gray-900 text-gray-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-gray-600">
                     L{item.livello}
                 </span>
@@ -105,10 +103,19 @@ const InfusioniTab = ({ onLogout }) => {
                 <span className="font-bold text-gray-200 text-sm group-hover:text-indigo-300 transition-colors">
                     {item.nome}
                 </span>
+                
+                {/* --- VISUALIZZAZIONE PREZZO MODIFICATA --- */}
                 {isAcquirable && (
-                    <span className={`text-[10px] ${canAfford ? 'text-gray-500' : 'text-red-400'}`}>
-                        Costo: {item.costo_crediti || item.livello * 100} CR
-                    </span>
+                    <div className="flex flex-col items-start leading-tight mt-1">
+                        {hasDiscount && (
+                            <span className="text-[10px] text-red-400 line-through decoration-red-500 opacity-70">
+                                {costoPieno} CR
+                            </span>
+                        )}
+                        <span className={`text-[10px] font-medium ${canAfford ? (hasDiscount ? 'text-green-400' : 'text-gray-500') : 'text-red-500'}`}>
+                            {hasDiscount ? 'Offerta: ' : 'Costo: '} {costoEffettivo} CR
+                        </span>
+                    </div>
                 )}
             </div>
         </div>
@@ -138,16 +145,14 @@ const InfusioniTab = ({ onLogout }) => {
     );
   };
 
-  // --- DEFINIZIONE LISTE (Per riuso layout) ---
-  
   const PossessedList = (
       <GenericGroupedList 
         items={possessed} 
-        groupByKey="aura_richiesta" // Raggruppa per l'oggetto Aura
-        orderKey="ordine"           // Ordina gruppi per campo ordine dell'aura
-        titleKey="nome"             // Nome dell'aura
-        colorKey="colore"           // Colore dell'aura
-        iconKey="icona_url"         // Icona dell'aura
+        groupByKey="aura_richiesta"
+        orderKey="ordine"
+        titleKey="nome"
+        colorKey="colore"
+        iconKey="icona_url"
         renderItem={(item) => renderItem(item, false)}
         renderHeader={renderGroupHeader}
       />
@@ -180,7 +185,7 @@ const InfusioniTab = ({ onLogout }) => {
             </div>
         </div>
 
-        {/* --- MOBILE: TABS --- */}
+        {/* --- MOBILE --- */}
         <div className="md:hidden">
             <Tab.Group>
               <Tab.List className="flex space-x-1 rounded-xl bg-gray-800/80 p-1 mb-6 shadow-inner">
@@ -211,7 +216,7 @@ const InfusioniTab = ({ onLogout }) => {
             </Tab.Group>
         </div>
 
-        {/* --- DESKTOP: COLONNE --- */}
+        {/* --- DESKTOP --- */}
         <div className="hidden md:grid grid-cols-2 gap-6">
             <div>
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
