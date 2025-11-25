@@ -387,7 +387,17 @@ export const getAllPunteggi = async () => {
     const response = await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
         method: 'GET'
     });
-    if (!response.ok) throw new Error('Errore caricamento punteggi');
+    // if (!response.ok) throw new Error('Errore caricamento punteggi');
+
+    if (!response.ok) {
+        // Questo stamperà l'errore esatto del server (es. 500 o 404)
+        console.error(`Errore fetch Punteggi: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        console.error("Dettagli errore server:", text);
+        throw new Error(`Errore server: ${response.status}`);
+    }
+
+
     return await response.json();
 };
 
