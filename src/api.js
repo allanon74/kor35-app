@@ -403,3 +403,14 @@ export const getMattoniAura = async (auraId) => {
     if (!response.ok) throw new Error('Errore caricamento mattoni');
     return await response.json();
 };
+
+export const getAllPunteggi = async () => {
+    const token = localStorage.getItem('token');
+    // Usa l'endpoint esistente che lista tutti i punteggi
+    const response = await fetch(`${API_BASE_URL}/punteggi/`, {
+        headers: { 'Authorization': `Token ${token}` }
+    });
+    if (!response.ok) throw new Error('Errore caricamento punteggi');
+    return await response.json();
+};
+
