@@ -1,12 +1,13 @@
 import React, { useState, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle } from 'lucide-react'; 
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit } from 'lucide-react'; // Aggiunto FileEdit
 import TecnicaDetailModal from './TecnicaDetailModal';
 import { acquireInfusione } from '../api.js';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
-import IconaPunteggio from './IconaPunteggio';         
+import IconaPunteggio from './IconaPunteggio';
+import ProposalManager from './ProposalManager'; // Import del Manager
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -24,6 +25,9 @@ const InfusioniTab = ({ onLogout }) => {
   
   const [modalItem, setModalItem] = useState(null);
   const [isAcquiring, setIsAcquiring] = useState(null);
+  
+  // Stato per gestire la visibilità del ProposalManager
+  const [showProposals, setShowProposals] = useState(false);
 
   const handleOpenModal = (item) => setModalItem(item);
 
@@ -224,13 +228,24 @@ const InfusioniTab = ({ onLogout }) => {
     <>
       <div className="w-full p-4 max-w-6xl mx-auto pb-24">
         {/* Riepilogo Valute */}
-        <div className="mb-6 flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm max-w-3xl mx-auto">
+        <div className="mb-4 flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm max-w-3xl mx-auto">
             <div className="text-sm text-gray-400">Disponibilità:</div>
             <div className="flex gap-4">
                 <div className="flex items-center gap-1 text-yellow-400 font-bold">
                     <span>{char.crediti}</span> <span className="text-xs font-normal text-gray-400">CR</span>
                 </div>
             </div>
+        </div>
+
+        {/* Pulsante Proposte - NUOVA AGGIUNTA */}
+        <div className="flex justify-end mb-6 max-w-3xl mx-auto">
+            <button 
+                onClick={() => setShowProposals(true)}
+                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-indigo-300 hover:text-white px-4 py-2 rounded-lg border border-gray-600 transition-all shadow-sm text-sm font-medium"
+            >
+                <FileEdit size={16} />
+                Gestisci Proposte Infusione
+            </button>
         </div>
 
         {/* --- MOBILE --- */}
@@ -286,6 +301,11 @@ const InfusioniTab = ({ onLogout }) => {
       
       {modalItem && (
         <TecnicaDetailModal tecnica={modalItem} type="Infusione" onClose={() => setModalItem(null)} />
+      )}
+
+      {/* Modale Proposal Manager - NUOVA AGGIUNTA */}
+      {showProposals && (
+        <ProposalManager type="Infusione" onClose={() => setShowProposals(false)} />
       )}
     </>
   );

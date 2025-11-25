@@ -328,3 +328,78 @@ export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
     onLogout
   );
 };
+
+export const getProposte = async (charId) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/proposte/?char_id=${charId}`, {
+        headers: { 'Authorization': `Token ${token}` }
+    });
+    if (!response.ok) throw new Error('Errore caricamento proposte');
+    return await response.json();
+};
+
+export const createProposta = async (data) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/proposte/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Errore creazione proposta');
+    }
+    return await response.json();
+};
+
+export const updateProposta = async (id, data) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/proposte/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Errore aggiornamento proposta');
+    }
+    return await response.json();
+};
+
+export const deleteProposta = async (id) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/proposte/${id}/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Token ${token}` }
+    });
+    if (!response.ok) throw new Error('Errore cancellazione proposta');
+    return true;
+};
+
+export const sendProposta = async (id) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/proposte/${id}/invia_proposta/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Token ${token}` }
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Errore invio proposta');
+    }
+    return await response.json();
+};
+
+export const getMattoniAura = async (auraId) => {
+    // Nota: Dovresti creare una view che restituisce i mattoni filtrati per Aura
+    // Per ora assumiamo di usare l'endpoint generico punteggi se i mattoni sono lì, 
+    // oppure un nuovo endpoint.
+    // Simuliamo un filtro frontend se non c'è l'endpoint specifico, ma meglio averlo.
+    // Creiamo una chiamata generica ai punteggi e filtriamo lato client per semplicità in questo esempio,
+    // MA idealmente: /api/punteggi/?tipo=ST&mattone_aura_id=...
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/punteggi/`, { // Recupera tutto, filtro client
+         headers: { 'Authorization': `Token ${token}` }
+    });
+    if (!response.ok) throw new Error('Errore caricamento mattoni');
+    return await response.json();
+};
