@@ -383,3 +383,29 @@ export const getMattoniAura = async (auraId) => {
 export const getAdminPendingProposalsCount = (onLogout) => {
   return fetchAuthenticated('/personaggi/api/admin/pending_proposals_count/', { method: 'GET' }, onLogout);
 };
+
+export const markMessageAsRead = (messageId, characterId, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/messaggi/${messageId}/leggi/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ personaggio_id: characterId })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Cancella un messaggio (soft delete per l'utente).
+ * POST /personaggi/api/messaggi/<id>/cancella/
+ */
+export const deleteMessage = (messageId, characterId, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/messaggi/${messageId}/cancella/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ personaggio_id: characterId })
+    },
+    onLogout
+  );
+};
