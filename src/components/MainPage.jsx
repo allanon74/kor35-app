@@ -44,7 +44,6 @@ const MainPage = ({ token, onLogout }) => {
   }, [stealCooldownEnd, isStealingOnCooldown]);
 
   const handleStealSuccess = () => {
-    console.log("Furto riuscito, avvio cooldown 30s");
     setStealCooldownEnd(Date.now() + 30000);
     closeQrModal();
   };
@@ -64,26 +63,17 @@ const MainPage = ({ token, onLogout }) => {
   } = useCharacter();
 
   useEffect(() => {
-    if (token) {
-      fetchPersonaggi();
-    }
+    if (token) fetchPersonaggi();
   }, [token, fetchPersonaggi]);
 
-  const handleScanSuccess = (jsonData) => {
-    setQrResultData(jsonData);
-  };
+  const handleScanSuccess = (jsonData) => setQrResultData(jsonData);
+  const closeQrModal = () => setQrResultData(null);
+  const handleCharacterChange = (e) => selectCharacter(e.target.value);
 
-  const closeQrModal = () => {
-    setQrResultData(null);
-  };
-  
-  const handleCharacterChange = (e) => {
-    const newId = e.target.value;
-    selectCharacter(newId);
-  };
-
-  // --- QUESTA FUNZIONE GESTISCE IL CAMBIO SCHERMATA ---
+  // --- LOGICA DI ROUTING DEI TAB ---
   const renderTabContent = () => {
+    console.log("Rendering Tab:", activeTab); // <--- DEBUG: VEDI QUESTO IN CONSOLE
+
     switch (activeTab) {
       case 'home': return <HomeTab />;
       case 'abilita': return <AbilitaTab onLogout={onLogout} />;
@@ -91,22 +81,20 @@ const MainPage = ({ token, onLogout }) => {
       case 'tessiture': return <TessitureTab onLogout={onLogout} />;
       case 'qr': return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
       
-      // --- IMPORTANTE: Questo caso deve esistere ed essere scritto esattamente così ---
+      // SE VEDI 'messaggi' NEL LOG MA SI APRE LA HOME, IL PROBLEMA E' DENTRO MessaggiTab
       case 'messaggi': return <MessaggiTab onLogout={onLogout} />;
       
       case 'admin_msg': return <AdminMessageTab onLogout={onLogout} />;
       
-      // Se activeTab non corrisponde a nulla (es. errore di battitura), mostra la Home
-      default: return <HomeTab />;
+      default: 
+        console.warn("Tab non riconosciuto, fallback su Home:", activeTab);
+        return <HomeTab />;
     }
   };
 
   return (
     <div className="flex flex-col h-dvh bg-gray-900 text-white">
-      {/* --- HEADER --- */}
       <header className="flex flex-col md:flex-row justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 gap-3 z-10 border-b border-gray-700">
-        
-        {/* Logo e Titolo Stylish */}
         <div className="flex justify-between items-center w-full md:w-auto">
           <div className="flex items-center gap-3">
               <img src="/pwa-512x512.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-lg" />
@@ -115,42 +103,32 @@ const MainPage = ({ token, onLogout }) => {
               </h1>
           </div>
 
-          {/* Azioni Header (Mobile) */}
+          {/* HEADER MOBILE */}
           <div className="flex items-center gap-3 md:hidden">
             {isAdmin && (
                 <div className="relative">
-                    <button 
-                        onClick={() => setActiveTab('admin_msg')} 
-                        className='bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full flex items-center gap-2 shadow-lg transition-all' 
-                        title="Area Admin"
-                    >
+                    <button onClick={() => setActiveTab('admin_msg')} className={`p-2 rounded-full flex items-center gap-2 shadow-lg transition-all ${activeTab === 'admin_msg' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
                         Admin
                     </button>
                     {adminPendingCount > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-                            {adminPendingCount}
-                        </span>
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{adminPendingCount}</span>
                     )}
                 </div>
             )}
-             {/* Pulsante Messaggi Mobile */}
              <button
-                onClick={() => setActiveTab('messaggi')}
+                onClick={() => {
+                    console.log("Click su Messaggi (Mobile)"); 
+                    setActiveTab('messaggi');
+                }}
                 className={`relative p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                title="Messaggi"
              >
                 <Mail size={22} />
-                {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />
-                )}
+                {unreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />}
              </button>
-             <button onClick={onLogout} className="text-red-400 hover:text-red-300" title="Logout">
-                <LogOut size={22} />
-             </button>
+             <button onClick={onLogout} className="text-red-400 hover:text-red-300"><LogOut size={22} /></button>
           </div>
         </div>
         
-        {/* Selettore PG e Admin (Desktop e Mobile) */}
         <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 items-center">
           {isAdmin && (
             <label className="flex items-center space-x-2 cursor-pointer select-none bg-gray-700 px-3 py-2 rounded-md border border-gray-600 hover:bg-gray-600 w-full md:w-auto justify-center">
@@ -158,75 +136,45 @@ const MainPage = ({ token, onLogout }) => {
               <span className="text-sm text-gray-300 font-medium whitespace-nowrap">Tutti i PG</span>
             </label>
           )}
-
           <div className="w-full md:w-64">
-            {isCharacterLoading && personaggiList.length === 0 ? (
-                <span className="text-sm text-gray-400">Carico personaggi...</span>
-            ) : characterError && personaggiList.length === 0 ? (
-                <span className="text-sm text-red-400">Errore Caricamento PG</span>
-            ) : (
-              <select 
-                value={selectedCharacterId}
-                onChange={handleCharacterChange}
-                className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none font-medium"
-                disabled={isCharacterLoading}
-              >
+              <select value={selectedCharacterId} onChange={handleCharacterChange} className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none font-medium" disabled={isCharacterLoading}>
                 <option value="">-- Seleziona Personaggio --</option>
                 {personaggiList.map((pg) => (
-                  <option key={pg.id} value={pg.id}>
-                    {viewAll && isAdmin 
-                      ? `${pg.nome} (${pg.proprietario_nome || 'Utente'})` 
-                      : pg.nome
-                    }
-                  </option>
+                  <option key={pg.id} value={pg.id}>{viewAll && isAdmin ? `${pg.nome} (${pg.proprietario_nome || 'Utente'})` : pg.nome}</option>
                 ))}
               </select>
-            )}
           </div>
         </div>
 
-        {/* Azioni Header (Desktop) */}
+        {/* HEADER DESKTOP */}
         <div className="hidden md:flex items-center gap-3">
             {isAdmin && (
                 <div className="relative">
-                    <button 
-                        onClick={() => setActiveTab('admin_msg')} 
-                        className={`px-3 py-1 rounded-full flex items-center gap-2 shadow-lg transition-all font-bold text-sm ${activeTab === 'admin_msg' ? 'bg-indigo-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`} 
-                        title="Area Admin"
-                    >
+                    <button onClick={() => setActiveTab('admin_msg')} className={`px-3 py-1 rounded-full flex items-center gap-2 shadow-lg transition-all font-bold text-sm ${activeTab === 'admin_msg' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
                         Admin
                     </button>
-                    {adminPendingCount > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-                            {adminPendingCount}
-                        </span>
-                    )}
+                    {adminPendingCount > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{adminPendingCount}</span>}
                 </div>
             )}
-            {/* Pulsante Messaggi Desktop */}
             <button
-                onClick={() => setActiveTab('messaggi')}
+                onClick={() => {
+                    console.log("Click su Messaggi (Desktop)");
+                    setActiveTab('messaggi');
+                }}
                 className={`relative p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                title="Messaggi"
             >
                 <Mail size={24} />
-                {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />
-                )}
+                {unreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />}
             </button>
-            <button onClick={onLogout} className="flex items-center text-red-400 hover:text-red-300" title="Logout">
-                <LogOut size={24} />
-            </button>
+            <button onClick={onLogout} className="flex items-center text-red-400 hover:text-red-300"><LogOut size={24} /></button>
         </div>
       </header>
 
-      {/* Area Contenuto */}
       <main className="grow overflow-y-auto bg-gray-900">
         {characterError && <div className="p-4 text-center text-red-400 bg-red-900/20 m-4 rounded-lg border border-red-800">{characterError}</div>}
         {renderTabContent()}
       </main>
 
-      {/* Navigazione (Bottom Bar) */}
       <nav className="grid grid-cols-5 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700">
         <TabButton icon={<Home size={24} />} label="Scheda" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
         <TabButton icon={<Zap size={28} />} label="Abilità" isActive={activeTab === 'abilita'} onClick={() => setActiveTab('abilita')} />
@@ -235,7 +183,6 @@ const MainPage = ({ token, onLogout }) => {
         <TabButton icon={<QrCode size={28} />} label="QR" isActive={activeTab === 'qr'} onClick={() => setActiveTab('qr')} />
       </nav>
 
-      {/* Modale Risultato QR */}
       {qrResultData && (
         <QrResultModal data={qrResultData} onClose={closeQrModal} onLogout={onLogout} onStealSuccess={handleStealSuccess} />
       )}
@@ -243,22 +190,10 @@ const MainPage = ({ token, onLogout }) => {
   );
 };
 
-// Componente bottone tab (helper)
 const TabButton = ({ icon, label, isActive, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`flex flex-col items-center justify-center p-1 min-w-[45px] transition-all duration-200 ${
-      isActive
-        ? 'text-indigo-400 -translate-y-1' 
-        : 'text-gray-500 hover:text-gray-300'
-    } focus:outline-none`}
-  >
-    <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-indigo-500/10 shadow-lg shadow-indigo-500/20' : ''}`}>
-        {icon}
-    </div>
-    <span className={`text-[10px] mt-0.5 font-medium truncate w-full text-center transition-opacity ${isActive ? 'opacity-100' : 'opacity-70'}`}>
-        {label}
-    </span>
+  <button onClick={onClick} className={`flex flex-col items-center justify-center p-1 min-w-[45px] transition-all duration-200 ${isActive ? 'text-indigo-400 -translate-y-1' : 'text-gray-500 hover:text-gray-300'} focus:outline-none`}>
+    <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-indigo-500/10 shadow-lg shadow-indigo-500/20' : ''}`}>{icon}</div>
+    <span className={`text-[10px] mt-0.5 font-medium truncate w-full text-center transition-opacity ${isActive ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
   </button>
 );
 
