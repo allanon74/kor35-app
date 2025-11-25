@@ -330,77 +330,53 @@ export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
 };
 
 export const getProposte = async (charId) => {
-    const response = await fetchAuthenticated(`/personaggi/api/proposte/?char_id=${charId}`, {
+    // fetchAuthenticated restituisce già i dati, non la response raw.
+    // L'errore viene gestito internamente a fetchAuthenticated.
+    return await fetchAuthenticated(`/personaggi/api/proposte/?char_id=${charId}`, {
         method: 'GET'
     });
-    if (!response.ok) throw new Error('Errore caricamento proposte');
-    return await response.json();
 };
 
 export const createProposta = async (data) => {
-    const response = await fetchAuthenticated(`/personaggi/api/proposte/`, {
+    return await fetchAuthenticated(`/personaggi/api/proposte/`, {
         method: 'POST',
         body: JSON.stringify(data)
     });
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Errore creazione proposta');
-    }
-    return await response.json();
 };
 
 export const updateProposta = async (id, data) => {
-    const response = await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
+    return await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     });
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Errore aggiornamento proposta');
-    }
-    return await response.json();
 };
 
 export const deleteProposta = async (id) => {
-    const response = await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
+    // Qui fetchAuthenticated potrebbe tornare null (204 No Content), va bene così.
+    await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
         method: 'DELETE'
     });
-    if (!response.ok) throw new Error('Errore cancellazione proposta');
     return true;
 };
 
 export const sendProposta = async (id) => {
-    const response = await fetchAuthenticated(`/personaggi/api/proposte/${id}/invia_proposta/`, {
+    return await fetchAuthenticated(`/personaggi/api/proposte/${id}/invia_proposta/`, {
         method: 'POST'
     });
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Errore invio proposta');
-    }
-    return await response.json();
 };
 
 // --- UTILITIES PUNTEGGI ---
 
 export const getAllPunteggi = async () => {
-    // Nota: Assumiamo che i punteggi siano esposti sotto /personaggi/api/punteggi/all/
-    const response = await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
+    // Assicurati che l'URL finisca con /all/ come definito in urls.py
+    return await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
         method: 'GET'
     });
-    if (!response.ok) throw new Error('Errore caricamento punteggi');
-  
-    return await response.json();
 };
 
-// Opzionale: se mantieni la funzione specifica per i mattoni, 
-// puoi farla chiamare l'endpoint generico o uno filtrato se esiste.
-// Per ora, la logica del modale usa getAllPunteggi, quindi questa potrebbe non servire,
-// ma ecco come sarebbe con fetchAuthenticated:
 export const getMattoniAura = async (auraId) => {
-    const response = await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
+    return await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
         method: 'GET'
     });
-    if (!response.ok) throw new Error('Errore caricamento mattoni');
-    return await response.json();
 };
 
