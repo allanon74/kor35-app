@@ -380,3 +380,6 @@ export const getMattoniAura = async (auraId) => {
     });
 };
 
+export const getAdminPendingProposalsCount = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/admin/pending_proposals_count/', { method: 'GET' }, onLogout);
+};

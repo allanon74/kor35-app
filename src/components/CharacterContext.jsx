@@ -7,6 +7,7 @@ import {
   saveWebPushSubscription,
   getAcquirableInfusioni, 
   getAcquirableTessiture,
+  getAdminPendingProposalsCount,
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
@@ -79,6 +80,23 @@ export const CharacterProvider = ({ children, onLogout }) => {
   // Stati per Infusioni e Tessiture
   const [acquirableInfusioni, setAcquirableInfusioni] = useState([]);
   const [acquirableTessiture, setAcquirableTessiture] = useState([]);
+
+  const [adminPendingCount, setAdminPendingCount] = useState(0);
+
+  useEffect(() => {
+      if (isAdmin) {
+          const checkPending = async () => {
+              try {
+                  const data = await getAdminPendingProposalsCount(onLogout);
+                  setAdminPendingCount(data.count);
+              } catch (e) { console.error(e); }
+          };
+          checkPending();
+          // Opzionale: Polling ogni 60 secondi
+          const interval = setInterval(checkPending, 60000);
+          return () => clearInterval(interval);
+      }
+  }, [isAdmin, onLogout]);
 
   // --- SOTTOSCRIZIONE WEB PUSH (Livello 2) ---
   const subscribeToPush = useCallback(async () => {
@@ -387,6 +405,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     viewAll,
     toggleViewAll,
     subscribeToPush,
+    adminPendingCount,
   };
 
   return (

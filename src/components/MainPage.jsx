@@ -17,6 +17,7 @@ import AbilitaTab from './AbilitaTab.jsx';
 import MessaggiTab from './MessaggiTab.jsx';
 import InfusioniTab from './InfusioniTab.jsx'; 
 import TessitureTab from './TessitureTab.jsx'; 
+import AdminMessageTab from './AdminMessageTab.jsx'; // Importa il tab admin
 
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
@@ -57,7 +58,8 @@ const MainPage = ({ token, onLogout }) => {
     error: characterError,
     isAdmin,
     viewAll,
-    toggleViewAll
+    toggleViewAll, 
+    adminPendingCount,
   } = useCharacter();
 
   useEffect(() => {
@@ -100,6 +102,8 @@ const MainPage = ({ token, onLogout }) => {
         );
       case 'messaggi': 
         return <MessaggiTab onLogout={onLogout} />;
+      case 'admin_msg':
+          return <AdminMessageTab onLogout={onLogout} />;
       default:
         return <HomeTab />;
     }
@@ -125,8 +129,24 @@ const MainPage = ({ token, onLogout }) => {
               </h1>
           </div>
 
-          {/* Azioni Header (Mobile): Messaggi + Logout */}
+          {/* Azioni Header (Mobile): Messaggi + Logout + Admin */}
           <div className="flex items-center gap-3 md:hidden">
+            {isAdmin && (
+                <div className="relative">
+                    <button 
+                        onClick={() => setActiveTab('admin_msg')} 
+                        className={`p-2 rounded-full flex items-center gap-2 shadow-lg transition-all ${activeTab === 'admin_msg' ? 'bg-indigo-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`} 
+                        title="Area Admin"
+                    >
+                        Admin
+                    </button>
+                    {adminPendingCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                            {adminPendingCount}
+                        </span>
+                    )}
+                </div>
+            )}
              <button
                 onClick={() => setActiveTab('messaggi')}
                 className={`relative p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
@@ -185,8 +205,24 @@ const MainPage = ({ token, onLogout }) => {
           </div>
         </div>
 
-        {/* Azioni Header (Desktop): Messaggi + Logout */}
+        {/* Azioni Header (Desktop): Messaggi + Logout + Admin */}
         <div className="hidden md:flex items-center gap-3">
+            {isAdmin && (
+                <div className="relative">
+                    <button 
+                        onClick={() => setActiveTab('admin_msg')} 
+                        className={`px-3 py-1 rounded-full flex items-center gap-2 shadow-lg transition-all font-bold text-sm ${activeTab === 'admin_msg' ? 'bg-indigo-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`} 
+                        title="Area Admin"
+                    >
+                        Admin
+                    </button>
+                    {adminPendingCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                            {adminPendingCount}
+                        </span>
+                    )}
+                </div>
+            )}
             <button
                 onClick={() => setActiveTab('messaggi')}
                 className={`p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
@@ -210,7 +246,7 @@ const MainPage = ({ token, onLogout }) => {
         {renderTabContent()}
       </main>
 
-      {/* Navigazione (Bottom Bar) - Aggiornata a 5 colonne senza Info e Msg */}
+      {/* Navigazione (Bottom Bar) */}
       <nav className="grid grid-cols-5 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700">
         <TabButton
           icon={<Home size={24} />}
@@ -232,7 +268,7 @@ const MainPage = ({ token, onLogout }) => {
         />
         <TabButton
           icon={<TestTube2 size={28} />}
-          label="Infusoni"
+          label="Infusioni"
           isActive={activeTab === 'infusioni'}
           onClick={() => setActiveTab('infusioni')}
         />
