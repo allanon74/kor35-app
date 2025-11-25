@@ -330,19 +330,16 @@ export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
 };
 
 export const getProposte = async (charId) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/proposte/?char_id=${charId}`, {
-        headers: { 'Authorization': `Token ${token}` }
+    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/?char_id=${charId}`, {
+        method: 'GET'
     });
     if (!response.ok) throw new Error('Errore caricamento proposte');
     return await response.json();
 };
 
 export const createProposta = async (data) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/proposte/`, {
+    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/`, {
         method: 'POST',
-        headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });
     if (!response.ok) {
@@ -353,10 +350,8 @@ export const createProposta = async (data) => {
 };
 
 export const updateProposta = async (id, data) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/proposte/${id}/`, {
+    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/${id}/`, {
         method: 'PATCH',
-        headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });
     if (!response.ok) {
@@ -367,20 +362,16 @@ export const updateProposta = async (id, data) => {
 };
 
 export const deleteProposta = async (id) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/proposte/${id}/`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Token ${token}` }
+    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/${id}/`, {
+        method: 'DELETE'
     });
     if (!response.ok) throw new Error('Errore cancellazione proposta');
     return true;
 };
 
 export const sendProposta = async (id) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/proposte/${id}/invia_proposta/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Token ${token}` }
+    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/${id}/invia_proposta/`, {
+        method: 'POST'
     });
     if (!response.ok) {
         const err = await response.json();
@@ -389,28 +380,26 @@ export const sendProposta = async (id) => {
     return await response.json();
 };
 
-export const getMattoniAura = async (auraId) => {
-    // Nota: Dovresti creare una view che restituisce i mattoni filtrati per Aura
-    // Per ora assumiamo di usare l'endpoint generico punteggi se i mattoni sono lì, 
-    // oppure un nuovo endpoint.
-    // Simuliamo un filtro frontend se non c'è l'endpoint specifico, ma meglio averlo.
-    // Creiamo una chiamata generica ai punteggi e filtriamo lato client per semplicità in questo esempio,
-    // MA idealmente: /api/punteggi/?tipo=ST&mattone_aura_id=...
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/punteggi/`, { // Recupera tutto, filtro client
-         headers: { 'Authorization': `Token ${token}` }
+// --- UTILITIES PUNTEGGI ---
+
+export const getAllPunteggi = async () => {
+    // Nota: Assumiamo che i punteggi siano esposti sotto /personaggi/api/punteggi/
+    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/punteggi/`, {
+        method: 'GET'
     });
-    if (!response.ok) throw new Error('Errore caricamento mattoni');
+    if (!response.ok) throw new Error('Errore caricamento punteggi');
     return await response.json();
 };
 
-export const getAllPunteggi = async () => {
-    const token = localStorage.getItem('token');
-    // Usa l'endpoint esistente che lista tutti i punteggi
-    const response = await fetch(`${API_BASE_URL}/punteggi/`, {
-        headers: { 'Authorization': `Token ${token}` }
+// Opzionale: se mantieni la funzione specifica per i mattoni, 
+// puoi farla chiamare l'endpoint generico o uno filtrato se esiste.
+// Per ora, la logica del modale usa getAllPunteggi, quindi questa potrebbe non servire,
+// ma ecco come sarebbe con fetchAuthenticated:
+export const getMattoniAura = async (auraId) => {
+    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/punteggi/`, {
+        method: 'GET'
     });
-    if (!response.ok) throw new Error('Errore caricamento punteggi');
+    if (!response.ok) throw new Error('Errore caricamento mattoni');
     return await response.json();
 };
 
