@@ -23,6 +23,7 @@ const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [qrResultData, setQrResultData] = useState(null);
 
+  // --- GESTIONE COOLDOWN GLOBALE FURTO ---
   const [stealCooldownEnd, setStealCooldownEnd] = useState(0);
   const [cooldownTimer, setCooldownTimer] = useState(0);
   
@@ -59,7 +60,7 @@ const MainPage = ({ token, onLogout }) => {
     viewAll,
     toggleViewAll, 
     adminPendingCount,
-    unreadCount, // <--- NUOVO
+    unreadCount, 
   } = useCharacter();
 
   useEffect(() => {
@@ -81,6 +82,7 @@ const MainPage = ({ token, onLogout }) => {
     selectCharacter(newId);
   };
 
+  // --- QUESTA FUNZIONE GESTISCE IL CAMBIO SCHERMATA ---
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home': return <HomeTab />;
@@ -88,16 +90,23 @@ const MainPage = ({ token, onLogout }) => {
       case 'infusioni': return <InfusioniTab onLogout={onLogout} />;
       case 'tessiture': return <TessitureTab onLogout={onLogout} />;
       case 'qr': return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
+      
+      // --- IMPORTANTE: Questo caso deve esistere ed essere scritto esattamente così ---
       case 'messaggi': return <MessaggiTab onLogout={onLogout} />;
+      
       case 'admin_msg': return <AdminMessageTab onLogout={onLogout} />;
+      
+      // Se activeTab non corrisponde a nulla (es. errore di battitura), mostra la Home
       default: return <HomeTab />;
     }
   };
 
   return (
     <div className="flex flex-col h-dvh bg-gray-900 text-white">
+      {/* --- HEADER --- */}
       <header className="flex flex-col md:flex-row justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 gap-3 z-10 border-b border-gray-700">
         
+        {/* Logo e Titolo Stylish */}
         <div className="flex justify-between items-center w-full md:w-auto">
           <div className="flex items-center gap-3">
               <img src="/pwa-512x512.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-lg" />
@@ -106,6 +115,7 @@ const MainPage = ({ token, onLogout }) => {
               </h1>
           </div>
 
+          {/* Azioni Header (Mobile) */}
           <div className="flex items-center gap-3 md:hidden">
             {isAdmin && (
                 <div className="relative">
@@ -123,13 +133,13 @@ const MainPage = ({ token, onLogout }) => {
                     )}
                 </div>
             )}
+             {/* Pulsante Messaggi Mobile */}
              <button
                 onClick={() => setActiveTab('messaggi')}
                 className={`relative p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
                 title="Messaggi"
              >
                 <Mail size={22} />
-                {/* Badge Mobile */}
                 {unreadCount > 0 && (
                     <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />
                 )}
@@ -140,6 +150,7 @@ const MainPage = ({ token, onLogout }) => {
           </div>
         </div>
         
+        {/* Selettore PG e Admin (Desktop e Mobile) */}
         <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 items-center">
           {isAdmin && (
             <label className="flex items-center space-x-2 cursor-pointer select-none bg-gray-700 px-3 py-2 rounded-md border border-gray-600 hover:bg-gray-600 w-full md:w-auto justify-center">
@@ -147,6 +158,7 @@ const MainPage = ({ token, onLogout }) => {
               <span className="text-sm text-gray-300 font-medium whitespace-nowrap">Tutti i PG</span>
             </label>
           )}
+
           <div className="w-full md:w-64">
             {isCharacterLoading && personaggiList.length === 0 ? (
                 <span className="text-sm text-gray-400">Carico personaggi...</span>
@@ -161,13 +173,19 @@ const MainPage = ({ token, onLogout }) => {
               >
                 <option value="">-- Seleziona Personaggio --</option>
                 {personaggiList.map((pg) => (
-                  <option key={pg.id} value={pg.id}>{viewAll && isAdmin ? `${pg.nome} (${pg.proprietario_nome || 'Utente'})` : pg.nome}</option>
+                  <option key={pg.id} value={pg.id}>
+                    {viewAll && isAdmin 
+                      ? `${pg.nome} (${pg.proprietario_nome || 'Utente'})` 
+                      : pg.nome
+                    }
+                  </option>
                 ))}
               </select>
             )}
           </div>
         </div>
 
+        {/* Azioni Header (Desktop) */}
         <div className="hidden md:flex items-center gap-3">
             {isAdmin && (
                 <div className="relative">
@@ -185,13 +203,13 @@ const MainPage = ({ token, onLogout }) => {
                     )}
                 </div>
             )}
+            {/* Pulsante Messaggi Desktop */}
             <button
                 onClick={() => setActiveTab('messaggi')}
                 className={`relative p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
                 title="Messaggi"
             >
                 <Mail size={24} />
-                {/* Badge Desktop */}
                 {unreadCount > 0 && (
                     <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />
                 )}
@@ -202,11 +220,13 @@ const MainPage = ({ token, onLogout }) => {
         </div>
       </header>
 
+      {/* Area Contenuto */}
       <main className="grow overflow-y-auto bg-gray-900">
         {characterError && <div className="p-4 text-center text-red-400 bg-red-900/20 m-4 rounded-lg border border-red-800">{characterError}</div>}
         {renderTabContent()}
       </main>
 
+      {/* Navigazione (Bottom Bar) */}
       <nav className="grid grid-cols-5 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700">
         <TabButton icon={<Home size={24} />} label="Scheda" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
         <TabButton icon={<Zap size={28} />} label="Abilità" isActive={activeTab === 'abilita'} onClick={() => setActiveTab('abilita')} />
@@ -215,6 +235,7 @@ const MainPage = ({ token, onLogout }) => {
         <TabButton icon={<QrCode size={28} />} label="QR" isActive={activeTab === 'qr'} onClick={() => setActiveTab('qr')} />
       </nav>
 
+      {/* Modale Risultato QR */}
       {qrResultData && (
         <QrResultModal data={qrResultData} onClose={closeQrModal} onLogout={onLogout} onStealSuccess={handleStealSuccess} />
       )}
@@ -222,8 +243,16 @@ const MainPage = ({ token, onLogout }) => {
   );
 };
 
+// Componente bottone tab (helper)
 const TabButton = ({ icon, label, isActive, onClick }) => (
-  <button onClick={onClick} className={`flex flex-col items-center justify-center p-1 min-w-[45px] transition-all duration-200 ${isActive ? 'text-indigo-400 -translate-y-1' : 'text-gray-500 hover:text-gray-300'} focus:outline-none`}>
+  <button
+    onClick={onClick}
+    className={`flex flex-col items-center justify-center p-1 min-w-[45px] transition-all duration-200 ${
+      isActive
+        ? 'text-indigo-400 -translate-y-1' 
+        : 'text-gray-500 hover:text-gray-300'
+    } focus:outline-none`}
+  >
     <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-indigo-500/10 shadow-lg shadow-indigo-500/20' : ''}`}>
         {icon}
     </div>
