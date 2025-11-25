@@ -11,9 +11,10 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const [name, setName] = useState(proposal?.nome || '');
     const [description, setDescription] = useState(proposal?.descrizione || '');
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
+    // currentBricks è un array di oggetti Punteggio (o simili)
     const [currentBricks, setCurrentBricks] = useState(proposal?.mattoni || []); 
     
-    const [allPunteggiCache, setAllPunteggiCache] = useState([]); 
+    const [allPunteggiCache, setAllPunteggiCache] = useState([]); // Cache per tutti i punteggi
     const [availableAuras, setAvailableAuras] = useState([]);
     const [availableBricks, setAvailableBricks] = useState([]);
     
@@ -29,21 +30,24 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const initData = async () => {
             setIsLoadingData(true);
             try {
-                console.log("--- DEBUG: Inizio Caricamento Dati ---");
                 const allData = await getAllPunteggi();
-                console.log(`Scaricati ${allData.length} punteggi totali.`);
                 setAllPunteggiCache(allData);
 
+                // Filtra Aure Possedute e Valide
                 if (char && char.punteggi_base) {
                     const validAuras = allData.filter(p => {
                         if (p.tipo !== 'AU') return false;
+                        
+                        // Check Possesso (>0)
                         const val = char.punteggi_base[p.nome];
                         if (!val || val < 1) return false;
+
+                        // Check Tipo Tecnica
                         if (type === 'Infusione' && !p.permette_infusioni) return false;
                         if (type === 'Tessitura' && !p.permette_tessiture) return false;
+
                         return true;
                     });
-                    console.log("Aure valide trovate:", validAuras.map(a => a.nome));
                     setAvailableAuras(validAuras);
                 }
             } catch (e) {
@@ -56,66 +60,56 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         initData();
     }, [char, type]);
 
-    // 2. Gestione cambio Aura (Logica di Filtro con Debug)
+    // 2. Gestione cambio Aura (Carica Mattoni e Obbligatori)
     useEffect(() => {
         if (!selectedAuraId || allPunteggiCache.length === 0) {
             setAvailableBricks([]);
             return;
         }
 
-        console.log(`--- DEBUG: Filtro Mattoni per Aura ID ${selectedAuraId} ---`);
-
-        // Step 1: Filtro per Aura e Tipo
+        // Filtra mattoni disponibili per questa aura
         let bricks = allPunteggiCache.filter(p => {
+            // Deve essere un mattone
             if (!p.is_mattone) return false;
-            
-            // DEBUG: Stampa i valori se c'è un dubbio
-            // console.log(`Check Mattone ${p.nome}: AuraID=${p.aura_id} vs Selected=${selectedAuraId}`);
-            
-            // Nota: selectedAuraId è stringa dal select, p.aura_id è numero
-            if (p.aura_id != selectedAuraId) return false; 
+            // Deve appartenere all'aura selezionata
+            if (p.aura_id !== parseInt(selectedAuraId)) return false; 
             return true;
         });
 
-        console.log(`Mattoni trovati per questa aura (grezzi): ${bricks.length}`);
-        if (bricks.length === 0) console.warn("ATTENZIONE: Nessun mattone trovato con aura_id corretto. Verifica il serializer.");
-
-        // Step 2: Filtro Proibiti dal Modello
+        // Filtra in base al Modello Aura (Proibiti)
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
-        if (modello && modello.mattoni_proibiti?.length > 0) {
-            const proibitiIds = modello.mattoni_proibiti.map(m => m.id);
-            bricks = bricks.filter(b => !proibitiIds.includes(b.id));
-            console.log(`Mattoni dopo filtro proibiti: ${bricks.length}`);
+        
+        if (modello) {
+            // Rimuovi proibiti
+            if (modello.mattoni_proibiti && modello.mattoni_proibiti.length > 0) {
+                const proibitiIds = modello.mattoni_proibiti.map(m => m.id);
+                bricks = bricks.filter(b => !proibitiIds.includes(b.id));
+            }
         }
 
-        // Step 3: Filtro Caratteristica Posseduta (CRITICO)
+        // Filtra in base al possesso della caratteristica associata
         bricks = bricks.filter(b => {
             const carName = b.caratteristica_associata_nome;
-            // Se non ha caratteristica associata, lo teniamo? Di solito sì.
             if (!carName) return true; 
-            
-            const charValue = char.punteggi_base[carName] || 0;
-            const keep = charValue > 0;
-
-            if (!keep) {
-                console.log(`Scartato ${b.nome}: Richiede ${carName} ma il PG ha ${charValue}`);
-            }
-            return keep;
+            return (char.punteggi_base[carName] || 0) > 0;
         });
 
-        console.log(`Mattoni finali disponibili: ${bricks.length}`);
         setAvailableBricks(bricks);
 
-        // Gestione Obbligatori (Invariata)
+        // GESTIONE OBBLIGATORI
         if (isDraft && modello && modello.mattoni_obbligatori) {
             const currentIds = currentBricks.map(b => b.id || b.mattone?.id);
-            const missingMandatory = modello.mattoni_obbligatori.filter(m => !currentIds.includes(m.id));
+            
+            const missingMandatory = modello.mattoni_obbligatori.filter(
+                m => !currentIds.includes(m.id)
+            );
 
             if (missingMandatory.length > 0) {
                 const toAdd = missingMandatory.map(m => {
                     const fullBrick = allPunteggiCache.find(p => p.id === m.id) || m;
                     return { ...fullBrick, is_mandatory: true };
                 });
+                
                 setCurrentBricks(prev => {
                     const existingIds = new Set(prev.map(b => b.id));
                     const uniqueToAdd = toAdd.filter(b => !existingIds.has(b.id));
@@ -126,10 +120,26 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     }, [selectedAuraId, allPunteggiCache, char, isDraft]);
 
-    // Handlers e Render restano quasi uguali...
-    // (Per brevità ometto i metodi handleAddBrick, handleRemoveBrick, ecc. se non li hai cambiati)
-    // Assicurati di reinserirli se copi-incolli tutto il file!
-    
+    // --- NUOVO HANDLER PER IL CAMBIO AURA ---
+    const handleAuraChange = (e) => {
+        const newAuraId = e.target.value;
+        
+        // Se ci sono mattoni già selezionati, chiedi conferma prima di cancellarli
+        if (currentBricks.length > 0) {
+            const confirmChange = window.confirm("Cambiare aura rimuoverà i mattoni attuali. Continuare?");
+            if (!confirmChange) {
+                // Se l'utente annulla, non facciamo nulla (la select non cambia valore)
+                return;
+            }
+            // Se conferma, svuota i mattoni
+            setCurrentBricks([]);
+        }
+        
+        // Imposta la nuova aura
+        setSelectedAuraId(newAuraId);
+    };
+
+    // Handlers
     const handleAddBrick = (brick) => {
         if (currentBricks.length >= auraVal) {
             alert(`Hai raggiunto il limite di mattoni per questa aura (${auraVal}).`);
@@ -207,6 +217,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     };
 
+    // Helper per UI
     const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || 'Sconosciuta';
     const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
     const bricksCount = currentBricks.length;
@@ -218,6 +229,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
             <div className="bg-gray-900 w-full max-w-5xl max-h-[95vh] rounded-xl flex flex-col border border-gray-700 shadow-2xl">
                 
+                {/* Header */}
                 <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800 rounded-t-xl shrink-0">
                     <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
                         {isEditing ? `Modifica ${type}` : `Crea ${type}`}
@@ -232,6 +244,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">✕</button>
                 </div>
 
+                {/* Body Scrollable */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                     {error && (
                         <div className="p-3 bg-red-900/30 border border-red-700/50 text-red-200 rounded flex items-center gap-2">
@@ -239,6 +252,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </div>
                     )}
 
+                    {/* Form Base */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Nome</label>
@@ -255,8 +269,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Aura (Necessaria per i mattoni)</label>
                             <select 
                                 value={selectedAuraId}
-                                onChange={e => setSelectedAuraId(e.target.value)}
-                                disabled={!isDraft || (currentBricks.length > 0 && !window.confirm("Cambiare aura rimuoverà i mattoni attuali. Continuare?"))}
+                                onChange={handleAuraChange} // <--- QUI LA CORREZIONE
+                                disabled={!isDraft}         // <--- Rimosso il confirm da qui
                                 className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none"
                             >
                                 <option value="">-- Seleziona Aura --</option>
@@ -279,8 +293,10 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         />
                     </div>
 
+                    {/* Builder Mattoni */}
                     <div className="bg-gray-800/30 rounded-lg border border-gray-700 overflow-hidden flex flex-col md:flex-row h-[500px] md:h-[400px]">
                         
+                        {/* Colonna SX: Mattoni Disponibili */}
                         <div className="w-full md:w-1/2 border-b md:border-b-0 md:border-r border-gray-700 flex flex-col">
                             <div className="p-3 bg-gray-800 border-b border-gray-700 text-xs font-bold text-gray-400 uppercase flex justify-between">
                                 <span>Mattoni Disponibili</span>
@@ -291,8 +307,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                     <div className="text-center text-gray-500 py-10 text-sm italic">Seleziona un'aura prima.</div>
                                 ) : availableBricks.length === 0 ? (
                                     <div className="text-center text-gray-500 py-10 text-sm">
-                                        Nessun mattone disponibile.
-                                        <br/><span className="text-xs opacity-50">(Controlla la console F12 per dettagli)</span>
+                                        Nessun mattone disponibile per questa aura o requisiti non soddisfatti.
                                     </div>
                                 ) : (
                                     availableBricks.map(brick => (
@@ -316,6 +331,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             </div>
                         </div>
 
+                        {/* Colonna DX: Mattoni Selezionati */}
                         <div className="w-full md:w-1/2 flex flex-col bg-gray-900/50">
                             <div className="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
                                 <span className="text-xs font-bold text-gray-400 uppercase">Composizione ({bricksCount}/{auraVal})</span>
@@ -355,6 +371,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     </div>
                 </div>
 
+                {/* Footer Actions */}
                 <div className="p-4 border-t border-gray-700 bg-gray-800 rounded-b-xl flex justify-between items-center shrink-0">
                     {isDraft && isEditing ? (
                         <button onClick={handleDelete} className="text-red-400 hover:text-red-300 flex items-center gap-1 text-xs px-2 py-1 hover:bg-red-900/20 rounded transition-colors">
