@@ -9,38 +9,32 @@ function classNames(...classes) {
 }
 
 const MessaggiTab = ({ onLogout }) => {
-  const { selectedCharacterData: char, viewAll, unreadCount, updateUnreadCount } = useCharacter();
+  const { selectedCharacterData: char, viewAll, unreadCount, fetchUserMessages, selectedCharacterId } = useCharacter();
+
+  // Refresh messaggi quando si apre la tab
+  useEffect(() => {
+    if (selectedCharacterId) fetchUserMessages(selectedCharacterId);
+  }, [selectedCharacterId, fetchUserMessages]);
 
   if (!char) return <div className="p-4 text-gray-400">Caricamento...</div>;
 
-  // Logica per mostrare la tab Admin:
-  // Mostra SOLO SE:
-  // 1. Il personaggio è staff
-  // 2. E non stiamo visualizzando "Tutti i PG" (quindi stiamo usando il nostro PG admin)
+  // Mostra tab Admin solo se staff e non in view-all
   const showAdminTab = char.is_staff && !viewAll;
 
-  // Quando monto questo componente, forzo un aggiornamento del conteggio
-  useEffect(() => {
-    updateUnreadCount();
-  }, []);
-
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-2 sm:p-4 pb-20">
       <Tab.Group>
-        <Tab.List className="flex space-x-1 rounded-xl bg-gray-800 p-1">
-          {/* Tab 1: Messaggi Ricevuti (Sempre visibile) */}
+        <Tab.List className="flex space-x-1 rounded-xl bg-gray-800 p-1 mb-4">
           <Tab as={Fragment}>
             {({ selected }) => (
               <button className={classNames(
-                  'w-full rounded-lg py-2.5 text-sm font-medium leading-5 relative', // 'relative' serve per posizionare il badge
-                  'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-indigo-400 ring-white ring-opacity-60',
-                  selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:bg-gray-700'
+                  'w-full rounded-lg py-2.5 text-sm font-medium leading-5 relative transition-all',
+                  'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-gray-800 ring-white ring-opacity-60',
+                  selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
               )}>
                 Ricevuti
-                
-                {/* Badge Notifica Tab Interna */}
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform scale-75 shadow-sm">
+                    <span className="absolute top-1 right-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full shadow-sm animate-pulse">
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
@@ -48,14 +42,13 @@ const MessaggiTab = ({ onLogout }) => {
             )}
           </Tab>
           
-          {/* Tab 2: Amministrazione (Solo se showAdminTab è true) */}
           {showAdminTab && (
             <Tab as={Fragment}>
               {({ selected }) => (
                 <button className={classNames(
-                    'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
-                    'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-indigo-400 ring-white ring-opacity-60',
-                    selected ? 'bg-red-700 text-white shadow' : 'text-gray-300 hover:bg-gray-700'
+                    'w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-all',
+                    'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-gray-800 ring-white ring-opacity-60',
+                    selected ? 'bg-red-700 text-white shadow' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
                 )}>
                   Admin Area
                 </button>
@@ -64,15 +57,13 @@ const MessaggiTab = ({ onLogout }) => {
           )}
         </Tab.List>
 
-        <Tab.Panels className="mt-2">
-          {/* Pannello 1: Player */}
-          <Tab.Panel className="rounded-xl bg-gray-800 p-3 focus:outline-none">
+        <Tab.Panels>
+          <Tab.Panel className="focus:outline-none animate-fadeIn">
             <PlayerMessageTab onLogout={onLogout} />
           </Tab.Panel>
           
-          {/* Pannello 2: Admin (Solo se showAdminTab è true) */}
           {showAdminTab && (
-            <Tab.Panel className="rounded-xl bg-gray-800 p-3 focus:outline-none">
+            <Tab.Panel className="focus:outline-none animate-fadeIn">
               <AdminMessageTab onLogout={onLogout} />
             </Tab.Panel>
           )}

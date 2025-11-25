@@ -1,186 +1,236 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    TrashIcon, 
-    EnvelopeIcon, 
-    EnvelopeOpenIcon,
-    ExclamationCircleIcon 
-} from '@heroicons/react/24/outline';
+import HomeTab from './HomeTab.jsx';
+import QrTab from './QrTab.jsx';
+import QrResultModal from './QrResultModal.jsx';
 import { useCharacter } from './CharacterContext';
-import { getMessages, markMessageAsRead, deleteMessage } from '../api';
+import { 
+    Home, 
+    QrCode, 
+    Zap,        
+    TestTube2,  
+    Scroll,     
+    LogOut, 
+    Mail 
+} from 'lucide-react';
 
-const PlayerMessageTab = ({ onLogout }) => {
-    const { selectedCharacterData: char, updateUnreadCount } = useCharacter();
-    const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+import AbilitaTab from './AbilitaTab.jsx';
+import MessaggiTab from './MessaggiTab.jsx';
+import InfusioniTab from './InfusioniTab.jsx'; 
+import TessitureTab from './TessitureTab.jsx'; 
+import AdminMessageTab from './AdminMessageTab.jsx';
 
-    // Carica i messaggi quando cambia il PG o al montaggio
-    useEffect(() => {
-        if (char?.id) {
-            loadMessages();
-        }
-    }, [char]);
+const MainPage = ({ token, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('home');
+  const [qrResultData, setQrResultData] = useState(null);
 
-    const loadMessages = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = await getMessages(char.id, onLogout);
-            setMessages(data);
-        } catch (err) {
-            console.error("Errore caricamento messaggi:", err);
-            setError("Impossibile caricare i messaggi.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const [stealCooldownEnd, setStealCooldownEnd] = useState(0);
+  const [cooldownTimer, setCooldownTimer] = useState(0);
+  
+  const isStealingOnCooldown = Date.now() < stealCooldownEnd;
 
-    const handleMarkAsRead = async (msg) => {
-        if (msg.is_letto) return; // Non fare nulla se già letto
+  useEffect(() => {
+    if (isStealingOnCooldown) {
+      const updateTimer = () => {
+        const secondsLeft = Math.ceil((stealCooldownEnd - Date.now()) / 1000);
+        setCooldownTimer(secondsLeft > 0 ? secondsLeft : 0);
+      };
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setCooldownTimer(0);
+    }
+  }, [stealCooldownEnd, isStealingOnCooldown]);
 
-        // 1. Aggiornamento Ottimistico Locale (UI)
-        const updatedMessages = messages.map(m => 
-            m.id === msg.id ? { ...m, is_letto: true } : m
-        );
-        setMessages(updatedMessages);
+  const handleStealSuccess = () => {
+    console.log("Furto riuscito, avvio cooldown 30s");
+    setStealCooldownEnd(Date.now() + 30000);
+    closeQrModal();
+  };
 
-        // 2. Aggiornamento Immediato del Badge nel Context
-        // (Decrementa il contatore globale senza aspettare la fetch)
-        updateUnreadCount(); 
+  const {
+    personaggiList,
+    selectedCharacterId,
+    selectCharacter,
+    fetchPersonaggi,
+    isLoading: isCharacterLoading,
+    error: characterError,
+    isAdmin,
+    viewAll,
+    toggleViewAll, 
+    adminPendingCount,
+    unreadCount, // <--- NUOVO
+  } = useCharacter();
 
-        // 3. Chiamata API
-        try {
-            await markMessageAsRead(msg.id, char.id, onLogout);
-        } catch (err) {
-            console.error("Errore segna come letto:", err);
-            // In caso di errore critico, potresti voler ricaricare la lista
-            // loadMessages();
-        }
-    };
+  useEffect(() => {
+    if (token) {
+      fetchPersonaggi();
+    }
+  }, [token, fetchPersonaggi]);
 
-    const handleDelete = async (msgId, e) => {
-        e.stopPropagation(); // Evita di aprire il messaggio (triggerare 'read') quando clicchi 'delete'
+  const handleScanSuccess = (jsonData) => {
+    setQrResultData(jsonData);
+  };
 
-        if (!window.confirm("Sei sicuro di voler cancellare definitivamente questo messaggio?")) return;
+  const closeQrModal = () => {
+    setQrResultData(null);
+  };
+  
+  const handleCharacterChange = (e) => {
+    const newId = e.target.value;
+    selectCharacter(newId);
+  };
 
-        // Recuperiamo il messaggio prima di cancellarlo per controllare se era non-letto
-        const msgToDelete = messages.find(m => m.id === msgId);
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'home': return <HomeTab />;
+      case 'abilita': return <AbilitaTab onLogout={onLogout} />;
+      case 'infusioni': return <InfusioniTab onLogout={onLogout} />;
+      case 'tessiture': return <TessitureTab onLogout={onLogout} />;
+      case 'qr': return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
+      case 'messaggi': return <MessaggiTab onLogout={onLogout} />;
+      case 'admin_msg': return <AdminMessageTab onLogout={onLogout} />;
+      default: return <HomeTab />;
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-dvh bg-gray-900 text-white">
+      <header className="flex flex-col md:flex-row justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 gap-3 z-10 border-b border-gray-700">
         
-        // 1. Aggiornamento Ottimistico UI (Rimozione)
-        const updatedMessages = messages.filter(m => m.id !== msgId);
-        setMessages(updatedMessages);
+        <div className="flex justify-between items-center w-full md:w-auto">
+          <div className="flex items-center gap-3">
+              <img src="/pwa-512x512.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-lg" />
+              <h1 className="text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-linear-to-r from-blue-400 via-cyan-400 to-green-400 font-sans italic">
+                KOR-35
+              </h1>
+          </div>
 
-        // 2. Se stiamo cancellando un messaggio non letto, aggiorniamo il badge
-        if (msgToDelete && !msgToDelete.is_letto) {
-            updateUnreadCount();
-        }
-
-        // 3. Chiamata API
-        try {
-            await deleteMessage(msgId, char.id, onLogout);
-        } catch (err) {
-            console.error("Errore cancellazione:", err);
-            alert("Errore durante la cancellazione.");
-            loadMessages(); // Ripristina la lista in caso di errore
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-400 animate-pulse">
-                <EnvelopeIcon className="w-10 h-10 mb-2 opacity-50" />
-                <p>Caricamento messaggi...</p>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center py-10 text-red-400">
-                <ExclamationCircleIcon className="w-10 h-10 mb-2" />
-                <p>{error}</p>
-                <button onClick={loadMessages} className="mt-4 underline hover:text-red-300">Riprova</button>
-            </div>
-        );
-    }
-
-    if (!messages || messages.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-500 border-2 border-dashed border-gray-700 rounded-xl">
-                <EnvelopeOpenIcon className="w-12 h-12 mb-2 opacity-40" />
-                <p className="italic">Nessun messaggio nella casella.</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-3 pb-20"> {/* pb-20 per evitare che l'ultimo messaggio finisca sotto la navbar mobile */}
-            {messages.map((msg) => (
-                <div 
-                    key={msg.id} 
-                    onClick={() => handleMarkAsRead(msg)}
-                    className={`
-                        relative group p-4 rounded-xl border transition-all duration-200 cursor-pointer
-                        ${msg.is_letto 
-                            ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-800' // Stile LETTO
-                            : 'bg-gray-800 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.15)] hover:border-indigo-400' // Stile NON LETTO
-                        }
-                    `}
-                >
-                    <div className="flex gap-4">
-                        {/* Colonna Icona */}
-                        <div className={`shrink-0 mt-1 transition-colors duration-300 ${msg.is_letto ? 'text-gray-600' : 'text-indigo-400'}`}>
-                            {msg.is_letto ? (
-                                <EnvelopeOpenIcon className="w-6 h-6" />
-                            ) : (
-                                <div className="relative">
-                                    <EnvelopeIcon className="w-6 h-6" />
-                                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Colonna Contenuto */}
-                        <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-1">
-                                <h3 className={`text-base font-bold truncate pr-8 ${msg.is_letto ? 'text-gray-400' : 'text-white'}`}>
-                                    {msg.titolo}
-                                </h3>
-                                <span className="text-xs text-gray-500 whitespace-nowrap shrink-0 mt-0.5">
-                                    {new Date(msg.data_invio).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
-                                    <span className="hidden sm:inline"> • {new Date(msg.data_invio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                </span>
-                            </div>
-                            
-                            <p className="text-xs text-gray-500 mb-2.5 font-medium flex items-center">
-                                Da: <span className={`ml-1 ${msg.is_letto ? 'text-gray-400' : 'text-indigo-200'}`}>{msg.mittente}</span>
-                            </p>
-                            
-                            <p className={`text-sm whitespace-pre-wrap leading-relaxed transition-colors ${msg.is_letto ? 'text-gray-500' : 'text-gray-300'}`}>
-                                {msg.testo}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Bottone Cancella (Posizionato assolutamente o in flex) */}
+          <div className="flex items-center gap-3 md:hidden">
+            {isAdmin && (
+                <div className="relative">
                     <button 
-                        onClick={(e) => handleDelete(msg.id, e)}
-                        className="
-                            absolute bottom-4 right-4 sm:top-4 sm:bottom-auto p-2 rounded-lg
-                            text-gray-600 hover:text-red-400 hover:bg-red-400/10 
-                            transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100
-                        "
-                        title="Cancella messaggio"
+                        onClick={() => setActiveTab('admin_msg')} 
+                        className='bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full flex items-center gap-2 shadow-lg transition-all' 
+                        title="Area Admin"
                     >
-                        <TrashIcon className="w-5 h-5" />
+                        Admin
                     </button>
+                    {adminPendingCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                            {adminPendingCount}
+                        </span>
+                    )}
                 </div>
-            ))}
+            )}
+             <button
+                onClick={() => setActiveTab('messaggi')}
+                className={`relative p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                title="Messaggi"
+             >
+                <Mail size={22} />
+                {/* Badge Mobile */}
+                {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />
+                )}
+             </button>
+             <button onClick={onLogout} className="text-red-400 hover:text-red-300" title="Logout">
+                <LogOut size={22} />
+             </button>
+          </div>
         </div>
-    );
+        
+        <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 items-center">
+          {isAdmin && (
+            <label className="flex items-center space-x-2 cursor-pointer select-none bg-gray-700 px-3 py-2 rounded-md border border-gray-600 hover:bg-gray-600 w-full md:w-auto justify-center">
+              <input type="checkbox" checked={viewAll} onChange={toggleViewAll} className="form-checkbox h-4 w-4 text-indigo-500 bg-gray-800 border-gray-500 rounded focus:ring-0" />
+              <span className="text-sm text-gray-300 font-medium whitespace-nowrap">Tutti i PG</span>
+            </label>
+          )}
+          <div className="w-full md:w-64">
+            {isCharacterLoading && personaggiList.length === 0 ? (
+                <span className="text-sm text-gray-400">Carico personaggi...</span>
+            ) : characterError && personaggiList.length === 0 ? (
+                <span className="text-sm text-red-400">Errore Caricamento PG</span>
+            ) : (
+              <select 
+                value={selectedCharacterId}
+                onChange={handleCharacterChange}
+                className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none font-medium"
+                disabled={isCharacterLoading}
+              >
+                <option value="">-- Seleziona Personaggio --</option>
+                {personaggiList.map((pg) => (
+                  <option key={pg.id} value={pg.id}>{viewAll && isAdmin ? `${pg.nome} (${pg.proprietario_nome || 'Utente'})` : pg.nome}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+
+        <div className="hidden md:flex items-center gap-3">
+            {isAdmin && (
+                <div className="relative">
+                    <button 
+                        onClick={() => setActiveTab('admin_msg')} 
+                        className={`px-3 py-1 rounded-full flex items-center gap-2 shadow-lg transition-all font-bold text-sm ${activeTab === 'admin_msg' ? 'bg-indigo-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`} 
+                        title="Area Admin"
+                    >
+                        Admin
+                    </button>
+                    {adminPendingCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                            {adminPendingCount}
+                        </span>
+                    )}
+                </div>
+            )}
+            <button
+                onClick={() => setActiveTab('messaggi')}
+                className={`relative p-2 rounded-full transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                title="Messaggi"
+            >
+                <Mail size={24} />
+                {/* Badge Desktop */}
+                {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-800 bg-red-500 transform translate-x-1/4 -translate-y-1/4" />
+                )}
+            </button>
+            <button onClick={onLogout} className="flex items-center text-red-400 hover:text-red-300" title="Logout">
+                <LogOut size={24} />
+            </button>
+        </div>
+      </header>
+
+      <main className="grow overflow-y-auto bg-gray-900">
+        {characterError && <div className="p-4 text-center text-red-400 bg-red-900/20 m-4 rounded-lg border border-red-800">{characterError}</div>}
+        {renderTabContent()}
+      </main>
+
+      <nav className="grid grid-cols-5 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700">
+        <TabButton icon={<Home size={24} />} label="Scheda" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+        <TabButton icon={<Zap size={28} />} label="Abilità" isActive={activeTab === 'abilita'} onClick={() => setActiveTab('abilita')} />
+        <TabButton icon={<Scroll size={28} />} label="Tessiture" isActive={activeTab === 'tessiture'} onClick={() => setActiveTab('tessiture')} />
+        <TabButton icon={<TestTube2 size={28} />} label="Infusioni" isActive={activeTab === 'infusioni'} onClick={() => setActiveTab('infusioni')} />
+        <TabButton icon={<QrCode size={28} />} label="QR" isActive={activeTab === 'qr'} onClick={() => setActiveTab('qr')} />
+      </nav>
+
+      {qrResultData && (
+        <QrResultModal data={qrResultData} onClose={closeQrModal} onLogout={onLogout} onStealSuccess={handleStealSuccess} />
+      )}
+    </div>
+  );
 };
 
-export default PlayerMessageTab;
+const TabButton = ({ icon, label, isActive, onClick }) => (
+  <button onClick={onClick} className={`flex flex-col items-center justify-center p-1 min-w-[45px] transition-all duration-200 ${isActive ? 'text-indigo-400 -translate-y-1' : 'text-gray-500 hover:text-gray-300'} focus:outline-none`}>
+    <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-indigo-500/10 shadow-lg shadow-indigo-500/20' : ''}`}>
+        {icon}
+    </div>
+    <span className={`text-[10px] mt-0.5 font-medium truncate w-full text-center transition-opacity ${isActive ? 'opacity-100' : 'opacity-70'}`}>
+        {label}
+    </span>
+  </button>
+);
+
+export default MainPage;
