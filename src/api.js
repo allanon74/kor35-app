@@ -383,7 +383,7 @@ export const sendProposta = async (id) => {
 // --- UTILITIES PUNTEGGI ---
 
 export const getAllPunteggi = async () => {
-    // Nota: Assumiamo che i punteggi siano esposti sotto /personaggi/api/punteggi/
+    // Nota: Assumiamo che i punteggi siano esposti sotto /personaggi/api/punteggi/all/
     const response = await fetchAuthenticated(`/personaggi/api/punteggi/`, {
         method: 'GET'
     });
