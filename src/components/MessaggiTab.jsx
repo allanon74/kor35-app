@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useEffect } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import PlayerMessageTab from './PlayerMessageTab';
@@ -9,15 +9,20 @@ function classNames(...classes) {
 }
 
 const MessaggiTab = ({ onLogout }) => {
-  const { selectedCharacterData: char, viewAll } = useCharacter();
+  const { selectedCharacterData: char, viewAll, unreadCount, updateUnreadCount } = useCharacter();
 
   if (!char) return <div className="p-4 text-gray-400">Caricamento...</div>;
 
-  // Logica corretta per mostrare la tab Admin
+  // Logica per mostrare la tab Admin:
   // Mostra SOLO SE:
   // 1. Il personaggio è staff
   // 2. E non stiamo visualizzando "Tutti i PG" (quindi stiamo usando il nostro PG admin)
   const showAdminTab = char.is_staff && !viewAll;
+
+  // Quando monto questo componente, forzo un aggiornamento del conteggio
+  useEffect(() => {
+    updateUnreadCount();
+  }, []);
 
   return (
     <div className="w-full p-4">
@@ -27,11 +32,18 @@ const MessaggiTab = ({ onLogout }) => {
           <Tab as={Fragment}>
             {({ selected }) => (
               <button className={classNames(
-                  'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
+                  'w-full rounded-lg py-2.5 text-sm font-medium leading-5 relative', // 'relative' serve per posizionare il badge
                   'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-indigo-400 ring-white ring-opacity-60',
                   selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:bg-gray-700'
               )}>
                 Ricevuti
+                
+                {/* Badge Notifica Tab Interna */}
+                {unreadCount > 0 && (
+                    <span className="absolute top-1 right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform scale-75 shadow-sm">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                )}
               </button>
             )}
           </Tab>
