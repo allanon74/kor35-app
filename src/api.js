@@ -384,7 +384,7 @@ export const sendProposta = async (id) => {
 
 export const getAllPunteggi = async () => {
     // Nota: Assumiamo che i punteggi siano esposti sotto /personaggi/api/punteggi/all/
-    const response = await fetchAuthenticated(`/personaggi/api/punteggi/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
         method: 'GET'
     });
     if (!response.ok) throw new Error('Errore caricamento punteggi');
@@ -396,7 +396,7 @@ export const getAllPunteggi = async () => {
 // Per ora, la logica del modale usa getAllPunteggi, quindi questa potrebbe non servire,
 // ma ecco come sarebbe con fetchAuthenticated:
 export const getMattoniAura = async (auraId) => {
-    const response = await fetchAuthenticated(`/personaggi/api/punteggi/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
         method: 'GET'
     });
     if (!response.ok) throw new Error('Errore caricamento mattoni');
