@@ -330,7 +330,7 @@ export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
 };
 
 export const getProposte = async (charId) => {
-    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/?char_id=${charId}`, {
+    const response = await fetchAuthenticated(`/personaggi/api/proposte/?char_id=${charId}`, {
         method: 'GET'
     });
     if (!response.ok) throw new Error('Errore caricamento proposte');
@@ -338,7 +338,7 @@ export const getProposte = async (charId) => {
 };
 
 export const createProposta = async (data) => {
-    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/proposte/`, {
         method: 'POST',
         body: JSON.stringify(data)
     });
@@ -350,7 +350,7 @@ export const createProposta = async (data) => {
 };
 
 export const updateProposta = async (id, data) => {
-    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/${id}/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     });
@@ -362,7 +362,7 @@ export const updateProposta = async (id, data) => {
 };
 
 export const deleteProposta = async (id) => {
-    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/${id}/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
         method: 'DELETE'
     });
     if (!response.ok) throw new Error('Errore cancellazione proposta');
@@ -370,7 +370,7 @@ export const deleteProposta = async (id) => {
 };
 
 export const sendProposta = async (id) => {
-    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/proposte/${id}/invia_proposta/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/proposte/${id}/invia_proposta/`, {
         method: 'POST'
     });
     if (!response.ok) {
@@ -384,7 +384,7 @@ export const sendProposta = async (id) => {
 
 export const getAllPunteggi = async () => {
     // Nota: Assumiamo che i punteggi siano esposti sotto /personaggi/api/punteggi/
-    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/punteggi/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/punteggi/`, {
         method: 'GET'
     });
     if (!response.ok) throw new Error('Errore caricamento punteggi');
@@ -396,7 +396,7 @@ export const getAllPunteggi = async () => {
 // Per ora, la logica del modale usa getAllPunteggi, quindi questa potrebbe non servire,
 // ma ecco come sarebbe con fetchAuthenticated:
 export const getMattoniAura = async (auraId) => {
-    const response = await fetchAuthenticated(`${API_BASE_URL}/personaggi/api/punteggi/`, {
+    const response = await fetchAuthenticated(`/personaggi/api/punteggi/`, {
         method: 'GET'
     });
     if (!response.ok) throw new Error('Errore caricamento mattoni');
