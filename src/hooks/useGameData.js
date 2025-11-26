@@ -87,11 +87,12 @@ export const usePersonaggioLogs = (page = 1) => {
   });
 };
 
-export const useTransazioni = (page = 1, tipo = 'entrata') => {
+export const useTransazioni = (page = 1, tipo = 'entrata', charId = null) => {
   return useQuery({
-    queryKey: ['personaggio_transazioni', tipo, page],
-    queryFn: () => getPersonaggioTransazioni(page, tipo),
+    queryKey: ['personaggio_transazioni', charId, tipo, page], // Aggiunto charId alla key
+    queryFn: () => getPersonaggioTransazioni(page, tipo, charId),
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60,
+    enabled: !!charId, // Evita la chiamata se non c'è un ID selezionato
   });
 };

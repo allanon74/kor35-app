@@ -422,14 +422,15 @@ export const getPersonaggioLogs = (page = 1) => {
  * Recupera le transazioni paginate.
  * @param {number} page - Numero di pagina
  * @param {string} tipo - 'entrata' o 'uscita'
+ * @param {string} charId - ID del personaggio (opzionale)
  */
-export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata') => {
-  return fetchAuthenticated(
-    `/personaggi/api/personaggio/me/transazioni/?page=${page}&tipo=${tipo}`, 
-    { method: 'GET' }
-  );
-};
-
+export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata', charId = null) => {
+  let url = `/personaggi/api/personaggio/me/transazioni/?page=${page}&tipo=${tipo}`;
+  if (charId) {
+    url += `&char_id=${charId}`;
+  }
+  return fetchAuthenticated(url, { method: 'GET' });
+}
 /**
  * Cerca personaggi per nome (Autocomplete)
  */
