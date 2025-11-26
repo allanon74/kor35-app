@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info } from 'lucide-react';
+import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info, ArrowRight } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import { createProposta, updateProposta, sendProposta, deleteProposta, getAllPunteggi } from '../api';
 import IconaPunteggio from './IconaPunteggio';
@@ -10,11 +10,22 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     // States
     const [name, setName] = useState(proposal?.nome || '');
     const [description, setDescription] = useState(proposal?.descrizione || '');
+    
+    // AURA 1: Il "Contenitore" (Definisce il limite massimo)
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
+    
+    // AURA 2: Il "Contenuto" (Definisce quali mattoni caricare)
+    // Se stiamo editando, potrebbe essere salvata in un campo specifico, 
+    // altrimenti inizialmente è vuota o uguale alla principale.
+    // NOTA: Se il backend non salva separatamente l'aura infusione, assumiamo che i mattoni salvati
+    // appartengano implicitamente a quella logica. Qui aggiungo lo stato per gestirla in UI.
+    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(proposal?.aura_infusione || ''); // Supponendo esista nel payload, altrimenti gestiamo sotto
+
     const [currentBricks, setCurrentBricks] = useState(proposal?.mattoni || []); 
     
     const [allPunteggiCache, setAllPunteggiCache] = useState([]);
-    const [availableAuras, setAvailableAuras] = useState([]);
+    const [availableAuras, setAvailableAuras] = useState([]);         // Per la prima combo (Aura Richiesta)
+    const [availableInfusionAuras, setAvailableInfusionAuras] = useState([]); // Per la seconda combo (Aura Infusione)
     const [availableBricks, setAvailableBricks] = useState([]);
     
     const [isLoadingData, setIsLoadingData] = useState(true);
@@ -53,22 +64,60 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         initData();
     }, [char, type]);
 
-    // 2. Gestione cambio Aura (Carica Mattoni e Obbligatori)
+    // 2. Gestione Logica AURA RICHIESTA -> AURA INFUSIONE
     useEffect(() => {
         if (!selectedAuraId || allPunteggiCache.length === 0) {
+            setAvailableInfusionAuras([]);
+            return;
+        }
+
+        // Trova l'oggetto Aura Richiesta
+        const mainAuraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
+        if (!mainAuraObj) return;
+
+        // Recupera gli ID consentiti (dal campo M2M 'aure_infusione_consentite' aggiunto nel backend)
+        // Fallback: se il campo non esiste o è vuoto, permetti solo se stessa.
+        const allowedIds = mainAuraObj.aure_infusione_consentite || [mainAuraObj.id];
+
+        // Filtra gli oggetti completi dalla cache
+        const validInfusionObjs = allPunteggiCache.filter(p => allowedIds.includes(p.id));
+        setAvailableInfusionAuras(validInfusionObjs);
+
+        // Se l'aura di infusione attuale non è valida per la nuova aura richiesta, resettala
+        // O se non è selezionata, seleziona la prima disponibile (default)
+        if (!selectedInfusionAuraId || !allowedIds.includes(parseInt(selectedInfusionAuraId))) {
+            if (validInfusionObjs.length > 0) {
+                // Se è un edit esistente e l'aura_infusione non era salvata, 
+                // potremmo voler cercare di "indovinare" dall'aura dei mattoni presenti, 
+                // ma per semplicità selezioniamo la prima compatibile (spesso se stessa).
+                setSelectedInfusionAuraId(validInfusionObjs[0].id);
+            } else {
+                setSelectedInfusionAuraId('');
+            }
+        }
+
+    }, [selectedAuraId, allPunteggiCache, selectedInfusionAuraId]);
+
+
+    // 3. Caricamento Mattoni (Basato su AURA INFUSIONE) e Obbligatori (Basato su MODELLO di Aura Richiesta)
+    useEffect(() => {
+        // I mattoni dipendono dall'AURA INFUSIONE selezionata
+        if (!selectedInfusionAuraId || allPunteggiCache.length === 0) {
             setAvailableBricks([]);
             return;
         }
 
-        // Filtra mattoni disponibili
+        // Filtra mattoni appartenenti all'Aura Infusione
         let bricks = allPunteggiCache.filter(p => {
             if (!p.is_mattone) return false;
-            if (p.aura_id !== parseInt(selectedAuraId)) return false; 
+            // Qui usiamo l'ID dell'aura di infusione, NON quella richiesta
+            if (p.aura_id !== parseInt(selectedInfusionAuraId)) return false; 
             return true;
         });
 
-        // Filtra Modello Aura (Proibiti)
+        // NOTA: I mattoni proibiti/obbligatori dipendono dal Modello dell'Aura RICHIESTA (il contenitore)
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
+        
         if (modello && modello.mattoni_proibiti?.length > 0) {
             const proibitiIds = modello.mattoni_proibiti.map(m => m.id);
             bricks = bricks.filter(b => !proibitiIds.includes(b.id));
@@ -83,7 +132,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
         setAvailableBricks(bricks);
 
-        // GESTIONE OBBLIGATORI (Solo se nuova bozza o cambio aura in bozza)
+        // GESTIONE OBBLIGATORI (Solo se nuova bozza e basati sull'Aura Richiesta)
         if (isDraft && modello && modello.mattoni_obbligatori) {
             const currentIds = currentBricks.map(b => b.id || b.mattone?.id);
             const missingMandatory = modello.mattoni_obbligatori.filter(
@@ -97,75 +146,66 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 });
                 
                 setCurrentBricks(prev => {
-                    // Evita duplicati se l'effetto corre due volte
                     const existingIds = new Set(prev.map(b => b.id));
                     const uniqueToAdd = toAdd.filter(b => !existingIds.has(b.id));
                     return [...prev, ...uniqueToAdd];
                 });
             }
         }
-    }, [selectedAuraId, allPunteggiCache, char, isDraft]);
+    }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]);
 
+    // Handler cambio Aura Richiesta
     const handleAuraChange = (e) => {
         const newAuraId = e.target.value;
         if (currentBricks.length > 0) {
-            const confirmChange = window.confirm("Cambiare aura rimuoverà i mattoni attuali. Continuare?");
+            const confirmChange = window.confirm("Cambiare l'aura richiesta potrebbe invalidare i mattoni. Continuare e resettare?");
             if (!confirmChange) return;
             setCurrentBricks([]);
         }
         setSelectedAuraId(newAuraId);
+        // La useEffect 2 scatterà e imposterà l'aura infusione di default
+    };
+
+    // Handler cambio Aura Infusione
+    const handleInfusionAuraChange = (e) => {
+        const newInfId = e.target.value;
+        if (currentBricks.length > 0) {
+            const confirmChange = window.confirm("Cambiare la fonte di infusione rimuoverà i mattoni attuali. Continuare?");
+            if (!confirmChange) return;
+            setCurrentBricks([]);
+        }
+        setSelectedInfusionAuraId(newInfId);
     };
 
     // --- LOGICA INCREMENTO (+) ---
     const handleIncrement = (brick) => {
-        // 1. Controllo Limite Aura Totale
-        if (currentBricks.length >= auraVal) {
-            // Opzionale: alert o feedback visivo
-            return; 
-        }
+        if (currentBricks.length >= auraVal) return; // Limite Aura Richiesta
 
-        // 2. Controllo Limite Caratteristica Specifica
         const carName = brick.caratteristica_associata_nome;
         if (carName) {
             const carVal = char.punteggi_base[carName] || 0;
             const existingCount = currentBricks.filter(b => (b.id || b.mattone?.id) === brick.id).length;
-            if (existingCount >= carVal) {
-                return;
-            }
+            if (existingCount >= carVal) return;
         }
-
-        // Aggiungi
         setCurrentBricks([...currentBricks, { ...brick, is_mandatory: false }]);
     };
 
     // --- LOGICA DECREMENTO (-) ---
     const handleDecrement = (brickId) => {
-        // Trova tutti gli indici di questo mattone
         const indices = currentBricks
             .map((b, i) => ((b.id || b.mattone?.id) === brickId ? i : -1))
             .filter(i => i !== -1);
 
         if (indices.length === 0) return;
 
-        // Logica rimozione: 
-        // Cerchiamo di rimuovere prima un mattone NON obbligatorio.
-        // Se rimangono solo obbligatori, controlliamo se siamo sopra il minimo (1).
-        // Se ne ho 1 ed è obbligatorio, NON rimuovo.
-
         let indexToRemove = -1;
-
-        // 1. Cerca un'istanza non obbligatoria
         const nonMandatoryIndex = indices.find(i => !currentBricks[i].is_mandatory);
         
         if (nonMandatoryIndex !== undefined) {
             indexToRemove = nonMandatoryIndex;
         } else {
-            // 2. Se ho solo istanze obbligatorie
-            // Verifico se il modello ne richiede 1. Se ne ho > 1, posso togliere.
-            // Se ne ho 1, non posso togliere.
-            // (Assumiamo che se è is_mandatory, il minimo è 1).
             if (indices.length > 1) {
-                indexToRemove = indices[indices.length - 1]; // Rimuovi l'ultimo
+                indexToRemove = indices[indices.length - 1];
             } else {
                 alert("Questo mattone è obbligatorio per il tuo modello di aura (minimo 1).");
                 return;
@@ -189,6 +229,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 nome: name,
                 descrizione: description,
                 aura: selectedAuraId,
+                // Se il backend supporta il salvataggio dell'aura_infusione, aggiungila qui
+                // aura_infusione: selectedInfusionAuraId, 
                 mattoni_ids: currentBricks.map(b => b.id || b.mattone?.id)
             };
 
@@ -227,19 +269,15 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     };
 
     // Helpers UI
-    const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || 'Sconosciuta';
+    const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
+    // Il valore massimo dipende dall'AURA RICHIESTA
     const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
     const currentTotalCount = currentBricks.length;
     const cost = currentTotalCount * 10;
 
-    // Helper per contare quante volte un mattone specifico è stato scelto
-    const getBrickCount = (brickId) => {
-        return currentBricks.filter(b => (b.id || b.mattone?.id) === brickId).length;
-    };
-
-    // Helper per sapere se un mattone è obbligatorio (per UI)
+    const getBrickCount = (brickId) => currentBricks.filter(b => (b.id || b.mattone?.id) === brickId).length;
+    
     const isBrickMandatory = (brickId) => {
-        // Controlla se il modello attuale lo richiede
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
         return modello?.mattoni_obbligatori?.some(m => m.id === brickId);
     };
@@ -275,7 +313,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
                     {/* Inputs Principali */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                        <div className="md:col-span-2">
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Nome</label>
                             <input 
                                 type="text" 
@@ -285,19 +323,52 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none"
                             />
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Aura</label>
+                        
+                        {/* AURA RICHIESTA (Capienza) */}
+                        <div className="bg-gray-800/50 p-3 rounded border border-gray-700">
+                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase flex items-center gap-2">
+                                Aura Richiesta (Capienza)
+                            </label>
                             <select 
                                 value={selectedAuraId}
                                 onChange={handleAuraChange}
                                 disabled={!isDraft}
-                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none"
+                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none mb-1"
                             >
-                                <option value="">-- Seleziona Aura --</option>
+                                <option value="">-- Seleziona --</option>
                                 {availableAuras.map(a => (
-                                    <option key={a.id} value={a.id}>{a.nome} (Valore: {char.punteggi_base[a.nome]})</option>
+                                    <option key={a.id} value={a.id}>{a.nome} (Max: {char.punteggi_base[a.nome]})</option>
                                 ))}
                             </select>
+                            <div className="text-[10px] text-gray-500">
+                                Definisce il numero massimo di mattoni utilizzabili.
+                            </div>
+                        </div>
+
+                        {/* AURA INFUSIONE (Fonte Mattoni) */}
+                        <div className="bg-gray-800/50 p-3 rounded border border-gray-700 relative">
+                             {/* Freccia visiva per indicare il flusso */}
+                            <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block text-gray-600">
+                                <ArrowRight size={20} />
+                            </div>
+
+                            <label className="block text-xs font-bold text-indigo-400 mb-1 uppercase">
+                                Aura Infusione (Fonte)
+                            </label>
+                            <select 
+                                value={selectedInfusionAuraId}
+                                onChange={handleInfusionAuraChange}
+                                disabled={!isDraft || !selectedAuraId}
+                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none mb-1"
+                            >
+                                {availableInfusionAuras.length === 0 && <option value="">-- Seleziona Aura Richiesta prima --</option>}
+                                {availableInfusionAuras.map(a => (
+                                    <option key={a.id} value={a.id}>{a.nome}</option>
+                                ))}
+                            </select>
+                            <div className="text-[10px] text-gray-500">
+                                Definisce quali mattoni (e di quale elemento) caricare.
+                            </div>
                         </div>
                     </div>
 
@@ -312,43 +383,53 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         />
                     </div>
 
-                    {/* SEZIONE MATTONI - SINGLE LIST VIEW */}
+                    {/* SEZIONE MATTONI */}
                     <div className="bg-gray-800/50 rounded-lg border border-gray-700 overflow-hidden flex flex-col h-[450px]">
                         
-                        {/* Toolbar / Info Bar */}
+                        {/* Info Bar */}
                         <div className="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center shrink-0">
-                            <div className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
-                                <span>Composizione:</span>
-                                <span className={`text-sm ${currentTotalCount === auraVal ? 'text-green-400' : 'text-white'}`}>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-400 uppercase">Composizione</span>
+                                <span className={`text-sm font-mono ${currentTotalCount === auraVal ? 'text-green-400' : 'text-white'}`}>
                                     {currentTotalCount} / {selectedAuraId ? auraVal : '-'}
                                 </span>
                             </div>
-                            <div className="text-xs text-gray-500">
-                                Costo stimato: <span className="text-white font-mono">{cost} CR</span>
+                             {selectedInfusionAuraId && (
+                                <div className="text-xs text-indigo-300 bg-indigo-900/30 px-2 py-1 rounded border border-indigo-500/30">
+                                    Fonte: {getAuraName(selectedInfusionAuraId)}
+                                </div>
+                            )}
+                            <div className="text-xs text-gray-500 text-right">
+                                Costo<br/><span className="text-white font-mono">{cost} CR</span>
                             </div>
                         </div>
 
-                        {/* Lista Mattoni con Contatori */}
+                        {/* Lista Mattoni */}
                         <div className="flex-1 overflow-y-auto p-2 space-y-2">
                             {!selectedAuraId ? (
                                 <div className="text-center text-gray-500 py-20 flex flex-col items-center gap-2">
                                     <Info size={32} />
-                                    <span>Seleziona un'aura per vedere i mattoni disponibili.</span>
+                                    <span>Seleziona "Aura Richiesta" per iniziare.</span>
+                                </div>
+                            ) : !selectedInfusionAuraId ? (
+                                <div className="text-center text-gray-500 py-20">
+                                    Seleziona una "Aura Infusione".
                                 </div>
                             ) : availableBricks.length === 0 ? (
                                 <div className="text-center text-gray-500 py-20">
-                                    Nessun mattone disponibile per questa aura.
+                                    Nessun mattone disponibile in {getAuraName(selectedInfusionAuraId)}.
                                 </div>
                             ) : (
                                 availableBricks.map(brick => {
                                     const count = getBrickCount(brick.id);
                                     const maxPerChar = brick.caratteristica_associata_nome 
                                         ? (char.punteggi_base[brick.caratteristica_associata_nome] || 0) 
-                                        : 99; // Se non ha caratteristica, limite alto (teorico)
+                                        : 99;
                                     
                                     const isMandatory = isBrickMandatory(brick.id);
                                     
-                                    // Logica disabilitazione bottoni
+                                    // Logica: il limite totale dipende da AURA RICHIESTA (auraVal)
+                                    // Il limite specifico dipende dalla Caratteristica
                                     const canAdd = isDraft && currentTotalCount < auraVal && count < maxPerChar;
                                     const canRemove = isDraft && count > 0 && (!isMandatory || count > 1);
 
@@ -358,7 +439,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                 ? 'bg-indigo-900/20 border-indigo-500/50' 
                                                 : 'bg-gray-800 border-gray-700 hover:border-gray-600'
                                         }`}>
-                                            {/* Left: Info */}
+                                            {/* Info Mattone */}
                                             <div className="flex items-center gap-3 flex-1">
                                                 <div className="shrink-0">
                                                     <IconaPunteggio url={brick.icona_url} color={brick.colore} size="sm" />
@@ -376,7 +457,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                 </div>
                                             </div>
 
-                                            {/* Right: Counters */}
+                                            {/* Controlli */}
                                             <div className="flex items-center gap-3 bg-gray-900 rounded-lg p-1 border border-gray-700">
                                                 <button 
                                                     onClick={() => handleDecrement(brick.id)}
