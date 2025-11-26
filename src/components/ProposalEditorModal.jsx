@@ -7,17 +7,22 @@ import IconaPunteggio from './IconaPunteggio';
 const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const { selectedCharacterData: char, selectedCharacterId } = useCharacter();
     
+    // States
     const [name, setName] = useState(proposal?.nome || '');
     const [description, setDescription] = useState(proposal?.descrizione || '');
-    
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
     
-    const deriveInfusionAuraInitial = () => {
+    // Helper per dedurre l'aura di infusione
+    const deriveInfusionAura = () => {
         if (proposal?.aura_infusione) return proposal.aura_infusione;
+        if (proposal?.mattoni && proposal.mattoni.length > 0) {
+             const first = proposal.mattoni[0];
+             return first.aura_id || first.mattone?.aura_id || '';
+        }
         return '';
     };
 
-    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(deriveInfusionAuraInitial()); 
+    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(deriveInfusionAura()); 
     const [currentBricks, setCurrentBricks] = useState(proposal?.mattoni || []); 
     
     const [allPunteggiCache, setAllPunteggiCache] = useState([]);
@@ -32,11 +37,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const isDraft = !proposal || proposal.stato === 'BOZZA';
     const isEditing = !!proposal;
 
-    // Helper Fondamentale per normalizzare gli ID (Nuovo o Salvato)
-    const getRealBrickId = (brickObj) => {
-        return brickObj.mattone?.id || brickObj.id;
-    };
-
+    // --- EFFECT 1, 2, 3 (Invariati rispetto alla versione precedente) ---
+    // 1. Caricamento Iniziale
     useEffect(() => {
         const initData = async () => {
             setIsLoadingData(true);
@@ -65,12 +67,12 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         initData();
     }, [char, type]);
 
+    // 2. AURA RICHIESTA -> AURA INFUSIONE
     useEffect(() => {
         if (!selectedAuraId || allPunteggiCache.length === 0) {
             setAvailableInfusionAuras([]);
             return;
         }
-
         const mainAuraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
         if (!mainAuraObj) return;
 
@@ -78,29 +80,19 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const validInfusionObjs = allPunteggiCache.filter(p => allowedIds.includes(p.id));
         setAvailableInfusionAuras(validInfusionObjs);
 
-        if (!selectedInfusionAuraId && currentBricks.length > 0) {
-            const firstItem = currentBricks[0];
-            const brickId = getRealBrickId(firstItem);
-            const fullBrickInfo = allPunteggiCache.find(p => p.id === brickId);
-            
-            if (fullBrickInfo && fullBrickInfo.aura_id) {
-                setSelectedInfusionAuraId(fullBrickInfo.aura_id);
-                return;
-            }
-        }
-
         const currentInfIsAllowed = allowedIds.includes(parseInt(selectedInfusionAuraId));
-        const hasBricks = currentBricks.length > 0;
-
-        if (!selectedInfusionAuraId || (!currentInfIsAllowed && !hasBricks)) {
-            if (validInfusionObjs.length > 0) {
+        
+        if (!selectedInfusionAuraId || !currentInfIsAllowed) {
+            const hasBricks = currentBricks.length > 0;
+            if (!hasBricks && validInfusionObjs.length > 0) {
                 setSelectedInfusionAuraId(validInfusionObjs[0].id);
-            } else {
+            } else if (!hasBricks) {
                 setSelectedInfusionAuraId('');
             }
         }
-    }, [selectedAuraId, allPunteggiCache, currentBricks]); 
+    }, [selectedAuraId, allPunteggiCache]);
 
+    // 3. Caricamento Mattoni
     useEffect(() => {
         if (!selectedInfusionAuraId || allPunteggiCache.length === 0) {
             setAvailableBricks([]);
@@ -114,7 +106,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         });
 
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
-        
         if (modello && modello.mattoni_proibiti?.length > 0) {
             const proibitiIds = modello.mattoni_proibiti.map(m => m.id);
             bricks = bricks.filter(b => !proibitiIds.includes(b.id));
@@ -129,7 +120,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         setAvailableBricks(bricks);
 
         if (isDraft && modello && modello.mattoni_obbligatori && currentBricks.length === 0) {
-            const missingMandatory = modello.mattoni_obbligatori; 
+            const missingMandatory = modello.mattoni_obbligatori;
             if (missingMandatory.length > 0) {
                 const toAdd = missingMandatory.map(m => {
                     const fullBrick = allPunteggiCache.find(p => p.id === m.id) || m;
@@ -140,10 +131,12 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]);
 
+    // --- HANDLERS UI ---
     const handleAuraChange = (e) => {
         const newAuraId = e.target.value;
         if (currentBricks.length > 0) {
-            if (!window.confirm("Cambiare l'aura richiesta potrebbe invalidare i mattoni. Continuare e resettare?")) return;
+            const confirmChange = window.confirm("Cambiare l'aura richiesta potrebbe invalidare i mattoni. Continuare e resettare?");
+            if (!confirmChange) return;
             setCurrentBricks([]);
         }
         setSelectedAuraId(newAuraId);
@@ -152,7 +145,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const handleInfusionAuraChange = (e) => {
         const newInfId = e.target.value;
         if (currentBricks.length > 0) {
-            if (!window.confirm("Cambiare la fonte di infusione rimuoverà i mattoni attuali. Continuare?")) return;
+            const confirmChange = window.confirm("Cambiare la fonte di infusione rimuoverà i mattoni attuali. Continuare?");
+            if (!confirmChange) return;
             setCurrentBricks([]);
         }
         setSelectedInfusionAuraId(newInfId);
@@ -160,11 +154,10 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     const handleIncrement = (brick) => {
         if (currentBricks.length >= auraVal) return; 
-
         const carName = brick.caratteristica_associata_nome;
         if (carName) {
             const carVal = char.punteggi_base[carName] || 0;
-            const existingCount = getBrickCount(brick.id);
+            const existingCount = currentBricks.filter(b => (b.id || b.mattone?.id) === brick.id).length;
             if (existingCount >= carVal) return;
         }
         setCurrentBricks([...currentBricks, { ...brick, is_mandatory: false }]);
@@ -172,7 +165,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     const handleDecrement = (brickId) => {
         const indices = currentBricks
-            .map((b, i) => (getRealBrickId(b) === brickId ? i : -1))
+            .map((b, i) => ((b.id || b.mattone?.id) === brickId ? i : -1))
             .filter(i => i !== -1);
 
         if (indices.length === 0) return;
@@ -181,10 +174,12 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const nonMandatoryIndex = indices.find(i => !currentBricks[i].is_mandatory);
         
         if (nonMandatoryIndex !== undefined) indexToRemove = nonMandatoryIndex;
-        else if (indices.length > 1) indexToRemove = indices[indices.length - 1];
         else {
-            alert("Questo mattone è obbligatorio per il tuo modello di aura (minimo 1).");
-            return;
+            if (indices.length > 1) indexToRemove = indices[indices.length - 1];
+            else {
+                alert("Questo mattone è obbligatorio per il tuo modello di aura (minimo 1).");
+                return;
+            }
         }
 
         if (indexToRemove !== -1) {
@@ -194,20 +189,24 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     };
 
+    // --- GESTIONE SALVATAGGIO E INVIO UNIFICATA ---
+
+    // Helper per costruire il payload
+    const getPayload = () => ({
+        personaggio_id: selectedCharacterId,
+        tipo: type === 'Tessitura' ? 'TES' : 'INF',
+        nome: name,
+        descrizione: description,
+        aura: selectedAuraId,
+        aura_infusione: selectedInfusionAuraId,
+        mattoni_ids: currentBricks.map(b => b.id || b.mattone?.id)
+    });
+
     const handleSave = async () => {
         setError('');
         setIsSaving(true);
         try {
-            const payload = {
-                personaggio_id: selectedCharacterId,
-                tipo: type === 'Tessitura' ? 'TES' : 'INF',
-                nome: name,
-                descrizione: description,
-                aura: selectedAuraId,
-                aura_infusione: selectedInfusionAuraId,
-                mattoni_ids: currentBricks.map(b => getRealBrickId(b))
-            };
-
+            const payload = getPayload();
             if (isEditing) await updateProposta(proposal.id, payload);
             else await createProposta(payload);
             
@@ -220,14 +219,37 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     };
 
+    // MODIFICATO: Handle Send ora gestisce Creazione + Invio in un colpo solo
     const handleSend = async () => {
-        if (!window.confirm("Sei sicuro? Questo invio costerà crediti.")) return;
+        if (!window.confirm("Sei sicuro? Questo invio costerà crediti e bloccherà le modifiche.")) return;
+        
+        setError('');
+        setIsSaving(true);
+        
         try {
-            await sendProposta(proposal.id);
+            let targetId = proposal?.id;
+            const payload = getPayload();
+
+            // 1. Se NON esiste l'ID (è una nuova creazione), la creiamo prima
+            if (!targetId) {
+                const newProposal = await createProposta(payload);
+                targetId = newProposal.id;
+            } 
+            // 2. Se esiste già (è una bozza), aggiorniamo i dati per sicurezza prima di inviare
+            // (così se l'utente ha cambiato i mattoni e cliccato subito Invia, non invia i vecchi mattoni)
+            else {
+                await updateProposta(targetId, payload);
+            }
+
+            // 3. Ora che abbiamo l'ID ed è aggiornato, inviamo
+            await sendProposta(targetId);
+            
             onRefresh();
             onClose();
         } catch (e) {
             setError(e.message);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -242,21 +264,17 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     };
 
-    // Helpers UI
+    // --- RENDER UI (Uguale a prima) ---
     const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
     const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
     const currentTotalCount = currentBricks.length;
     const cost = currentTotalCount * 10;
 
-    const getBrickCount = (brickId) => {
-        return currentBricks.filter(b => getRealBrickId(b) === brickId).length;
-    };
-    
+    const getBrickCount = (brickId) => currentBricks.filter(b => (b.id || b.mattone?.id) === brickId).length;
     const isBrickMandatory = (brickId) => {
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
         return modello?.mattoni_obbligatori?.some(m => m.id === brickId);
     };
-
     const getSummaryText = () => {
         if (currentBricks.length === 0) return "Nessuno";
         const counts = {};
@@ -296,7 +314,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </div>
                     )}
 
-                    {/* Inputs */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Nome</label>
@@ -310,7 +327,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </div>
                         
                         <div className="bg-gray-800/50 p-3 rounded border border-gray-700">
-                            <label className="text-xs font-bold text-gray-400 mb-1 uppercase flex items-center gap-2">
+                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase items-center gap-2">
                                 Aura Richiesta (Capienza)
                             </label>
                             <select 
@@ -330,7 +347,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block text-gray-600">
                                 <ArrowRight size={20} />
                             </div>
-
                             <label className="block text-xs font-bold text-indigo-400 mb-1 uppercase">
                                 Aura Infusione (Fonte)
                             </label>
@@ -359,7 +375,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         />
                     </div>
 
-                    {/* Sezione Mattoni */}
                     <div className="bg-gray-800/50 rounded-lg border border-gray-700 flex flex-col h-auto min-h-[300px]">
                         <div className="p-3 bg-gray-800 border-b border-gray-700 flex flex-col gap-2 sticky top-0 z-10 shadow-md">
                             <div className="flex justify-between items-center">
@@ -457,7 +472,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="p-4 border-t border-gray-700 bg-gray-800 rounded-b-xl flex justify-between items-center shrink-0">
                     {isDraft && isEditing ? (
                         <button onClick={handleDelete} className="text-red-400 hover:text-red-300 flex items-center gap-1 text-xs px-2 py-1">
