@@ -429,3 +429,27 @@ export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata') => {
     { method: 'GET' }
   );
 };
+
+/**
+ * Cerca personaggi per nome (Autocomplete)
+ */
+export const searchPersonaggi = (query, currentCharacterId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/personaggi/search/?q=${encodeURIComponent(query)}&current_char_id=${currentCharacterId}`, 
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Invia un messaggio privato
+ */
+export const sendPrivateMessage = (messageData, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/messaggi/send/',
+    {
+      method: 'POST',
+      body: JSON.stringify(messageData)
+    },
+    onLogout
+  );
+};
