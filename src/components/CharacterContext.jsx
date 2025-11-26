@@ -116,7 +116,11 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const fetchUserMessages = useCallback(async (charId) => {
     if (!charId) return;
     try {
-      const msgs = await getMessages(charId, onLogout);
+      const rawMsgs = await getMessages(charId, onLogout);
+      const msgs = (rawMsgs || []).map(msg => ({
+          ...msg,
+          letto: msg.is_letto // Mappa la proprietà del backend a quella del frontend
+      }));
       const sorted = (msgs || []).sort((a, b) => {
         if (a.letto !== b.letto) return a.letto ? 1 : -1;
         return new Date(b.data_invio) - new Date(a.data_invio);

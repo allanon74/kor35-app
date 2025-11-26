@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useCharacter } from './CharacterContext';
 import { getMessages, markMessageAsRead, deleteMessage } from '../api';
 import ComposeMessageModal from './ComposeMessageModal';
+import DOMPurify from 'dompurify';
 
 // Icone SVG semplici
 const TrashIcon = () => (
@@ -125,7 +126,7 @@ const PlayerMessageTab = ({ onLogout }) => {
                                         
                                         {/* Anteprima o Testo Completo */}
                                         <div className={`text-sm ${isExpanded ? 'whitespace-pre-wrap mt-4 text-gray-100' : 'line-clamp-1 text-gray-400'}`}>
-                                            {msg.testo}
+                                            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(isExpanded ? msg.testo_messaggio : msg.testo_messaggio.slice(0, 100) + (msg.testo_messaggio.length > 100 ? '...' : '')) }} />
                                         </div>
                                     </div>
 
