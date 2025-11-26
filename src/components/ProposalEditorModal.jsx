@@ -7,24 +7,17 @@ import IconaPunteggio from './IconaPunteggio';
 const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const { selectedCharacterData: char, selectedCharacterId } = useCharacter();
     
-    // States
     const [name, setName] = useState(proposal?.nome || '');
     const [description, setDescription] = useState(proposal?.descrizione || '');
     
-    // AURA 1: Il "Contenitore" (Definisce il limite massimo)
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
     
-    // Funzione helper per inizializzare lo stato (tentativo sincrono)
     const deriveInfusionAuraInitial = () => {
         if (proposal?.aura_infusione) return proposal.aura_infusione;
-        // Nota: qui spesso fallisce perché i dati completi non sono ancora caricati
-        // La logica robusta è nello useEffect sotto.
         return '';
     };
 
-    // AURA 2: Il "Contenuto" (Definisce quali mattoni caricare)
     const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(deriveInfusionAuraInitial()); 
-
     const [currentBricks, setCurrentBricks] = useState(proposal?.mattoni || []); 
     
     const [allPunteggiCache, setAllPunteggiCache] = useState([]);
@@ -39,7 +32,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const isDraft = !proposal || proposal.stato === 'BOZZA';
     const isEditing = !!proposal;
 
-    // 1. Caricamento Iniziale Dati
+    // Helper Fondamentale per normalizzare gli ID (Nuovo o Salvato)
+    const getRealBrickId = (brickObj) => {
+        return brickObj.mattone?.id || brickObj.id;
+    };
+
     useEffect(() => {
         const initData = async () => {
             setIsLoadingData(true);
@@ -68,9 +65,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         initData();
     }, [char, type]);
 
-    // 2. Gestione Logica AURA RICHIESTA -> AURA INFUSIONE (CORRETTA)
     useEffect(() => {
-        // Non fare nulla finché non abbiamo i dati base
         if (!selectedAuraId || allPunteggiCache.length === 0) {
             setAvailableInfusionAuras([]);
             return;
@@ -79,49 +74,33 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const mainAuraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
         if (!mainAuraObj) return;
 
-        // Calcola le aure di infusione permesse
         const allowedIds = mainAuraObj.aure_infusione_consentite || [mainAuraObj.id];
         const validInfusionObjs = allPunteggiCache.filter(p => allowedIds.includes(p.id));
         setAvailableInfusionAuras(validInfusionObjs);
 
-        // --- FIX CRITICO: DEDUZIONE AURA MATTONI ---
-        // Se l'aura infusione non è settata (o è 0/null) MA abbiamo dei mattoni salvati,
-        // cerchiamo il primo mattone nella cache globale per capire a che aura appartiene.
         if (!selectedInfusionAuraId && currentBricks.length > 0) {
             const firstItem = currentBricks[0];
-            // Supporta sia il formato Wrapper ({mattone: {id: 1}}) che Flat ({id: 1})
-            // Importante: se c'è 'mattone', usa quello, altrimenti usa l'id diretto.
-            const brickId = firstItem.mattone?.id || firstItem.id;
-            
+            const brickId = getRealBrickId(firstItem);
             const fullBrickInfo = allPunteggiCache.find(p => p.id === brickId);
             
             if (fullBrickInfo && fullBrickInfo.aura_id) {
-                console.log("Aura dedotta dai mattoni:", fullBrickInfo.aura_id);
                 setSelectedInfusionAuraId(fullBrickInfo.aura_id);
-                return; // Usciamo per evitare sovrascritture dalla logica di default sotto
+                return;
             }
         }
 
-        // --- LOGICA DEFAULT ---
-        // Se siamo ancora senza aura o quella selezionata non è più valida (e non abbiamo mattoni da proteggere)
         const currentInfIsAllowed = allowedIds.includes(parseInt(selectedInfusionAuraId));
         const hasBricks = currentBricks.length > 0;
 
         if (!selectedInfusionAuraId || (!currentInfIsAllowed && !hasBricks)) {
-            // Se non abbiamo mattoni, resettiamo sul primo valore valido per comodità
             if (validInfusionObjs.length > 0) {
                 setSelectedInfusionAuraId(validInfusionObjs[0].id);
             } else {
                 setSelectedInfusionAuraId('');
             }
         }
-        // Nota: Se !currentInfIsAllowed è vero MA hasBricks è vero, NON resettiamo l'aura.
-        // Questo protegge bozze vecchie che potrebbero avere combinazioni non più standard ma valide.
+    }, [selectedAuraId, allPunteggiCache, currentBricks]); 
 
-    }, [selectedAuraId, allPunteggiCache, currentBricks]); // Aggiunto currentBricks alle dipendenze per sicurezza all'avvio
-
-
-    // 3. Caricamento Mattoni (UI List)
     useEffect(() => {
         if (!selectedInfusionAuraId || allPunteggiCache.length === 0) {
             setAvailableBricks([]);
@@ -149,7 +128,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
         setAvailableBricks(bricks);
 
-        // Gestione Obbligatori in creazione
         if (isDraft && modello && modello.mattoni_obbligatori && currentBricks.length === 0) {
             const missingMandatory = modello.mattoni_obbligatori; 
             if (missingMandatory.length > 0) {
@@ -160,13 +138,12 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 setCurrentBricks(toAdd);
             }
         }
-    }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]); // currentBricks rimosso per evitare loop
+    }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]);
 
     const handleAuraChange = (e) => {
         const newAuraId = e.target.value;
         if (currentBricks.length > 0) {
-            const confirmChange = window.confirm("Cambiare l'aura richiesta potrebbe invalidare i mattoni. Continuare e resettare?");
-            if (!confirmChange) return;
+            if (!window.confirm("Cambiare l'aura richiesta potrebbe invalidare i mattoni. Continuare e resettare?")) return;
             setCurrentBricks([]);
         }
         setSelectedAuraId(newAuraId);
@@ -175,8 +152,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const handleInfusionAuraChange = (e) => {
         const newInfId = e.target.value;
         if (currentBricks.length > 0) {
-            const confirmChange = window.confirm("Cambiare la fonte di infusione rimuoverà i mattoni attuali. Continuare?");
-            if (!confirmChange) return;
+            if (!window.confirm("Cambiare la fonte di infusione rimuoverà i mattoni attuali. Continuare?")) return;
             setCurrentBricks([]);
         }
         setSelectedInfusionAuraId(newInfId);
@@ -188,7 +164,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const carName = brick.caratteristica_associata_nome;
         if (carName) {
             const carVal = char.punteggi_base[carName] || 0;
-            const existingCount = currentBricks.filter(b => (b.id || b.mattone?.id) === brick.id).length;
+            const existingCount = getBrickCount(brick.id);
             if (existingCount >= carVal) return;
         }
         setCurrentBricks([...currentBricks, { ...brick, is_mandatory: false }]);
@@ -196,7 +172,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     const handleDecrement = (brickId) => {
         const indices = currentBricks
-            .map((b, i) => ((b.id || b.mattone?.id) === brickId ? i : -1))
+            .map((b, i) => (getRealBrickId(b) === brickId ? i : -1))
             .filter(i => i !== -1);
 
         if (indices.length === 0) return;
@@ -204,15 +180,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         let indexToRemove = -1;
         const nonMandatoryIndex = indices.find(i => !currentBricks[i].is_mandatory);
         
-        if (nonMandatoryIndex !== undefined) {
-            indexToRemove = nonMandatoryIndex;
-        } else {
-            if (indices.length > 1) {
-                indexToRemove = indices[indices.length - 1];
-            } else {
-                alert("Questo mattone è obbligatorio per il tuo modello di aura (minimo 1).");
-                return;
-            }
+        if (nonMandatoryIndex !== undefined) indexToRemove = nonMandatoryIndex;
+        else if (indices.length > 1) indexToRemove = indices[indices.length - 1];
+        else {
+            alert("Questo mattone è obbligatorio per il tuo modello di aura (minimo 1).");
+            return;
         }
 
         if (indexToRemove !== -1) {
@@ -233,7 +205,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 descrizione: description,
                 aura: selectedAuraId,
                 aura_infusione: selectedInfusionAuraId,
-                mattoni_ids: currentBricks.map(b => b.id || b.mattone?.id)
+                mattoni_ids: currentBricks.map(b => getRealBrickId(b))
             };
 
             if (isEditing) await updateProposta(proposal.id, payload);
@@ -276,7 +248,9 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const currentTotalCount = currentBricks.length;
     const cost = currentTotalCount * 10;
 
-    const getBrickCount = (brickId) => currentBricks.filter(b => (b.id || b.mattone?.id) === brickId).length;
+    const getBrickCount = (brickId) => {
+        return currentBricks.filter(b => getRealBrickId(b) === brickId).length;
+    };
     
     const isBrickMandatory = (brickId) => {
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
@@ -314,7 +288,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">✕</button>
                 </div>
 
-                {/* Body - Unica scrollbar */}
+                {/* Body */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                     {error && (
                         <div className="p-3 bg-red-900/30 border border-red-700/50 text-red-200 rounded flex items-center gap-2">
@@ -322,7 +296,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </div>
                     )}
 
-                    {/* Inputs Principali */}
+                    {/* Inputs */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Nome</label>
@@ -335,7 +309,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             />
                         </div>
                         
-                        {/* AURA RICHIESTA */}
                         <div className="bg-gray-800/50 p-3 rounded border border-gray-700">
                             <label className="text-xs font-bold text-gray-400 mb-1 uppercase flex items-center gap-2">
                                 Aura Richiesta (Capienza)
@@ -353,7 +326,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             </select>
                         </div>
 
-                        {/* AURA INFUSIONE */}
                         <div className="bg-gray-800/50 p-3 rounded border border-gray-700 relative">
                             <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block text-gray-600">
                                 <ArrowRight size={20} />
@@ -387,10 +359,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         />
                     </div>
 
-                    {/* SEZIONE MATTONI */}
+                    {/* Sezione Mattoni */}
                     <div className="bg-gray-800/50 rounded-lg border border-gray-700 flex flex-col h-auto min-h-[300px]">
-                        
-                        {/* Info Bar */}
                         <div className="p-3 bg-gray-800 border-b border-gray-700 flex flex-col gap-2 sticky top-0 z-10 shadow-md">
                             <div className="flex justify-between items-center">
                                 <div className="flex flex-col">
@@ -408,7 +378,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             </div>
                         </div>
 
-                        {/* Lista Mattoni */}
                         <div className="flex-1 p-2 space-y-2">
                             {!selectedAuraId ? (
                                 <div className="text-center text-gray-500 py-10 flex flex-col items-center gap-2">
@@ -440,7 +409,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                 ? 'bg-indigo-900/20 border-indigo-500/50' 
                                                 : 'bg-gray-800 border-gray-700 hover:border-gray-600'
                                         }`}>
-                                            {/* Info Mattone */}
                                             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 mr-2">
                                                 <div className="shrink-0">
                                                     <IconaPunteggio url={brick.icona_url} color={brick.colore} size="xs" />
@@ -456,7 +424,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                 </div>
                                             </div>
 
-                                            {/* Controlli +/- */}
                                             <div className="flex items-center gap-1 sm:gap-3 bg-gray-900 rounded-lg p-1 border border-gray-700 shrink-0">
                                                 <button 
                                                     onClick={() => handleDecrement(brick.id)}
