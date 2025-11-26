@@ -101,6 +101,11 @@ const PlayerMessageTab = ({ onLogout }) => {
                     {messages.map((msg) => {
                         const isRead = msg.is_letto;
                         const isExpanded = expandedMsgId === msg.id;
+                        
+                        // --- CORREZIONE APPLICATA QUI ---
+                        // Usiamo 'msg.testo' invece di 'msg.testo_messaggio'
+                        // Aggiungiamo || "" per sicurezza se il testo è null
+                        const testoDaVisualizzare = msg.testo || "";
 
                         return (
                             <div 
@@ -126,7 +131,13 @@ const PlayerMessageTab = ({ onLogout }) => {
                                         
                                         {/* Anteprima o Testo Completo */}
                                         <div className={`text-sm ${isExpanded ? 'whitespace-pre-wrap mt-4 text-gray-100' : 'line-clamp-1 text-gray-400'}`}>
-                                            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(isExpanded ? msg.testo_messaggio : msg.testo_messaggio.slice(0, 100) + (msg.testo_messaggio.length > 100 ? '...' : '')) }} />
+                                            <div dangerouslySetInnerHTML={{ 
+                                                __html: DOMPurify.sanitize(
+                                                    isExpanded 
+                                                        ? testoDaVisualizzare 
+                                                        : testoDaVisualizzare.slice(0, 100) + (testoDaVisualizzare.length > 100 ? '...' : '')
+                                                ) 
+                                            }} />
                                         </div>
                                     </div>
 
