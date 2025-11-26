@@ -14,23 +14,16 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     // AURA 1: Il "Contenitore" (Definisce il limite massimo)
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
     
-    // Funzione helper per dedurre l'aura di infusione dai mattoni se manca
-    const deriveInfusionAura = () => {
-        // 1. Se è salvata esplicitamente nella bozza (supporto futuro backend)
+    // Funzione helper per inizializzare lo stato (tentativo sincrono)
+    const deriveInfusionAuraInitial = () => {
         if (proposal?.aura_infusione) return proposal.aura_infusione;
-        
-        // 2. Se non c'è, controlliamo i mattoni salvati
-        if (proposal?.mattoni && proposal.mattoni.length > 0) {
-             const first = proposal.mattoni[0];
-             // Gestisce sia oggetto piatto che nested (dipende dal serializer backend)
-             return first.aura_id || first.mattone?.aura_id || '';
-        }
+        // Nota: qui spesso fallisce perché i dati completi non sono ancora caricati
+        // La logica robusta è nello useEffect sotto.
         return '';
     };
 
     // AURA 2: Il "Contenuto" (Definisce quali mattoni caricare)
-    // Inizializziamo usando la logica di deduzione
-    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(deriveInfusionAura()); 
+    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(deriveInfusionAuraInitial()); 
 
     const [currentBricks, setCurrentBricks] = useState(proposal?.mattoni || []); 
     
@@ -75,8 +68,9 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         initData();
     }, [char, type]);
 
-    // 2. Gestione Logica AURA RICHIESTA -> AURA INFUSIONE
+    // 2. Gestione Logica AURA RICHIESTA -> AURA INFUSIONE (CORRETTA)
     useEffect(() => {
+        // Non fare nulla finché non abbiamo i dati base
         if (!selectedAuraId || allPunteggiCache.length === 0) {
             setAvailableInfusionAuras([]);
             return;
@@ -85,32 +79,49 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const mainAuraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
         if (!mainAuraObj) return;
 
+        // Calcola le aure di infusione permesse
         const allowedIds = mainAuraObj.aure_infusione_consentite || [mainAuraObj.id];
         const validInfusionObjs = allPunteggiCache.filter(p => allowedIds.includes(p.id));
         setAvailableInfusionAuras(validInfusionObjs);
 
-        // Se l'aura di infusione selezionata NON è valida per questa aura richiesta
-        // E non stiamo caricando una bozza che potrebbe avere dati legacy
-        // Allora impostiamo un default.
-        const currentInfIsAllowed = allowedIds.includes(parseInt(selectedInfusionAuraId));
-        
-        if (!selectedInfusionAuraId || !currentInfIsAllowed) {
-            // ATTENZIONE: Se abbiamo mattoni salvati, non resettare l'aura se corrisponde ai mattoni
-            // anche se tecnicamente non è nella lista "allowed" (per evitare perdite dati su vecchie bozze)
-            const hasBricks = currentBricks.length > 0;
-            if (!hasBricks && validInfusionObjs.length > 0) {
-                setSelectedInfusionAuraId(validInfusionObjs[0].id);
-            } else if (!hasBricks) {
-                setSelectedInfusionAuraId('');
+        // --- FIX CRITICO: DEDUZIONE AURA MATTONI ---
+        // Se l'aura infusione non è settata (o è 0/null) MA abbiamo dei mattoni salvati,
+        // cerchiamo il primo mattone nella cache globale per capire a che aura appartiene.
+        if (!selectedInfusionAuraId && currentBricks.length > 0) {
+            const firstItem = currentBricks[0];
+            // Supporta sia il formato Wrapper ({mattone: {id: 1}}) che Flat ({id: 1})
+            // Importante: se c'è 'mattone', usa quello, altrimenti usa l'id diretto.
+            const brickId = firstItem.mattone?.id || firstItem.id;
+            
+            const fullBrickInfo = allPunteggiCache.find(p => p.id === brickId);
+            
+            if (fullBrickInfo && fullBrickInfo.aura_id) {
+                console.log("Aura dedotta dai mattoni:", fullBrickInfo.aura_id);
+                setSelectedInfusionAuraId(fullBrickInfo.aura_id);
+                return; // Usciamo per evitare sovrascritture dalla logica di default sotto
             }
-            // Se hasBricks è true, manteniamo l'ID dedotto all'inizio (selectedInfusionAuraId)
-            // anche se non sembra "allowed", per permettere all'utente di vederlo ed eventualmente cambiarlo.
         }
 
-    }, [selectedAuraId, allPunteggiCache]); // Rimosso selectedInfusionAuraId dalle dipendenze per evitare loop
+        // --- LOGICA DEFAULT ---
+        // Se siamo ancora senza aura o quella selezionata non è più valida (e non abbiamo mattoni da proteggere)
+        const currentInfIsAllowed = allowedIds.includes(parseInt(selectedInfusionAuraId));
+        const hasBricks = currentBricks.length > 0;
+
+        if (!selectedInfusionAuraId || (!currentInfIsAllowed && !hasBricks)) {
+            // Se non abbiamo mattoni, resettiamo sul primo valore valido per comodità
+            if (validInfusionObjs.length > 0) {
+                setSelectedInfusionAuraId(validInfusionObjs[0].id);
+            } else {
+                setSelectedInfusionAuraId('');
+            }
+        }
+        // Nota: Se !currentInfIsAllowed è vero MA hasBricks è vero, NON resettiamo l'aura.
+        // Questo protegge bozze vecchie che potrebbero avere combinazioni non più standard ma valide.
+
+    }, [selectedAuraId, allPunteggiCache, currentBricks]); // Aggiunto currentBricks alle dipendenze per sicurezza all'avvio
 
 
-    // 3. Caricamento Mattoni
+    // 3. Caricamento Mattoni (UI List)
     useEffect(() => {
         if (!selectedInfusionAuraId || allPunteggiCache.length === 0) {
             setAvailableBricks([]);
@@ -138,11 +149,9 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
         setAvailableBricks(bricks);
 
-        // Gestione Obbligatori (Solo se la lista attuale è vuota o stiamo creando)
+        // Gestione Obbligatori in creazione
         if (isDraft && modello && modello.mattoni_obbligatori && currentBricks.length === 0) {
-            // ... logica esistente per aggiungere obbligatori ...
-            // (Omissis per brevità, la tua logica precedente era ok, ma attento a non duplicare)
-            const missingMandatory = modello.mattoni_obbligatori; // Semplificato
+            const missingMandatory = modello.mattoni_obbligatori; 
             if (missingMandatory.length > 0) {
                 const toAdd = missingMandatory.map(m => {
                     const fullBrick = allPunteggiCache.find(p => p.id === m.id) || m;
@@ -151,7 +160,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 setCurrentBricks(toAdd);
             }
         }
-    }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]);
+    }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]); // currentBricks rimosso per evitare loop
 
     const handleAuraChange = (e) => {
         const newAuraId = e.target.value;
@@ -223,7 +232,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 nome: name,
                 descrizione: description,
                 aura: selectedAuraId,
-                aura_infusione: selectedInfusionAuraId, // Salviamo anche questa ora
+                aura_infusione: selectedInfusionAuraId,
                 mattoni_ids: currentBricks.map(b => b.id || b.mattone?.id)
             };
 
@@ -274,10 +283,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         return modello?.mattoni_obbligatori?.some(m => m.id === brickId);
     };
 
-    // Helper per mostrare un riassunto testuale (per debug o chiarezza)
     const getSummaryText = () => {
         if (currentBricks.length === 0) return "Nessuno";
-        // Raggruppa per nome
         const counts = {};
         currentBricks.forEach(b => {
             const n = b.nome || b.mattone?.nome || '???';
@@ -396,7 +403,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                     Costo: <span className="text-white font-mono">{cost} CR</span>
                                 </div>
                             </div>
-                            {/* Sommario Testuale per chiarezza */}
                             <div className="text-[10px] text-gray-400 border-t border-gray-700 pt-1 mt-1 truncate">
                                 <span className="uppercase font-bold text-gray-500">Contiene:</span> {getSummaryText()}
                             </div>
