@@ -1,29 +1,30 @@
-
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
-  getPersonaggiList, 
-  getPersonaggioDetail, 
-  getAcquirableSkills, 
-  getPunteggiList,
-  saveWebPushSubscription,
-  getAcquirableInfusioni, 
-  getAcquirableTessiture,
-  getMessages,         // <--- Importato
-  markMessageAsRead,   // <--- Importato
-  deleteMessage,       // <--- Importato
-  getAdminPendingProposalsCount
+  getMessages, 
+  markMessageAsRead, 
+  deleteMessage, 
+  getAdminPendingProposalsCount, 
+  saveWebPushSubscription 
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
-// 1. Creare il Context
+// Importiamo gli hook creati prima
+import { 
+  usePunteggi, 
+  usePersonaggiList, 
+  usePersonaggioDetail, 
+  useAcquirableSkills, 
+  useAcquirableInfusioni, 
+  useAcquirableTessiture 
+} from '../hooks/useGameData';
+
 const CharacterContext = createContext(null);
 
-// --- HELPER FUNCTION PER WEBPUSH ---
+// --- HELPER UTILS ---
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
@@ -32,364 +33,227 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-// Helper per inviare notifica di sistema locale (Livello 1)
 const sendSystemNotification = (title, body) => {
     if (!("Notification" in window)) return;
     if (Notification.permission === "granted") {
       try {
-          new Notification(title, {
-            body: body,
-            icon: '/pwa-192x192.png',
-            vibrate: [200, 100, 200]
-          });
-      } catch (e) {
-          console.error("Errore invio notifica sistema:", e);
-      }
+          new Notification(title, { body, icon: '/pwa-192x192.png', vibrate: [200, 100, 200] });
+      } catch (e) { console.error("Errore notifica:", e); }
     }
 };
 
-// 2. Creare il Provider
 export const CharacterProvider = ({ children, onLogout }) => {
-  const [personaggiList, setPersonaggiList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState('');
-  const [selectedCharacterData, setSelectedCharacterData] = useState(null);
+  const queryClient = useQueryClient(); // Accesso alla cache globale
   
-  // Stati di caricamento
-  const [isLoadingList, setIsLoadingList] = useState(false);
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [isLoadingAcquirable, setIsLoadingAcquirable] = useState(false);
-  const [isLoadingPunteggi, setIsLoadingPunteggi] = useState(false);
-  
-  const [error, setError] = useState(null);
-
-  // Stati aggiuntivi
-  const [acquirableSkills, setAcquirableSkills] = useState([]);
-  const [punteggiList, setPunteggiList] = useState([]);
-
-  // --- MESSAGGI UTENTE ---
-  const [userMessages, setUserMessages] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // --- NOTIFICHE REAL-TIME ---
-  const [notification, setNotification] = useState(null);
-  const ws = useRef(null);
-
-  // LOGICA ADMIN
-  const [isAdmin] = useState(() => {
-      const isStaff = localStorage.getItem('kor35_is_staff');
-      return isStaff === 'true'; 
-  });
+  // --- STATI GLOBALI UI ---
+  const [selectedCharacterId, setSelectedCharacterId] = useState(() => localStorage.getItem('kor35_last_char_id') || '');
+  const [isAdmin] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
   const [viewAll, setViewAll] = useState(false);
-  const [adminPendingCount, setAdminPendingCount] = useState(0);
-
-  // Stati per Infusioni e Tessiture
-  const [acquirableInfusioni, setAcquirableInfusioni] = useState([]);
-  const [acquirableTessiture, setAcquirableTessiture] = useState([]);
-
-  // Gestione Admin Pending Count
-  useEffect(() => {
-      if (isAdmin && !viewAll) { // Controlla solo se admin loggato come sé stesso
-          const checkPending = async () => {
-              try {
-                  const data = await getAdminPendingProposalsCount(onLogout);
-                  setAdminPendingCount(data.count);
-              } catch (e) { console.error("Admin Count Error:", e); }
-          };
-          checkPending();
-          const interval = setInterval(checkPending, 60000); // Check ogni minuto
-          return () => clearInterval(interval);
-      }
-  }, [isAdmin, viewAll, onLogout]);
-
-  // --- GESTIONE MESSAGGI USER ---
-  const fetchUserMessages = useCallback(async (characterId) => {
-    if (!characterId) return;
-    try {
-      const msgs = await getMessages(characterId, onLogout);
-      
-      // Ordina: non letti in cima, poi per data decrescente
-      const sorted = (msgs || []).sort((a, b) => {
-        // Nota: Assumo che il campo backend sia 'letto' (boolean)
-        // Se è 'is_read', cambia 'letto' con 'is_read' qui sotto.
-        const aRead = a.letto ? 1 : 0;
-        const bRead = b.letto ? 1 : 0;
-        
-        if (aRead !== bRead) return aRead - bRead; // 0 (non letto) prima di 1 (letto)
-        return new Date(b.data_invio) - new Date(a.data_invio);
-      });
-      
-      setUserMessages(sorted);
-      setUnreadCount(sorted.filter(m => !m.letto).length);
-    } catch (err) {
-      console.error("Errore caricamento messaggi:", err);
-    }
-  }, [onLogout]);
-
-  const handleMarkAsRead = async (msgId) => {
-      // Update Ottimistico
-      const updated = userMessages.map(m => m.id === msgId ? { ...m, letto: true } : m);
-      setUserMessages(updated);
-      setUnreadCount(updated.filter(m => !m.letto).length);
-
-      try {
-          await markMessageAsRead(msgId, selectedCharacterId, onLogout);
-      } catch (e) {
-          console.error("Errore markAsRead:", e);
-          fetchUserMessages(selectedCharacterId); // Revert
-      }
-  };
-
-  const handleDeleteMessage = async (msgId) => {
-      if(!window.confirm("Vuoi davvero cancellare questo messaggio?")) return;
-
-      // Update Ottimistico
-      const updated = userMessages.filter(m => m.id !== msgId);
-      setUserMessages(updated);
-      setUnreadCount(updated.filter(m => !m.letto).length);
-
-      try {
-          await deleteMessage(msgId, selectedCharacterId, onLogout);
-      } catch (e) {
-          console.error("Errore deleteMessage:", e);
-          fetchUserMessages(selectedCharacterId); // Revert
-      }
-  };
-
-
-  // --- SOTTOSCRIZIONE WEB PUSH (Livello 2) ---
-  const subscribeToPush = useCallback(async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    
-    try {
-        if (Notification.permission === 'default') {
-             await Notification.requestPermission();
-        }
-        if (Notification.permission !== 'granted') return;
-
-        const registration = await navigator.serviceWorker.ready;
-        let subscription = await registration.pushManager.getSubscription();
-        
-        if (!subscription) {
-            const vapidPublicKey = "BIOIApSIeJdV1tp5iVxyLtm8KzM43_AQWV2ymS4iMjkIG1R5g399o6WRdZJY-xcUBZPyJ7EFRVgWqlbalOkGSYw"; 
-            const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: convertedVapidKey
-            });
-        }
-        await saveWebPushSubscription(subscription, onLogout);
-        console.log("✅ WebPush Sottoscritto con successo!");
-
-    } catch (error) {
-        console.error("❌ Errore sottoscrizione WebPush:", error);
-    }
-  }, [onLogout]);
-
-  useEffect(() => {
-      if (selectedCharacterId) {
-          subscribeToPush();
-          fetchUserMessages(selectedCharacterId); // Carica messaggi al login/cambio pg
-      }
-  }, [selectedCharacterId, subscribeToPush, fetchUserMessages]);
-
-
-  // --- WEBSOCKET SETUP (Livello 1) ---
-  useEffect(() => {
-    let wsUrl = '';
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        wsUrl = 'ws://127.0.0.1:8000/ws/notifications/';
-    } else {
-        const backendHost = 'www.kor35.it'; 
-        wsUrl = `wss://${backendHost}/ws/notifications/`;
-    }
-    
-    if (ws.current) ws.current.close();
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'notification') {
-           const msg = data.payload;
-           const myCharId = parseInt(selectedCharacterId); 
-           let shouldShow = false;
-
-           if (msg.tipo === 'BROAD') shouldShow = true;
-           else if (msg.tipo === 'INDV' && msg.destinatario_id === myCharId) shouldShow = true;
-           else if (msg.tipo === 'GROUP') shouldShow = true; 
-
-           if (shouldShow) {
-              setNotification(msg); 
-              const plainText = msg.testo.replace(/<[^>]+>/g, ''); 
-              sendSystemNotification(msg.titolo, plainText);
-              // Ricarica messaggi per aggiornare il badge e la lista
-              fetchUserMessages(selectedCharacterId);
-           }
-        }
-      } catch (e) { console.error("Errore parsing messaggio WS:", e); }
-    };
-
-    return () => { if (ws.current) ws.current.close(); };
-  }, [selectedCharacterId, fetchUserMessages]); 
-
-  const closeNotification = () => setNotification(null);
-
-  // --- ALTRE FETCH ---
-  const fetchAcquirableSkills = useCallback(async (characterId) => {
-    if (!characterId) { setAcquirableSkills([]); return; }
-    try {
-      const data = await getAcquirableSkills(onLogout, characterId);
-      setAcquirableSkills(data || []);
-    } catch (err) {
-      console.error('Errore caricamento abilità:', err);
-      setAcquirableSkills([]);
-    } 
-  }, [onLogout]);
   
-  const fetchAcquirableInfusioni = useCallback(async (characterId) => {
-    if (!characterId) { setAcquirableInfusioni([]); return; }
-    try {
-      const data = await getAcquirableInfusioni(characterId);
-      setAcquirableInfusioni(data || []);
-    } catch (err) { setAcquirableInfusioni([]); }
-  }, []);
+  // --- REACT QUERY HOOKS (Sostituiscono le fetch manuali) ---
+  
+  // 1. Punteggi (Caricati una volta sola e cachati per sempre)
+  const { data: punteggiList = [], isLoading: isLoadingPunteggi } = usePunteggi(onLogout);
 
-  const fetchAcquirableTessiture = useCallback(async (characterId) => {
-    if (!characterId) { setAcquirableTessiture([]); return; }
-    try {
-      const data = await getAcquirableTessiture(characterId);
-      setAcquirableTessiture(data || []);
-    } catch (err) { setAcquirableTessiture([]); }
-  }, []);
+  // 2. Lista Personaggi
+  const { 
+    data: personaggiList = [], 
+    isLoading: isLoadingList, 
+    refetch: refetchPersonaggiList 
+  } = usePersonaggiList(onLogout, viewAll);
 
+  // 3. Dettaglio Personaggio Selezionato
+  const { 
+    data: selectedCharacterData, 
+    isLoading: isLoadingDetail,
+    refetch: refetchCharacterDetail
+  } = usePersonaggioDetail(selectedCharacterId, onLogout);
 
-  // --- SELEZIONE PERSONAGGIO ---
-  const selectCharacter = useCallback(async (id, forceRefresh = false) => {
-    if (!id) {
-        setSelectedCharacterId('');
-        setSelectedCharacterData(null);
-        setAcquirableSkills([]);
-        return;
+  // 4. Dati Lazy Loading (Abilità, Infusioni, Tessiture)
+  // Questi vengono chiamati automaticamente ma React Query li esegue solo se 'enabled' è true (cioè c'è un ID)
+  // Inoltre, i componenti che li usano accederanno ai dati via Context
+  const { data: acquirableSkills = [] } = useAcquirableSkills(selectedCharacterId, onLogout);
+  const { data: acquirableInfusioni = [] } = useAcquirableInfusioni(selectedCharacterId);
+  const { data: acquirableTessiture = [] } = useAcquirableTessiture(selectedCharacterId);
+
+  // --- LOGICA SELEZIONE AUTOMATICA PG ---
+  useEffect(() => {
+    // Se non c'è un PG selezionato ma la lista è caricata, selezioniamo il primo o quello in cache
+    if (!selectedCharacterId && personaggiList.length > 0) {
+        const lastId = localStorage.getItem('kor35_last_char_id');
+        const targetId = (lastId && personaggiList.some(p => p.id.toString() === lastId)) 
+                         ? lastId 
+                         : personaggiList[0].id;
+        setSelectedCharacterId(targetId);
     }
-    
-    if (id === selectedCharacterId && !forceRefresh) return;
-    
-    setIsLoadingDetail(true);
-    setIsLoadingAcquirable(true);
-    setError(null);
+  }, [personaggiList, selectedCharacterId]);
+
+  // --- AZIONI CONTEXT ---
+  
+  const handleSelectCharacter = useCallback((id) => {
     setSelectedCharacterId(id);
-    
-    try {
-      const data = await getPersonaggioDetail(id, onLogout);
-      setSelectedCharacterData(data);
-      
-      await Promise.all([
-          fetchAcquirableSkills(id),
-          fetchAcquirableInfusioni(id),
-          fetchAcquirableTessiture(id)
-      ]);
+    if(id) localStorage.setItem('kor35_last_char_id', id);
+    // Non serve fetchare nulla, React Query reagisce al cambio di selectedCharacterId
+  }, []);
 
-    } catch (err) {
-      setError(err.message);
-      setSelectedCharacterData(null);
-    } finally {
-      setIsLoadingDetail(false);
-      setIsLoadingAcquirable(false);
-    }
-  }, [onLogout, selectedCharacterId, fetchAcquirableSkills, fetchAcquirableInfusioni, fetchAcquirableTessiture]); 
+  const refreshCharacterData = useCallback(() => {
+    // Ricarica forzatamente i dati del PG attuale
+    refetchCharacterDetail();
+  }, [refetchCharacterDetail]);
 
-  const fetchPunteggi = useCallback(async () => {
-    setIsLoadingPunteggi(true);
-    try {
-      const data = await getPunteggiList(onLogout);
-      setPunteggiList(data || []);
-    } catch (err) { setPunteggiList([]); } finally { setIsLoadingPunteggi(false); }
-  }, [onLogout]);
-
-  const fetchPersonaggi = useCallback(async () => {
-    setIsLoadingList(true);
-    setError(null);
-    await Promise.all([
-        (async () => {
-            try {
-              const data = await getPersonaggiList(onLogout, viewAll); 
-              setPersonaggiList(data || []);
-              
-              const lastCharId = localStorage.getItem('kor35_last_char_id');
-              let charToSelect = null;
-              
-              if (lastCharId && data.some(p => p.id.toString() === lastCharId)) {
-                  charToSelect = lastCharId;
-              } else if (data && data.length > 0) {
-                  charToSelect = data[0].id;
-                  localStorage.setItem('kor35_last_char_id', data[0].id);
-              }
-              await selectCharacter(charToSelect || '');
-            } catch (err) {
-              setError(err.message);
-              setPersonaggiList([]);
-            }
-        })(),
-        fetchPunteggi()
-    ]);
-    setIsLoadingList(false); 
-  }, [onLogout, viewAll, selectCharacter, fetchPunteggi]); 
+  const fetchPersonaggi = useCallback(() => {
+    // Wrapper per ricaricare la lista (usato dal tasto refresh nella home)
+    refetchPersonaggiList();
+  }, [refetchPersonaggiList]);
 
   const toggleViewAll = () => setViewAll(prev => !prev);
 
-  const refreshCharacterData = useCallback(async () => {
-    if (selectedCharacterId) await selectCharacter(selectedCharacterId, true);
-  }, [selectedCharacterId, selectCharacter]); 
 
-  const handleSelectCharacter = async (id) => {
-    localStorage.setItem('kor35_last_char_id', id);
-    await selectCharacter(id, false);
+  // --- GESTIONE MESSAGGI (Mantenuta manuale per ora per gestire Read/Delete) ---
+  const [userMessages, setUserMessages] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUserMessages = useCallback(async (charId) => {
+    if (!charId) return;
+    try {
+      const msgs = await getMessages(charId, onLogout);
+      const sorted = (msgs || []).sort((a, b) => {
+        if (a.letto !== b.letto) return a.letto ? 1 : -1;
+        return new Date(b.data_invio) - new Date(a.data_invio);
+      });
+      setUserMessages(sorted);
+      setUnreadCount(sorted.filter(m => !m.letto).length);
+    } catch (err) { console.error("Err msg:", err); }
+  }, [onLogout]);
+
+  // Aggiorna messaggi al cambio PG
+  useEffect(() => {
+    if (selectedCharacterId) fetchUserMessages(selectedCharacterId);
+  }, [selectedCharacterId, fetchUserMessages]);
+
+  const handleMarkAsRead = async (msgId) => {
+      setUserMessages(prev => prev.map(m => m.id === msgId ? { ...m, letto: true } : m)); // Optimistic
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      try { await markMessageAsRead(msgId, selectedCharacterId, onLogout); } 
+      catch (e) { fetchUserMessages(selectedCharacterId); }
   };
 
+  const handleDeleteMessage = async (msgId) => {
+      if(!window.confirm("Cancellare messaggio?")) return;
+      setUserMessages(prev => prev.filter(m => m.id !== msgId)); // Optimistic
+      try { await deleteMessage(msgId, selectedCharacterId, onLogout); } 
+      catch (e) { fetchUserMessages(selectedCharacterId); }
+  };
+
+
+  // --- ADMIN & NOTIFICHE (Mantenuto logica esistente) ---
+  const [adminPendingCount, setAdminPendingCount] = useState(0);
+  useEffect(() => {
+      if (isAdmin && !viewAll) {
+          const check = async () => {
+              try { const d = await getAdminPendingProposalsCount(onLogout); setAdminPendingCount(d.count); } 
+              catch (e) {}
+          };
+          check();
+          const i = setInterval(check, 60000);
+          return () => clearInterval(i);
+      }
+  }, [isAdmin, viewAll, onLogout]);
+
+  // WebPush
+  const subscribeToPush = useCallback(async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+            const key = urlBase64ToUint8Array("BIOIApSIeJdV1tp5iVxyLtm8KzM43_AQWV2ymS4iMjkIG1R5g399o6WRdZJY-xcUBZPyJ7EFRVgWqlbalOkGSYw");
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+        }
+        await saveWebPushSubscription(sub, onLogout);
+    } catch (e) { console.error("WebPush Error:", e); }
+  }, [onLogout]);
+
+  useEffect(() => { if (selectedCharacterId) subscribeToPush(); }, [selectedCharacterId, subscribeToPush]);
+
+  // WebSocket
+  const [notification, setNotification] = useState(null);
+  const ws = useRef(null);
+  useEffect(() => {
+    const wsUrl = window.location.hostname === 'localhost' ? 'ws://127.0.0.1:8000/ws/notifications/' : `wss://www.kor35.it/ws/notifications/`;
+    if (ws.current) ws.current.close();
+    ws.current = new WebSocket(wsUrl);
+    ws.current.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.type === 'notification') {
+           const msg = d.payload;
+           const myId = parseInt(selectedCharacterId);
+           if (msg.tipo === 'BROAD' || (msg.tipo === 'INDV' && msg.destinatario_id === myId) || msg.tipo === 'GROUP') {
+              setNotification(msg);
+              sendSystemNotification(msg.titolo, msg.testo.replace(/<[^>]+>/g, ''));
+              fetchUserMessages(selectedCharacterId);
+              // Invalida cache messaggi o ricarica se necessario
+              queryClient.invalidateQueries(['personaggio', selectedCharacterId]);
+           }
+        }
+      } catch (err) {}
+    };
+    return () => { if (ws.current) ws.current.close(); };
+  }, [selectedCharacterId, fetchUserMessages, queryClient]);
+
+
+  // --- VALUE DEL CONTEXT ---
   const value = {
+    // Dati da React Query
     personaggiList,
+    punteggiList,
     selectedCharacterId,
     selectedCharacterData,
-    isLoading: isLoadingList || isLoadingDetail || isLoadingAcquirable || isLoadingPunteggi,
+    
+    // Liste "Acquistabili" (auto-gestite da cache)
+    acquirableSkills,
+    acquirableInfusioni,
+    acquirableTessiture,
+    
+    // Loading states combinati
+    isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi,
     isLoadingList,
     isLoadingDetail,
-    isLoadingAcquirable,
-    isLoadingPunteggi,
-    error,
-    fetchPersonaggi,
+    
+    // Funzioni
     selectCharacter: handleSelectCharacter,
     refreshCharacterData,
+    fetchPersonaggi, // Mantenuto per compatibilità, ora fa refetch
     
-    punteggiList,
-    acquirableSkills,
-    acquirableInfusioni, 
-    acquirableTessiture, 
-    
+    // Placeholder (non servono più chiamate manuali, ma le lasciamo vuote per non rompere i componenti figli)
+    loadSkillsOnDemand: () => {}, 
+    loadInfusioniOnDemand: () => {},
+    loadTessitureOnDemand: () => {},
+
+    // Admin & Messaggi
     isAdmin,
     viewAll,
     toggleViewAll,
     adminPendingCount,
-    
-    // Messaggi
     userMessages,
     unreadCount,
     fetchUserMessages,
     handleMarkAsRead,
     handleDeleteMessage,
-
     subscribeToPush,
   };
 
   return (
     <CharacterContext.Provider value={value}>
       {children}
-      <NotificationPopup notification={notification} onClose={closeNotification} />
+      <NotificationPopup notification={notification} onClose={() => setNotification(null)} />
     </CharacterContext.Provider>
   );
 };
 
 export const useCharacter = () => {
   const context = useContext(CharacterContext);
-  if (context === null) throw new Error('useCharacter deve essere usato dentro un CharacterProvider');
+  if (!context) throw new Error('useCharacter deve essere usato dentro un CharacterProvider');
   return context;
 };

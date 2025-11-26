@@ -409,3 +409,23 @@ export const deleteMessage = (messageId, characterId, onLogout) => {
     onLogout
   );
 };
+
+/**
+ * Recupera i log paginati.
+ * @param {number} page - Numero di pagina (default 1)
+ */
+export const getPersonaggioLogs = (page = 1) => {
+  return fetchAuthenticated(`/personaggi/api/personaggio/me/logs/?page=${page}`, { method: 'GET' });
+};
+
+/**
+ * Recupera le transazioni paginate.
+ * @param {number} page - Numero di pagina
+ * @param {string} tipo - 'entrata' o 'uscita'
+ */
+export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata') => {
+  return fetchAuthenticated(
+    `/personaggi/api/personaggio/me/transazioni/?page=${page}&tipo=${tipo}`, 
+    { method: 'GET' }
+  );
+};

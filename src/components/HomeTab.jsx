@@ -5,6 +5,10 @@ import PunteggioDisplay from './PunteggioDisplay';
 import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
 
+// --- NUOVI COMPONENTI ---
+import LogViewer from './LogViewer';
+import TransazioniViewer from './TransazioniViewer';
+
 // --- Componenti Helper ---
 
 const StatRow = ({ label, value, icon }) => (
@@ -64,8 +68,8 @@ const CharacterSheet = ({ data }) => {
     punteggi_base, 
     modificatori_calcolati, 
     abilita_possedute, 
-    oggetti, 
-    log_eventi 
+    oggetti,
+    // log_eventi <-- RIMOSSO: Ora gestito da LogViewer
   } = data;
 
   // Calcolo Statistiche
@@ -134,7 +138,6 @@ const CharacterSheet = ({ data }) => {
 
   // --- RENDER HEADER GRUPPO (PunteggioDisplay) ---
   const renderGroupHeader = (group) => {
-    // Costruiamo un oggetto finto "punteggio" compatibile con PunteggioDisplay
     const fakePunteggio = {
         nome: group.name,
         colore: group.color,
@@ -144,11 +147,11 @@ const CharacterSheet = ({ data }) => {
     return (
         <PunteggioDisplay 
             punteggio={fakePunteggio}
-            value={group.items.length} // Mostriamo il numero di abilità come valore
+            value={group.items.length} 
             displayText="name"
-            iconType="inv_circle" // Richiesta specifica
-            size="s"              // Richiesta specifica
-            className="rounded-b-none" // Rimuoviamo l'arrotondamento inferiore per attaccarlo alla lista
+            iconType="inv_circle" 
+            size="s"              
+            className="rounded-b-none" 
         />
     );
   };
@@ -245,7 +248,7 @@ const CharacterSheet = ({ data }) => {
         </div>
       )}
 
-      {/* Abilità (Raggruppate con Header Custom) */}
+      {/* Abilità */}
       <div className="mb-6">
         <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Abilità</h3>
         {abilita_possedute && abilita_possedute.length > 0 ? (
@@ -257,7 +260,7 @@ const CharacterSheet = ({ data }) => {
                 colorKey="colore"           
                 iconKey="icona_url"         
                 renderItem={renderAbilitaItem}
-                renderHeader={renderGroupHeader} // Passiamo il render personalizzato per l'header
+                renderHeader={renderGroupHeader}
                 compact={false} 
             />
         ) : (
@@ -268,20 +271,19 @@ const CharacterSheet = ({ data }) => {
       {/* Oggetti */}
       <ItemList title="Oggetti" items={oggetti} />
 
-      {/* Log Eventi */}
-      {log_eventi && log_eventi.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Log Eventi</h3>
-          <div className="bg-gray-800 p-4 rounded-lg shadow-inner space-y-2 max-h-60 overflow-y-auto">
-            {log_eventi.slice(0).reverse().map((log, index) => (
-              <div key={log.data || index} className="text-sm text-gray-400 border-b border-gray-700 pb-1">
-                <span className="text-gray-500">[{new Date(log.data).toLocaleString('it-IT')}]</span>
-                <p className="text-gray-300">{log.testo_log}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* --- SEZIONE LOG EVENTI (PAGINATA) --- */}
+      <div className="mb-6">
+         {/* Non c'è bisogno del titolo qui se LogViewer lo ha già, 
+             ma per coerenza visiva coi blocchi sopra potresti volerlo fuori o dentro. 
+             LogViewer ha già il titolo "Registro Eventi" dentro. */}
+         <LogViewer />
+      </div>
+
+      {/* --- SEZIONE TRANSAZIONI (PAGINATA) --- */}
+      <div className="mb-6">
+         <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Transazioni</h3>
+         <TransazioniViewer />
+      </div>
 
       {/* Modificatori (Accordion) */}
       {modificatori_calcolati && (
