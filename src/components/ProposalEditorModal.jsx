@@ -15,17 +15,13 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
     
     // AURA 2: Il "Contenuto" (Definisce quali mattoni caricare)
-    // Se stiamo editando, potrebbe essere salvata in un campo specifico, 
-    // altrimenti inizialmente è vuota o uguale alla principale.
-    // NOTA: Se il backend non salva separatamente l'aura infusione, assumiamo che i mattoni salvati
-    // appartengano implicitamente a quella logica. Qui aggiungo lo stato per gestirla in UI.
-    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(proposal?.aura_infusione || ''); // Supponendo esista nel payload, altrimenti gestiamo sotto
+    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(proposal?.aura_infusione || ''); 
 
     const [currentBricks, setCurrentBricks] = useState(proposal?.mattoni || []); 
     
     const [allPunteggiCache, setAllPunteggiCache] = useState([]);
-    const [availableAuras, setAvailableAuras] = useState([]);         // Per la prima combo (Aura Richiesta)
-    const [availableInfusionAuras, setAvailableInfusionAuras] = useState([]); // Per la seconda combo (Aura Infusione)
+    const [availableAuras, setAvailableAuras] = useState([]);         
+    const [availableInfusionAuras, setAvailableInfusionAuras] = useState([]); 
     const [availableBricks, setAvailableBricks] = useState([]);
     
     const [isLoadingData, setIsLoadingData] = useState(true);
@@ -71,25 +67,15 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             return;
         }
 
-        // Trova l'oggetto Aura Richiesta
         const mainAuraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
         if (!mainAuraObj) return;
 
-        // Recupera gli ID consentiti (dal campo M2M 'aure_infusione_consentite' aggiunto nel backend)
-        // Fallback: se il campo non esiste o è vuoto, permetti solo se stessa.
         const allowedIds = mainAuraObj.aure_infusione_consentite || [mainAuraObj.id];
-
-        // Filtra gli oggetti completi dalla cache
         const validInfusionObjs = allPunteggiCache.filter(p => allowedIds.includes(p.id));
         setAvailableInfusionAuras(validInfusionObjs);
 
-        // Se l'aura di infusione attuale non è valida per la nuova aura richiesta, resettala
-        // O se non è selezionata, seleziona la prima disponibile (default)
         if (!selectedInfusionAuraId || !allowedIds.includes(parseInt(selectedInfusionAuraId))) {
             if (validInfusionObjs.length > 0) {
-                // Se è un edit esistente e l'aura_infusione non era salvata, 
-                // potremmo voler cercare di "indovinare" dall'aura dei mattoni presenti, 
-                // ma per semplicità selezioniamo la prima compatibile (spesso se stessa).
                 setSelectedInfusionAuraId(validInfusionObjs[0].id);
             } else {
                 setSelectedInfusionAuraId('');
@@ -99,23 +85,19 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     }, [selectedAuraId, allPunteggiCache, selectedInfusionAuraId]);
 
 
-    // 3. Caricamento Mattoni (Basato su AURA INFUSIONE) e Obbligatori (Basato su MODELLO di Aura Richiesta)
+    // 3. Caricamento Mattoni
     useEffect(() => {
-        // I mattoni dipendono dall'AURA INFUSIONE selezionata
         if (!selectedInfusionAuraId || allPunteggiCache.length === 0) {
             setAvailableBricks([]);
             return;
         }
 
-        // Filtra mattoni appartenenti all'Aura Infusione
         let bricks = allPunteggiCache.filter(p => {
             if (!p.is_mattone) return false;
-            // Qui usiamo l'ID dell'aura di infusione, NON quella richiesta
             if (p.aura_id !== parseInt(selectedInfusionAuraId)) return false; 
             return true;
         });
 
-        // NOTA: I mattoni proibiti/obbligatori dipendono dal Modello dell'Aura RICHIESTA (il contenitore)
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
         
         if (modello && modello.mattoni_proibiti?.length > 0) {
@@ -123,7 +105,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             bricks = bricks.filter(b => !proibitiIds.includes(b.id));
         }
 
-        // Filtra per possesso caratteristica
         bricks = bricks.filter(b => {
             const carName = b.caratteristica_associata_nome;
             if (!carName) return true; 
@@ -132,7 +113,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
         setAvailableBricks(bricks);
 
-        // GESTIONE OBBLIGATORI (Solo se nuova bozza e basati sull'Aura Richiesta)
+        // Gestione Obbligatori
         if (isDraft && modello && modello.mattoni_obbligatori) {
             const currentIds = currentBricks.map(b => b.id || b.mattone?.id);
             const missingMandatory = modello.mattoni_obbligatori.filter(
@@ -154,7 +135,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]);
 
-    // Handler cambio Aura Richiesta
     const handleAuraChange = (e) => {
         const newAuraId = e.target.value;
         if (currentBricks.length > 0) {
@@ -163,10 +143,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             setCurrentBricks([]);
         }
         setSelectedAuraId(newAuraId);
-        // La useEffect 2 scatterà e imposterà l'aura infusione di default
     };
 
-    // Handler cambio Aura Infusione
     const handleInfusionAuraChange = (e) => {
         const newInfId = e.target.value;
         if (currentBricks.length > 0) {
@@ -177,9 +155,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         setSelectedInfusionAuraId(newInfId);
     };
 
-    // --- LOGICA INCREMENTO (+) ---
     const handleIncrement = (brick) => {
-        if (currentBricks.length >= auraVal) return; // Limite Aura Richiesta
+        if (currentBricks.length >= auraVal) return; 
 
         const carName = brick.caratteristica_associata_nome;
         if (carName) {
@@ -190,7 +167,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         setCurrentBricks([...currentBricks, { ...brick, is_mandatory: false }]);
     };
 
-    // --- LOGICA DECREMENTO (-) ---
     const handleDecrement = (brickId) => {
         const indices = currentBricks
             .map((b, i) => ((b.id || b.mattone?.id) === brickId ? i : -1))
@@ -229,8 +205,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 nome: name,
                 descrizione: description,
                 aura: selectedAuraId,
-                // Se il backend supporta il salvataggio dell'aura_infusione, aggiungila qui
-                // aura_infusione: selectedInfusionAuraId, 
+                // aura_infusione: selectedInfusionAuraId, // Decommentare se il backend lo accetta
                 mattoni_ids: currentBricks.map(b => b.id || b.mattone?.id)
             };
 
@@ -270,7 +245,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     // Helpers UI
     const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
-    // Il valore massimo dipende dall'AURA RICHIESTA
     const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
     const currentTotalCount = currentBricks.length;
     const cost = currentTotalCount * 10;
@@ -303,7 +277,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">✕</button>
                 </div>
 
-                {/* Body */}
+                {/* Body - Unica scrollbar principale */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                     {error && (
                         <div className="p-3 bg-red-900/30 border border-red-700/50 text-red-200 rounded flex items-center gap-2">
@@ -324,7 +298,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             />
                         </div>
                         
-                        {/* AURA RICHIESTA (Capienza) */}
+                        {/* AURA RICHIESTA */}
                         <div className="bg-gray-800/50 p-3 rounded border border-gray-700">
                             <label className="text-xs font-bold text-gray-400 mb-1 uppercase flex items-center gap-2">
                                 Aura Richiesta (Capienza)
@@ -340,14 +314,10 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                     <option key={a.id} value={a.id}>{a.nome} (Max: {char.punteggi_base[a.nome]})</option>
                                 ))}
                             </select>
-                            <div className="text-[10px] text-gray-500">
-                                Definisce il numero massimo di mattoni utilizzabili.
-                            </div>
                         </div>
 
-                        {/* AURA INFUSIONE (Fonte Mattoni) */}
+                        {/* AURA INFUSIONE */}
                         <div className="bg-gray-800/50 p-3 rounded border border-gray-700 relative">
-                             {/* Freccia visiva per indicare il flusso */}
                             <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block text-gray-600">
                                 <ArrowRight size={20} />
                             </div>
@@ -366,9 +336,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                     <option key={a.id} value={a.id}>{a.nome}</option>
                                 ))}
                             </select>
-                            <div className="text-[10px] text-gray-500">
-                                Definisce quali mattoni (e di quale elemento) caricare.
-                            </div>
                         </div>
                     </div>
 
@@ -383,40 +350,36 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         />
                     </div>
 
-                    {/* SEZIONE MATTONI */}
-                    <div className="bg-gray-800/50 rounded-lg border border-gray-700 overflow-hidden flex flex-col h-[450px]">
+                    {/* SEZIONE MATTONI - Modificata per scroll fluido e layout mobile */}
+                    {/* RIMOSSA altezza fissa (h-[450px]) e overflow-hidden, aggiunta min-h */}
+                    <div className="bg-gray-800/50 rounded-lg border border-gray-700 flex flex-col h-auto min-h-[300px]">
                         
                         {/* Info Bar */}
-                        <div className="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center shrink-0">
+                        <div className="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center sticky top-0 z-10 shadow-md">
                             <div className="flex flex-col">
                                 <span className="text-xs font-bold text-gray-400 uppercase">Composizione</span>
                                 <span className={`text-sm font-mono ${currentTotalCount === auraVal ? 'text-green-400' : 'text-white'}`}>
                                     {currentTotalCount} / {selectedAuraId ? auraVal : '-'}
                                 </span>
                             </div>
-                             {selectedInfusionAuraId && (
-                                <div className="text-xs text-indigo-300 bg-indigo-900/30 px-2 py-1 rounded border border-indigo-500/30">
-                                    Fonte: {getAuraName(selectedInfusionAuraId)}
-                                </div>
-                            )}
                             <div className="text-xs text-gray-500 text-right">
-                                Costo<br/><span className="text-white font-mono">{cost} CR</span>
+                                Costo: <span className="text-white font-mono">{cost} CR</span>
                             </div>
                         </div>
 
-                        {/* Lista Mattoni */}
-                        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                        {/* Lista Mattoni - RIMOSSO overflow-y-auto per evitare doppia scrollbar */}
+                        <div className="flex-1 p-2 space-y-2">
                             {!selectedAuraId ? (
-                                <div className="text-center text-gray-500 py-20 flex flex-col items-center gap-2">
+                                <div className="text-center text-gray-500 py-10 flex flex-col items-center gap-2">
                                     <Info size={32} />
                                     <span>Seleziona "Aura Richiesta" per iniziare.</span>
                                 </div>
                             ) : !selectedInfusionAuraId ? (
-                                <div className="text-center text-gray-500 py-20">
+                                <div className="text-center text-gray-500 py-10">
                                     Seleziona una "Aura Infusione".
                                 </div>
                             ) : availableBricks.length === 0 ? (
-                                <div className="text-center text-gray-500 py-20">
+                                <div className="text-center text-gray-500 py-10">
                                     Nessun mattone disponibile in {getAuraName(selectedInfusionAuraId)}.
                                 </div>
                             ) : (
@@ -427,60 +390,58 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                         : 99;
                                     
                                     const isMandatory = isBrickMandatory(brick.id);
-                                    
-                                    // Logica: il limite totale dipende da AURA RICHIESTA (auraVal)
-                                    // Il limite specifico dipende dalla Caratteristica
                                     const canAdd = isDraft && currentTotalCount < auraVal && count < maxPerChar;
                                     const canRemove = isDraft && count > 0 && (!isMandatory || count > 1);
 
                                     return (
-                                        <div key={brick.id} className={`flex items-center justify-between p-3 rounded border transition-all ${
+                                        // MODIFICA MOBILE: p-2 invece di p-3, gap-2 invece di gap-3
+                                        <div key={brick.id} className={`flex items-center justify-between p-2 sm:p-3 rounded border transition-all ${
                                             count > 0 
                                                 ? 'bg-indigo-900/20 border-indigo-500/50' 
                                                 : 'bg-gray-800 border-gray-700 hover:border-gray-600'
                                         }`}>
                                             {/* Info Mattone */}
-                                            <div className="flex items-center gap-3 flex-1">
+                                            {/* MODIFICA MOBILE: min-w-0 e flex-1 per gestire troncamento testo */}
+                                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 mr-2">
                                                 <div className="shrink-0">
-                                                    <IconaPunteggio url={brick.icona_url} color={brick.colore} size="sm" />
+                                                    {/* MODIFICA MOBILE: Icona forzata a 'xs' */}
+                                                    <IconaPunteggio url={brick.icona_url} color={brick.colore} size="xs" />
                                                 </div>
-                                                <div>
-                                                    <div className="font-bold text-gray-200 flex items-center gap-2">
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-gray-200 text-sm flex items-center gap-2 truncate">
                                                         {brick.nome}
-                                                        {isMandatory && <span className="text-[9px] bg-yellow-900 text-yellow-500 px-1 rounded border border-yellow-700">OBBL</span>}
+                                                        {isMandatory && <span className="text-[9px] bg-yellow-900 text-yellow-500 px-1 rounded border border-yellow-700 shrink-0">OBBL</span>}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 flex gap-2">
-                                                        {brick.caratteristica_associata_nome && (
-                                                            <span>Max {maxPerChar} ({brick.caratteristica_associata_nome})</span>
-                                                        )}
+                                                    <div className="text-xs text-gray-500 truncate">
+                                                        {brick.caratteristica_associata_nome ? `Max ${maxPerChar} (${brick.caratteristica_associata_nome})` : 'Base'}
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Controlli */}
-                                            <div className="flex items-center gap-3 bg-gray-900 rounded-lg p-1 border border-gray-700">
+                                            {/* Controlli +/- */}
+                                            <div className="flex items-center gap-1 sm:gap-3 bg-gray-900 rounded-lg p-1 border border-gray-700 shrink-0">
                                                 <button 
                                                     onClick={() => handleDecrement(brick.id)}
                                                     disabled={!canRemove}
-                                                    className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
+                                                    className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded transition-colors ${
                                                         canRemove ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-600 cursor-not-allowed'
                                                     }`}
                                                 >
-                                                    <Minus size={16} />
+                                                    <Minus size={14} className="sm:w-4 sm:h-4" />
                                                 </button>
                                                 
-                                                <span className={`w-6 text-center font-bold ${count > 0 ? 'text-white' : 'text-gray-600'}`}>
+                                                <span className={`w-5 sm:w-6 text-center font-bold text-sm sm:text-base ${count > 0 ? 'text-white' : 'text-gray-600'}`}>
                                                     {count}
                                                 </span>
 
                                                 <button 
                                                     onClick={() => handleIncrement(brick)}
                                                     disabled={!canAdd}
-                                                    className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
+                                                    className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded transition-colors ${
                                                         canAdd ? 'text-indigo-400 hover:bg-indigo-900 hover:text-white' : 'text-gray-600 cursor-not-allowed'
                                                     }`}
                                                 >
-                                                    <Plus size={16} />
+                                                    <Plus size={14} className="sm:w-4 sm:h-4" />
                                                 </button>
                                             </div>
                                         </div>
@@ -505,22 +466,25 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 <button 
                                     onClick={handleSave} 
                                     disabled={isSaving}
-                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm flex items-center gap-2"
+                                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm flex items-center gap-2"
                                 >
                                     {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} 
-                                    Salva Bozza
+                                    <span className="hidden sm:inline">Salva Bozza</span>
+                                    <span className="sm:hidden">Salva</span>
                                 </button>
                                 <button 
                                     onClick={handleSend}
                                     disabled={isSaving || currentBricks.length === 0}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-bold flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
                                 >
-                                    <Send size={16} /> Invia ({cost} CR)
+                                    <Send size={16} /> 
+                                    <span className="hidden sm:inline">Invia ({cost})</span>
+                                    <span className="sm:hidden">Invia</span>
                                 </button>
                             </>
                         ) : (
                             <span className="text-gray-400 italic text-sm px-2">
-                                Stato: {proposal.stato}. Modifiche bloccate.
+                                {proposal.stato}
                             </span>
                         )}
                     </div>
