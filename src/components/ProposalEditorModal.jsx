@@ -326,7 +326,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         
                         {/* AURA RICHIESTA (Capienza) */}
                         <div className="bg-gray-800/50 p-3 rounded border border-gray-700">
-                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase flex items-center gap-2">
+                            <label className="text-xs font-bold text-gray-400 mb-1 uppercase flex items-center gap-2">
                                 Aura Richiesta (Capienza)
                             </label>
                             <select 
