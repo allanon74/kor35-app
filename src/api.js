@@ -454,3 +454,41 @@ export const sendPrivateMessage = (messageData, onLogout) => {
     onLogout
   );
 };
+
+// Crea un oggetto fisico a partire da un'infusione
+export const craftOggetto = (infusioneId) => {
+  return fetchAuthenticated('/api/oggetti/craft/', {
+    method: 'POST',
+    body: JSON.stringify({ infusione_id: infusioneId })
+  });
+};
+
+// Monta un potenziamento (Mod/Materia) su un oggetto ospite
+export const montaPotenziamento = (ospiteId, potenziamentoId) => {
+  return fetchAuthenticated(`/api/oggetti/${ospiteId}/monta/`, {
+    method: 'POST',
+    body: JSON.stringify({ potenziamento_id: potenziamentoId })
+  });
+};
+
+// Smonta un potenziamento
+export const smontaPotenziamento = (ospiteId, potenziamentoId) => {
+  return fetchAuthenticated(`/api/oggetti/${ospiteId}/smonta/`, {
+    method: 'POST',
+    body: JSON.stringify({ potenziamento_id: potenziamentoId })
+  });
+};
+
+// Usa una carica (Mod, Innesti, Oggetti)
+export const usaCarica = (oggettoId) => {
+  return fetchAuthenticated(`/api/oggetti/${oggettoId}/usa_carica/`, {
+    method: 'POST'
+  });
+};
+
+// Ricarica oggetto (pagando crediti)
+export const ricaricaOggetto = (oggettoId) => {
+  return fetchAuthenticated(`/api/oggetti/${oggettoId}/ricarica/`, {
+    method: 'POST'
+  });
+};
