@@ -9,7 +9,6 @@ import {
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
-// Importiamo gli hook creati prima
 import { 
   usePunteggi, 
   usePersonaggiList, 
@@ -43,16 +42,16 @@ const sendSystemNotification = (title, body) => {
 };
 
 export const CharacterProvider = ({ children, onLogout }) => {
-  const queryClient = useQueryClient(); // Accesso alla cache globale
+  const queryClient = useQueryClient(); 
   
   // --- STATI GLOBALI UI ---
   const [selectedCharacterId, setSelectedCharacterId] = useState(() => localStorage.getItem('kor35_last_char_id') || '');
   const [isAdmin] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
   const [viewAll, setViewAll] = useState(false);
   
-  // --- REACT QUERY HOOKS (Sostituiscono le fetch manuali) ---
+  // --- REACT QUERY HOOKS ---
   
-  // 1. Punteggi (Caricati una volta sola e cachati per sempre)
+  // 1. Punteggi
   const { data: punteggiList = [], isLoading: isLoadingPunteggi } = usePunteggi(onLogout);
 
   // 2. Lista Personaggi
@@ -69,16 +68,13 @@ export const CharacterProvider = ({ children, onLogout }) => {
     refetch: refetchCharacterDetail
   } = usePersonaggioDetail(selectedCharacterId, onLogout);
 
-  // 4. Dati Lazy Loading (Abilità, Infusioni, Tessiture)
-  // Questi vengono chiamati automaticamente ma React Query li esegue solo se 'enabled' è true (cioè c'è un ID)
-  // Inoltre, i componenti che li usano accederanno ai dati via Context
+  // 4. Dati Lazy Loading
   const { data: acquirableSkills = [] } = useAcquirableSkills(selectedCharacterId, onLogout);
   const { data: acquirableInfusioni = [] } = useAcquirableInfusioni(selectedCharacterId);
   const { data: acquirableTessiture = [] } = useAcquirableTessiture(selectedCharacterId);
 
   // --- LOGICA SELEZIONE AUTOMATICA PG ---
   useEffect(() => {
-    // Se non c'è un PG selezionato ma la lista è caricata, selezioniamo il primo o quello in cache
     if (!selectedCharacterId && personaggiList.length > 0) {
         const lastId = localStorage.getItem('kor35_last_char_id');
         const targetId = (lastId && personaggiList.some(p => p.id.toString() === lastId)) 
@@ -89,27 +85,22 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, [personaggiList, selectedCharacterId]);
 
   // --- AZIONI CONTEXT ---
-  
   const handleSelectCharacter = useCallback((id) => {
     setSelectedCharacterId(id);
     if(id) localStorage.setItem('kor35_last_char_id', id);
-    // Non serve fetchare nulla, React Query reagisce al cambio di selectedCharacterId
   }, []);
 
   const refreshCharacterData = useCallback(() => {
-    // Ricarica forzatamente i dati del PG attuale
     refetchCharacterDetail();
   }, [refetchCharacterDetail]);
 
   const fetchPersonaggi = useCallback(() => {
-    // Wrapper per ricaricare la lista (usato dal tasto refresh nella home)
     refetchPersonaggiList();
   }, [refetchPersonaggiList]);
 
   const toggleViewAll = () => setViewAll(prev => !prev);
 
-
-  // --- GESTIONE MESSAGGI (Mantenuta manuale per ora per gestire Read/Delete) ---
+  // --- GESTIONE MESSAGGI ---
   const [userMessages, setUserMessages] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -119,7 +110,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
       const rawMsgs = await getMessages(charId, onLogout);
       const msgs = (rawMsgs || []).map(msg => ({
           ...msg,
-          letto: msg.is_letto // Mappa la proprietà del backend a quella del frontend
+          letto: msg.is_letto 
       }));
       const sorted = (msgs || []).sort((a, b) => {
         if (a.letto !== b.letto) return a.letto ? 1 : -1;
@@ -130,13 +121,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
     } catch (err) { console.error("Err msg:", err); }
   }, [onLogout]);
 
-  // Aggiorna messaggi al cambio PG
   useEffect(() => {
     if (selectedCharacterId) fetchUserMessages(selectedCharacterId);
   }, [selectedCharacterId, fetchUserMessages]);
 
   const handleMarkAsRead = async (msgId) => {
-      setUserMessages(prev => prev.map(m => m.id === msgId ? { ...m, letto: true } : m)); // Optimistic
+      setUserMessages(prev => prev.map(m => m.id === msgId ? { ...m, letto: true } : m)); 
       setUnreadCount(prev => Math.max(0, prev - 1));
       try { await markMessageAsRead(msgId, selectedCharacterId, onLogout); } 
       catch (e) { fetchUserMessages(selectedCharacterId); }
@@ -144,13 +134,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
 
   const handleDeleteMessage = async (msgId) => {
       if(!window.confirm("Cancellare messaggio?")) return;
-      setUserMessages(prev => prev.filter(m => m.id !== msgId)); // Optimistic
+      setUserMessages(prev => prev.filter(m => m.id !== msgId)); 
       try { await deleteMessage(msgId, selectedCharacterId, onLogout); } 
       catch (e) { fetchUserMessages(selectedCharacterId); }
   };
 
-
-  // --- ADMIN & NOTIFICHE (Mantenuto logica esistente) ---
+  // --- ADMIN & NOTIFICHE ---
   const [adminPendingCount, setAdminPendingCount] = useState(0);
   useEffect(() => {
       if (isAdmin && !viewAll) {
@@ -164,7 +153,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
       }
   }, [isAdmin, viewAll, onLogout]);
 
-  // WebPush
   const subscribeToPush = useCallback(async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     try {
@@ -180,7 +168,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
 
   useEffect(() => { if (selectedCharacterId) subscribeToPush(); }, [selectedCharacterId, subscribeToPush]);
 
-  // WebSocket
   const [notification, setNotification] = useState(null);
   const ws = useRef(null);
   useEffect(() => {
@@ -197,7 +184,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
               setNotification(msg);
               sendSystemNotification(msg.titolo, msg.testo.replace(/<[^>]+>/g, ''));
               fetchUserMessages(selectedCharacterId);
-              // Invalida cache messaggi o ricarica se necessario
               queryClient.invalidateQueries(['personaggio', selectedCharacterId]);
            }
         }
@@ -207,35 +193,36 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, [selectedCharacterId, fetchUserMessages, queryClient]);
 
 
-  // --- VALUE DEL CONTEXT ---
+  // --- VALUE DEL CONTEXT (CORRETTO) ---
   const value = {
-    // Dati da React Query
     personaggiList,
     punteggiList,
     selectedCharacterId,
+    
+    // *** CORREZIONE QUI ***
+    // Mappiamo selectedCharacterData sulla chiave 'characterData'
+    // così i componenti che usano const { characterData } = useCharacter() funzionano
+    characterData: selectedCharacterData, 
+    
+    // Lasciamo anche selectedCharacterData per sicurezza/backward compatibility
     selectedCharacterData,
     
-    // Liste "Acquistabili" (auto-gestite da cache)
     acquirableSkills,
     acquirableInfusioni,
     acquirableTessiture,
     
-    // Loading states combinati
     isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi,
     isLoadingList,
     isLoadingDetail,
     
-    // Funzioni
     selectCharacter: handleSelectCharacter,
     refreshCharacterData,
-    fetchPersonaggi, // Mantenuto per compatibilità, ora fa refetch
+    fetchPersonaggi, 
     
-    // Placeholder (non servono più chiamate manuali, ma le lasciamo vuote per non rompere i componenti figli)
     loadSkillsOnDemand: () => {}, 
     loadInfusioniOnDemand: () => {},
     loadTessitureOnDemand: () => {},
 
-    // Admin & Messaggi
     isAdmin,
     viewAll,
     toggleViewAll,
