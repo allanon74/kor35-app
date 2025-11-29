@@ -1,21 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import PunteggioDisplay from './PunteggioDisplay';
 
-// Funzione helper (mantenuta per compatibilità, anche se non usata direttamente nel JSX sotto)
-const getTextColorForBg = (hexColor) => {
-  if (!hexColor) return 'white';
-  try {
-    const hex = hexColor.replace('#', ''); 
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    const luminanza = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminanza > 0.5 ? 'black' : 'white';
-  } catch (e) {
-    return 'white';
-  }
-};
-
 // Sotto-componente per la riga singola (Gestisce lo stato di espansione)
 const SkillRow = ({ 
   skill, 
@@ -25,18 +10,19 @@ const SkillRow = ({
   showDescription, 
   actionRenderer 
 }) => {
+  // Stato locale per gestire l'apertura/chiusura della descrizione
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleDescriptionClick = (e) => {
-    e.stopPropagation(); // Evita di attivare onItemClick (apertura modale)
+    e.stopPropagation(); // Evita di attivare onItemClick (apertura modale) se si clicca sul testo
     setIsExpanded(!isExpanded);
   };
 
   return (
-    <li className="p-3 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-800/60 transition-colors gap-3">
-      {/* Parte Sinistra (Cliccabile per aprire dettaglio) */}
+    <li className="p-3 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-800/60 transition-colors gap-3 border-b border-gray-700/50 last:border-0">
+      {/* Parte Sinistra (Cliccabile per aprire dettaglio modale) */}
       <div 
-        className={`flex flex-col grow ${onItemClick ? 'cursor-pointer' : ''}`}
+        className="flex flex-col grow cursor-pointer"
         onClick={() => onItemClick && onItemClick(skill)}
       >
         <div className="flex items-center">
@@ -58,14 +44,15 @@ const SkillRow = ({
         {/* Sottotitolo (es. Requisiti/Costo) */}
         {renderSubtitle && renderSubtitle(skill)}
         
-        {/* Descrizione Collassabile */}
+        {/* Descrizione Collassabile (Logica Accordion) */}
         {showDescription && skill.descrizione && (
           <div
             onClick={handleDescriptionClick}
-            className={`text-xs text-gray-400 pl-7 mt-1 prose prose-invert prose-sm leading-snug cursor-pointer hover:text-gray-200 transition-colors ${
+            className={`text-xs text-gray-400 pl-7 mt-1 prose prose-invert prose-sm leading-snug cursor-pointer hover:text-gray-200 transition-colors select-none ${
               isExpanded ? '' : 'line-clamp-1'
             }`}
             title={isExpanded ? "Clicca per ridurre" : "Clicca per espandere"}
+            // Usa dangerouslySetInnerHTML per supportare eventuali tag HTML nella descrizione
             dangerouslySetInnerHTML={{ __html: skill.descrizione }}
           />
         )}
@@ -87,7 +74,7 @@ const GroupedSkillList = ({
   onItemClick, 
   actionRenderer, 
   renderSubtitle, 
-  showDescription = false 
+  showDescription = true // Default a true per mostrare le descrizioni
 }) => {
   
   const { sortedSections } = useMemo(() => {
@@ -164,12 +151,12 @@ const GroupedSkillList = ({
         return (
             <div 
                 key={charName} 
-                className="bg-gray-900/40 rounded-xl overflow-hidden shadow-sm"
-                style={{ border: `2px solid ${headerBg}` }}
+                className="bg-gray-900/40 rounded-xl overflow-hidden shadow-sm border border-gray-700"
+                style={{ borderColor: headerBg }}
             >
               {/* Header con PunteggioDisplay */}
               <div 
-                  className="px-4 py-2 border-b border-black/20"
+                  className="px-4 py-2 border-b border-black/20 flex items-center"
                   style={{ backgroundColor: headerBg }}
               >
                   {group.charData ? (
@@ -178,7 +165,7 @@ const GroupedSkillList = ({
                          displayText="name" 
                          iconType="inv_circle"
                          size="m"
-                         className="bg-transparent! shadow-none! p-0 w-full justify-start"
+                         className="bg-transparent! shadow-none! p-0 w-full justify-start text-white"
                       />
                   ) : (
                       <h4 className="text-lg font-bold uppercase tracking-wider text-white">
