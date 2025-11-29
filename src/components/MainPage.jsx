@@ -10,7 +10,8 @@ import {
     TestTube2,  
     Scroll,     
     LogOut, 
-    Mail 
+    Mail, 
+    Backpack,
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -18,6 +19,7 @@ import MessaggiTab from './MessaggiTab.jsx';
 import InfusioniTab from './InfusioniTab.jsx'; 
 import TessitureTab from './TessitureTab.jsx'; 
 import AdminMessageTab from './AdminMessageTab.jsx';
+import InventoryTab from './InventoryTab.jsx';
 
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
@@ -85,6 +87,8 @@ const MainPage = ({ token, onLogout }) => {
       case 'messaggi': return <MessaggiTab onLogout={onLogout} />;
       
       case 'admin_msg': return <AdminMessageTab onLogout={onLogout} />;
+      case 'inventario': // <--- NUOVO CASO
+        return <InventoryTab characterData={personaggiList.find(p => p.id == selectedCharacterId)} onLogout={onLogout} />;
       
       default: 
         console.warn("Tab non riconosciuto, fallback su Home:", activeTab);
@@ -175,8 +179,9 @@ const MainPage = ({ token, onLogout }) => {
         {renderTabContent()}
       </main>
 
-      <nav className="grid grid-cols-5 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700">
+      <nav className="grid grid-cols-6 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700">
         <TabButton icon={<Home size={24} />} label="Scheda" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+        <TabButton icon={<Backpack size={24} />} label="Zaino" isActive={activeTab === 'inventario'} onClick={() => setActiveTab('inventario')} />
         <TabButton icon={<Zap size={28} />} label="Abilità" isActive={activeTab === 'abilita'} onClick={() => setActiveTab('abilita')} />
         <TabButton icon={<Scroll size={28} />} label="Tessiture" isActive={activeTab === 'tessiture'} onClick={() => setActiveTab('tessiture')} />
         <TabButton icon={<TestTube2 size={28} />} label="Infusioni" isActive={activeTab === 'infusioni'} onClick={() => setActiveTab('infusioni')} />

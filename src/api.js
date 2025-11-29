@@ -492,3 +492,54 @@ export const ricaricaOggetto = (oggettoId) => {
     method: 'POST'
   });
 };
+
+// --- API INVENTARIO & OGGETTI ---
+
+/**
+ * Equipaggia o disequipaggia un oggetto fisico.
+ * POST /personaggi/api/oggetti/equipaggia/
+ */
+export const equipaggiaOggetto = (itemId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/equipaggia/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ item_id: itemId })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Assembla una Mod/Materia su un oggetto ospite.
+ * POST /personaggi/api/oggetti/assembla/
+ */
+export const assemblaOggetto = (hostId, modId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/assembla/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        host_id: hostId, 
+        mod_id: modId 
+      })
+    },
+    onLogout
+  );
+};
+
+// Se hai bisogno del crafting nel frontend in futuro:
+export const craftOggettoFromInfusione = (infusioneId, targetId, qrCode, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/craft/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        infusione_id: infusioneId,
+        target_id: targetId,
+        qr_code: qrCode
+      })
+    },
+    onLogout
+  );
+};
