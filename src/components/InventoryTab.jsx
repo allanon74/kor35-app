@@ -6,15 +6,16 @@ const InventoryTab = ({ characterData, onLogout }) => {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (characterData?.oggetti) {
-      setItems(characterData.oggetti);
-    }
-  }, [characterData]);
+//   useEffect(() => {
+//     if (characterData?.oggetti) {
+//       setItems(characterData.oggetti);
+//     }
+//   }, [characterData]);
 
   // --- AGGIUNGI QUESTO BLOCCO DI DEBUG ---
   useEffect(() => {
     if (characterData?.oggetti) {
+      setItems(characterData.oggetti);
       console.log("=== DEBUG INVENTARIO ===");
       console.log("Tutti gli oggetti ricevuti:", characterData.oggetti);
       
