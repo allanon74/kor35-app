@@ -263,7 +263,7 @@ const CharacterSheet = ({ data }) => {
       )}
 
       {/* Abilità */}
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Abilità</h3>
         {abilita_possedute && abilita_possedute.length > 0 ? (
             <GenericGroupedList 
@@ -280,21 +280,21 @@ const CharacterSheet = ({ data }) => {
         ) : (
             <p className="text-gray-500 bg-gray-800 p-4 rounded-lg shadow-inner">Nessuna abilità trovata.</p>
         )}
-      </div>
+      </div> */}
 
       {/* Oggetti - Se vuoi riattivare ItemList, scommenta qui sotto. Per ora è commentato come da originale */}
       {/* <ItemList title="Oggetti" items={oggetti} /> */}
 
       {/* --- SEZIONE LOG EVENTI (PAGINATA) --- */}
-      <div className="mb-6">
+      {/* <div className="mb-6">
          <LogViewer />
-      </div>
+      </div> */}
 
       {/* --- SEZIONE TRANSAZIONI (PAGINATA) --- */}
-      <div className="mb-6">
+      {/* <div className="mb-6">
          <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Transazioni</h3>
          <TransazioniViewer />
-      </div>
+      </div> */}
 
       {/* Modificatori (Accordion) */}
       {modificatori_calcolati && (

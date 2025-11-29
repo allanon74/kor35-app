@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import PunteggioDisplay from './PunteggioDisplay';
 
+// Funzione helper (mantenuta per compatibilità, anche se non usata direttamente nel JSX sotto)
 const getTextColorForBg = (hexColor) => {
   if (!hexColor) return 'white';
   try {
@@ -13,6 +14,71 @@ const getTextColorForBg = (hexColor) => {
   } catch (e) {
     return 'white';
   }
+};
+
+// Sotto-componente per la riga singola (Gestisce lo stato di espansione)
+const SkillRow = ({ 
+  skill, 
+  group, 
+  onItemClick, 
+  renderSubtitle, 
+  showDescription, 
+  actionRenderer 
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleDescriptionClick = (e) => {
+    e.stopPropagation(); // Evita di attivare onItemClick (apertura modale)
+    setIsExpanded(!isExpanded);
+  };
+
+  return (
+    <li className="p-3 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-800/60 transition-colors gap-3">
+      {/* Parte Sinistra (Cliccabile per aprire dettaglio) */}
+      <div 
+        className={`flex flex-col grow ${onItemClick ? 'cursor-pointer' : ''}`}
+        onClick={() => onItemClick && onItemClick(skill)}
+      >
+        <div className="flex items-center">
+          <div className="mr-3 shrink-0">
+            {group.charData ? (
+              <PunteggioDisplay 
+                punteggio={group.charData} 
+                displayText="none" 
+                size="xs" 
+                iconType="inv_circle" 
+              />
+            ) : (
+              <div className="w-4 h-4 bg-gray-600 rounded-full" />
+            )}
+          </div>
+          <span className="font-semibold text-gray-200 text-base block">{skill.nome}</span>
+        </div>
+        
+        {/* Sottotitolo (es. Requisiti/Costo) */}
+        {renderSubtitle && renderSubtitle(skill)}
+        
+        {/* Descrizione Collassabile */}
+        {showDescription && skill.descrizione && (
+          <div
+            onClick={handleDescriptionClick}
+            className={`text-xs text-gray-400 pl-7 mt-1 prose prose-invert prose-sm leading-snug cursor-pointer hover:text-gray-200 transition-colors ${
+              isExpanded ? '' : 'line-clamp-1'
+            }`}
+            title={isExpanded ? "Clicca per ridurre" : "Clicca per espandere"}
+            dangerouslySetInnerHTML={{ __html: skill.descrizione }}
+          />
+        )}
+      </div>
+      
+      {/* Parte Destra (Azioni/Pulsanti) */}
+      {actionRenderer && (
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center ml-7 sm:ml-0">
+          {actionRenderer(skill)}
+        </div>
+      )}
+    </li>
+  );
 };
 
 const GroupedSkillList = ({ 
@@ -106,67 +172,33 @@ const GroupedSkillList = ({
                   className="px-4 py-2 border-b border-black/20"
                   style={{ backgroundColor: headerBg }}
               >
-                 {group.charData ? (
-                     <PunteggioDisplay 
-                        punteggio={group.charData}
-                        displayText="name" 
-                        iconType="inv_circle"
-                        size="m"
-                        className="bg-transparent! shadow-none! p-0 w-full justify-start"
-                     />
-                 ) : (
-                     <h4 className="text-lg font-bold uppercase tracking-wider text-white">
-                        {charName}
-                     </h4>
-                 )}
+                  {group.charData ? (
+                      <PunteggioDisplay 
+                         punteggio={group.charData}
+                         displayText="name" 
+                         iconType="inv_circle"
+                         size="m"
+                         className="bg-transparent! shadow-none! p-0 w-full justify-start"
+                      />
+                  ) : (
+                      <h4 className="text-lg font-bold uppercase tracking-wider text-white">
+                         {charName}
+                      </h4>
+                  )}
               </div>
               
-              {/* Lista Skills */}
+              {/* Lista Skills usando il nuovo componente SkillRow */}
               <ul className="divide-y divide-gray-700/50">
                 {group.skills.map((skill) => (
-                  <li 
-                    key={skill.id} 
-                    className="p-3 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-800/60 transition-colors gap-3"
-                  >
-                    {/* Parte Sinistra */}
-                    <div 
-                        className={`flex flex-col grow ${onItemClick ? 'cursor-pointer' : ''}`}
-                        onClick={() => onItemClick && onItemClick(skill)}
-                    >
-                        <div className="flex items-center">
-                            <div className="mr-3 shrink-0">
-                                {group.charData ? (
-                                    // MODIFICA QUI: inv_circle invece di raw
-                                    // Questo assicura che l'icona abbia lo sfondo e il contrasto corretti (es. cerchio nero, icona bianca)
-                                    <PunteggioDisplay 
-                                        punteggio={group.charData} 
-                                        displayText="none" 
-                                        size="xs" 
-                                        iconType="inv_circle" 
-                                    />
-                                ) : (
-                                    <div className="w-4 h-4 bg-gray-600 rounded-full" />
-                                )}
-                            </div>
-                            <span className="font-semibold text-gray-200 text-base block">{skill.nome}</span>
-                        </div>
-                        
-                        {renderSubtitle && renderSubtitle(skill)}
-                        
-                        {showDescription && skill.descrizione && (
-                          <div
-                            className="text-xs text-gray-400 pl-7 mt-1 prose prose-invert prose-sm leading-snug"
-                            dangerouslySetInnerHTML={{ __html: skill.descrizione }}
-                          />
-                        )}
-                    </div>
-                    
-                    {actionRenderer && (
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center ml-7 sm:ml-0">
-                            {actionRenderer(skill)}
-                        </div>
-                    )}
-                  </li>
+                  <SkillRow 
+                    key={skill.id}
+                    skill={skill}
+                    group={group}
+                    onItemClick={onItemClick}
+                    renderSubtitle={renderSubtitle}
+                    showDescription={showDescription}
+                    actionRenderer={actionRenderer}
+                  />
                 ))}
               </ul>
             </div>
