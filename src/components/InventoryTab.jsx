@@ -12,6 +12,22 @@ const InventoryTab = ({ characterData, onLogout }) => {
     }
   }, [characterData]);
 
+  // --- AGGIUNGI QUESTO BLOCCO DI DEBUG ---
+  useEffect(() => {
+    if (characterData?.oggetti) {
+      console.log("=== DEBUG INVENTARIO ===");
+      console.log("Tutti gli oggetti ricevuti:", characterData.oggetti);
+      
+      characterData.oggetti.forEach(item => {
+        console.log(`Oggetto: ${item.nome}`);
+        console.log(`- Tipo: ${item.tipo_oggetto}`);
+        console.log(`- Equipaggiato: ${item.is_equipaggiato}`);
+        console.log(`- È Innesto/Mutazione?: ${['INN', 'MUT'].includes(item.tipo_oggetto)}`);
+      });
+    }
+  }, [characterData]);
+  // --------------------------------------  
+
   const handleToggleEquip = async (itemId) => {
     if (isLoading) return;
     setIsLoading(true);
