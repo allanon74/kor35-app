@@ -77,18 +77,30 @@ const MainPage = ({ token, onLogout }) => {
     console.log("Rendering Tab:", activeTab); // <--- DEBUG: VEDI QUESTO IN CONSOLE
 
     switch (activeTab) {
-      case 'home': return <HomeTab />;
-      case 'abilita': return <AbilitaTab onLogout={onLogout} />;
-      case 'infusioni': return <InfusioniTab onLogout={onLogout} />;
-      case 'tessiture': return <TessitureTab onLogout={onLogout} />;
-      case 'qr': return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
+      case 'home': 
+        return <HomeTab />;
+      
+      case 'abilita': 
+        return <AbilitaTab onLogout={onLogout} />;
+      
+      case 'infusioni': 
+        return <InfusioniTab onLogout={onLogout} />;
+      
+      case 'tessiture': 
+        return <TessitureTab onLogout={onLogout} />;
+      
+      case 'qr': 
+        return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
       
       // SE VEDI 'messaggi' NEL LOG MA SI APRE LA HOME, IL PROBLEMA E' DENTRO MessaggiTab
-      case 'messaggi': return <MessaggiTab onLogout={onLogout} />;
+      case 'messaggi': 
+        return <MessaggiTab onLogout={onLogout} />;
+    
+      case 'admin_msg': 
+        return <AdminMessageTab onLogout={onLogout} />;
       
-      case 'admin_msg': return <AdminMessageTab onLogout={onLogout} />;
-      case 'inventario': // <--- NUOVO CASO
-        return <InventoryTab characterData={personaggiList.find(p => p.id == selectedCharacterId)} onLogout={onLogout} />;
+      case 'inventario': 
+        return <InventoryTab onLogout={onLogout} />;
       
       default: 
         console.warn("Tab non riconosciuto, fallback su Home:", activeTab);
