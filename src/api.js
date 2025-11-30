@@ -499,29 +499,30 @@ export const ricaricaOggetto = (oggettoId) => {
  * Equipaggia o disequipaggia un oggetto fisico.
  * POST /personaggi/api/oggetti/equipaggia/
  */
-export const equipaggiaOggetto = (itemId, onLogout) => {
+export const equipaggiaOggetto = (itemId, characterId, onLogout) => {
   return fetchAuthenticated(
     '/personaggi/api/oggetti/equipaggia/', 
     {
       method: 'POST',
-      body: JSON.stringify({ item_id: itemId })
+      // Invia anche char_id nel JSON
+      body: JSON.stringify({ 
+          item_id: itemId,
+          char_id: characterId 
+      })
     },
     onLogout
   );
 };
 
-/**
- * Assembla una Mod/Materia su un oggetto ospite.
- * POST /personaggi/api/oggetti/assembla/
- */
-export const assemblaOggetto = (hostId, modId, onLogout) => {
+export const assemblaOggetto = (hostId, modId, characterId, onLogout) => {
   return fetchAuthenticated(
     '/personaggi/api/oggetti/assembla/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
         host_id: hostId, 
-        mod_id: modId 
+        mod_id: modId,
+        char_id: characterId 
       })
     },
     onLogout

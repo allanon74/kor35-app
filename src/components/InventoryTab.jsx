@@ -28,7 +28,7 @@ const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dall
     if (isLoading) return;
     setIsLoading(true);
     try {
-      await equipaggiaOggetto(itemId, onLogout);
+      await equipaggiaOggetto(itemId, characterData.id, onLogout);
       // Ricarichiamo la pagina per semplicità. 
       // (In futuro meglio usare una funzione reload dal context)
       window.location.reload(); 
