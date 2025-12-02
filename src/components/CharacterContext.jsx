@@ -91,10 +91,22 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, []);
 
   // *** CORREZIONE CRUCIALE ***
-  // Ora restituisce la promise di refetch, permettendo l'await nei componenti
-  const refreshCharacterData = useCallback(() => {
-    return refetchCharacterDetail();
-  }, [refetchCharacterDetail]);
+  // Aggiorna il personaggio E invalida le cache delle liste "acquistabili"
+  // per forzare il ricalcolo di cosa è sbloccato/comprato.
+  const refreshCharacterData = useCallback(async () => {
+    // 1. Ricarica i dati del personaggio (soldi, exp, abilità possedute)
+    const detailPromise = refetchCharacterDetail();
+
+    // 2. Invalida le liste cached. 
+    // Nota: Usiamo la sintassi a oggetto per compatibilità con TanStack Query v4/v5
+    // oppure array diretto a seconda della versione. Qui usiamo array che è supportato.
+    // L'uso di `await` assicura che il refresh sia finito prima che la UI si sblocchi.
+    const skillsPromise = queryClient.invalidateQueries({ queryKey: ['abilita_acquistabili', selectedCharacterId] });
+    const infusioniPromise = queryClient.invalidateQueries({ queryKey: ['infusioni_acquistabili', selectedCharacterId] });
+    const tessiturePromise = queryClient.invalidateQueries({ queryKey: ['tessiture_acquistabili', selectedCharacterId] });
+
+    await Promise.all([detailPromise, skillsPromise, infusioniPromise, tessiturePromise]);
+  }, [refetchCharacterDetail, queryClient, selectedCharacterId]);
 
   const fetchPersonaggi = useCallback(() => {
     return refetchPersonaggiList();
@@ -186,7 +198,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
               setNotification(msg);
               sendSystemNotification(msg.titolo, msg.testo.replace(/<[^>]+>/g, ''));
               fetchUserMessages(selectedCharacterId);
-              // Forza l'aggiornamento quando arriva una notifica push
               queryClient.invalidateQueries(['personaggio', selectedCharacterId]);
            }
         }
@@ -202,7 +213,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
     punteggiList,
     selectedCharacterId,
     
-    // Mappatura fondamentale per InventoryTab
     characterData: selectedCharacterData, 
     selectedCharacterData,
     
