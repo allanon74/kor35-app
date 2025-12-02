@@ -544,3 +544,59 @@ export const craftOggettoFromInfusione = (infusioneId, targetId, qrCode, onLogou
     onLogout
   );
 };
+
+export const startForging = (infusioneId, charId, slotTarget = null) => {
+  return fetchAuthenticated(
+    '/personaggi/api/crafting/avvia_forgiatura/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        infusione_id: infusioneId, 
+        char_id: charId,
+        slot_target: slotTarget
+      })
+    }
+  );
+};
+
+export const completeForging = (forgiaturaId, charId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/crafting/completa_forgiatura/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        forgiatura_id: forgiaturaId, 
+        char_id: charId 
+      })
+    }
+  );
+};
+
+export const getForgingQueue = (charId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/crafting/coda_forgiatura/?char_id=${charId}`,
+    { method: 'GET' }
+  );
+};
+
+// --- API NEGOZIO (SHOP) ---
+
+export const getShopItems = () => {
+  return fetchAuthenticated(
+    '/personaggi/api/negozio/listino/',
+    { method: 'GET' }
+  );
+};
+
+export const buyShopItem = (oggettoId, charId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/negozio/acquista/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        oggetto_id: oggettoId, 
+        char_id: charId 
+      })
+    }
+  );
+};

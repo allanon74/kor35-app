@@ -1,25 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { equipaggiaOggetto, assemblaOggetto } from '../api'; 
-import { useCharacter } from './CharacterContext'; // <--- 1. Importa il Context
-import PunteggioDisplay from './PunteggioDisplay'; // Opzionale, per stile
+import { equipaggiaOggetto } from '../api'; 
+import { useCharacter } from './CharacterContext';
+import { ShoppingBag } from 'lucide-react'; // Icona per il negozio
+import ShopModal from './ShopModal'; // Import Modale Negozio
 
-const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dalle props
-  // 3. Recupera i dati completi dal Context
+const InventoryTab = ({ onLogout }) => {
   const { characterData, isLoading: isContextLoading } = useCharacter();
   
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showShop, setShowShop] = useState(false); // Stato visibilità negozio
 
-  // DEBUG AGGIORNATO: Ora logghiamo anche se 'oggetti' manca, per capire
   useEffect(() => {
-    console.log("=== DEBUG INVENTARIO ===");
-    console.log("Dati Personaggio:", characterData);
-    
+    // Sincronizza lo stato locale con i dati del contesto
     if (characterData?.oggetti) {
-      console.log("Oggetti trovati:", characterData.oggetti.length);
       setItems(characterData.oggetti);
     } else {
-      console.log("Nessun oggetto trovato o campo 'oggetti' assente.");
       setItems([]);
     }
   }, [characterData]);
@@ -29,8 +25,7 @@ const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dall
     setIsLoading(true);
     try {
       await equipaggiaOggetto(itemId, characterData.id, onLogout);
-      // Ricarichiamo la pagina per semplicità. 
-      // (In futuro meglio usare una funzione reload dal context)
+      // Nota: Idealmente dovremmo usare una funzione di refresh dal context invece di reload
       window.location.reload(); 
     } catch (error) {
       console.error("Errore equipaggiamento:", error);
@@ -41,7 +36,7 @@ const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dall
   };
 
   const renderItemCard = (item) => {
-    // Determina se è un oggetto fisico gestibile
+    // Determina se è un oggetto fisico gestibile (equipaggiabile)
     const isPhysical = item.tipo_oggetto === 'FIS';
     const isEquipped = item.is_equipaggiato;
     
@@ -82,7 +77,7 @@ const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dall
              )}
           </div>
 
-          {/* Mod Installate */}
+          {/* Mod Installate (Se presenti) */}
           {item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
             <div className="mt-2 pl-2 border-l-2 border-indigo-500/30">
               <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Modifiche:</p>
@@ -120,7 +115,7 @@ const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dall
   if (isContextLoading) return <div className="p-4 text-center text-gray-500">Caricamento inventario...</div>;
   if (!characterData) return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
 
-  // Filtri categorie
+  // Filtri categorie oggetti
   const corpoItems = items.filter(i => ['INN', 'MUT'].includes(i.tipo_oggetto));
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
@@ -128,7 +123,19 @@ const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dall
   return (
     <div className="pb-24 px-1 space-y-6">
       
-      {/* Sezione Corpo */}
+      {/* HEADER con Tasto Negozio */}
+      <div className="flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm mb-4">
+         <h2 className="text-xl font-bold text-white">Inventario</h2>
+         <button
+            onClick={() => setShowShop(true)}
+            className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-yellow-900/20 transition-all active:scale-95 text-sm"
+         >
+            <ShoppingBag size={18} />
+            <span>Negozio</span>
+         </button>
+      </div>
+
+      {/* Sezione Corpo (Innesti/Mutazioni) */}
       <section>
         <h3 className="text-lg font-bold text-indigo-300 mb-2 flex items-center gap-2 border-b border-indigo-500/30 pb-1">
           <span>🧬</span> Innesti & Mutazioni
@@ -163,6 +170,9 @@ const InventoryTab = ({ onLogout }) => { // <--- 2. Rimuovi 'characterData' dall
           <p className="text-gray-600 italic text-sm p-2 text-center border border-dashed border-gray-700 rounded">Zaino vuoto.</p>
         )}
       </section>
+
+      {/* Modale Negozio */}
+      {showShop && <ShopModal onClose={() => setShowShop(false)} />}
     </div>
   );
 };

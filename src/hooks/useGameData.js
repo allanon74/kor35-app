@@ -7,7 +7,9 @@ import {
   getAcquirableTessiture, 
   getPunteggiList,
   getPersonaggioLogs,       
-  getPersonaggioTransazioni 
+  getPersonaggioTransazioni,
+  getForgingQueue, 
+  getShopItems 
 } from '../api';
 
 import { keepPreviousData } from '@tanstack/react-query'; 
@@ -94,5 +96,24 @@ export const useTransazioni = (page = 1, tipo = 'entrata', charId = null) => {
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60,
     enabled: !!charId, // Evita la chiamata se non c'è un ID selezionato
+  });
+};
+
+// --- CRAFTING QUEUE ---
+export const useForgingQueue = (charId) => {
+  return useQuery({
+    queryKey: ['forging_queue', charId],
+    queryFn: () => getForgingQueue(charId),
+    enabled: !!charId,
+    refetchInterval: 5000, // Aggiorna ogni 5 secondi per sicurezza
+  });
+};
+
+// --- NEGOZIO ---
+export const useShopItems = () => {
+  return useQuery({
+    queryKey: ['shop_items'],
+    queryFn: getShopItems,
+    staleTime: 1000 * 60 * 5, // Listino cacheato per 5 minuti
   });
 };

@@ -1,13 +1,15 @@
 import React, { useState, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit } from 'lucide-react'; // Aggiunto FileEdit
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Hammer } from 'lucide-react';
 import TecnicaDetailModal from './TecnicaDetailModal';
-import { acquireInfusione } from '../api.js';
+import { acquireInfusione, startForging } from '../api.js'; // Importato startForging
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
-import ProposalManager from './ProposalManager'; // Import del Manager
+import ProposalManager from './ProposalManager';
+import ForgingQueue from './ForgingQueue'; // Importato ForgingQueue
+import { useForgingQueue } from '../hooks/useGameData'; // Importato Hook
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -23,14 +25,19 @@ const InfusioniTab = ({ onLogout }) => {
     isLoadingDetail
   } = useCharacter();
   
+  // Hook per la coda di forgiatura
+  const { data: forgingQueue, refetch: refetchQueue } = useForgingQueue(selectedCharacterId);
+  
   const [modalItem, setModalItem] = useState(null);
   const [isAcquiring, setIsAcquiring] = useState(null);
+  const [isForging, setIsForging] = useState(null); // Stato loading per il pulsante Forgia
   
   // Stato per gestire la visibilità del ProposalManager
   const [showProposals, setShowProposals] = useState(false);
 
   const handleOpenModal = (item) => setModalItem(item);
 
+  // --- ACQUISTO INFUSIONE (APPRENDIMENTO) ---
   const handleAcquire = async (item, e) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
@@ -47,6 +54,27 @@ const InfusioniTab = ({ onLogout }) => {
       alert(`Errore: ${error.message}`);
     } finally {
       setIsAcquiring(null);
+    }
+  };
+
+  // --- AVVIO FORGIATURA ---
+  const handleForge = async (item, e) => {
+    e.stopPropagation();
+    if (isForging) return;
+
+    if (!window.confirm(`Avviare la forgiatura di "${item.nome}"?`)) return;
+
+    setIsForging(item.id);
+    try {
+        // Avvia la forgiatura (slotTarget è null per oggetti base, verrà gestito diversamente per innesti se necessario)
+        await startForging(item.id, selectedCharacterId);
+        
+        // Aggiorna sia la coda che i crediti del personaggio
+        await Promise.all([refetchQueue(), refreshCharacterData()]);
+    } catch (error) {
+        alert(`Errore forgiatura: ${error.message}`);
+    } finally {
+        setIsForging(null);
     }
   };
 
@@ -82,13 +110,13 @@ const InfusioniTab = ({ onLogout }) => {
     );
   };
 
-  // 1. RENDER ITEM POSSEDUTO
+  // 1. RENDER ITEM POSSEDUTO (Con Tasto Forgia)
   const renderPossessedItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
 
     return (
-      <li className="flex justify-between items-center py-2 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0">
+      <li className="flex justify-between items-center py-2 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0 gap-2">
         <div className="flex items-center gap-3 cursor-pointer grow" onClick={() => handleOpenModal(item)}>
             <div className="shrink-0 mt-0.5 relative">
                 <IconaPunteggio url={iconUrl} color={iconColor} mode="cerchio_inv" size="xs" />
@@ -98,9 +126,27 @@ const InfusioniTab = ({ onLogout }) => {
             </div>
             <span className="font-bold text-gray-200 text-base">{item.nome}</span>
         </div>
+        
+        {/* Pulsante FORGIA */}
+        <button
+            onClick={(e) => handleForge(item, e)}
+            disabled={isForging === item.id}
+            className="flex items-center gap-1 px-3 py-1.5 bg-orange-700 hover:bg-orange-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-orange-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Crea oggetto fisico da questa infusione"
+        >
+            {isForging === item.id ? (
+                <Loader2 className="animate-spin" size={14} />
+            ) : (
+                <>
+                    <Hammer size={14} /> 
+                    <span className="hidden sm:inline">Forgia</span>
+                </>
+            )}
+        </button>
+
         <button
             onClick={(e) => {e.stopPropagation(); handleOpenModal(item)}}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors ml-2"
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors ml-1"
         >
             <Info size={18} />
         </button>
@@ -108,7 +154,7 @@ const InfusioniTab = ({ onLogout }) => {
     );
   };
 
-  // 2. RENDER ITEM ACQUISTABILE
+  // 2. RENDER ITEM ACQUISTABILE (Invariato)
   const renderAcquirableItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
@@ -237,7 +283,12 @@ const InfusioniTab = ({ onLogout }) => {
             </div>
         </div>
 
-        {/* Pulsante Proposte - NUOVA AGGIUNTA */}
+        {/* --- CODA DI FORGIATURA (NUOVO) --- */}
+        <div className="max-w-3xl mx-auto">
+            <ForgingQueue queue={forgingQueue} refetchQueue={refetchQueue} />
+        </div>
+
+        {/* Pulsante Proposte */}
         <div className="flex justify-end mb-6 max-w-3xl mx-auto">
             <button 
                 onClick={() => setShowProposals(true)}
@@ -303,7 +354,7 @@ const InfusioniTab = ({ onLogout }) => {
         <TecnicaDetailModal tecnica={modalItem} type="Infusione" onClose={() => setModalItem(null)} />
       )}
 
-      {/* Modale Proposal Manager - NUOVA AGGIUNTA */}
+      {/* Modale Proposal Manager */}
       {showProposals && (
         <ProposalManager type="Infusione" onClose={() => setShowProposals(false)} />
       )}
