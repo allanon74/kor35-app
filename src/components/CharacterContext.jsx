@@ -90,12 +90,14 @@ export const CharacterProvider = ({ children, onLogout }) => {
     if(id) localStorage.setItem('kor35_last_char_id', id);
   }, []);
 
+  // *** CORREZIONE CRUCIALE ***
+  // Ora restituisce la promise di refetch, permettendo l'await nei componenti
   const refreshCharacterData = useCallback(() => {
-    refetchCharacterDetail();
+    return refetchCharacterDetail();
   }, [refetchCharacterDetail]);
 
   const fetchPersonaggi = useCallback(() => {
-    refetchPersonaggiList();
+    return refetchPersonaggiList();
   }, [refetchPersonaggiList]);
 
   const toggleViewAll = () => setViewAll(prev => !prev);
@@ -184,6 +186,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
               setNotification(msg);
               sendSystemNotification(msg.titolo, msg.testo.replace(/<[^>]+>/g, ''));
               fetchUserMessages(selectedCharacterId);
+              // Forza l'aggiornamento quando arriva una notifica push
               queryClient.invalidateQueries(['personaggio', selectedCharacterId]);
            }
         }
@@ -193,18 +196,14 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, [selectedCharacterId, fetchUserMessages, queryClient]);
 
 
-  // --- VALUE DEL CONTEXT (CORRETTO) ---
+  // --- VALUE DEL CONTEXT ---
   const value = {
     personaggiList,
     punteggiList,
     selectedCharacterId,
     
-    // *** CORREZIONE QUI ***
-    // Mappiamo selectedCharacterData sulla chiave 'characterData'
-    // così i componenti che usano const { characterData } = useCharacter() funzionano
+    // Mappatura fondamentale per InventoryTab
     characterData: selectedCharacterData, 
-    
-    // Lasciamo anche selectedCharacterData per sicurezza/backward compatibility
     selectedCharacterData,
     
     acquirableSkills,
