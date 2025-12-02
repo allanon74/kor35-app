@@ -68,10 +68,21 @@ export const CharacterProvider = ({ children, onLogout }) => {
     refetch: refetchCharacterDetail
   } = usePersonaggioDetail(selectedCharacterId, onLogout);
 
-  // 4. Dati Lazy Loading
-  const { data: acquirableSkills = [] } = useAcquirableSkills(selectedCharacterId, onLogout);
-  const { data: acquirableInfusioni = [] } = useAcquirableInfusioni(selectedCharacterId);
-  const { data: acquirableTessiture = [] } = useAcquirableTessiture(selectedCharacterId);
+  // 4. Dati Lazy Loading (Estraiamo anche i refetch)
+  const { 
+      data: acquirableSkills = [], 
+      refetch: refetchSkills 
+  } = useAcquirableSkills(selectedCharacterId, onLogout);
+
+  const { 
+      data: acquirableInfusioni = [], 
+      refetch: refetchInfusioni 
+  } = useAcquirableInfusioni(selectedCharacterId);
+
+  const { 
+      data: acquirableTessiture = [], 
+      refetch: refetchTessiture 
+  } = useAcquirableTessiture(selectedCharacterId);
 
   // --- LOGICA SELEZIONE AUTOMATICA PG ---
   useEffect(() => {
@@ -91,22 +102,16 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, []);
 
   // *** CORREZIONE CRUCIALE ***
-  // Aggiorna il personaggio E invalida le cache delle liste "acquistabili"
-  // per forzare il ricalcolo di cosa è sbloccato/comprato.
+  // Usiamo Promise.all per attendere che TUTTI i refetch siano completati
+  // prima di restituire il controllo al componente chiamante (es. AbilitaTab).
   const refreshCharacterData = useCallback(async () => {
-    // 1. Ricarica i dati del personaggio (soldi, exp, abilità possedute)
-    const detailPromise = refetchCharacterDetail();
-
-    // 2. Invalida le liste cached. 
-    // Nota: Usiamo la sintassi a oggetto per compatibilità con TanStack Query v4/v5
-    // oppure array diretto a seconda della versione. Qui usiamo array che è supportato.
-    // L'uso di `await` assicura che il refresh sia finito prima che la UI si sblocchi.
-    const skillsPromise = queryClient.invalidateQueries({ queryKey: ['abilita_acquistabili', selectedCharacterId] });
-    const infusioniPromise = queryClient.invalidateQueries({ queryKey: ['infusioni_acquistabili', selectedCharacterId] });
-    const tessiturePromise = queryClient.invalidateQueries({ queryKey: ['tessiture_acquistabili', selectedCharacterId] });
-
-    await Promise.all([detailPromise, skillsPromise, infusioniPromise, tessiturePromise]);
-  }, [refetchCharacterDetail, queryClient, selectedCharacterId]);
+    await Promise.all([
+        refetchCharacterDetail(),
+        refetchSkills(),
+        refetchInfusioni(),
+        refetchTessiture()
+    ]);
+  }, [refetchCharacterDetail, refetchSkills, refetchInfusioni, refetchTessiture]);
 
   const fetchPersonaggi = useCallback(() => {
     return refetchPersonaggiList();
