@@ -3,13 +3,13 @@ import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Hammer } from 'lucide-react';
 import TecnicaDetailModal from './TecnicaDetailModal';
-import { acquireInfusione, startForging } from '../api.js'; // Importato startForging
+import { acquireInfusione, startForging } from '../api.js'; 
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
 import ProposalManager from './ProposalManager';
-import ForgingQueue from './ForgingQueue'; // Importato ForgingQueue
-import { useForgingQueue } from '../hooks/useGameData'; // Importato Hook
+import ForgingQueue from './ForgingQueue'; 
+import { useForgingQueue } from '../hooks/useGameData'; 
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -25,26 +25,22 @@ const InfusioniTab = ({ onLogout }) => {
     isLoadingDetail
   } = useCharacter();
   
-  // Hook per la coda di forgiatura
   const { data: forgingQueue, refetch: refetchQueue } = useForgingQueue(selectedCharacterId);
   
   const [modalItem, setModalItem] = useState(null);
   const [isAcquiring, setIsAcquiring] = useState(null);
-  const [isForging, setIsForging] = useState(null); // Stato loading per il pulsante Forgia
-  
-  // Stato per gestire la visibilità del ProposalManager
+  const [isForging, setIsForging] = useState(null);
   const [showProposals, setShowProposals] = useState(false);
 
   const handleOpenModal = (item) => setModalItem(item);
 
-  // --- ACQUISTO INFUSIONE (APPRENDIMENTO) ---
   const handleAcquire = async (item, e) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
     
     const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
-    if (!window.confirm(`Acquisire Infusione "${item.nome}" per ${costoFinale} Crediti?`)) return;
+    if (!window.confirm(`Apprendere l'Infusione "${item.nome}" per ${costoFinale} Crediti?`)) return;
     
     setIsAcquiring(item.id);
     try {
@@ -57,7 +53,6 @@ const InfusioniTab = ({ onLogout }) => {
     }
   };
 
-  // --- AVVIO FORGIATURA ---
   const handleForge = async (item, e) => {
     e.stopPropagation();
     if (isForging) return;
@@ -66,10 +61,7 @@ const InfusioniTab = ({ onLogout }) => {
 
     setIsForging(item.id);
     try {
-        // Avvia la forgiatura (slotTarget è null per oggetti base, verrà gestito diversamente per innesti se necessario)
         await startForging(item.id, selectedCharacterId);
-        
-        // Aggiorna sia la coda che i crediti del personaggio
         await Promise.all([refetchQueue(), refreshCharacterData()]);
     } catch (error) {
         alert(`Errore forgiatura: ${error.message}`);
@@ -110,7 +102,6 @@ const InfusioniTab = ({ onLogout }) => {
     );
   };
 
-  // 1. RENDER ITEM POSSEDUTO (Con Tasto Forgia)
   const renderPossessedItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
@@ -127,12 +118,10 @@ const InfusioniTab = ({ onLogout }) => {
             <span className="font-bold text-gray-200 text-base">{item.nome}</span>
         </div>
         
-        {/* Pulsante FORGIA */}
         <button
             onClick={(e) => handleForge(item, e)}
             disabled={isForging === item.id}
             className="flex items-center gap-1 px-3 py-1.5 bg-orange-700 hover:bg-orange-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-orange-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Crea oggetto fisico da questa infusione"
         >
             {isForging === item.id ? (
                 <Loader2 className="animate-spin" size={14} />
@@ -154,7 +143,6 @@ const InfusioniTab = ({ onLogout }) => {
     );
   };
 
-  // 2. RENDER ITEM ACQUISTABILE (Invariato)
   const renderAcquirableItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
@@ -166,8 +154,6 @@ const InfusioniTab = ({ onLogout }) => {
 
     return (
       <li className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0 gap-2">
-        
-        {/* Parte Sinistra */}
         <div className="flex items-center gap-3 cursor-pointer grow" onClick={() => handleOpenModal(item)}>
             <div className="shrink-0 mt-0.5 relative">
                 <IconaPunteggio url={iconUrl} color={iconColor} mode="cerchio_inv" size="xs" />
@@ -178,7 +164,6 @@ const InfusioniTab = ({ onLogout }) => {
             
             <div className="flex flex-col">
                 <span className="font-bold text-gray-200 text-base">{item.nome}</span>
-                {/* Mobile Price */}
                 <div className="text-xs text-gray-400 flex gap-2 mt-0.5 sm:hidden">
                     {hasDiscount ? (
                         <div className="flex items-center gap-1">
@@ -192,23 +177,15 @@ const InfusioniTab = ({ onLogout }) => {
             </div>
         </div>
 
-        {/* Parte Destra */}
         <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
-            {/* Desktop Price */}
             <div className="hidden sm:flex flex-col items-end text-xs font-mono mr-1">
                 {hasDiscount ? (
                     <div className="flex flex-col items-end leading-none mt-1">
-                        <span className="text-[10px] text-red-500 line-through decoration-red-500 opacity-80">
-                            {costoPieno}
-                        </span>
-                        <span className="text-green-400 font-bold">
-                            {costoEffettivo} CR
-                        </span>
+                        <span className="text-[10px] text-red-500 line-through decoration-red-500 opacity-80">{costoPieno}</span>
+                        <span className="text-green-400 font-bold">{costoEffettivo} CR</span>
                     </div>
                 ) : (
-                    <span className={canAfford ? "text-yellow-300" : "text-red-400 font-bold"}>
-                        {costoEffettivo} CR
-                    </span>
+                    <span className={canAfford ? "text-yellow-300" : "text-red-400 font-bold"}>{costoEffettivo} CR</span>
                 )}
             </div>
 
@@ -226,7 +203,7 @@ const InfusioniTab = ({ onLogout }) => {
                 ) : (
                     <>
                         <ShoppingCart size={16} />
-                        <span className="hidden sm:inline">Acquista</span>
+                        <span className="hidden sm:inline">Apprendi</span>
                     </>
                 )}
             </button>
@@ -273,7 +250,6 @@ const InfusioniTab = ({ onLogout }) => {
   return (
     <>
       <div className="w-full p-4 max-w-6xl mx-auto pb-24">
-        {/* Riepilogo Valute */}
         <div className="mb-4 flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm max-w-3xl mx-auto">
             <div className="text-sm text-gray-400">Disponibilità:</div>
             <div className="flex gap-4">
@@ -283,12 +259,10 @@ const InfusioniTab = ({ onLogout }) => {
             </div>
         </div>
 
-        {/* --- CODA DI FORGIATURA (NUOVO) --- */}
         <div className="max-w-3xl mx-auto">
             <ForgingQueue queue={forgingQueue} refetchQueue={refetchQueue} />
         </div>
 
-        {/* Pulsante Proposte */}
         <div className="flex justify-end mb-6 max-w-3xl mx-auto">
             <button 
                 onClick={() => setShowProposals(true)}
@@ -299,7 +273,6 @@ const InfusioniTab = ({ onLogout }) => {
             </button>
         </div>
 
-        {/* --- MOBILE --- */}
         <div className="md:hidden">
             <Tab.Group>
               <Tab.List className="flex space-x-1 rounded-xl bg-gray-800/80 p-1 mb-6 shadow-inner">
@@ -325,7 +298,6 @@ const InfusioniTab = ({ onLogout }) => {
             </Tab.Group>
         </div>
 
-        {/* --- DESKTOP --- */}
         <div className="hidden md:grid grid-cols-2 gap-6">
             <div>
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
@@ -354,7 +326,6 @@ const InfusioniTab = ({ onLogout }) => {
         <TecnicaDetailModal tecnica={modalItem} type="Infusione" onClose={() => setModalItem(null)} />
       )}
 
-      {/* Modale Proposal Manager */}
       {showProposals && (
         <ProposalManager type="Infusione" onClose={() => setShowProposals(false)} />
       )}
