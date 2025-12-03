@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info, ArrowRight } from 'lucide-react';
+import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import { createProposta, updateProposta, sendProposta, deleteProposta, getAllPunteggi } from '../api';
 import IconaPunteggio from './IconaPunteggio';
@@ -11,24 +11,25 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const [name, setName] = useState(proposal?.nome || '');
     const [description, setDescription] = useState(proposal?.descrizione || '');
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
+    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(proposal?.aura_infusione || '');
     
-    // Helper per dedurre l'aura di infusione
-    const deriveInfusionAura = () => {
-        if (proposal?.aura_infusione) return proposal.aura_infusione;
-        if (proposal?.mattoni && proposal.mattoni.length > 0) {
-             const first = proposal.mattoni[0];
-             return first.aura_id || first.mattone?.aura_id || '';
-        }
-        return '';
-    };
+    // Gestione componenti: Mappa { caratteristicaId: valore }
+    // Se stiamo modificando una proposta esistente, convertiamo l'array componenti in mappa
+    const initialComponents = {};
+    if (proposal?.componenti) {
+        proposal.componenti.forEach(c => {
+            // Supporta sia il formato vecchio (oggetto completo) che nuovo (solo ID) se necessario
+            const id = c.caratteristica?.id || c.caratteristica_id;
+            initialComponents[id] = c.valore;
+        });
+    }
+    const [componentsMap, setComponentsMap] = useState(initialComponents);
 
-    const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(deriveInfusionAura()); 
-    const [currentBricks, setCurrentBricks] = useState(proposal?.mattoni || []); 
-    
+    // Cache dati
     const [allPunteggiCache, setAllPunteggiCache] = useState([]);
     const [availableAuras, setAvailableAuras] = useState([]);         
     const [availableInfusionAuras, setAvailableInfusionAuras] = useState([]); 
-    const [availableBricks, setAvailableBricks] = useState([]);
+    const [availableCharacteristics, setAvailableCharacteristics] = useState([]);
     
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -36,8 +37,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     const isDraft = !proposal || proposal.stato === 'BOZZA';
     const isEditing = !!proposal;
+    const isInfusion = type === 'Infusione';
 
-    // --- EFFECT 1, 2, 3 (Invariati rispetto alla versione precedente) ---
     // 1. Caricamento Iniziale
     useEffect(() => {
         const initData = async () => {
@@ -47,15 +48,24 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 setAllPunteggiCache(allData);
 
                 if (char && char.punteggi_base) {
+                    // Filtra Aure disponibili per il PG
                     const validAuras = allData.filter(p => {
                         if (p.tipo !== 'AU') return false;
                         const val = char.punteggi_base[p.nome];
                         if (!val || val < 1) return false;
-                        if (type === 'Infusione' && !p.permette_infusioni) return false;
-                        if (type === 'Tessitura' && !p.permette_tessiture) return false;
+                        if (isInfusion && !p.permette_infusioni) return false;
+                        if (!isInfusion && !p.permette_tessiture) return false;
                         return true;
                     });
                     setAvailableAuras(validAuras);
+
+                    // Filtra Caratteristiche disponibili (CA con valore > 0)
+                    const validChars = allData.filter(p => {
+                        if (p.tipo !== 'CA') return false;
+                        const val = char.punteggi_base[p.nome];
+                        return val && val > 0;
+                    });
+                    setAvailableCharacteristics(validChars);
                 }
             } catch (e) {
                 console.error(e);
@@ -65,11 +75,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             }
         };
         initData();
-    }, [char, type]);
+    }, [char, type, isInfusion]);
 
-    // 2. AURA RICHIESTA -> AURA INFUSIONE
+    // 2. Logica Aure Infusione
     useEffect(() => {
-        if (!selectedAuraId || allPunteggiCache.length === 0) {
+        if (!isInfusion || !selectedAuraId || allPunteggiCache.length === 0) {
             setAvailableInfusionAuras([]);
             return;
         }
@@ -79,432 +89,260 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const allowedIds = mainAuraObj.aure_infusione_consentite || [mainAuraObj.id];
         const validInfusionObjs = allPunteggiCache.filter(p => allowedIds.includes(p.id));
         setAvailableInfusionAuras(validInfusionObjs);
-
-        const currentInfIsAllowed = allowedIds.includes(parseInt(selectedInfusionAuraId));
         
-        if (!selectedInfusionAuraId || !currentInfIsAllowed) {
-            const hasBricks = currentBricks.length > 0;
-            if (!hasBricks && validInfusionObjs.length > 0) {
-                setSelectedInfusionAuraId(validInfusionObjs[0].id);
-            } else if (!hasBricks) {
-                setSelectedInfusionAuraId('');
-            }
+        // Auto-selezione se l'attuale non è valida
+        if (validInfusionObjs.length > 0 && !allowedIds.includes(parseInt(selectedInfusionAuraId))) {
+             setSelectedInfusionAuraId(validInfusionObjs[0].id);
         }
-    }, [selectedAuraId, allPunteggiCache]);
+    }, [selectedAuraId, allPunteggiCache, isInfusion, selectedInfusionAuraId]);
 
-    // 3. Caricamento Mattoni
-    useEffect(() => {
-        if (!selectedInfusionAuraId || allPunteggiCache.length === 0) {
-            setAvailableBricks([]);
-            return;
-        }
 
-        let bricks = allPunteggiCache.filter(p => {
-            if (!p.is_mattone) return false;
-            if (p.aura_id !== parseInt(selectedInfusionAuraId)) return false; 
-            return true;
-        });
-
-        const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
-        if (modello && modello.mattoni_proibiti?.length > 0) {
-            const proibitiIds = modello.mattoni_proibiti.map(m => m.id);
-            bricks = bricks.filter(b => !proibitiIds.includes(b.id));
-        }
-
-        bricks = bricks.filter(b => {
-            const carName = b.caratteristica_associata_nome;
-            if (!carName) return true; 
-            return (char.punteggi_base[carName] || 0) > 0;
-        });
-
-        setAvailableBricks(bricks);
-
-        if (isDraft && modello && modello.mattoni_obbligatori && currentBricks.length === 0) {
-            const missingMandatory = modello.mattoni_obbligatori;
-            if (missingMandatory.length > 0) {
-                const toAdd = missingMandatory.map(m => {
-                    const fullBrick = allPunteggiCache.find(p => p.id === m.id) || m;
-                    return { ...fullBrick, is_mandatory: true };
-                });
-                setCurrentBricks(toAdd);
-            }
-        }
-    }, [selectedInfusionAuraId, selectedAuraId, allPunteggiCache, char, isDraft]);
-
-    // --- HANDLERS UI ---
-    const handleAuraChange = (e) => {
-        const newAuraId = e.target.value;
-        if (currentBricks.length > 0) {
-            const confirmChange = window.confirm("Cambiare l'aura richiesta potrebbe invalidare i mattoni. Continuare e resettare?");
-            if (!confirmChange) return;
-            setCurrentBricks([]);
-        }
-        setSelectedAuraId(newAuraId);
+    // --- HELPERS GRAFICI ---
+    
+    // Trova definizione Mattone per Aura+Caratteristica
+    // Questo serve a capire qual è il "Mattone" associato (es. Fuoco) alla caratteristica (es. Forza) per l'aura selezionata.
+    const findBrickDefinition = (auraId, charId) => {
+        if (!auraId || !charId) return null;
+        const charName = allPunteggiCache.find(c => c.id === parseInt(charId))?.nome;
+        return allPunteggiCache.find(p => 
+            p.is_mattone && 
+            p.aura_id === parseInt(auraId) && 
+            p.caratteristica_associata_nome === charName
+        );
     };
 
-    const handleInfusionAuraChange = (e) => {
-        const newInfId = e.target.value;
-        if (currentBricks.length > 0) {
-            const confirmChange = window.confirm("Cambiare la fonte di infusione rimuoverà i mattoni attuali. Continuare?");
-            if (!confirmChange) return;
-            setCurrentBricks([]);
-        }
-        setSelectedInfusionAuraId(newInfId);
-    };
-
-    const handleIncrement = (brick) => {
-        if (currentBricks.length >= auraVal) return; 
-        const carName = brick.caratteristica_associata_nome;
-        if (carName) {
-            const carVal = char.punteggi_base[carName] || 0;
-            const existingCount = currentBricks.filter(b => (b.id || b.mattone?.id) === brick.id).length;
-            if (existingCount >= carVal) return;
-        }
-        setCurrentBricks([...currentBricks, { ...brick, is_mandatory: false }]);
-    };
-
-    const handleDecrement = (brickId) => {
-        const indices = currentBricks
-            .map((b, i) => ((b.id || b.mattone?.id) === brickId ? i : -1))
-            .filter(i => i !== -1);
-
-        if (indices.length === 0) return;
-
-        let indexToRemove = -1;
-        const nonMandatoryIndex = indices.find(i => !currentBricks[i].is_mandatory);
+    const getVisualInfo = (charObj) => {
+        const primaryBrick = findBrickDefinition(selectedAuraId, charObj.id);
+        const secondaryBrick = isInfusion ? findBrickDefinition(selectedInfusionAuraId, charObj.id) : null;
         
-        if (nonMandatoryIndex !== undefined) indexToRemove = nonMandatoryIndex;
-        else {
-            if (indices.length > 1) indexToRemove = indices[indices.length - 1];
-            else {
-                alert("Questo mattone è obbligatorio per il tuo modello di aura (minimo 1).");
-                return;
-            }
-        }
+        return {
+            charObj,
+            primaryBrick,
+            secondaryBrick,
+        };
+    };
 
-        if (indexToRemove !== -1) {
-            const newBricks = [...currentBricks];
-            newBricks.splice(indexToRemove, 1);
-            setCurrentBricks(newBricks);
+    // --- HANDLERS ---
+    
+    const handleIncrement = (charId) => {
+        const currentVal = componentsMap[charId] || 0;
+        const charName = allPunteggiCache.find(p => p.id === charId)?.nome;
+        const maxVal = char.punteggi_base[charName] || 0;
+        
+        if (currentVal < maxVal && currentTotalCount < auraVal) {
+            setComponentsMap({ ...componentsMap, [charId]: currentVal + 1 });
         }
     };
 
-    // --- GESTIONE SALVATAGGIO E INVIO UNIFICATA ---
+    const handleDecrement = (charId) => {
+        const currentVal = componentsMap[charId] || 0;
+        if (currentVal > 0) {
+            const newMap = { ...componentsMap, [charId]: currentVal - 1 };
+            if (newMap[charId] === 0) delete newMap[charId];
+            setComponentsMap(newMap);
+        }
+    };
 
-    // Helper per costruire il payload
-    const getPayload = () => ({
-        personaggio_id: selectedCharacterId,
-        tipo: type === 'Tessitura' ? 'TES' : 'INF',
-        nome: name,
-        descrizione: description,
-        aura: selectedAuraId,
-        aura_infusione: selectedInfusionAuraId,
-        mattoni_ids: currentBricks.map(b => b.id || b.mattone?.id)
-    });
+    // Prepara i dati per il backend
+    const getPayload = () => {
+        const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
+            id: parseInt(id),
+            valore: val
+        }));
 
-    const handleSave = async () => {
-        setError('');
-        setIsSaving(true);
+        return {
+            personaggio_id: selectedCharacterId,
+            tipo: isInfusion ? 'INF' : 'TES',
+            nome: name,
+            descrizione: description,
+            aura: selectedAuraId,
+            aura_infusione: isInfusion ? selectedInfusionAuraId : null,
+            componenti_data: componentsArray
+        };
+    };
+
+    const handleSaveAction = async (send = false) => {
+        setError(''); setIsSaving(true);
         try {
-            const payload = getPayload();
-            if (isEditing) await updateProposta(proposal.id, payload);
-            else await createProposta(payload);
-            
-            onRefresh();
-            onClose();
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setIsSaving(false);
-        }
-    };
+            if (send && !window.confirm("Invio definitivo? Costa crediti.")) {
+                setIsSaving(false); return;
+            }
 
-    // MODIFICATO: Handle Send ora gestisce Creazione + Invio in un colpo solo
-    const handleSend = async () => {
-        if (!window.confirm("Sei sicuro? Questo invio costerà crediti e bloccherà le modifiche.")) return;
-        
-        setError('');
-        setIsSaving(true);
-        
-        try {
             let targetId = proposal?.id;
             const payload = getPayload();
-
-            // 1. Se NON esiste l'ID (è una nuova creazione), la creiamo prima
+            
             if (!targetId) {
-                const newProposal = await createProposta(payload);
-                targetId = newProposal.id;
-            } 
-            // 2. Se esiste già (è una bozza), aggiorniamo i dati per sicurezza prima di inviare
-            // (così se l'utente ha cambiato i mattoni e cliccato subito Invia, non invia i vecchi mattoni)
-            else {
+                const newP = await createProposta(payload);
+                targetId = newP.id;
+            } else {
                 await updateProposta(targetId, payload);
             }
 
-            // 3. Ora che abbiamo l'ID ed è aggiornato, inviamo
-            await sendProposta(targetId);
+            if (send) await sendProposta(targetId);
             
-            onRefresh();
-            onClose();
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setIsSaving(false);
-        }
+            onRefresh(); onClose();
+        } catch (e) { setError(e.message); } finally { setIsSaving(false); }
     };
 
-    const handleDelete = async () => {
-        if (!window.confirm("Cancellare questa bozza?")) return;
-        try {
-            await deleteProposta(proposal.id);
-            onRefresh();
-            onClose();
-        } catch (e) {
-            setError(e.message);
-        }
-    };
-
-    // --- RENDER UI (Uguale a prima) ---
+    // --- RENDER ---
     const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
     const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
-    const currentTotalCount = currentBricks.length;
+    const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
     const cost = currentTotalCount * 10;
 
-    const getBrickCount = (brickId) => currentBricks.filter(b => (b.id || b.mattone?.id) === brickId).length;
-    const isBrickMandatory = (brickId) => {
+    // Check Regole Modello Aura (Solo visivo)
+    const getRuleStatus = (charId) => {
+        if (!selectedAuraId) return null;
         const modello = char?.modelli_aura?.find(m => m.aura === parseInt(selectedAuraId));
-        return modello?.mattoni_obbligatori?.some(m => m.id === brickId);
-    };
-    const getSummaryText = () => {
-        if (currentBricks.length === 0) return "Nessuno";
-        const counts = {};
-        currentBricks.forEach(b => {
-            const n = b.nome || b.mattone?.nome || '???';
-            counts[n] = (counts[n] || 0) + 1;
-        });
-        return Object.entries(counts).map(([name, count]) => `${name} x${count}`).join(', ');
-    };
+        if (!modello) return null;
 
-    if (isLoadingData) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin" /></div>;
+        const brickDef = findBrickDefinition(selectedAuraId, charId);
+        if (!brickDef) return null; // Se non c'è mattone, le regole sui mattoni non si applicano direttamente in questo modo semplice
+
+        if (modello.mattoni_proibiti?.some(m => m.id === brickDef.id)) return { type: 'forbidden', text: 'Proibito' };
+        if (modello.mattoni_obbligatori?.some(m => m.id === brickDef.id)) return { type: 'mandatory', text: 'Obbligatorio' };
+        return null;
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
             <div className="bg-gray-900 w-full max-w-4xl max-h-[95vh] rounded-xl flex flex-col border border-gray-700 shadow-2xl">
-                
                 {/* Header */}
                 <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800 rounded-t-xl shrink-0">
-                    <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-white">
                         {isEditing ? `Modifica ${type}` : `Crea ${type}`}
-                        {proposal && (
-                            <span className={`text-[10px] uppercase px-2 py-0.5 rounded border ${
-                                proposal.stato === 'BOZZA' ? 'bg-gray-700 border-gray-500' : 'bg-yellow-900 border-yellow-600 text-yellow-200'
-                            }`}>
-                                {proposal.stato}
-                            </span>
-                        )}
                     </h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700">✕</button>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                    {error && (
-                        <div className="p-3 bg-red-900/30 border border-red-700/50 text-red-200 rounded flex items-center gap-2">
-                            <AlertTriangle size={18} /> {error}
-                        </div>
-                    )}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {error && <div className="p-3 bg-red-900/30 text-red-200 rounded">{error}</div>}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Nome</label>
-                            <input 
-                                type="text" 
-                                value={name} 
-                                onChange={e => setName(e.target.value)}
-                                disabled={!isDraft}
-                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none"
-                            />
+                            <label className="text-xs font-bold text-gray-400">Nome</label>
+                            <input type="text" value={name} onChange={e => setName(e.target.value)} disabled={!isDraft} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white"/>
                         </div>
                         
-                        <div className="bg-gray-800/50 p-3 rounded border border-gray-700">
-                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase items-center gap-2">
-                                Aura Richiesta (Capienza)
-                            </label>
-                            <select 
-                                value={selectedAuraId}
-                                onChange={handleAuraChange}
-                                disabled={!isDraft}
-                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none mb-1"
-                            >
+                        <div>
+                            <label className="text-xs font-bold text-gray-400">Aura Richiesta</label>
+                            <select value={selectedAuraId} onChange={e => { setComponentsMap({}); setSelectedAuraId(e.target.value); }} disabled={!isDraft} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white">
                                 <option value="">-- Seleziona --</option>
-                                {availableAuras.map(a => (
-                                    <option key={a.id} value={a.id}>{a.nome} (Max: {char.punteggi_base[a.nome]})</option>
-                                ))}
+                                {availableAuras.map(a => <option key={a.id} value={a.id}>{a.nome} ({char.punteggi_base[a.nome]})</option>)}
                             </select>
                         </div>
 
-                        <div className="bg-gray-800/50 p-3 rounded border border-gray-700 relative">
-                            <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block text-gray-600">
-                                <ArrowRight size={20} />
+                        {isInfusion && (
+                            <div>
+                                <label className="text-xs font-bold text-gray-400">Aura Infusione</label>
+                                <select value={selectedInfusionAuraId} onChange={e => setSelectedInfusionAuraId(e.target.value)} disabled={!isDraft || !selectedAuraId} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white">
+                                    <option value="">-- Nessuna --</option>
+                                    {availableInfusionAuras.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                                </select>
                             </div>
-                            <label className="block text-xs font-bold text-indigo-400 mb-1 uppercase">
-                                Aura Infusione (Fonte)
-                            </label>
-                            <select 
-                                value={selectedInfusionAuraId}
-                                onChange={handleInfusionAuraChange}
-                                disabled={!isDraft || !selectedAuraId}
-                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-indigo-500 outline-none mb-1"
-                            >
-                                {availableInfusionAuras.length === 0 && <option value="">-- Seleziona Aura Richiesta --</option>}
-                                {availableInfusionAuras.map(a => (
-                                    <option key={a.id} value={a.id}>{a.nome}</option>
-                                ))}
-                            </select>
-                        </div>
+                        )}
                     </div>
-
+                    
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Descrizione</label>
-                        <textarea 
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            disabled={!isDraft}
-                            rows={2}
-                            className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-indigo-500 outline-none"
-                        />
+                        <label className="text-xs font-bold text-gray-400">Descrizione</label>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} disabled={!isDraft} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white" rows={2}/>
                     </div>
 
-                    <div className="bg-gray-800/50 rounded-lg border border-gray-700 flex flex-col h-auto min-h-[300px]">
-                        <div className="p-3 bg-gray-800 border-b border-gray-700 flex flex-col gap-2 sticky top-0 z-10 shadow-md">
-                            <div className="flex justify-between items-center">
-                                <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-gray-400 uppercase">Composizione</span>
-                                    <span className={`text-sm font-mono ${currentTotalCount === auraVal ? 'text-green-400' : 'text-white'}`}>
-                                        {currentTotalCount} / {selectedAuraId ? auraVal : '-'}
-                                    </span>
-                                </div>
-                                <div className="text-xs text-gray-500 text-right">
-                                    Costo: <span className="text-white font-mono">{cost} CR</span>
-                                </div>
-                            </div>
-                            <div className="text-[10px] text-gray-400 border-t border-gray-700 pt-1 mt-1 truncate">
-                                <span className="uppercase font-bold text-gray-500">Contiene:</span> {getSummaryText()}
-                            </div>
+                    {/* Lista Caratteristiche / Mattoni */}
+                    <div className="bg-gray-800/50 rounded border border-gray-700 p-2">
+                        <div className="flex justify-between text-gray-400 text-xs mb-2 px-2 uppercase font-bold">
+                            <span>Componenti ({currentTotalCount}/{selectedAuraId ? auraVal : '-'})</span>
+                            <span>{cost} CR</span>
                         </div>
+                        
+                        <div className="space-y-2">
+                            {availableCharacteristics.map(charObj => {
+                                const { primaryBrick, secondaryBrick } = getVisualInfo(charObj);
+                                const count = componentsMap[charObj.id] || 0;
+                                const rule = getRuleStatus(charObj.id);
+                                const isForbidden = rule?.type === 'forbidden';
+                                
+                                const hasPrimary = !!primaryBrick;
+                                const hasSecondary = isInfusion && !!secondaryBrick;
 
-                        <div className="flex-1 p-2 space-y-2">
-                            {!selectedAuraId ? (
-                                <div className="text-center text-gray-500 py-10 flex flex-col items-center gap-2">
-                                    <Info size={32} />
-                                    <span>Seleziona "Aura Richiesta" per iniziare.</span>
-                                </div>
-                            ) : !selectedInfusionAuraId ? (
-                                <div className="text-center text-gray-500 py-10">
-                                    Seleziona una "Aura Infusione" per vedere i mattoni.
-                                </div>
-                            ) : availableBricks.length === 0 ? (
-                                <div className="text-center text-gray-500 py-10">
-                                    Nessun mattone disponibile in {getAuraName(selectedInfusionAuraId)}.
-                                </div>
-                            ) : (
-                                availableBricks.map(brick => {
-                                    const count = getBrickCount(brick.id);
-                                    const maxPerChar = brick.caratteristica_associata_nome 
-                                        ? (char.punteggi_base[brick.caratteristica_associata_nome] || 0) 
-                                        : 99;
-                                    
-                                    const isMandatory = isBrickMandatory(brick.id);
-                                    const canAdd = isDraft && currentTotalCount < auraVal && count < maxPerChar;
-                                    const canRemove = isDraft && count > 0 && (!isMandatory || count > 1);
+                                return (
+                                    <div key={charObj.id} className={`flex items-center justify-between p-2 rounded border ${count > 0 ? 'bg-indigo-900/20 border-indigo-500' : 'bg-gray-800 border-gray-700'}`}>
+                                        <div className="flex items-center gap-3">
+                                            
+                                            {/* SEZIONE ICONE */}
+                                            <div className="flex items-center gap-2">
+                                                {/* Caso 1: Solo Caratteristica */}
+                                                {!hasPrimary && (
+                                                    <div className="relative" title={charObj.nome}>
+                                                        <IconaPunteggio url={charObj.icona_url} color={charObj.colore} size="xs" />
+                                                    </div>
+                                                )}
 
-                                    return (
-                                        <div key={brick.id} className={`flex items-center justify-between p-2 sm:p-3 rounded border transition-all ${
-                                            count > 0 
-                                                ? 'bg-indigo-900/20 border-indigo-500/50' 
-                                                : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-                                        }`}>
-                                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 mr-2">
-                                                <div className="shrink-0">
-                                                    <IconaPunteggio url={brick.icona_url} color={brick.colore} size="xs" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <div className="font-bold text-gray-200 text-sm flex items-center gap-2 truncate">
-                                                        {brick.nome}
-                                                        {isMandatory && <span className="text-[9px] bg-yellow-900 text-yellow-500 px-1 rounded border border-yellow-700 shrink-0">OBBL</span>}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 truncate">
-                                                        {brick.caratteristica_associata_nome ? `Max ${maxPerChar} (${brick.caratteristica_associata_nome})` : 'Base'}
-                                                    </div>
-                                                </div>
+                                                {/* Caso 2 & 3: Mattone Primario (+ eventuale Secondario) */}
+                                                {hasPrimary && (
+                                                    <>
+                                                        <div className="relative" title={`Richiesta: ${primaryBrick.nome}`}>
+                                                            <IconaPunteggio url={primaryBrick.icona_url} color={primaryBrick.colore} size="xs" />
+                                                        </div>
+                                                        {hasSecondary && (
+                                                            <div className="relative" title={`Infusione: ${secondaryBrick.nome}`}>
+                                                                <IconaPunteggio url={secondaryBrick.icona_url} color={secondaryBrick.colore} size="xs" />
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
 
-                                            <div className="flex items-center gap-1 sm:gap-3 bg-gray-900 rounded-lg p-1 border border-gray-700 shrink-0">
-                                                <button 
-                                                    onClick={() => handleDecrement(brick.id)}
-                                                    disabled={!canRemove}
-                                                    className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded transition-colors ${
-                                                        canRemove ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-600 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    <Minus size={14} className="sm:w-4 sm:h-4" />
-                                                </button>
+                                            {/* SEZIONE TESTO */}
+                                            <div>
+                                                <div className="text-white font-bold text-sm flex items-center gap-2">
+                                                    {/* Nome principale: Primario o Caratteristica */}
+                                                    {hasPrimary ? primaryBrick.nome : charObj.nome}
+                                                    
+                                                    {/* Sigla Caratteristica: Sempre visibile se c'è un mattone */}
+                                                    {hasPrimary && (
+                                                        <span className="text-[10px] font-mono text-gray-400 bg-gray-900 px-1 py-0.5 rounded border border-gray-700" title={charObj.nome}>
+                                                            {charObj.sigla}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 
-                                                <span className={`w-5 sm:w-6 text-center font-bold text-sm sm:text-base ${count > 0 ? 'text-white' : 'text-gray-600'}`}>
-                                                    {count}
-                                                </span>
-
-                                                <button 
-                                                    onClick={() => handleIncrement(brick)}
-                                                    disabled={!canAdd}
-                                                    className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded transition-colors ${
-                                                        canAdd ? 'text-indigo-400 hover:bg-indigo-900 hover:text-white' : 'text-gray-600 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    <Plus size={14} className="sm:w-4 sm:h-4" />
-                                                </button>
+                                                {/* Sottotitolo: Nome Secondo Mattone e/o Regole */}
+                                                <div className="text-[10px] text-gray-400 flex items-center gap-2">
+                                                    {hasSecondary && <span>+ {secondaryBrick.nome}</span>}
+                                                    
+                                                    {rule && (
+                                                        <span className={`${isForbidden ? 'text-red-400 font-bold' : 'text-yellow-400'}`}>
+                                                            {rule.text}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    );
-                                })
-                            )}
+                                        
+                                        {/* CONTROLLI +/- */}
+                                        <div className="flex items-center gap-2 bg-gray-900 p-1 rounded border border-gray-700">
+                                            <button onClick={() => handleDecrement(charObj.id)} disabled={!isDraft || count === 0} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white"><Minus size={12}/></button>
+                                            <span className="w-6 text-center text-white font-mono">{count}</span>
+                                            <button onClick={() => handleIncrement(charObj.id)} disabled={!isDraft || isForbidden} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white"><Plus size={12}/></button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-gray-700 bg-gray-800 rounded-b-xl flex justify-between items-center shrink-0">
-                    {isDraft && isEditing ? (
-                        <button onClick={handleDelete} className="text-red-400 hover:text-red-300 flex items-center gap-1 text-xs px-2 py-1">
-                            <Trash2 size={14} /> Elimina
-                        </button>
-                    ) : <div></div>}
-
-                    <div className="flex gap-3">
-                        {isDraft ? (
+                {/* Footer */}
+                <div className="p-4 border-t border-gray-700 bg-gray-800 rounded-b-xl flex justify-between">
+                    {isDraft && isEditing ? <button onClick={handleDelete} className="text-red-400 text-xs flex items-center gap-1"><Trash2 size={14}/> Elimina</button> : <div/>}
+                    <div className="flex gap-2">
+                        {isDraft && (
                             <>
-                                <button 
-                                    onClick={handleSave} 
-                                    disabled={isSaving}
-                                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm flex items-center gap-2"
-                                >
-                                    {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} 
-                                    <span className="hidden sm:inline">Salva Bozza</span>
-                                    <span className="sm:hidden">Salva</span>
-                                </button>
-                                <button 
-                                    onClick={handleSend}
-                                    disabled={isSaving || currentBricks.length === 0}
-                                    className="px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
-                                >
-                                    <Send size={16} /> 
-                                    <span className="hidden sm:inline">Invia ({cost})</span>
-                                    <span className="sm:hidden">Invia</span>
-                                </button>
+                                <button onClick={() => handleSaveAction(false)} disabled={isSaving} className="px-3 py-2 bg-gray-700 text-white rounded text-sm flex gap-2 items-center"><Save size={14}/> Salva</button>
+                                <button onClick={() => handleSaveAction(true)} disabled={isSaving || currentTotalCount === 0} className="px-3 py-2 bg-green-600 text-white rounded text-sm flex gap-2 items-center font-bold"><Send size={14}/> Invia</button>
                             </>
-                        ) : (
-                            <span className="text-gray-400 italic text-sm px-2">
-                                {proposal.stato}
-                            </span>
                         )}
                     </div>
                 </div>
