@@ -100,7 +100,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     // --- HELPERS GRAFICI ---
     
     // Trova definizione Mattone per Aura+Caratteristica
-    // Questo serve a capire qual è il "Mattone" associato (es. Fuoco) alla caratteristica (es. Forza) per l'aura selezionata.
     const findBrickDefinition = (auraId, charId) => {
         if (!auraId || !charId) return null;
         const charName = allPunteggiCache.find(c => c.id === parseInt(charId))?.nome;
@@ -143,7 +142,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     };
 
-    // Prepara i dati per il backend
     const getPayload = () => {
         const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
             id: parseInt(id),
@@ -184,6 +182,18 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         } catch (e) { setError(e.message); } finally { setIsSaving(false); }
     };
 
+    // --- AGGIUNTO: Funzione mancante per eliminare la proposta ---
+    const handleDelete = async () => {
+        if (!window.confirm("Cancellare questa bozza?")) return;
+        try {
+            await deleteProposta(proposal.id);
+            onRefresh();
+            onClose();
+        } catch (e) {
+            setError(e.message);
+        }
+    };
+
     // --- RENDER ---
     const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
     const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
@@ -197,7 +207,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         if (!modello) return null;
 
         const brickDef = findBrickDefinition(selectedAuraId, charId);
-        if (!brickDef) return null; // Se non c'è mattone, le regole sui mattoni non si applicano direttamente in questo modo semplice
+        if (!brickDef) return null; 
 
         if (modello.mattoni_proibiti?.some(m => m.id === brickDef.id)) return { type: 'forbidden', text: 'Proibito' };
         if (modello.mattoni_obbligatori?.some(m => m.id === brickDef.id)) return { type: 'mandatory', text: 'Obbligatorio' };
