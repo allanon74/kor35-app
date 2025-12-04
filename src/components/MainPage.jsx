@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+// --- LOGICA PWA: Import necessario per gestire gli aggiornamenti ---
+import { useRegisterSW } from 'virtual:pwa-register/react'; 
+
 import HomeTab from './HomeTab.jsx';
 import QrTab from './QrTab.jsx';
 import QrResultModal from './QrResultModal.jsx';
@@ -12,11 +15,12 @@ import {
     LogOut, 
     Mail, 
     Backpack,
-    Menu,       // Icona per il menu
-    X,          // Icona per chiudere
-    UserCog,    // Icona admin
-    RefreshCw,  // Icona esempio azione
-    Filter      // Icona esempio azione
+    Menu,       
+    X,          
+    UserCog,    
+    RefreshCw,  
+    Filter,
+    DownloadCloud // Nuova icona per l'aggiornamento
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -29,7 +33,19 @@ import InventoryTab from './InventoryTab.jsx';
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [qrResultData, setQrResultData] = useState(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // Stato per il menu laterale
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // --- LOGICA PWA: Hook per gestire il Service Worker ---
+  // needRefresh: diventa true se c'è una nuova versione sul server
+  // updateServiceWorker: funzione da chiamare per forzare l'aggiornamento
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisterError(error) {
+      console.log('SW registration error', error);
+    },
+  });
 
   // --- GESTIONE COOLDOWN GLOBALE FURTO ---
   const [stealCooldownEnd, setStealCooldownEnd] = useState(0);
@@ -78,17 +94,15 @@ const MainPage = ({ token, onLogout }) => {
   const closeQrModal = () => setQrResultData(null);
   const handleCharacterChange = (e) => selectCharacter(e.target.value);
 
-  // --- NAVIGAZIONE TRAMITE MENU ---
   const handleMenuNavigation = (tabName) => {
     setActiveTab(tabName);
     setIsMenuOpen(false);
   };
 
   // --- CALCOLO NOTIFICHE GLOBALI ---
-  // Il bollino sul menu appare se ci sono messaggi O cose da admin
-  const hasGlobalNotification = unreadCount > 0 || (isAdmin && adminPendingCount > 0);
-
-  // --- LOGICA DI ROUTING DEI TAB ---
+  // Rosso: Messaggi/Admin. Blu: Aggiornamento App disponibile.
+  const hasUrgentNotification = unreadCount > 0 || (isAdmin && adminPendingCount > 0);
+  
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home': return <HomeTab />;
@@ -103,22 +117,20 @@ const MainPage = ({ token, onLogout }) => {
     }
   };
 
-  // --- RENDER AZIONI CONTESTUALI (SUGGERIMENTI) ---
   const renderContextualActions = () => {
     switch(activeTab) {
         case 'home':
             return (
-                <button className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-gray-700 text-gray-300">
+                <button className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-gray-700 text-gray-300 transition-colors">
                     <RefreshCw size={18} /> Aggiorna Stato
                 </button>
             );
         case 'inventario':
             return (
-                <button className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-gray-700 text-gray-300">
+                <button className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-gray-700 text-gray-300 transition-colors">
                     <Filter size={18} /> Filtra per Peso
                 </button>
             );
-        // Aggiungi qui altri casi per altre tab
         default:
             return <p className="text-gray-500 text-sm italic p-2">Nessuna azione rapida disponibile.</p>;
     }
@@ -127,7 +139,7 @@ const MainPage = ({ token, onLogout }) => {
   return (
     <div className="flex flex-col h-dvh bg-gray-900 text-white relative overflow-hidden">
       
-      {/* --- HEADER SEMPLIFICATO --- */}
+      {/* --- HEADER --- */}
       <header className="flex justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 border-b border-gray-700 z-10">
           <div className="flex items-center gap-3">
               <img src="/pwa-512x512.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-lg" />
@@ -136,21 +148,25 @@ const MainPage = ({ token, onLogout }) => {
               </h1>
           </div>
 
-          {/* PULSANTE MENU UNICO */}
           <button 
             onClick={() => setIsMenuOpen(true)}
             className="relative p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-200"
           >
             <Menu size={28} />
-            {/* Bollino Rosso Globale sull'icona Menu */}
-            {hasGlobalNotification && (
+            
+            {/* Bollino Rosso: Notifiche Gioco */}
+            {hasUrgentNotification && (
                 <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-red-500 animate-pulse" />
+            )}
+            
+            {/* Bollino Blu: Aggiornamento App Disponibile (se non c'è quello rosso) */}
+            {!hasUrgentNotification && needRefresh && (
+                <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-blue-500 animate-bounce" />
             )}
           </button>
       </header>
 
       {/* --- MENU LATERALE (DRAWER) --- */}
-      {/* Overlay Sfondo Scuro */}
       {isMenuOpen && (
         <div 
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
@@ -158,10 +174,8 @@ const MainPage = ({ token, onLogout }) => {
         />
       )}
 
-      {/* Pannello Menu */}
       <div className={`fixed top-0 right-0 h-full w-80 bg-gray-800 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-l border-gray-700 flex flex-col ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         
-        {/* Intestazione Menu */}
         <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-900/50">
             <h2 className="text-xl font-bold text-gray-100">Menu Principale</h2>
             <button onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-white">
@@ -169,8 +183,26 @@ const MainPage = ({ token, onLogout }) => {
             </button>
         </div>
 
-        {/* Contenuto Menu Scrollabile */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+            {/* --- SEZIONE AGGIORNAMENTO APP (Visibile solo se necessario) --- */}
+            {needRefresh && (
+                <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 animate-in fade-in slide-in-from-right-4">
+                    <div className="flex items-start gap-3 mb-3">
+                        <DownloadCloud className="text-blue-400 shrink-0" size={24} />
+                        <div>
+                            <h3 className="font-bold text-blue-100 text-sm">Aggiornamento Disponibile</h3>
+                            <p className="text-xs text-blue-200 mt-1">Una nuova versione dell'app è disponibile sul server.</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => updateServiceWorker(true)}
+                        className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg transition-all text-sm flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw size={16} /> Installa e Ricarica
+                    </button>
+                </div>
+            )}
 
             {/* SEZIONE 1: PERSONAGGIO */}
             <div>
@@ -203,7 +235,6 @@ const MainPage = ({ token, onLogout }) => {
             <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Comunicazioni</h3>
                 <nav className="space-y-2">
-                    {/* Link Messaggi */}
                     <button 
                         onClick={() => handleMenuNavigation('messaggi')}
                         className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${activeTab === 'messaggi' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
@@ -219,7 +250,6 @@ const MainPage = ({ token, onLogout }) => {
                         )}
                     </button>
 
-                    {/* Link Admin (Solo se admin) */}
                     {isAdmin && (
                         <button 
                             onClick={() => handleMenuNavigation('admin_msg')}
@@ -239,7 +269,7 @@ const MainPage = ({ token, onLogout }) => {
                 </nav>
             </div>
 
-            {/* SEZIONE 3: AZIONI CONTESTUALI (Specifiche della Tab corrente) */}
+            {/* SEZIONE 3: AZIONI CONTESTUALI */}
             <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Azioni Tab Corrente ({activeTab})</h3>
                 <div className="bg-gray-700/50 rounded-lg p-2 border border-gray-700">
@@ -249,7 +279,6 @@ const MainPage = ({ token, onLogout }) => {
 
         </div>
 
-        {/* Footer Menu: Logout */}
         <div className="p-4 border-t border-gray-700 bg-gray-900/50">
             <button 
                 onClick={() => { onLogout(); setIsMenuOpen(false); }} 
@@ -262,13 +291,11 @@ const MainPage = ({ token, onLogout }) => {
 
       </div>
 
-      {/* --- CONTENUTO PRINCIPALE --- */}
       <main className="grow overflow-y-auto bg-gray-900 relative">
         {characterError && <div className="p-4 text-center text-red-400 bg-red-900/20 m-4 rounded-lg border border-red-800">{characterError}</div>}
         {renderTabContent()}
       </main>
 
-      {/* --- BARRA DI NAVIGAZIONE INFERIORE --- */}
       <nav className="grid grid-cols-6 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700 z-10">
         <TabButton icon={<Home size={24} />} label="Scheda" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
         <TabButton icon={<Backpack size={24} />} label="Zaino" isActive={activeTab === 'inventario'} onClick={() => setActiveTab('inventario')} />
