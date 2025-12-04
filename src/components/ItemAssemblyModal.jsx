@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Wrench, Send, ShieldAlert, Cpu, UserCheck, Loader2, Coins } from 'lucide-react';
-import { useCharacter } from './CharacterContext'; // Assumo esista
-import { assemblaItem } from '../api'; // La tua API esistente per assemblaggio diretto
-import axios from 'axios'; // Assumo axios configurato
-
-// Configurazione API base (adatta al tuo progetto)
-const API_BASE = '/api'; 
+import { useCharacter } from './CharacterContext';
+// CORREZIONE 1: Importa assemblaOggetto e le nuove funzioni, rimuovi assemblaItem
+import { assemblaOggetto, validateAssembly, createAssemblyRequest } from '../api'; 
 
 const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   const { selectedCharacterData } = useCharacter();
@@ -27,11 +24,11 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // 1. Filtro Oggetti Compatibili (Logica Frontend Preliminare)
-  // Filtriamo subito per Tipo (Mod su Tech, Materia su Non-Tech) per non intasare la UI
+  // Filtro Oggetti Compatibili
   const compatibleItems = inventory.filter(item => {
     if (item.id === hostItem.id) return false;
     const isTechHost = hostItem.is_tecnologico;
+    // Modifica: Aggiungi controllo null safe su tipo_oggetto
     if (isTechHost && item.tipo_oggetto === 'MOD') return true;
     if (!isTechHost && item.tipo_oggetto === 'MATERIA') return true;
     return false;
@@ -41,11 +38,11 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   useEffect(() => {
     const item = compatibleItems.find(i => i.id == selectedModId);
     setSelectedMod(item || null);
-    setValidationData(null); // Reset validazione al cambio oggetto
+    setValidationData(null);
     setError(null);
-  }, [selectedModId]);
+  }, [selectedModId, compatibleItems]); // Aggiunto compatibleItems alle dipendenze
 
-  // 2. Validazione Asincrona (chiama Backend)
+  // Validazione Asincrona
   useEffect(() => {
     if (!selectedMod || !selectedCharacterData) return;
 
@@ -53,23 +50,17 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
       setIsValidating(true);
       setError(null);
       try {
-        // Chiamata all'endpoint di validazione creato in views.py
-        const response = await axios.post(`${API_BASE}/assembly/validate/`, {
-          char_id: selectedCharacterData.id,
-          host_id: hostItem.id,
-          mod_id: selectedMod.id
-        });
-        setValidationData(response.data);
+        // CORREZIONE 2: Usa la funzione importata da api.js invece di axios
+        const data = await validateAssembly(selectedCharacterData.id, hostItem.id, selectedMod.id);
+        setValidationData(data);
       } catch (err) {
         console.error(err);
-        // Fallback locale se API fallisce o non ancora implementata
         setError("Impossibile verificare compatibilità remota.");
       } finally {
         setIsValidating(false);
       }
     };
 
-    // Debounce breve
     const timer = setTimeout(validate, 500);
     return () => clearTimeout(timer);
   }, [selectedMod, hostItem, selectedCharacterData]);
@@ -79,15 +70,19 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     if (!selectedMod) return;
     setIsLoading(true);
     try {
-      // Usa la tua API esistente (che ora punta al service aggiornato)
-      await assemblaItem(selectedCharacterData.id, hostItem.id, selectedMod.id);
+      // CORREZIONE 3: Chiamata a assemblaOggetto con l'ordine parametri corretto
+      // api.js definisce: (hostId, modId, characterId, onLogout)
+      await assemblaOggetto(hostItem.id, selectedMod.id, selectedCharacterData.id);
+      
       setSuccess("Oggetto assemblato con successo!");
       setTimeout(() => {
         onRefresh();
         onClose();
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || "Errore durante l'assemblaggio.");
+      // Gestione errore migliorata per oggetti Error generici
+      const msg = err.message || "Errore durante l'assemblaggio.";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -101,17 +96,19 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     }
     setIsSendingRequest(true);
     try {
-        await axios.post(`${API_BASE}/richieste-assemblaggio/crea/`, {
-            committente_id: selectedCharacterData.id,
-            host_id: hostItem.id,
-            comp_id: selectedMod.id,
-            artigiano_nome: targetArtisan,
-            offerta: offerCredits
-        });
+        // CORREZIONE 4: Usa funzione da api.js
+        await createAssemblyRequest(
+            selectedCharacterData.id, 
+            hostItem.id, 
+            selectedMod.id, 
+            targetArtisan, 
+            offerCredits
+        );
         setSuccess(`Richiesta inviata a ${targetArtisan}! Attendi la sua approvazione.`);
         setTimeout(() => { onClose(); }, 2000);
     } catch (err) {
-        setError(err.response?.data?.error || "Errore invio richiesta. Verifica il nome.");
+        const msg = err.message || "Errore invio richiesta.";
+        setError(msg);
     } finally {
         setIsSendingRequest(false);
     }
@@ -134,7 +131,7 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
         {/* Body */}
         <div className="p-5 overflow-y-auto grow space-y-6">
             
-            {/* 1. Info Host */}
+            {/* Info Host */}
             <div className="flex gap-4 items-center bg-gray-700/30 p-3 rounded-lg border border-gray-600">
                 <div className={`p-2 rounded-full ${hostItem.is_tecnologico ? 'bg-cyan-900/50 text-cyan-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
                     {hostItem.is_tecnologico ? <Cpu size={24} /> : <UserCheck size={24} />}
@@ -145,7 +142,6 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                     </p>
                     <p className="text-sm text-gray-200">
                         Slot Disponibili: <span className="font-mono font-bold text-white">
-                             {/* Nota: hostItem.potenziamenti_installati è un array nel JSON serializzato */}
                              {hostItem.potenziamenti_installati ? hostItem.potenziamenti_installati.length : 0} 
                              / {hostItem.classe_oggetto_nome ? 'MAX CLASSE' : '1'}
                         </span>
@@ -153,7 +149,7 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                 </div>
             </div>
 
-            {/* 2. Selezione Componente */}
+            {/* Selezione Componente */}
             <div>
                 <label className="block text-sm font-bold text-gray-300 mb-2">Seleziona Componente</label>
                 <select 
@@ -173,7 +169,7 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                 </p>
             </div>
 
-            {/* 3. Box di Validazione */}
+            {/* Box di Validazione */}
             {selectedMod && (
                 <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
                     {isValidating ? (
