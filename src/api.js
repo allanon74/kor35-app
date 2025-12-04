@@ -600,3 +600,69 @@ export const buyShopItem = (oggettoId, charId) => {
     }
   );
 };
+
+/**
+ * Valida la compatibilità e le competenze per un assemblaggio.
+ */
+export const validateAssembly = (charId, hostId, modId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/assembly/validate/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        char_id: charId,
+        host_id: hostId,
+        mod_id: modId
+      })
+    }
+  );
+};
+
+/**
+ * Crea una richiesta di assemblaggio verso un altro personaggio (Artigiano).
+ */
+export const createAssemblyRequest = (charId, hostId, modId, artisanName, offer) => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/crea/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        committente_id: charId,
+        host_id: hostId,
+        comp_id: modId,
+        artigiano_nome: artisanName,
+        offerta: offer
+      })
+    }
+  );
+};
+
+/**
+ * Accetta una richiesta di assemblaggio (Lato Artigiano).
+ */
+export const acceptAssemblyRequest = (requestId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/richieste-assemblaggio/${requestId}/accetta/`, 
+    { method: 'POST' }
+  );
+};
+
+/**
+ * Rifiuta una richiesta di assemblaggio (Lato Artigiano).
+ */
+export const rejectAssemblyRequest = (requestId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
+    { method: 'POST' }
+  );
+};
+
+/**
+ * Recupera le richieste di assemblaggio (inviate o ricevute).
+ */
+export const getAssemblyRequests = () => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/', 
+    { method: 'GET' }
+  );
+};

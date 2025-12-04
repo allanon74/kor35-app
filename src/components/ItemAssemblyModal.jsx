@@ -1,129 +1,163 @@
 import React, { useState, useEffect } from 'react';
-import { X, Wrench, Send, ShieldAlert, Cpu } from 'lucide-react';
-import { useCharacter } from './CharacterContext';
-import { assemblaItem } from '../api'; // Assicurati di avere questa API o simile
+import { X, Wrench, Send, ShieldAlert, Cpu, UserCheck, Loader2, Coins } from 'lucide-react';
+import { useCharacter } from './CharacterContext'; // Assumo esista
+import { assemblaItem } from '../api'; // La tua API esistente per assemblaggio diretto
+import axios from 'axios'; // Assumo axios configurato
+
+// Configurazione API base (adatta al tuo progetto)
+const API_BASE = '/api'; 
 
 const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
-  const { characters, selectedCharacterId } = useCharacter();
-  // Trova il personaggio corrente dai dati del context
-  const character = characters?.find(c => c.id === selectedCharacterId);
+  const { selectedCharacterData } = useCharacter();
   
   const [selectedModId, setSelectedModId] = useState('');
-  const [mode, setMode] = useState('assemble'); // 'assemble' | 'request'
-  const [offerCredits, setOfferCredits] = useState(0);
+  const [selectedMod, setSelectedMod] = useState(null);
+  
+  // Stati Validazione
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationData, setValidationData] = useState(null);
+  
+  // Stati Richiesta Artigiano
   const [targetArtisan, setTargetArtisan] = useState('');
+  const [offerCredits, setOfferCredits] = useState(0);
+  const [isSendingRequest, setIsSendingRequest] = useState(false);
+
+  // Stati Generali
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // Filtra oggetti compatibili (Mod o Materia) dall'inventario
-  // NOTA: Qui assumiamo che nel backend 'tipo_oggetto' distingua 'MOD' e 'MATERIA'
-  // e che hostItem abbia campi come 'is_tecnologico', 'max_slot', etc.
+  // 1. Filtro Oggetti Compatibili (Logica Frontend Preliminare)
+  // Filtriamo subito per Tipo (Mod su Tech, Materia su Non-Tech) per non intasare la UI
   const compatibleItems = inventory.filter(item => {
-    // Escludi l'oggetto stesso
     if (item.id === hostItem.id) return false;
-    
-    // Se Tech -> Solo Mod. Se Non-Tech -> Solo Materia.
-    const isTech = hostItem.is_tecnologico; 
-    const itemIsMod = item.tipo_oggetto === 'MOD';
-    const itemIsMateria = item.tipo_oggetto === 'MATERIA';
-
-    if (isTech && !itemIsMod) return false;
-    if (!isTech && !itemIsMateria) return false;
-
-    return true; 
+    const isTechHost = hostItem.is_tecnologico;
+    if (isTechHost && item.tipo_oggetto === 'MOD') return true;
+    if (!isTechHost && item.tipo_oggetto === 'MATERIA') return true;
+    return false;
   });
 
-  const selectedMod = compatibleItems.find(i => i.id === selectedModId);
+  // Aggiorna oggetto selezionato
+  useEffect(() => {
+    const item = compatibleItems.find(i => i.id == selectedModId);
+    setSelectedMod(item || null);
+    setValidationData(null); // Reset validazione al cambio oggetto
+    setError(null);
+  }, [selectedModId]);
 
-  // --- LOGICA DI VALIDAZIONE (Il cuore della richiesta) ---
-  const validateAssembly = () => {
-    if (!selectedMod) return { valid: false, reason: "Seleziona un componente." };
-    
-    const isTech = hostItem.is_tecnologico;
-    
-    // 1. Check Slot Liberi
-    const slotOccupati = hostItem.mods_installate ? hostItem.mods_installate.length : 0;
-    const maxSlots = hostItem.slot_mod || 0; // O 'slot_materia' se diverso
-    
-    // Materia: Max 1 per oggetto
-    if (!isTech && slotOccupati >= 1) return { valid: false, reason: "L'oggetto ha già una Materia incastonata." };
-    // Mod: Max slot classe
-    if (isTech && slotOccupati >= maxSlots) return { valid: false, reason: "Slot mod esauriti su questo oggetto." };
+  // 2. Validazione Asincrona (chiama Backend)
+  useEffect(() => {
+    if (!selectedMod || !selectedCharacterData) return;
 
-    // 2. Check Compatibilità Mattoni (Supporto Classe)
-    // Assumiamo che item.mattoni sia un array/oggetto { 'Fisico': 2, 'Mentale': 1 }
-    // e hostItem.limiti_mattoni sia { 'Fisico': 5, 'Mentale': 5 }
-    // Questa logica va adattata alla struttura esatta del tuo JSON.
-    /* Esempio Logica:
-       Per ogni caratteristica del Mod, il valore non deve superare il limite della classe dell'oggetto.
-       Inoltre, per le Mod multiple, la SOMMA non deve superare il limite.
-    */
-    
-    // 3. Check Skill Personaggio (Assemble vs Request)
-    let hasSkills = false;
-    const charLevel = 5; // Recuperare livello effettivo pg
-    // Esempio recupero skill (devi adattare i nomi esatti delle skill dal DB)
-    const auraTecnologica = character?.abilita_possedute?.find(a => a.nome === "Aura Tecnologica")?.livello || 0;
-    const auraAssemblatore = character?.abilita_possedute?.find(a => a.nome === "Aura Mondana - Assemblatore")?.livello || 0;
+    const validate = async () => {
+      setIsValidating(true);
+      setError(null);
+      try {
+        // Chiamata all'endpoint di validazione creato in views.py
+        const response = await axios.post(`${API_BASE}/assembly/validate/`, {
+          char_id: selectedCharacterData.id,
+          host_id: hostItem.id,
+          mod_id: selectedMod.id
+        });
+        setValidationData(response.data);
+      } catch (err) {
+        console.error(err);
+        // Fallback locale se API fallisce o non ancora implementata
+        setError("Impossibile verificare compatibilità remota.");
+      } finally {
+        setIsValidating(false);
+      }
+    };
 
-    // Check Punteggi Caratteristica (es. Forza, Intelligenza vs Requisiti Mod)
-    // Assumiamo che selectedMod.requisiti_caratteristica sia { 'Forza': 3 }
-    const statsOk = true; // Implementare check loop su character.caratteristiche_base
+    // Debounce breve
+    const timer = setTimeout(validate, 500);
+    return () => clearTimeout(timer);
+  }, [selectedMod, hostItem, selectedCharacterData]);
 
-    if (isTech) {
-        if (auraTecnologica >= hostItem.livello && statsOk) hasSkills = true;
-    } else {
-        if (auraAssemblatore >= hostItem.livello && statsOk) hasSkills = true;
-    }
-
-    return { valid: true, requiresExternalHelp: !hasSkills };
-  };
-
-  const validationResult = validateAssembly();
-
-  const handleAssembla = async () => {
+  // Azione: Assembla da solo
+  const handleSelfAssembly = async () => {
+    if (!selectedMod) return;
+    setIsLoading(true);
     try {
-        await assemblaItem(character.id, hostItem.id, selectedModId);
-        setSuccess("Assemblaggio completato!");
-        setTimeout(() => { onRefresh(); onClose(); }, 1500);
-    } catch (e) {
-        setError(e.message || "Errore durante l'assemblaggio");
+      // Usa la tua API esistente (che ora punta al service aggiornato)
+      await assemblaItem(selectedCharacterData.id, hostItem.id, selectedMod.id);
+      setSuccess("Oggetto assemblato con successo!");
+      setTimeout(() => {
+        onRefresh();
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || "Errore durante l'assemblaggio.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Azione: Invia Richiesta
   const handleSendRequest = async () => {
-    // Qui andrebbe la chiamata API per inviare il messaggio di richiesta lavoro
-    // sendJobRequest(character.id, targetArtisan, hostItem.id, selectedModId, offerCredits)
-    alert(`Richiesta inviata a ${targetArtisan} per ${offerCredits} crediti! (Simulazione)`);
-    onClose();
+    if (!targetArtisan) {
+        setError("Inserisci il nome dell'artigiano.");
+        return;
+    }
+    setIsSendingRequest(true);
+    try {
+        await axios.post(`${API_BASE}/richieste-assemblaggio/crea/`, {
+            committente_id: selectedCharacterData.id,
+            host_id: hostItem.id,
+            comp_id: selectedMod.id,
+            artigiano_nome: targetArtisan,
+            offerta: offerCredits
+        });
+        setSuccess(`Richiesta inviata a ${targetArtisan}! Attendi la sua approvazione.`);
+        setTimeout(() => { onClose(); }, 2000);
+    } catch (err) {
+        setError(err.response?.data?.error || "Errore invio richiesta. Verifica il nome.");
+    } finally {
+        setIsSendingRequest(false);
+    }
   };
 
+  // --- RENDER ---
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-800 border border-gray-600 rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-gray-800 border border-gray-600 rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] animate-fadeIn">
         
         {/* Header */}
-        <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
+        <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center rounded-t-xl">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Wrench className="text-amber-400" />
-                Assembla: {hostItem.nome}
+                <Wrench className="text-amber-400" size={20}/>
+                Assemblaggio: <span className="text-amber-100">{hostItem.nome}</span>
             </h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors"><X size={24} /></button>
         </div>
 
         {/* Body */}
-        <div className="p-4 overflow-y-auto grow space-y-4">
-            {/* Info Host */}
-            <div className="bg-gray-700/50 p-3 rounded border border-gray-600">
-                <p className="text-sm text-gray-300">Tipo: <span className="text-white font-mono">{hostItem.is_tecnologico ? 'TECNOLOGICO' : 'MONDANO'}</span></p>
-                <p className="text-sm text-gray-300">Slot usati: <span className="text-white">{hostItem.mods_installate?.length || 0} / {hostItem.slot_mod || 1}</span></p>
+        <div className="p-5 overflow-y-auto grow space-y-6">
+            
+            {/* 1. Info Host */}
+            <div className="flex gap-4 items-center bg-gray-700/30 p-3 rounded-lg border border-gray-600">
+                <div className={`p-2 rounded-full ${hostItem.is_tecnologico ? 'bg-cyan-900/50 text-cyan-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
+                    {hostItem.is_tecnologico ? <Cpu size={24} /> : <UserCheck size={24} />}
+                </div>
+                <div>
+                    <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">
+                        {hostItem.is_tecnologico ? 'Tecnologico (Richiede Mod)' : 'Mondano (Richiede Materia)'}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                        Slot Disponibili: <span className="font-mono font-bold text-white">
+                             {/* Nota: hostItem.potenziamenti_installati è un array nel JSON serializzato */}
+                             {hostItem.potenziamenti_installati ? hostItem.potenziamenti_installati.length : 0} 
+                             / {hostItem.classe_oggetto_nome ? 'MAX CLASSE' : '1'}
+                        </span>
+                    </p>
+                </div>
             </div>
 
-            {/* Selezione Mod */}
+            {/* 2. Selezione Componente */}
             <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Seleziona Componente (Mod/Materia)</label>
+                <label className="block text-sm font-bold text-gray-300 mb-2">Seleziona Componente</label>
                 <select 
-                    className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
+                    className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                     onChange={(e) => setSelectedModId(e.target.value)}
                     value={selectedModId}
                 >
@@ -134,81 +168,111 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                         </option>
                     ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                    Vengono mostrati solo componenti compatibili per tipo (Mod/Materia).
+                </p>
             </div>
 
-            {/* Preview Validazione */}
+            {/* 3. Box di Validazione */}
             {selectedMod && (
-                <div className={`p-3 rounded border ${validationResult.valid ? 'bg-green-900/20 border-green-800' : 'bg-red-900/20 border-red-800'}`}>
-                    {!validationResult.valid ? (
-                        <p className="text-red-400 text-sm flex items-center gap-2">
-                            <ShieldAlert size={16} /> {validationResult.reason}
-                        </p>
-                    ) : (
-                        <div>
-                             <p className="text-green-400 text-sm mb-2">Compatibilità Hardware: OK</p>
-                             {validationResult.requiresExternalHelp ? (
-                                <p className="text-yellow-400 text-sm flex items-center gap-2">
-                                    <ShieldAlert size={16} /> Non hai le competenze per assemblarlo.
-                                </p>
-                             ) : (
-                                <p className="text-blue-400 text-sm flex items-center gap-2">
-                                    <Cpu size={16} /> Hai le competenze necessarie.
-                                </p>
-                             )}
+                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                    {isValidating ? (
+                        <div className="flex items-center gap-2 text-indigo-400 text-sm">
+                            <Loader2 className="animate-spin" size={16} /> Verifica compatibilità e competenze...
                         </div>
-                    )}
+                    ) : validationData ? (
+                        <>
+                            {validationData.can_assemble_self ? (
+                                <div className="text-emerald-400 flex items-start gap-2 text-sm">
+                                    <Cpu className="shrink-0 mt-0.5" size={18} />
+                                    <div>
+                                        <span className="font-bold">Compatibile.</span>
+                                        <p className="text-emerald-400/70 text-xs mt-1">
+                                            Hai le competenze necessarie per assemblare questo oggetto.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="text-amber-400 flex items-start gap-2 text-sm">
+                                        <ShieldAlert className="shrink-0 mt-0.5" size={18} />
+                                        <div>
+                                            <span className="font-bold">Competenze Insufficienti.</span>
+                                            <p className="text-amber-400/80 text-xs mt-1">
+                                                {validationData.reason_self}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Form Richiesta Artigiano */}
+                                    <div className="pt-3 border-t border-gray-700 animate-fadeIn">
+                                        <p className="text-white text-sm font-bold mb-2">Richiedi assistenza a un Artigiano:</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <input 
+                                                type="text" 
+                                                placeholder="Nome Personaggio Artigiano" 
+                                                className="bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white"
+                                                value={targetArtisan}
+                                                onChange={e => setTargetArtisan(e.target.value)}
+                                            />
+                                            <div className="relative">
+                                                <Coins className="absolute left-2 top-2.5 text-yellow-500" size={14}/>
+                                                <input 
+                                                    type="number" 
+                                                    placeholder="Offerta Crediti" 
+                                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 pl-8 text-sm text-white"
+                                                    value={offerCredits}
+                                                    onChange={e => setOfferCredits(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    ) : null}
                 </div>
             )}
 
-            {/* UI Richiesta Esterna (Se necessario) */}
-            {selectedMod && validationResult.valid && validationResult.requiresExternalHelp && (
-                 <div className="mt-4 border-t border-gray-600 pt-4">
-                    <h4 className="text-white font-bold mb-2">Richiedi Assemblaggio</h4>
-                    <input 
-                        type="text" 
-                        placeholder="Nome Artigiano (o ID)" 
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 mb-2 text-white"
-                        value={targetArtisan}
-                        onChange={e => setTargetArtisan(e.target.value)}
-                    />
-                    <div className="flex items-center gap-2">
-                        <span className="text-gray-400 text-sm">Offerta Crediti:</span>
-                        <input 
-                            type="number" 
-                            className="w-24 bg-gray-900 border border-gray-600 rounded p-2 text-white"
-                            value={offerCredits}
-                            onChange={e => setOfferCredits(e.target.value)}
-                        />
-                    </div>
-                 </div>
+            {/* Messaggi Errore/Successo */}
+            {error && (
+                <div className="p-3 bg-red-900/30 border border-red-800 rounded text-red-200 text-sm flex items-center gap-2">
+                    <ShieldAlert size={16} /> {error}
+                </div>
+            )}
+            {success && (
+                <div className="p-3 bg-emerald-900/30 border border-emerald-800 rounded text-emerald-200 text-sm font-bold text-center">
+                    {success}
+                </div>
             )}
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-            {success && <p className="text-green-400 text-sm font-bold">{success}</p>}
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 bg-gray-900 border-t border-gray-700 flex justify-end gap-2">
-            {selectedMod && validationResult.valid ? (
-                validationResult.requiresExternalHelp ? (
+        {/* Footer */}
+        <div className="p-4 bg-gray-900 border-t border-gray-700 rounded-b-xl flex justify-end gap-3">
+            {selectedMod && !isValidating && validationData && (
+                validationData.can_assemble_self ? (
                     <button 
-                        onClick={handleSendRequest}
-                        className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded flex items-center gap-2"
+                        onClick={handleSelfAssembly}
+                        disabled={isLoading}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                     >
-                        <Send size={18} /> Invia Richiesta
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Wrench size={18} />}
+                        Assembla Ora
                     </button>
                 ) : (
                     <button 
-                        onClick={handleAssembla}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded flex items-center gap-2"
+                        onClick={handleSendRequest}
+                        disabled={isSendingRequest}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg shadow-indigo-900/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                     >
-                        <Wrench size={18} /> Assembla Ora
+                        {isSendingRequest ? <Loader2 className="animate-spin" /> : <Send size={18} />}
+                        Invia Richiesta
                     </button>
                 )
-            ) : (
-                <button disabled className="bg-gray-700 text-gray-500 px-4 py-2 rounded cursor-not-allowed">
-                    Assembla
-                </button>
+            )}
+            {!selectedMod && (
+                 <span className="text-gray-500 text-sm self-center italic mr-2">Seleziona componenti...</span>
             )}
         </div>
       </div>

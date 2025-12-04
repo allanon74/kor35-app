@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { equipaggiaOggetto } from '../api'; 
 import { useCharacter } from './CharacterContext';
-// Aggiunto Loader2 agli import per evitare il crash
-import { ShoppingBag, Box, Shield, Zap, Loader2 } from 'lucide-react';
+// AGGIUNTA: Wrench icona per assemblaggio
+import { ShoppingBag, Box, Shield, Zap, Loader2, Wrench } from 'lucide-react';
 import ShopModal from './ShopModal';
+// AGGIUNTA: Importa la modale
+import ItemAssemblyModal from './ItemAssemblyModal';
 
 const InventoryTab = ({ onLogout }) => {
-  // Recupera i dati del personaggio dal Context
   const { selectedCharacterData: characterData, isLoading: isContextLoading } = useCharacter();
   
-  // Stati locali per la gestione dell'inventario
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showShop, setShowShop] = useState(false);
 
-  // Sincronizza lo stato locale con i dati del context quando cambiano
+  // --- AGGIUNTA: Stati per modale assemblaggio ---
+  const [showAssembly, setShowAssembly] = useState(false);
+  const [assemblyHost, setAssemblyHost] = useState(null);
+
   useEffect(() => {
     if (characterData?.oggetti) {
       setItems(characterData.oggetti);
@@ -23,14 +26,11 @@ const InventoryTab = ({ onLogout }) => {
     }
   }, [characterData]);
 
-  // Gestione dell'azione Equipaggia/Rimuovi
   const handleToggleEquip = async (itemId) => {
-    if (isLoading) return; // Previene click multipli
+    if (isLoading) return;
     setIsLoading(true);
     try {
       await equipaggiaOggetto(itemId, characterData.id, onLogout);
-      // Ricarica la pagina per aggiornare i dati (soluzione temporanea ma sicura)
-      // In futuro, meglio usare una funzione di refresh del context
       window.location.reload(); 
     } catch (error) {
       console.error("Errore equipaggiamento:", error);
@@ -40,11 +40,25 @@ const InventoryTab = ({ onLogout }) => {
     }
   };
 
-  // Funzione helper per renderizzare una singola card oggetto
+  // --- AGGIUNTA: Handler per apertura modale ---
+  const handleOpenAssembly = (item) => {
+    setAssemblyHost(item);
+    setShowAssembly(true);
+  };
+
+  // --- AGGIUNTA: Callback per refresh dopo assemblaggio ---
+  const handleAssemblyComplete = () => {
+    window.location.reload(); // Refresh brutale ma efficace per ricaricare i dati aggiornati
+  };
+
   const renderItemCard = (item) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
     const isEquipped = item.is_equipaggiato;
     
+    // Logica visualizzazione bottone "Modifica":
+    // Deve essere un oggetto fisico e avere una classe (quindi supportare mod/materia)
+    const canBeModified = isPhysical && item.classe_oggetto_nome;
+
     return (
       <div 
         key={item.id} 
@@ -55,7 +69,7 @@ const InventoryTab = ({ onLogout }) => {
         }`}
       >
         <div className="grow">
-          {/* Intestazione Card: Nome e Badge Equipaggiato */}
+          {/* Intestazione Card */}
           <div className="flex items-center gap-2 mb-1">
              <h4 className={`font-bold text-base ${isEquipped ? 'text-emerald-300' : 'text-gray-200'}`}>
                {item.nome}
@@ -79,7 +93,7 @@ const InventoryTab = ({ onLogout }) => {
              )}
           </div>
 
-          {/* Descrizione / Testo Formattato (HTML sicuro) */}
+          {/* Descrizione */}
           <div className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none leading-snug">
              {item.testo_formattato_personaggio ? (
                 <div dangerouslySetInnerHTML={{ __html: item.testo_formattato_personaggio }} />
@@ -88,7 +102,7 @@ const InventoryTab = ({ onLogout }) => {
              )}
           </div>
 
-          {/* Sezione Potenziamenti (Mod/Materia installate) */}
+          {/* Sezione Potenziamenti */}
           {item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
             <div className="mt-2 pl-2 border-l-2 border-indigo-500/30">
               <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1 flex items-center gap-1">
@@ -105,8 +119,19 @@ const InventoryTab = ({ onLogout }) => {
           )}
         </div>
 
-        {/* Pulsanti Azione (Solo per oggetti fisici equipaggiabili) */}
+        {/* Pulsanti Azione */}
         <div className="shrink-0 flex flex-col gap-2 w-full sm:w-auto">
+          
+          {/* --- AGGIUNTA: Bottone Modifica --- */}
+          {canBeModified && (
+            <button
+                onClick={() => handleOpenAssembly(item)}
+                className="px-4 py-2 rounded text-sm font-bold shadow-sm transition-all active:scale-95 w-full sm:w-auto bg-gray-700 hover:bg-gray-600 text-amber-400 border border-gray-600 flex items-center justify-center gap-2"
+            >
+                <Wrench size={16} /> <span className="sm:hidden lg:inline">Modifica</span>
+            </button>
+          )}
+
           {isPhysical && (
             <button 
               onClick={() => handleToggleEquip(item.id)}
@@ -139,7 +164,6 @@ const InventoryTab = ({ onLogout }) => {
     return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
   }
 
-  // Suddivisione Oggetti in Categorie
   const corpoItems = items.filter(i => ['INN', 'MUT'].includes(i.tipo_oggetto));
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
@@ -147,7 +171,7 @@ const InventoryTab = ({ onLogout }) => {
   return (
     <div className="pb-24 px-1 space-y-6 animate-fadeIn">
       
-      {/* HEADER: Titolo e Tasto Negozio */}
+      {/* HEADER */}
       <div className="flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm mb-4">
          <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Box className="text-indigo-400" />
@@ -162,42 +186,36 @@ const InventoryTab = ({ onLogout }) => {
          </button>
       </div>
 
-      {/* SEZIONE 1: Innesti & Mutazioni (Corpo) */}
+      {/* SEZIONE 1: Innesti & Mutazioni */}
       <section>
         <h3 className="text-sm font-bold text-indigo-300 mb-2 flex items-center gap-2 uppercase tracking-wider pl-1">
           <span>🧬</span> Innesti & Mutazioni
         </h3>
-        {corpoItems.length > 0 ? (
-          corpoItems.map(renderItemCard)
-        ) : (
+        {corpoItems.length > 0 ? corpoItems.map(renderItemCard) : (
           <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">
             Nessun potenziamento corporeo installato.
           </p>
         )}
       </section>
 
-      {/* SEZIONE 2: Equipaggiamento Attivo (Mani/Indossato) */}
+      {/* SEZIONE 2: Equipaggiamento Attivo */}
       <section>
         <h3 className="text-sm font-bold text-emerald-300 mb-2 flex items-center gap-2 uppercase tracking-wider pl-1">
           <span>⚔️</span> Equipaggiamento Attivo
         </h3>
-        {equipItems.length > 0 ? (
-          equipItems.map(renderItemCard)
-        ) : (
+        {equipItems.length > 0 ? equipItems.map(renderItemCard) : (
           <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">
             Mani vuote. Equipaggia qualcosa dallo zaino.
           </p>
         )}
       </section>
 
-      {/* SEZIONE 3: Zaino (Oggetti non equipaggiati) */}
+      {/* SEZIONE 3: Zaino */}
       <section>
         <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center gap-2 uppercase tracking-wider pl-1">
           <span>🎒</span> Zaino
         </h3>
-        {zainoItems.length > 0 ? (
-          zainoItems.map(renderItemCard)
-        ) : (
+        {zainoItems.length > 0 ? zainoItems.map(renderItemCard) : (
           <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">
             Zaino vuoto. Visita il negozio!
           </p>
@@ -206,6 +224,19 @@ const InventoryTab = ({ onLogout }) => {
 
       {/* Modale Shop */}
       {showShop && <ShopModal onClose={() => setShowShop(false)} />}
+
+      {/* --- AGGIUNTA: Modale Assemblaggio --- */}
+      {showAssembly && assemblyHost && (
+        <ItemAssemblyModal 
+            hostItem={assemblyHost}
+            inventory={items} // Passiamo l'intero inventario, la modale filtrerà mod/materia
+            onClose={() => {
+                setShowAssembly(false);
+                setAssemblyHost(null);
+            }}
+            onRefresh={handleAssemblyComplete}
+        />
+      )}
     </div>
   );
 };
