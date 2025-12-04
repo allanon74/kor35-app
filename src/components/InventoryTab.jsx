@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { equipaggiaOggetto } from '../api'; 
 import { useCharacter } from './CharacterContext';
-import { ShoppingBag, Box, Shield, Zap } from 'lucide-react';
+// Aggiunto Loader2 agli import per evitare il crash
+import { ShoppingBag, Box, Shield, Zap, Loader2 } from 'lucide-react';
 import ShopModal from './ShopModal';
 
 const InventoryTab = ({ onLogout }) => {
-  const { characterData, isLoading: isContextLoading } = useCharacter();
+  // Recupera i dati del personaggio dal Context
+  const { selectedCharacterData: characterData, isLoading: isContextLoading } = useCharacter();
   
+  // Stati locali per la gestione dell'inventario
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showShop, setShowShop] = useState(false);
 
+  // Sincronizza lo stato locale con i dati del context quando cambiano
   useEffect(() => {
     if (characterData?.oggetti) {
       setItems(characterData.oggetti);
@@ -19,13 +23,14 @@ const InventoryTab = ({ onLogout }) => {
     }
   }, [characterData]);
 
+  // Gestione dell'azione Equipaggia/Rimuovi
   const handleToggleEquip = async (itemId) => {
-    if (isLoading) return;
+    if (isLoading) return; // Previene click multipli
     setIsLoading(true);
     try {
       await equipaggiaOggetto(itemId, characterData.id, onLogout);
-      // Nota: un reload completo è sicuro ma grezzo. 
-      // Se hai implementato refreshCharacterData nel context, sarebbe meglio usare quello.
+      // Ricarica la pagina per aggiornare i dati (soluzione temporanea ma sicura)
+      // In futuro, meglio usare una funzione di refresh del context
       window.location.reload(); 
     } catch (error) {
       console.error("Errore equipaggiamento:", error);
@@ -35,6 +40,7 @@ const InventoryTab = ({ onLogout }) => {
     }
   };
 
+  // Funzione helper per renderizzare una singola card oggetto
   const renderItemCard = (item) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
     const isEquipped = item.is_equipaggiato;
@@ -49,6 +55,7 @@ const InventoryTab = ({ onLogout }) => {
         }`}
       >
         <div className="grow">
+          {/* Intestazione Card: Nome e Badge Equipaggiato */}
           <div className="flex items-center gap-2 mb-1">
              <h4 className={`font-bold text-base ${isEquipped ? 'text-emerald-300' : 'text-gray-200'}`}>
                {item.nome}
@@ -60,6 +67,7 @@ const InventoryTab = ({ onLogout }) => {
              )}
           </div>
           
+          {/* Badge Tipo e Classe */}
           <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-2">
              <span className="bg-gray-900 px-2 py-0.5 rounded border border-gray-700">
                {item.tipo_oggetto_display}
@@ -71,7 +79,7 @@ const InventoryTab = ({ onLogout }) => {
              )}
           </div>
 
-          {/* Descrizione / Testo */}
+          {/* Descrizione / Testo Formattato (HTML sicuro) */}
           <div className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none leading-snug">
              {item.testo_formattato_personaggio ? (
                 <div dangerouslySetInnerHTML={{ __html: item.testo_formattato_personaggio }} />
@@ -80,7 +88,7 @@ const InventoryTab = ({ onLogout }) => {
              )}
           </div>
 
-          {/* Potenziamenti (Mod/Materia) */}
+          {/* Sezione Potenziamenti (Mod/Materia installate) */}
           {item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
             <div className="mt-2 pl-2 border-l-2 border-indigo-500/30">
               <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1 flex items-center gap-1">
@@ -97,7 +105,7 @@ const InventoryTab = ({ onLogout }) => {
           )}
         </div>
 
-        {/* Azioni */}
+        {/* Pulsanti Azione (Solo per oggetti fisici equipaggiabili) */}
         <div className="shrink-0 flex flex-col gap-2 w-full sm:w-auto">
           {isPhysical && (
             <button 
@@ -117,10 +125,21 @@ const InventoryTab = ({ onLogout }) => {
     );
   };
 
-  if (isContextLoading) return <div className="p-8 text-center text-gray-500 flex justify-center"><Loader2 className="animate-spin" /></div>;
-  if (!characterData) return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
+  // --- Render Principale ---
+  
+  if (isContextLoading) {
+    return (
+      <div className="p-8 text-center text-gray-500 flex justify-center">
+        <Loader2 className="animate-spin" />
+      </div>
+    );
+  }
+  
+  if (!characterData) {
+    return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
+  }
 
-  // Filtri categorie
+  // Suddivisione Oggetti in Categorie
   const corpoItems = items.filter(i => ['INN', 'MUT'].includes(i.tipo_oggetto));
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
@@ -128,7 +147,7 @@ const InventoryTab = ({ onLogout }) => {
   return (
     <div className="pb-24 px-1 space-y-6 animate-fadeIn">
       
-      {/* HEADER con Tasto Negozio */}
+      {/* HEADER: Titolo e Tasto Negozio */}
       <div className="flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm mb-4">
          <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Box className="text-indigo-400" />
@@ -143,7 +162,7 @@ const InventoryTab = ({ onLogout }) => {
          </button>
       </div>
 
-      {/* Sezione Corpo */}
+      {/* SEZIONE 1: Innesti & Mutazioni (Corpo) */}
       <section>
         <h3 className="text-sm font-bold text-indigo-300 mb-2 flex items-center gap-2 uppercase tracking-wider pl-1">
           <span>🧬</span> Innesti & Mutazioni
@@ -157,7 +176,7 @@ const InventoryTab = ({ onLogout }) => {
         )}
       </section>
 
-      {/* Sezione Equipaggiati */}
+      {/* SEZIONE 2: Equipaggiamento Attivo (Mani/Indossato) */}
       <section>
         <h3 className="text-sm font-bold text-emerald-300 mb-2 flex items-center gap-2 uppercase tracking-wider pl-1">
           <span>⚔️</span> Equipaggiamento Attivo
@@ -171,7 +190,7 @@ const InventoryTab = ({ onLogout }) => {
         )}
       </section>
 
-      {/* Sezione Zaino */}
+      {/* SEZIONE 3: Zaino (Oggetti non equipaggiati) */}
       <section>
         <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center gap-2 uppercase tracking-wider pl-1">
           <span>🎒</span> Zaino
