@@ -30,7 +30,7 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     const isTechHost = hostItem.is_tecnologico;
     // Modifica: Aggiungi controllo null safe su tipo_oggetto
     if (isTechHost && item.tipo_oggetto === 'MOD') return true;
-    if (!isTechHost && item.tipo_oggetto === 'MATERIA') return true;
+    if (!isTechHost && item.tipo_oggetto === 'MAT') return true;
     return false;
   });
 
