@@ -47,12 +47,28 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     if (!selectedMod || !selectedCharacterData) return;
 
     const validate = async () => {
+        console.log("AVVIO VALIDAZIONE..."); //DEBUG
       setIsValidating(true);
       setError(null);
       try {
+        console.log("Chiamata API con:", { 
+            char: selectedCharacterData.id, 
+            host: hostItem.id, 
+            mod: selectedMod.id 
+        }); //DEBUG
         // CORREZIONE 2: Usa la funzione importata da api.js invece di axios
         const data = await validateAssembly(selectedCharacterData.id, hostItem.id, selectedMod.id);
-        setValidationData(data);
+
+        console.log("RISPOSTA API RICEVUTA:", data); // <--- DEBUG
+
+        if (!data) {
+            console.error("ERRORE: I dati ricevuti sono vuoti (null/undefined)!");
+            setError("Errore di comunicazione: risposta vuota dal server.");
+        } else {
+            setValidationData(data);
+        } //DEBUG se spento, riattivare la riga dopo
+
+        // setValidationData(data);
       } catch (err) {
         console.error(err);
         setError("Impossibile verificare compatibilità remota.");
