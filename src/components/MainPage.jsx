@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// --- LOGICA PWA: Import necessario per gestire gli aggiornamenti ---
+// --- LOGICA PWA ---
 import { useRegisterSW } from 'virtual:pwa-register/react'; 
 
 import HomeTab from './HomeTab.jsx';
@@ -20,7 +20,9 @@ import {
     UserCog,    
     RefreshCw,  
     Filter,
-    DownloadCloud // Nuova icona per l'aggiornamento
+    DownloadCloud,
+    ScrollText,    // Icona per i Log
+    ArrowRightLeft // Icona per le Transazioni
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -29,15 +31,16 @@ import InfusioniTab from './InfusioniTab.jsx';
 import TessitureTab from './TessitureTab.jsx'; 
 import AdminMessageTab from './AdminMessageTab.jsx';
 import InventoryTab from './InventoryTab.jsx';
+// --- NUOVI COMPONENTI RECUPERATI ---
+import LogViewer from './LogViewer.jsx';
+import TransazioniViewer from './TransazioniViewer.jsx';
 
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // --- LOGICA PWA: Hook per gestire il Service Worker ---
-  // needRefresh: diventa true se c'è una nuova versione sul server
-  // updateServiceWorker: funzione da chiamare per forzare l'aggiornamento
+  // --- LOGICA PWA ---
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -100,7 +103,6 @@ const MainPage = ({ token, onLogout }) => {
   };
 
   // --- CALCOLO NOTIFICHE GLOBALI ---
-  // Rosso: Messaggi/Admin. Blu: Aggiornamento App disponibile.
   const hasUrgentNotification = unreadCount > 0 || (isAdmin && adminPendingCount > 0);
   
   const renderTabContent = () => {
@@ -113,6 +115,11 @@ const MainPage = ({ token, onLogout }) => {
       case 'messaggi': return <MessaggiTab onLogout={onLogout} />;
       case 'admin_msg': return <AdminMessageTab onLogout={onLogout} />;
       case 'inventario': return <InventoryTab onLogout={onLogout} />;
+      
+      // --- NUOVE TAB ---
+      case 'logs': return <div className="p-4 h-full overflow-y-auto"><LogViewer charId={selectedCharacterId} /></div>;
+      case 'transazioni': return <div className="p-4 h-full overflow-y-auto"><TransazioniViewer charId={selectedCharacterId} /></div>;
+      
       default: return <HomeTab />;
     }
   };
@@ -131,6 +138,10 @@ const MainPage = ({ token, onLogout }) => {
                     <Filter size={18} /> Filtra per Peso
                 </button>
             );
+        case 'logs':
+            return <p className="text-gray-500 text-xs italic p-2">Visualizzazione cronologica eventi.</p>;
+        case 'transazioni':
+            return <p className="text-gray-500 text-xs italic p-2">Storico movimenti economici.</p>;
         default:
             return <p className="text-gray-500 text-sm italic p-2">Nessuna azione rapida disponibile.</p>;
     }
@@ -159,7 +170,7 @@ const MainPage = ({ token, onLogout }) => {
                 <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-red-500 animate-pulse" />
             )}
             
-            {/* Bollino Blu: Aggiornamento App Disponibile (se non c'è quello rosso) */}
+            {/* Bollino Blu: Aggiornamento App Disponibile */}
             {!hasUrgentNotification && needRefresh && (
                 <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-blue-500 animate-bounce" />
             )}
@@ -185,14 +196,14 @@ const MainPage = ({ token, onLogout }) => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
-            {/* --- SEZIONE AGGIORNAMENTO APP (Visibile solo se necessario) --- */}
+            {/* --- SEZIONE AGGIORNAMENTO APP --- */}
             {needRefresh && (
                 <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 animate-in fade-in slide-in-from-right-4">
                     <div className="flex items-start gap-3 mb-3">
                         <DownloadCloud className="text-blue-400 shrink-0" size={24} />
                         <div>
                             <h3 className="font-bold text-blue-100 text-sm">Aggiornamento Disponibile</h3>
-                            <p className="text-xs text-blue-200 mt-1">Una nuova versione dell'app è disponibile sul server.</p>
+                            <p className="text-xs text-blue-200 mt-1">Una nuova versione è disponibile.</p>
                         </div>
                     </div>
                     <button 
@@ -231,7 +242,28 @@ const MainPage = ({ token, onLogout }) => {
                 </div>
             </div>
 
-            {/* SEZIONE 2: NAVIGAZIONE RAPIDA & NOTIFICHE */}
+            {/* SEZIONE 2: STORIA E ECONOMIA (Nuova Sezione) */}
+            <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Storia e Economia</h3>
+                <nav className="space-y-2">
+                    <button 
+                        onClick={() => handleMenuNavigation('logs')}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${activeTab === 'logs' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                    >
+                        <ScrollText size={20} className="text-yellow-400" />
+                        <span>Diario Eventi (Logs)</span>
+                    </button>
+                    <button 
+                        onClick={() => handleMenuNavigation('transazioni')}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${activeTab === 'transazioni' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                    >
+                        <ArrowRightLeft size={20} className="text-green-400" />
+                        <span>Transazioni</span>
+                    </button>
+                </nav>
+            </div>
+
+            {/* SEZIONE 3: COMUNICAZIONI */}
             <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Comunicazioni</h3>
                 <nav className="space-y-2">
@@ -269,7 +301,7 @@ const MainPage = ({ token, onLogout }) => {
                 </nav>
             </div>
 
-            {/* SEZIONE 3: AZIONI CONTESTUALI */}
+            {/* SEZIONE 4: AZIONI CONTESTUALI */}
             <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Azioni Tab Corrente ({activeTab})</h3>
                 <div className="bg-gray-700/50 rounded-lg p-2 border border-gray-700">
