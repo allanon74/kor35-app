@@ -463,13 +463,13 @@ export const craftOggetto = (infusioneId) => {
   });
 };
 
-// Monta un potenziamento (Mod/Materia) su un oggetto ospite
-export const montaPotenziamento = (ospiteId, potenziamentoId) => {
-  return fetchAuthenticated(`/api/oggetti/${ospiteId}/monta/`, {
-    method: 'POST',
-    body: JSON.stringify({ potenziamento_id: potenziamentoId })
-  });
-};
+// // Monta un potenziamento (Mod/Materia) su un oggetto ospite
+// export const montaPotenziamento = (ospiteId, potenziamentoId) => {
+//   return fetchAuthenticated(`/api/oggetti/${ospiteId}/monta/`, {
+//     method: 'POST',
+//     body: JSON.stringify({ potenziamento_id: potenziamentoId })
+//   });
+// };
 
 // Smonta un potenziamento
 export const smontaPotenziamento = (ospiteId, potenziamentoId) => {
