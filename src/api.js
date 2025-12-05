@@ -530,6 +530,22 @@ export const assemblaOggetto = (hostId, modId, characterId, useAcademy = false, 
   );
 };
 
+export const smontaOggetto = (hostId, modId, characterId, useAcademy = false, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/smonta/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        host_id: hostId, 
+        mod_id: modId,
+        char_id: characterId,
+        use_academy: useAcademy
+      })
+    },
+    onLogout
+  );
+};
+
 // Se hai bisogno del crafting nel frontend in futuro:
 export const craftOggettoFromInfusione = (infusioneId, targetId, qrCode, onLogout) => {
   return fetchAuthenticated(

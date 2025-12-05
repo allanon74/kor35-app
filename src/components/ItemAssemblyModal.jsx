@@ -1,33 +1,32 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Wrench, Send, ShieldAlert, Cpu, UserCheck, Loader2, Coins, GraduationCap, User } from 'lucide-react';
+import { X, Wrench, Send, ShieldAlert, Cpu, UserCheck, Loader2, Coins, GraduationCap, Trash2, ArrowRight } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
-// Assicurati di importare la nuova funzione getCapableArtisans
-import { assemblaOggetto, validateAssembly, createAssemblyRequest, getCapableArtisans } from '../api'; 
+// Importa anche smontaOggetto
+import { assemblaOggetto, smontaOggetto, validateAssembly, createAssemblyRequest, getCapableArtisans } from '../api'; 
 
 const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   const { selectedCharacterData } = useCharacter();
   
-  // Stati selezione
-  const [selectedModId, setSelectedModId] = useState('');
-  const [selectedMod, setSelectedMod] = useState(null);
+  // --- STATI ---
+  const [mode, setMode] = useState('INSTALL'); // 'INSTALL' o 'REMOVE'
+  const [selectedMod, setSelectedMod] = useState(null); // Oggetto selezionato (dallo zaino o installato)
   
-  // Stati validazione e Artigiani
+  // Stati validazione
   const [isValidating, setIsValidating] = useState(false);
   const [validationData, setValidationData] = useState(null);
   const [capableArtisans, setCapableArtisans] = useState([]);
   const [isLoadingArtisans, setIsLoadingArtisans] = useState(false);
   
-  // Stati Input Utente
-  const [selectedTarget, setSelectedTarget] = useState(''); // Può essere ID artigiano o "ACADEMY"
+  // Input Utente
+  const [selectedTarget, setSelectedTarget] = useState(''); 
   const [offerCredits, setOfferCredits] = useState(0);
   
-  // Stati operazione
-  const [isSendingRequest, setIsSendingRequest] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Per assemblaggio diretto/accademia
+  // Loading e Feedback
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // Filtro oggetti compatibili (come prima)
+  // Filtro oggetti installabili (Zaino)
   const compatibleItems = useMemo(() => {
     return inventory.filter(item => {
         if (item.id === hostItem.id) return false;
@@ -38,39 +37,39 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     });
   }, [inventory, hostItem]);
 
-  // Reset selezione quando cambia mod
+  // Lista oggetti già installati
+  const installedMods = hostItem.potenziamenti_installati || [];
+
+  // Reset parziale quando cambia selezione
   useEffect(() => {
-    const item = compatibleItems.find(i => i.id == selectedModId);
-    setSelectedMod(item || null);
     setValidationData(null);
-    setCapableArtisans([]); // Reset lista artigiani
+    setCapableArtisans([]);
     setSelectedTarget('');
     setError(null);
     setSuccess(null);
-  }, [selectedModId, compatibleItems]);
+  }, [selectedMod, mode]);
 
-  // Validazione + Fetch Artigiani
+  // --- VALIDAZIONE AUTOMATICA ---
+  // Verifica i requisiti sia per montare che per smontare (sono gli stessi!)
   useEffect(() => {
     if (!selectedMod || !selectedCharacterData) return;
 
     const runChecks = async () => {
       setIsValidating(true);
       setIsLoadingArtisans(true);
-      setError(null);
       
       try {
-        // 1. Verifica se IO posso farlo
+        // Usa la stessa API di validazione per entrambi i casi
         const valData = await validateAssembly(selectedCharacterData.id, hostItem.id, selectedMod.id);
         setValidationData(valData);
 
-        // 2. Se NON posso farlo, cerca chi può farlo
+        // Se non ho skill, cerco aiuto
         if (valData && !valData.can_assemble_self) {
             const artisans = await getCapableArtisans(selectedCharacterData.id, hostItem.id, selectedMod.id);
             setCapableArtisans(artisans || []);
         }
       } catch (err) {
         console.error("Errore controlli:", err);
-        setError("Errore durante la verifica dei requisiti.");
       } finally {
         setIsValidating(false);
         setIsLoadingArtisans(false);
@@ -81,54 +80,85 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     return () => clearTimeout(timer);
   }, [selectedMod, hostItem, selectedCharacterData]);
 
-  // --- AZIONE: ASSEMBLA DA SOLO o TRAMITE ACCADEMIA ---
-  const handleDirectAssembly = async () => {
+  // --- HANDLER SELEZIONE MOD INSTALLATO ---
+  const handleSelectInstalled = (mod) => {
+      if (selectedMod?.id === mod.id && mode === 'REMOVE') {
+          // Deseleziona
+          setSelectedMod(null);
+          setMode('INSTALL');
+      } else {
+          // Seleziona per rimozione
+          setMode('REMOVE');
+          setSelectedMod(mod);
+      }
+  };
+
+  // --- HANDLER SELEZIONE DA ZAINO ---
+  const handleSelectInventory = (e) => {
+      const modId = e.target.value;
+      if (!modId) {
+          setSelectedMod(null);
+          return;
+      }
+      const item = compatibleItems.find(i => i.id == modId);
+      setMode('INSTALL');
+      setSelectedMod(item);
+  };
+
+  // --- AZIONE PRINCIPALE (Monta o Smonta) ---
+  const handleExecuteAction = async () => {
     if (!selectedMod) return;
     
-    // Distinguiamo se è un assemblaggio Skill Personale o Accademia
     const isAcademy = selectedTarget === 'ACADEMY';
-    
-    setIsLoading(true);
+    setIsProcessing(true);
+    setError(null);
+
     try {
-      // Passiamo il flag useAcademy (true se scelto Accademia)
-      await assemblaOggetto(hostItem.id, selectedMod.id, selectedCharacterData.id, isAcademy);
-      
-      setSuccess(isAcademy ? "Lavoro completato dall'Accademia!" : "Oggetto assemblato con successo!");
-      setTimeout(() => { onRefresh(); onClose(); }, 1500);
+        if (mode === 'INSTALL') {
+            await assemblaOggetto(hostItem.id, selectedMod.id, selectedCharacterData.id, isAcademy);
+            setSuccess(isAcademy ? "Installato via Accademia!" : "Installazione completata!");
+        } else {
+            await smontaOggetto(hostItem.id, selectedMod.id, selectedCharacterData.id, isAcademy);
+            setSuccess(isAcademy ? "Smontato via Accademia!" : "Smontaggio completato!");
+        }
+        
+        setTimeout(() => { onRefresh(); onClose(); }, 1500);
     } catch (err) {
-      setError(err.message || "Errore durante l'assemblaggio.");
+        setError(err.message || "Operazione fallita.");
     } finally {
-      setIsLoading(false);
+        setIsProcessing(false);
     }
   };
 
-  // --- AZIONE: INVIA RICHIESTA ARTIGIANO ---
+  // --- AZIONE RICHIESTA ESTERNA ---
   const handleSendRequest = async () => {
-    if (!selectedTarget || selectedTarget === 'ACADEMY') return;
-    
-    // Trova il nome dell'artigiano selezionato
-    const artisanObj = capableArtisans.find(a => a.id.toString() === selectedTarget);
-    if (!artisanObj) {
-        setError("Artigiano non valido.");
-        return;
-    }
+      // Logica richiesta (simile a prima, ma gestiamo solo montaggio per ora o adattiamo backend)
+      // Nota: Per ora il backend delle richieste supporta solo assemblaggio.
+      // Se vuoi supportare richieste di smontaggio, serve aggiornare il modello RichiestaAssemblaggio
+      if (mode === 'REMOVE') {
+          setError("Le richieste ad altri giocatori sono disponibili solo per l'assemblaggio al momento. Usa l'Accademia per smontare.");
+          return;
+      }
+      
+      const artisanObj = capableArtisans.find(a => a.id.toString() === selectedTarget);
+      if (!artisanObj) return;
 
-    setIsSendingRequest(true);
-    try {
-        await createAssemblyRequest(
-            selectedCharacterData.id, 
-            hostItem.id, 
-            selectedMod.id, 
-            artisanObj.nome, // Passiamo il nome come si aspetta la vecchia API, o l'ID se aggiorni il backend
-            offerCredits
-        );
-        setSuccess(`Richiesta inviata a ${artisanObj.nome}!`);
-        setTimeout(() => { onClose(); }, 2000);
-    } catch (err) {
-        setError(err.message || "Errore invio richiesta.");
-    } finally {
-        setIsSendingRequest(false);
-    }
+      setIsProcessing(true);
+      try {
+          await createAssemblyRequest(
+              selectedCharacterData.id, 
+              hostItem.id, 
+              selectedMod.id, 
+              artisanObj.nome, 
+              offerCredits
+          );
+          setSuccess(`Richiesta inviata a ${artisanObj.nome}!`);
+          setTimeout(() => { onClose(); }, 2000);
+      } catch (err) {
+          setError(err.message);
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   return (
@@ -139,36 +169,61 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
         <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center rounded-t-xl">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Wrench className="text-amber-400" size={20}/>
-                Assemblaggio: <span className="text-amber-100">{hostItem.nome}</span>
+                Gestione Moduli: <span className="text-amber-100">{hostItem.nome}</span>
             </h3>
             <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={24} /></button>
         </div>
 
-        {/* BODY */}
         <div className="p-5 overflow-y-auto grow space-y-6">
             
-            {/* Info Host */}
-            <div className="flex gap-4 items-center bg-gray-700/30 p-3 rounded-lg border border-gray-600">
-                <div className={`p-2 rounded-full ${hostItem.is_tecnologico ? 'bg-cyan-900/50 text-cyan-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
-                    {hostItem.is_tecnologico ? <Cpu size={24} /> : <UserCheck size={24} />}
-                </div>
-                <div>
-                    <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">
-                        {hostItem.is_tecnologico ? 'Tecnologico' : 'Mondano'}
-                    </p>
-                    <p className="text-sm text-gray-200">
-                        Componente Richiesto: <strong>{hostItem.is_tecnologico ? 'Mod' : 'Materia'}</strong>
-                    </p>
+            {/* LISTA MOD INSTALLATE (Per Smontaggio) */}
+            <div>
+                <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Moduli Installati</h4>
+                <div className="space-y-2">
+                    {installedMods.length === 0 ? (
+                        <div className="text-gray-500 text-sm italic bg-gray-900/30 p-2 rounded text-center">Nessun modulo installato.</div>
+                    ) : (
+                        installedMods.map(mod => (
+                            <div 
+                                key={mod.id}
+                                onClick={() => handleSelectInstalled(mod)}
+                                className={`
+                                    flex justify-between items-center p-3 rounded-lg border cursor-pointer transition-all
+                                    ${mode === 'REMOVE' && selectedMod?.id === mod.id 
+                                        ? 'bg-red-900/30 border-red-500 ring-1 ring-red-500' 
+                                        : 'bg-gray-700/30 border-gray-600 hover:bg-gray-700'}
+                                `}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Cpu size={16} className="text-cyan-400"/>
+                                    <span className="text-white font-medium">{mod.nome}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                    {mode === 'REMOVE' && selectedMod?.id === mod.id ? (
+                                        <span className="text-red-300 font-bold flex items-center gap-1">
+                                            <Trash2 size={12}/> Selezionato per Rimozione
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">Clicca per smontare</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
-            {/* Selezione Componente */}
+            <div className="border-t border-gray-700"></div>
+
+            {/* SELEZIONE PER INSTALLAZIONE */}
             <div>
-                <label className="block text-sm font-bold text-gray-300 mb-2">Seleziona Componente</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Installa Nuovo Modulo</label>
                 <select 
-                    className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg p-3 focus:border-indigo-500 outline-none"
-                    onChange={(e) => setSelectedModId(e.target.value)}
-                    value={selectedModId}
+                    className={`w-full bg-gray-900 border text-white rounded-lg p-3 outline-none transition-all
+                        ${mode === 'INSTALL' && selectedMod ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-gray-600'}
+                    `}
+                    onChange={handleSelectInventory}
+                    value={mode === 'INSTALL' && selectedMod ? selectedMod.id : ''}
                 >
                     <option value="">-- Seleziona dallo Zaino --</option>
                     {compatibleItems.map(item => (
@@ -177,137 +232,104 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                 </select>
             </div>
 
-            {/* VALIDAZIONE & LOGICA OPZIONI */}
+            {/* BOX DI CONTROLLO E AZIONE */}
             {selectedMod && validationData && (
-                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700 animate-fadeIn">
+                <div className={`rounded-lg p-4 border animate-fadeIn ${mode === 'REMOVE' ? 'bg-red-900/10 border-red-800/50' : 'bg-emerald-900/10 border-emerald-800/50'}`}>
                     
-                    {/* CASO A: FAI DA TE */}
+                    <h4 className={`font-bold mb-3 flex items-center gap-2 ${mode === 'REMOVE' ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {mode === 'REMOVE' ? <Trash2 size={18}/> : <Wrench size={18}/>}
+                        {mode === 'REMOVE' ? 'Smontaggio:' : 'Assemblaggio:'} {selectedMod.nome}
+                    </h4>
+
+                    {/* Check Skill */}
                     {validationData.can_assemble_self ? (
-                        <div className="text-emerald-400 flex items-start gap-2 text-sm mb-4">
-                            <Cpu className="shrink-0 mt-0.5" size={18} />
-                            <div>
-                                <span className="font-bold">Compatibile.</span>
-                                <p className="text-emerald-400/70 text-xs">Puoi procedere autonomamente.</p>
-                            </div>
+                        <div className="text-gray-300 text-sm mb-4 flex gap-2">
+                            <UserCheck className="text-emerald-500" size={18}/>
+                            <span>Hai le competenze necessarie.</span>
                         </div>
                     ) : (
-                        /* CASO B: RICHIEDI AIUTO */
-                        <div className="space-y-4">
-                            <div className="text-amber-400 flex items-start gap-2 text-sm">
-                                <ShieldAlert className="shrink-0 mt-0.5" size={18} />
-                                <div>
-                                    <span className="font-bold">Competenze Insufficienti.</span>
-                                    <p className="text-amber-400/80 text-xs mt-1">
-                                        {validationData.reason_self}
-                                    </p>
-                                </div>
-                            </div>
+                        <div className="text-amber-400 text-sm mb-4 flex gap-2 items-start">
+                            <ShieldAlert className="shrink-0 mt-0.5" size={18}/>
+                            <span>
+                                {validationData.reason_self || "Competenze insufficienti."}
+                            </span>
+                        </div>
+                    )}
 
-                            <div className="pt-3 border-t border-gray-700">
-                                <label className="block text-sm font-bold text-white mb-2">Chi deve eseguire il lavoro?</label>
-                                
-                                {isLoadingArtisans ? (
-                                    <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
-                                        <Loader2 className="animate-spin" size={16}/> Ricerca esperti disponibili...
-                                    </div>
-                                ) : (
-                                    <select 
-                                        className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg p-3 focus:border-indigo-500 outline-none"
-                                        value={selectedTarget}
-                                        onChange={(e) => setSelectedTarget(e.target.value)}
-                                    >
-                                        <option value="">-- Seleziona un Artigiano --</option>
-                                        
-                                        {/* OPZIONE SPECIALE ACCADEMIA */}
-                                        <option value="ACADEMY" className="text-yellow-400 font-bold">
-                                            🏛️ Richiesta in Accademia (100 CR) - Immediato
-                                        </option>
-                                        
-                                        {/* ARTIGIANI DISPONIBILI */}
-                                        {capableArtisans.length > 0 ? (
-                                            <optgroup label="Giocatori Disponibili">
-                                                {capableArtisans.map(a => (
-                                                    <option key={a.id} value={a.id}>{a.nome}</option>
-                                                ))}
-                                            </optgroup>
-                                        ) : (
-                                            <option disabled>Nessun altro giocatore capace trovato</option>
-                                        )}
-                                    </select>
+                    {/* Selezione Esecutore (Se non ho skill) */}
+                    {!validationData.can_assemble_self && (
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold text-gray-400 mb-1">Chi esegue il lavoro?</label>
+                            <select 
+                                className="w-full bg-gray-800 border border-gray-600 text-white rounded p-2 text-sm"
+                                value={selectedTarget}
+                                onChange={(e) => setSelectedTarget(e.target.value)}
+                            >
+                                <option value="">-- Seleziona Opzione --</option>
+                                <option value="ACADEMY" className="text-yellow-400 font-bold">
+                                    🏛️ Accademia (100 CR) - Immediato
+                                </option>
+                                {capableArtisans.length > 0 && mode === 'INSTALL' && (
+                                    <optgroup label="Giocatori">
+                                        {capableArtisans.map(a => (
+                                            <option key={a.id} value={a.id}>{a.nome}</option>
+                                        ))}
+                                    </optgroup>
                                 )}
-                            </div>
-
-                            {/* LOGICA VISUALIZZAZIONE INPUT CREDITI */}
-                            {selectedTarget === 'ACADEMY' ? (
-                                <div className="bg-yellow-900/20 border border-yellow-700/50 p-3 rounded flex items-center gap-3">
-                                    <GraduationCap className="text-yellow-500" size={24} />
-                                    <div className="text-sm">
-                                        <p className="text-yellow-200 font-bold">Servizio Accademico</p>
-                                        <p className="text-yellow-500/80 text-xs">
-                                            Costo fisso: <span className="text-white font-mono">100 CR</span>. 
-                                            Esecuzione immediata.
-                                        </p>
-                                    </div>
-                                </div>
-                            ) : selectedTarget && (
-                                <div className="relative animate-fadeIn">
-                                    <label className="block text-xs text-gray-400 mb-1">Offerta per il giocatore</label>
-                                    <Coins className="absolute left-2 top-8 text-yellow-500" size={16}/>
-                                    <input 
-                                        type="number" 
-                                        placeholder="0" 
-                                        className="w-full bg-gray-800 border border-gray-600 rounded p-2 pl-8 text-sm text-white focus:border-yellow-500 outline-none"
-                                        value={offerCredits}
-                                        onChange={e => setOfferCredits(e.target.value)}
-                                    />
-                                </div>
+                            </select>
+                            
+                            {mode === 'REMOVE' && capableArtisans.length > 0 && (
+                                <p className="text-xs text-gray-500 mt-1">Nota: Puoi chiedere aiuto ai giocatori solo per l'installazione.</p>
                             )}
                         </div>
                     )}
+
+                    {/* PULSANTI AZIONE */}
+                    <div className="flex gap-2">
+                        {(validationData.can_assemble_self || selectedTarget === 'ACADEMY') ? (
+                            <button 
+                                onClick={handleExecuteAction}
+                                disabled={isProcessing}
+                                className={`flex-1 text-white py-2 rounded-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all
+                                    ${selectedTarget === 'ACADEMY' 
+                                        ? 'bg-yellow-700 hover:bg-yellow-600' 
+                                        : (mode === 'REMOVE' ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500')}
+                                `}
+                            >
+                                {isProcessing ? <Loader2 className="animate-spin"/> : (selectedTarget === 'ACADEMY' ? <Coins size={18}/> : <Wrench size={18}/>)}
+                                {selectedTarget === 'ACADEMY' ? 'Paga 100 CR ed Esegui' : (mode === 'REMOVE' ? 'Smonta Ora' : 'Installa Ora')}
+                            </button>
+                        ) : (
+                            mode === 'INSTALL' && (
+                                <>
+                                    {selectedTarget && selectedTarget !== 'ACADEMY' && (
+                                        <div className="relative flex-1">
+                                            <input 
+                                                type="number" placeholder="Offerta CR"
+                                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2 pl-2 text-white h-full"
+                                                value={offerCredits} onChange={e=>setOfferCredits(e.target.value)}
+                                            />
+                                        </div>
+                                    )}
+                                    <button 
+                                        onClick={handleSendRequest}
+                                        disabled={isProcessing || !selectedTarget}
+                                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        <Send size={18}/> Richiedi
+                                    </button>
+                                </>
+                            )
+                        )}
+                    </div>
+
                 </div>
             )}
 
-            {/* Errori/Successi */}
-            {error && <div className="p-3 bg-red-900/30 border border-red-800 rounded text-red-200 text-sm flex items-center gap-2"><ShieldAlert size={16} /> {error}</div>}
+            {/* Feedback */}
+            {error && <div className="p-3 bg-red-900/30 border border-red-800 rounded text-red-200 text-sm flex items-center gap-2"><ShieldAlert size={16}/> {error}</div>}
             {success && <div className="p-3 bg-emerald-900/30 border border-emerald-800 rounded text-emerald-200 text-sm font-bold text-center">{success}</div>}
-        </div>
 
-        {/* FOOTER */}
-        <div className="p-4 bg-gray-900 border-t border-gray-700 rounded-b-xl flex justify-end gap-3">
-            {selectedMod && validationData && (
-                validationData.can_assemble_self ? (
-                    // BOTTONE FAI DA TE
-                    <button 
-                        onClick={handleDirectAssembly}
-                        disabled={isLoading}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Wrench size={18} />}
-                        Assembla Ora
-                    </button>
-                ) : (
-                    // BOTTONE RICHIESTA (Accademia o Giocatore)
-                    selectedTarget === 'ACADEMY' ? (
-                        <button 
-                            onClick={handleDirectAssembly} // Usa la stessa funzione, ma il flag useAcademy sarà true
-                            disabled={isLoading}
-                            className="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-yellow-900/20"
-                        >
-                            {isLoading ? <Loader2 className="animate-spin" size={18} /> : <GraduationCap size={18} />}
-                            Paga e Assembla (100 CR)
-                        </button>
-                    ) : (
-                        <button 
-                            onClick={handleSendRequest}
-                            disabled={isSendingRequest || !selectedTarget}
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isSendingRequest ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-                            Invia Richiesta
-                        </button>
-                    )
-                )
-            )}
         </div>
       </div>
     </div>
