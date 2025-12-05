@@ -514,7 +514,7 @@ export const equipaggiaOggetto = (itemId, characterId, onLogout) => {
   );
 };
 
-export const assemblaOggetto = (hostId, modId, characterId, onLogout) => {
+export const assemblaOggetto = (hostId, modId, characterId, useAcademy = false, onLogout) => {
   return fetchAuthenticated(
     '/personaggi/api/oggetti/assembla/', 
     {
@@ -522,7 +522,8 @@ export const assemblaOggetto = (hostId, modId, characterId, onLogout) => {
       body: JSON.stringify({ 
         host_id: hostId, 
         mod_id: modId,
-        char_id: characterId 
+        char_id: characterId,
+        use_academy: useAcademy // Parametro nuovo
       })
     },
     onLogout
@@ -664,5 +665,20 @@ export const getAssemblyRequests = () => {
   return fetchAuthenticated(
     '/personaggi/api/richieste-assemblaggio/', 
     { method: 'GET' }
+  );
+};
+
+// Aggiungi questa funzione per recuperare gli artigiani capaci
+export const getCapableArtisans = (charId, hostId, modId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/assembly/artisans/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        char_id: charId,
+        host_id: hostId,
+        mod_id: modId
+      })
+    }
   );
 };
