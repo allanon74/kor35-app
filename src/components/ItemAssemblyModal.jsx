@@ -131,35 +131,36 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   };
 
   // --- AZIONE RICHIESTA ESTERNA ---
-  const handleSendRequest = async () => {
-      // Logica richiesta (simile a prima, ma gestiamo solo montaggio per ora o adattiamo backend)
-      // Nota: Per ora il backend delle richieste supporta solo assemblaggio.
-      // Se vuoi supportare richieste di smontaggio, serve aggiornare il modello RichiestaAssemblaggio
-      if (mode === 'REMOVE') {
-          setError("Le richieste ad altri giocatori sono disponibili solo per l'assemblaggio al momento. Usa l'Accademia per smontare.");
-          return;
-      }
-      
-      const artisanObj = capableArtisans.find(a => a.id.toString() === selectedTarget);
-      if (!artisanObj) return;
+    const handleSendRequest = async () => {
+        // Calcola il tipo in base alla modalità corrente
+        const opType = mode === 'REMOVE' ? 'RIMO' : 'INST';
+        const opLabel = mode === 'REMOVE' ? 'smontaggio' : 'assemblaggio';
+        
+        const artisanObj = capableArtisans.find(a => a.id.toString() === selectedTarget);
+        if (!artisanObj) {
+            setError("Devi selezionare un artigiano dalla lista.");
+            return;
+        }
 
-      setIsProcessing(true);
-      try {
-          await createAssemblyRequest(
-              selectedCharacterData.id, 
-              hostItem.id, 
-              selectedMod.id, 
-              artisanObj.nome, 
-              offerCredits
-          );
-          setSuccess(`Richiesta inviata a ${artisanObj.nome}!`);
-          setTimeout(() => { onClose(); }, 2000);
-      } catch (err) {
-          setError(err.message);
-      } finally {
-          setIsProcessing(false);
-      }
-  };
+        setIsProcessing(true);
+        try {
+            // Passiamo opType alla funzione API
+            await createAssemblyRequest(
+                selectedCharacterData.id, 
+                hostItem.id, 
+                selectedMod.id, 
+                artisanObj.nome, 
+                offerCredits,
+                opType 
+            );
+            setSuccess(`Richiesta di ${opLabel} inviata a ${artisanObj.nome}!`);
+            setTimeout(() => { onClose(); }, 2000);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -278,9 +279,6 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                                 )}
                             </select>
                             
-                            {mode === 'REMOVE' && capableArtisans.length > 0 && (
-                                <p className="text-xs text-gray-500 mt-1">Nota: Puoi chiedere aiuto ai giocatori solo per l'installazione.</p>
-                            )}
                         </div>
                     )}
 

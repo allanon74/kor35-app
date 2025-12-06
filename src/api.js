@@ -636,9 +636,10 @@ export const validateAssembly = (charId, hostId, modId) => {
 };
 
 /**
- * Crea una richiesta di assemblaggio verso un altro personaggio (Artigiano).
+ * Crea una richiesta di lavoro (Installazione o Rimozione).
+ * @param {string} operationType - 'INST' (Default) o 'RIMO'
  */
-export const createAssemblyRequest = (charId, hostId, modId, artisanName, offer) => {
+export const createAssemblyRequest = (charId, hostId, modId, artisanName, offer, operationType = 'INST') => {
   return fetchAuthenticated(
     '/personaggi/api/richieste-assemblaggio/crea/', 
     {
@@ -648,7 +649,8 @@ export const createAssemblyRequest = (charId, hostId, modId, artisanName, offer)
         host_id: hostId,
         comp_id: modId,
         artigiano_nome: artisanName,
-        offerta: offer
+        offerta: offer,
+        tipo_operazione: operationType // <--- Passa il tipo al backend
       })
     }
   );
