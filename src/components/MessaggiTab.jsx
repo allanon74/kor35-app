@@ -12,7 +12,7 @@ import {
   Send, 
   RefreshCw, 
   AlertCircle,
-  Megaphone
+  Megaphone,Loader2,
 } from 'lucide-react';
 
 // --- IMPORTA IL NUOVO WIDGET ---
