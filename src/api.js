@@ -687,16 +687,39 @@ export const getAssemblyRequests = () => {
 };
 
 // Aggiungi questa funzione per recuperare gli artigiani capaci
-export const getCapableArtisans = (charId, hostId, modId) => {
-  return fetchAuthenticated(
-    '/personaggi/api/assembly/artisans/', 
-    {
+// Questa va bene per entrambi (Assemblaggio e Forgiatura)
+export const getCapableArtisans = (charId, hostId, modId, infusioneId) => {
+  return fetchAuthenticated('/personaggi/api/assembly/artisans/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        char_id: charId, 
+        host_id: hostId, 
+        mod_id: modId, 
+        infusione_id: infusioneId 
+      })
+  });
+};
+
+export const forgiaOggetto = (infusioneId, charId, useAcademy = false) => {
+  return fetchAuthenticated('/personaggi/api/oggetti/forgia/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        infusione_id: infusioneId, 
+        char_id: charId, 
+        use_academy: useAcademy 
+      })
+  });
+};
+
+export const createForgingRequest = (charId, infusioneId, artisanName, offer) => {
+  return fetchAuthenticated('/personaggi/api/richieste-assemblaggio/crea/', {
       method: 'POST',
       body: JSON.stringify({
-        char_id: charId,
-        host_id: hostId,
-        mod_id: modId
+        committente_id: charId,
+        infusione_id: infusioneId,
+        artigiano_nome: artisanName,
+        offerta: offer,
+        tipo_operazione: 'FORG'
       })
-    }
-  );
+  });
 };
