@@ -733,3 +733,7 @@ export const validateForging = (charId, infusioneId) => {
       })
   });
 };
+
+export const getClassiOggetto = () => {
+  return fetchAuthenticated('/personaggi/api/classi_oggetto/', { method: 'GET' });
+};
