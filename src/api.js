@@ -723,3 +723,13 @@ export const createForgingRequest = (charId, infusioneId, artisanName, offer) =>
       })
   });
 };
+
+export const validateForging = (charId, infusioneId) => {
+  return fetchAuthenticated('/personaggi/api/forging/validate/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        char_id: charId, 
+        infusione_id: infusioneId 
+      })
+  });
+};
