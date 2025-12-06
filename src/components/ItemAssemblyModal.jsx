@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Wrench, Send, ShieldAlert, Cpu, UserCheck, Loader2, Coins, GraduationCap, Trash2, ArrowRight } from 'lucide-react';
+import { X, Wrench, Send, ShieldAlert, Cpu, UserCheck, Loader2, Coins, GraduationCap, Trash2 } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
-// Importa anche smontaOggetto
 import { assemblaOggetto, smontaOggetto, validateAssembly, createAssemblyRequest, getCapableArtisans } from '../api'; 
 
 const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
@@ -9,7 +8,7 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   
   // --- STATI ---
   const [mode, setMode] = useState('INSTALL'); // 'INSTALL' o 'REMOVE'
-  const [selectedMod, setSelectedMod] = useState(null); // Oggetto selezionato (dallo zaino o installato)
+  const [selectedMod, setSelectedMod] = useState(null); // Oggetto selezionato
   
   // Stati validazione
   const [isValidating, setIsValidating] = useState(false);
@@ -31,13 +30,15 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     return inventory.filter(item => {
         if (item.id === hostItem.id) return false;
         const isTechHost = hostItem.is_tecnologico;
+        // Host Tecnologico -> accetta MOD
         if (isTechHost && item.tipo_oggetto === 'MOD') return true;
+        // Host Mondano -> accetta MATERIA
         if (!isTechHost && item.tipo_oggetto === 'MAT') return true;
         return false;
     });
   }, [inventory, hostItem]);
 
-  // Lista oggetti già installati
+  // Lista oggetti già installati (per rimozione)
   const installedMods = hostItem.potenziamenti_installati || [];
 
   // Reset parziale quando cambia selezione
@@ -50,7 +51,6 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   }, [selectedMod, mode]);
 
   // --- VALIDAZIONE AUTOMATICA ---
-  // Verifica i requisiti sia per montare che per smontare (sono gli stessi!)
   useEffect(() => {
     if (!selectedMod || !selectedCharacterData) return;
 
@@ -59,11 +59,11 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
       setIsLoadingArtisans(true);
       
       try {
-        // Usa la stessa API di validazione per entrambi i casi
+        // 1. Verifica le mie competenze
         const valData = await validateAssembly(selectedCharacterData.id, hostItem.id, selectedMod.id);
         setValidationData(valData);
 
-        // Se non ho skill, cerco aiuto
+        // 2. Se non ho skill, cerco chi può farlo (Artigiani)
         if (valData && !valData.can_assemble_self) {
             const artisans = await getCapableArtisans(selectedCharacterData.id, hostItem.id, selectedMod.id);
             setCapableArtisans(artisans || []);
@@ -80,20 +80,17 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     return () => clearTimeout(timer);
   }, [selectedMod, hostItem, selectedCharacterData]);
 
-  // --- HANDLER SELEZIONE MOD INSTALLATO ---
+  // --- HANDLERS SELEZIONE ---
   const handleSelectInstalled = (mod) => {
       if (selectedMod?.id === mod.id && mode === 'REMOVE') {
-          // Deseleziona
           setSelectedMod(null);
           setMode('INSTALL');
       } else {
-          // Seleziona per rimozione
           setMode('REMOVE');
           setSelectedMod(mod);
       }
   };
 
-  // --- HANDLER SELEZIONE DA ZAINO ---
   const handleSelectInventory = (e) => {
       const modId = e.target.value;
       if (!modId) {
@@ -105,7 +102,7 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
       setSelectedMod(item);
   };
 
-  // --- AZIONE PRINCIPALE (Monta o Smonta) ---
+  // --- AZIONE PRINCIPALE (Esecuzione Diretta o Accademia) ---
   const handleExecuteAction = async () => {
     if (!selectedMod) return;
     
@@ -130,37 +127,36 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
     }
   };
 
-  // --- AZIONE RICHIESTA ESTERNA ---
-    const handleSendRequest = async () => {
-        // Calcola il tipo in base alla modalità corrente
-        const opType = mode === 'REMOVE' ? 'RIMO' : 'INST';
-        const opLabel = mode === 'REMOVE' ? 'smontaggio' : 'assemblaggio';
-        
-        const artisanObj = capableArtisans.find(a => a.id.toString() === selectedTarget);
-        if (!artisanObj) {
-            setError("Devi selezionare un artigiano dalla lista.");
-            return;
-        }
+  // --- AZIONE RICHIESTA ESTERNA (Giocatore) ---
+  const handleSendRequest = async () => {
+      // Determina il tipo operazione
+      const opType = mode === 'REMOVE' ? 'RIMO' : 'INST';
+      const opLabel = mode === 'REMOVE' ? 'smontaggio' : 'assemblaggio';
+      
+      const artisanObj = capableArtisans.find(a => a.id.toString() === selectedTarget);
+      if (!artisanObj) {
+          setError("Devi selezionare un artigiano dalla lista.");
+          return;
+      }
 
-        setIsProcessing(true);
-        try {
-            // Passiamo opType alla funzione API
-            await createAssemblyRequest(
-                selectedCharacterData.id, 
-                hostItem.id, 
-                selectedMod.id, 
-                artisanObj.nome, 
-                offerCredits,
-                opType 
-            );
-            setSuccess(`Richiesta di ${opLabel} inviata a ${artisanObj.nome}!`);
-            setTimeout(() => { onClose(); }, 2000);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setIsProcessing(false);
-        }
-    };
+      setIsProcessing(true);
+      try {
+          await createAssemblyRequest(
+              selectedCharacterData.id, 
+              hostItem.id, 
+              selectedMod.id, 
+              artisanObj.nome, 
+              offerCredits,
+              opType // Passa 'RIMO' o 'INST' al backend
+          );
+          setSuccess(`Richiesta di ${opLabel} inviata a ${artisanObj.nome}!`);
+          setTimeout(() => { onClose(); }, 2000);
+      } catch (err) {
+          setError(err.message);
+      } finally {
+          setIsProcessing(false);
+      }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -270,20 +266,22 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                                 <option value="ACADEMY" className="text-yellow-400 font-bold">
                                     🏛️ Accademia (100 CR) - Immediato
                                 </option>
-                                {capableArtisans.length > 0 && mode === 'INSTALL' && (
-                                    <optgroup label="Giocatori">
+                                
+                                {/* Mostra SEMPRE i giocatori se disponibili, anche per SMONTARE */}
+                                {capableArtisans.length > 0 && (
+                                    <optgroup label="Giocatori Disponibili">
                                         {capableArtisans.map(a => (
                                             <option key={a.id} value={a.id}>{a.nome}</option>
                                         ))}
                                     </optgroup>
                                 )}
                             </select>
-                            
                         </div>
                     )}
 
                     {/* PULSANTI AZIONE */}
                     <div className="flex gap-2">
+                        {/* 1. ESECUZIONE DIRETTA (Skill o Accademia) */}
                         {(validationData.can_assemble_self || selectedTarget === 'ACADEMY') ? (
                             <button 
                                 onClick={handleExecuteAction}
@@ -298,26 +296,25 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
                                 {selectedTarget === 'ACADEMY' ? 'Paga 100 CR ed Esegui' : (mode === 'REMOVE' ? 'Smonta Ora' : 'Installa Ora')}
                             </button>
                         ) : (
-                            mode === 'INSTALL' && (
-                                <>
-                                    {selectedTarget && selectedTarget !== 'ACADEMY' && (
-                                        <div className="relative flex-1">
-                                            <input 
-                                                type="number" placeholder="Offerta CR"
-                                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2 pl-2 text-white h-full"
-                                                value={offerCredits} onChange={e=>setOfferCredits(e.target.value)}
-                                            />
-                                        </div>
-                                    )}
-                                    <button 
-                                        onClick={handleSendRequest}
-                                        disabled={isProcessing || !selectedTarget}
-                                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                        <Send size={18}/> Richiedi
-                                    </button>
-                                </>
-                            )
+                            /* 2. RICHIESTA GIOCATORE */
+                            <>
+                                {selectedTarget && selectedTarget !== 'ACADEMY' && (
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="number" placeholder="Offerta CR"
+                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2 pl-2 text-white h-full"
+                                            value={offerCredits} onChange={e=>setOfferCredits(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+                                <button 
+                                    onClick={handleSendRequest}
+                                    disabled={isProcessing || !selectedTarget}
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <Send size={18}/> Richiedi
+                                </button>
+                            </>
                         )}
                     </div>
 
