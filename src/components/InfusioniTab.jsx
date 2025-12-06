@@ -2,13 +2,18 @@ import React, { useState, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Hammer } from 'lucide-react';
+
+// --- COMPONENTS ---
 import TecnicaDetailModal from './TecnicaDetailModal';
-import { acquireInfusione, startForging } from '../api.js'; 
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
 import ProposalManager from './ProposalManager';
 import ForgingQueue from './ForgingQueue'; 
+import ForgingModal from './ForgingModal'; // <--- NUOVO MODALE IMPORTATO
+
+// --- API & HOOKS ---
+import { acquireInfusione } from '../api.js'; // startForging rimosso da qui, lo gestisce ForgingModal
 import { useForgingQueue } from '../hooks/useGameData'; 
 
 function classNames(...classes) {
@@ -25,15 +30,22 @@ const InfusioniTab = ({ onLogout }) => {
     isLoadingDetail
   } = useCharacter();
   
+  // Hook per la coda di forgiatura (aggiornamento automatico)
   const { data: forgingQueue, refetch: refetchQueue } = useForgingQueue(selectedCharacterId);
   
-  const [modalItem, setModalItem] = useState(null);
-  const [isAcquiring, setIsAcquiring] = useState(null);
-  const [isForging, setIsForging] = useState(null);
-  const [showProposals, setShowProposals] = useState(false);
+  // --- STATI LOCALI ---
+  const [modalItem, setModalItem] = useState(null); // Per i dettagli (Info)
+  const [isAcquiring, setIsAcquiring] = useState(null); // Loading acquisto
+  const [showProposals, setShowProposals] = useState(false); // Gestione proposte
+
+  // Stato per la modale di forgiatura avanzata
+  const [selectedInfusioneForgia, setSelectedInfusioneForgia] = useState(null);
+
+  // --- HANDLERS ---
 
   const handleOpenModal = (item) => setModalItem(item);
 
+  // Gestione Acquisto Nuova Infusione (Apprendimento)
   const handleAcquire = async (item, e) => {
     e.stopPropagation();
     if (isAcquiring || !selectedCharacterId) return;
@@ -53,22 +65,21 @@ const InfusioniTab = ({ onLogout }) => {
     }
   };
 
-  const handleForge = async (item, e) => {
+  // Gestione Apertura Forgiatura (MODIFICATO)
+  // Invece di avviare subito, apriamo la modale per scegliere il metodo
+  const handleForgeClick = (item, e) => {
     e.stopPropagation();
-    if (isForging) return;
-
-    if (!window.confirm(`Avviare la forgiatura di "${item.nome}"?`)) return;
-
-    setIsForging(item.id);
-    try {
-        await startForging(item.id, selectedCharacterId);
-        await Promise.all([refetchQueue(), refreshCharacterData()]);
-    } catch (error) {
-        alert(`Errore forgiatura: ${error.message}`);
-    } finally {
-        setIsForging(null);
-    }
+    setSelectedInfusioneForgia(item);
   };
+
+  // Callback quando la forgiatura viene avviata dalla modale
+  const onForgingStarted = () => {
+      refetchQueue();       // Aggiorna la coda visuale
+      refreshCharacterData(); // Aggiorna i crediti spesi
+      setSelectedInfusioneForgia(null); // Chiudi modale
+  };
+
+  // --- LOGICA UI ---
 
   const sortItems = (items) => [...items].sort((a, b) => a.livello - b.livello);
   
@@ -83,6 +94,7 @@ const InfusioniTab = ({ onLogout }) => {
     );
   }
 
+  // Render Header Gruppo (es. per Aura)
   const renderGroupHeader = (group) => {
     const fakePunteggio = {
         nome: group.name,
@@ -102,6 +114,7 @@ const InfusioniTab = ({ onLogout }) => {
     );
   };
 
+  // Render Elemento Lista (Posseduto)
   const renderPossessedItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
@@ -118,19 +131,13 @@ const InfusioniTab = ({ onLogout }) => {
             <span className="font-bold text-gray-200 text-base">{item.nome}</span>
         </div>
         
+        {/* Tasto Forgia (Apre Modale) */}
         <button
-            onClick={(e) => handleForge(item, e)}
-            disabled={isForging === item.id}
-            className="flex items-center gap-1 px-3 py-1.5 bg-orange-700 hover:bg-orange-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-orange-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={(e) => handleForgeClick(item, e)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-orange-700 hover:bg-orange-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-orange-500/20 active:scale-95"
         >
-            {isForging === item.id ? (
-                <Loader2 className="animate-spin" size={14} />
-            ) : (
-                <>
-                    <Hammer size={14} /> 
-                    <span className="hidden sm:inline">Forgia</span>
-                </>
-            )}
+            <Hammer size={14} /> 
+            <span className="hidden sm:inline">Forgia</span>
         </button>
 
         <button
@@ -143,6 +150,7 @@ const InfusioniTab = ({ onLogout }) => {
     );
   };
 
+  // Render Elemento Lista (Acquistabile)
   const renderAcquirableItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
@@ -250,6 +258,7 @@ const InfusioniTab = ({ onLogout }) => {
   return (
     <>
       <div className="w-full p-4 max-w-6xl mx-auto pb-24">
+        {/* Header Crediti */}
         <div className="mb-4 flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700 shadow-sm max-w-3xl mx-auto">
             <div className="text-sm text-gray-400">Disponibilità:</div>
             <div className="flex gap-4">
@@ -259,10 +268,12 @@ const InfusioniTab = ({ onLogout }) => {
             </div>
         </div>
 
+        {/* Coda di Forgiatura Attiva */}
         <div className="max-w-3xl mx-auto">
             <ForgingQueue queue={forgingQueue} refetchQueue={refetchQueue} />
         </div>
 
+        {/* Bottone Gestione Proposte */}
         <div className="flex justify-end mb-6 max-w-3xl mx-auto">
             <button 
                 onClick={() => setShowProposals(true)}
@@ -273,6 +284,7 @@ const InfusioniTab = ({ onLogout }) => {
             </button>
         </div>
 
+        {/* Visualizzazione Mobile (Tabs) */}
         <div className="md:hidden">
             <Tab.Group>
               <Tab.List className="flex space-x-1 rounded-xl bg-gray-800/80 p-1 mb-6 shadow-inner">
@@ -298,6 +310,7 @@ const InfusioniTab = ({ onLogout }) => {
             </Tab.Group>
         </div>
 
+        {/* Visualizzazione Desktop (Griglia) */}
         <div className="hidden md:grid grid-cols-2 gap-6">
             <div>
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
@@ -322,12 +335,23 @@ const InfusioniTab = ({ onLogout }) => {
         </div>
       </div>
       
+      {/* Modale Dettagli Infusione */}
       {modalItem && (
         <TecnicaDetailModal tecnica={modalItem} type="Infusione" onClose={() => setModalItem(null)} />
       )}
 
+      {/* Modale Gestione Proposte */}
       {showProposals && (
         <ProposalManager type="Infusione" onClose={() => setShowProposals(false)} />
+      )}
+
+      {/* Modale Forgiatura Avanzata (NUOVA) */}
+      {selectedInfusioneForgia && (
+        <ForgingModal 
+            infusione={selectedInfusioneForgia}
+            onClose={() => setSelectedInfusioneForgia(null)}
+            onRefresh={onForgingStarted}
+        />
       )}
     </>
   );
