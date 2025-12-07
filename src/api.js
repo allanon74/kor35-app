@@ -451,12 +451,14 @@ export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata', charId = n
 }
 /**
  * Cerca personaggi per nome (Autocomplete)
+ * Opzionalmente filtra per compatibilità con un'infusione (Innesto).
  */
-export const searchPersonaggi = (query, currentCharacterId) => {
-  return fetchAuthenticated(
-    `/personaggi/api/personaggi/search/?q=${encodeURIComponent(query)}&current_char_id=${currentCharacterId}`, 
-    { method: 'GET' }
-  );
+export const searchPersonaggi = (query, currentCharacterId, infusioneId = null) => {
+  let url = `/personaggi/api/personaggi/search/?q=${encodeURIComponent(query)}&current_char_id=${currentCharacterId}`;
+  if (infusioneId) {
+      url += `&infusione_id=${infusioneId}`;
+  }
+  return fetchAuthenticated(url, { method: 'GET' });
 };
 
 /**

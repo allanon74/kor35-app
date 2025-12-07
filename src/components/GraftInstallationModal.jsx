@@ -32,12 +32,12 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
         }
         const delaySearch = setTimeout(async () => {
             try {
-                const res = await searchPersonaggi(searchQuery, selectedCharacterData.id);
+                const res = await searchPersonaggi(searchQuery, selectedCharacterData.id, task.infusione_id);
                 setSearchResults(res);
             } catch (e) { console.error(e); }
         }, 300);
         return () => clearTimeout(delaySearch);
-    }, [searchQuery]);
+    }, [searchQuery, task.infusione_id]);
 
     const handleConfirm = async () => {
         if (!selectedSlot) return alert("Seleziona uno slot!");
