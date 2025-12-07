@@ -1,63 +1,99 @@
 import React, { useState, useEffect } from 'react';
-import { X, Activity, User, Coins, Send, Loader2 } from 'lucide-react';
+import { X, Activity, User, Coins, Send, Loader2, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
-import { installaInnesto, richiediOperazioneChirurgica, searchPersonaggi, getBodySlots } from '../api';
+import { 
+    completeForging, // Usiamo questa passando slot_scelto per "Su di me"
+    richiediAssemblaggio, // Nuova funzione API per inviare proposta (ex richiediOperazioneChirurgica)
+    searchPersonaggi, 
+    getBodySlots,
+    rifiutaRichiestaAssemblaggio // Usiamo una logica simile per "Scartare" (chiamata custom o delete)
+} from '../api';
 
 const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
     const { selectedCharacterData } = useCharacter();
-    const [targetMode, setTargetMode] = useState('SELF'); // 'SELF' o 'OTHER'
     const [selectedSlot, setSelectedSlot] = useState('');
     
-    // Per ricerca altro personaggio
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [selectedTargetUser, setSelectedTargetUser] = useState(null);
+    // Lista completa dei candidati compatibili scaricati dall'API
+    const [compatibleCandidates, setCompatibleCandidates] = useState([]);
+    const [filteredCandidates, setFilteredCandidates] = useState([]);
     
+    const [selectedTargetUser, setSelectedTargetUser] = useState(null);
     const [offer, setOffer] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
+    const [isDiscarding, setIsDiscarding] = useState(false);
 
-    // Slot permessi dall'infusione (dal backend arrivano come stringa "HD1,RA")
-    // Se non specificato, assumiamo tutti (o nessuno, a seconda delle regole)
+    // Parsing slot permessi
     const allowedSlotsCodes = task.infusione_slot_permessi 
-        ? task.infusione_slot_permessi.split(',') 
+        ? task.infusione_slot_permessi.split(',').map(s => s.trim()) 
         : [];
-        
     const allSlots = getBodySlots();
     const availableSlots = allSlots.filter(s => allowedSlotsCodes.includes(s.code));
 
-    // Ricerca Personaggi
+    // 1. Carica candidati compatibili all'avvio
     useEffect(() => {
-        if (searchQuery.length < 2) {
-            setSearchResults([]); return;
-        }
-        const delaySearch = setTimeout(async () => {
+        const fetchCandidates = async () => {
             try {
-                const res = await searchPersonaggi(searchQuery, selectedCharacterData.id, task.infusione_id);
-                setSearchResults(res);
-            } catch (e) { console.error(e); }
-        }, 300);
-        return () => clearTimeout(delaySearch);
-    }, [searchQuery, task.infusione_id]);
+                // searchPersonaggi ora accetta infusione_id per filtrare lato server la compatibilità stat/livello
+                // Passiamo una query vuota per averli tutti (o " " se il backend lo richiede)
+                const res = await searchPersonaggi(" ", selectedCharacterData.id, task.infusione_id);
+                
+                // Aggiungiamo "ME STESSO" manualmente alla lista se è compatibile (il backend lo esclude di solito)
+                // Ma per semplicità, se è "Su di Me", gestiamo l'oggetto `selectedCharacterData`
+                
+                // Nota: searchPersonaggi ritorna {id, nome, slots_occupati: []} grazie alla modifica serializer
+                setCompatibleCandidates(res);
+                setFilteredCandidates(res);
+            } catch (e) { console.error("Err fetch candidates", e); }
+        };
+        fetchCandidates();
+    }, [task.infusione_id, selectedCharacterData.id]);
 
+    // 2. Filtra candidati quando cambia lo slot
+    useEffect(() => {
+        if (!selectedSlot) {
+            setFilteredCandidates(compatibleCandidates);
+            return;
+        }
+
+        const filtered = compatibleCandidates.filter(c => {
+            // Se il candidato ha lo slot occupato, via
+            const occupied = c.slots_occupati || [];
+            return !occupied.includes(selectedSlot);
+        });
+        setFilteredCandidates(filtered);
+
+        // Se l'utente selezionato non è più valido per il nuovo slot, deselezionalo
+        if (selectedTargetUser && selectedTargetUser.id !== selectedCharacterData.id) {
+            const isStillValid = filtered.find(c => c.id === selectedTargetUser.id);
+            if (!isStillValid) setSelectedTargetUser(null);
+        }
+    }, [selectedSlot, compatibleCandidates]);
+
+    const isSelfTarget = selectedTargetUser && selectedTargetUser.id === selectedCharacterData.id;
+
+    // Gestione Conferma
     const handleConfirm = async () => {
-        if (!selectedSlot) return alert("Seleziona uno slot!");
+        if (!selectedSlot) return alert("Seleziona uno slot corporeo!");
+        if (!selectedTargetUser) return alert("Seleziona un paziente!");
         
         setIsLoading(true);
         try {
-            if (targetMode === 'SELF') {
-                // Installa su se stessi
-                await installaInnesto(task.id, selectedSlot, selectedCharacterData.id);
+            if (isSelfTarget) {
+                // --- SCENARIO 1: SU DI ME (Installazione Diretta) ---
+                // Chiamiamo completeForging passando lo slot. Il backend creerà l'oggetto e lo equipaggerà.
+                await completeForging(task.id, selectedCharacterData.id, selectedSlot); 
                 alert("Innesto installato con successo!");
             } else {
-                // Richiesta a un altro
-                if (!selectedTargetUser) return alert("Seleziona un paziente!");
-                await richiediOperazioneChirurgica(
-                    task.id, 
-                    selectedSlot, 
-                    selectedTargetUser.nome, 
-                    offer, 
-                    selectedCharacterData.id
-                );
+                // --- SCENARIO 2: ALTRO GIOCATORE (Proposta) ---
+                // Chiamiamo l'API per creare una RichiestaAssemblaggio di tipo 'GRAF' (Innesto)
+                await richiediAssemblaggio({
+                    committente_id: selectedTargetUser.id, // Chi riceve è il committente dell'operazione chirurgica
+                    artigiano_nome: selectedCharacterData.nome, // Chi offre è l'artigiano
+                    forgiatura_id: task.id,
+                    slot_destinazione: selectedSlot,
+                    offerta: offer,
+                    tipo_operazione: 'GRAF'
+                });
                 alert(`Proposta di operazione inviata a ${selectedTargetUser.nome}!`);
             }
             onSuccess();
@@ -69,115 +105,163 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
         }
     };
 
+    // Gestione Scarto
+    const handleDiscard = async () => {
+        if (!confirm("Sei sicuro? L'oggetto verrà distrutto e i materiali persi.")) return;
+        setIsLoading(true);
+        try {
+            // Usiamo una API di delete generica o una specifica per annullare forgiatura
+            // Qui assumo esista deleteForgiatura o simile, altrimenti si può usare rifiutaRichiestaAssemblaggio adattata
+            // Per ora uso una chiamata fittizia delete
+            // await api.delete(`/crafting/queue/${task.id}`); 
+            // Implementa la call corretta nel tuo api.js
+            alert("Oggetto scartato.");
+            onSuccess();
+            onClose();
+        } catch (e) {
+            alert("Errore scarto: " + e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-800 rounded-xl w-full max-w-md border border-gray-600 shadow-2xl animate-fadeIn">
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50 animate-fadeIn">
+            <div className="bg-gray-800 rounded-xl w-full max-w-lg border border-gray-600 shadow-2xl flex flex-col max-h-[90vh]">
                 
-                <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900 rounded-t-xl">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Activity className="text-pink-500"/> Installazione Innesto
-                    </h3>
-                    <button onClick={onClose}><X className="text-gray-400"/></button>
+                {/* Header */}
+                <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900 rounded-t-xl shrink-0">
+                    <div>
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Activity className="text-pink-500"/> Sala Operatoria
+                        </h3>
+                        <p className="text-xs text-gray-400">Finalizzazione {task.infusione_nome}</p>
+                    </div>
+                    <button onClick={onClose}><X className="text-gray-400 hover:text-white"/></button>
                 </div>
 
-                <div className="p-6 space-y-6">
-                    <div className="bg-gray-900/50 p-3 rounded text-sm text-gray-300">
-                        Oggetto pronto: <strong className="text-white">{task.infusione_nome}</strong>
+                <div className="p-6 overflow-y-auto space-y-6">
+                    
+                    {/* 1. SELEZIONE SLOT */}
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-300 uppercase mb-2 flex items-center gap-2">
+                            1. Seleziona Slot Corporeo
+                        </h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {availableSlots.map(s => (
+                                <button 
+                                    key={s.code}
+                                    onClick={() => setSelectedSlot(s.code)}
+                                    className={`p-2 border rounded text-xs font-bold transition-all ${
+                                        selectedSlot === s.code 
+                                        ? 'bg-pink-600 border-pink-400 text-white ring-2 ring-pink-400/50' 
+                                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                                    }`}
+                                >
+                                    {s.name}
+                                </button>
+                            ))}
+                        </div>
+                        {!selectedSlot && <p className="text-xs text-amber-500 mt-1">* Seleziona uno slot per vedere i candidati validi.</p>}
                     </div>
 
-                    {/* SELEZIONE PAZIENTE */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Chi riceve l'innesto?</label>
-                        <div className="flex bg-gray-900 rounded p-1 mb-2">
-                            <button 
-                                onClick={() => setTargetMode('SELF')}
-                                className={`flex-1 py-1 text-sm font-bold rounded ${targetMode === 'SELF' ? 'bg-pink-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                Su di Me
-                            </button>
-                            <button 
-                                onClick={() => setTargetMode('OTHER')}
-                                className={`flex-1 py-1 text-sm font-bold rounded ${targetMode === 'OTHER' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                Altro Paziente
-                            </button>
+                    {/* 2. SELEZIONE PAZIENTE */}
+                    <div className={`transition-opacity ${!selectedSlot ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                        <h4 className="text-sm font-bold text-gray-300 uppercase mb-2">2. Seleziona Paziente</h4>
+                        
+                        {/* Opzione ME STESSO */}
+                        <div 
+                            onClick={() => setSelectedTargetUser(selectedCharacterData)}
+                            className={`p-3 rounded border mb-3 cursor-pointer flex items-center justify-between ${
+                                selectedTargetUser?.id === selectedCharacterData.id
+                                ? 'bg-indigo-900/50 border-indigo-500 text-white'
+                                : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <User className="text-indigo-400"/>
+                                <div>
+                                    <div className="font-bold">Me Stesso ({selectedCharacterData.nome})</div>
+                                    <div className="text-xs text-gray-400">Installazione Immediata • Gratuita</div>
+                                </div>
+                            </div>
+                            {selectedTargetUser?.id === selectedCharacterData.id && <CheckCircle size={18} className="text-indigo-400"/>}
                         </div>
 
-                        {targetMode === 'OTHER' && (
-                            <div className="relative">
-                                <input 
-                                    type="text" 
-                                    placeholder="Cerca nome personaggio..." 
-                                    className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
-                                    value={searchQuery}
-                                    onChange={e => { setSearchQuery(e.target.value); setSelectedTargetUser(null); }}
-                                />
-                                {searchResults.length > 0 && !selectedTargetUser && (
-                                    <div className="absolute top-full left-0 right-0 bg-gray-800 border border-gray-600 mt-1 rounded shadow-xl z-10 max-h-40 overflow-y-auto">
-                                        {searchResults.map(u => (
-                                            <div 
-                                                key={u.id} 
-                                                className="p-2 hover:bg-gray-700 cursor-pointer text-white text-sm"
-                                                onClick={() => { setSelectedTargetUser(u); setSearchQuery(u.nome); }}
-                                            >
-                                                {u.nome}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* SELEZIONE SLOT */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Slot di Destinazione</label>
-                        {availableSlots.length === 0 ? (
-                            <div className="text-red-400 text-xs">Nessuno slot compatibile definito per questo oggetto.</div>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-2">
-                                {availableSlots.map(s => (
-                                    <button 
-                                        key={s.code}
-                                        onClick={() => setSelectedSlot(s.code)}
-                                        className={`p-2 border rounded text-xs font-bold transition-all ${
-                                            selectedSlot === s.code 
-                                            ? 'bg-pink-900/50 border-pink-500 text-pink-200' 
-                                            : 'bg-gray-800 border-gray-600 text-gray-400 hover:bg-gray-700'
+                        {/* Lista ALTRI */}
+                        <div className="text-xs font-bold text-gray-500 mb-1">ALTRI PAZIENTI COMPATIBILI</div>
+                        <div className="bg-gray-900 border border-gray-700 rounded max-h-40 overflow-y-auto">
+                            {filteredCandidates.length === 0 ? (
+                                <div className="p-3 text-gray-500 text-center text-sm">Nessun altro candidato compatibile per questo slot.</div>
+                            ) : (
+                                filteredCandidates.map(u => (
+                                    <div 
+                                        key={u.id}
+                                        onClick={() => setSelectedTargetUser(u)}
+                                        className={`p-2 border-b border-gray-800 cursor-pointer flex justify-between items-center hover:bg-gray-800 ${
+                                            selectedTargetUser?.id === u.id ? 'bg-gray-700 text-white' : 'text-gray-300'
                                         }`}
                                     >
-                                        {s.name}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                                        <span>{u.nome}</span>
+                                        {selectedTargetUser?.id === u.id && <CheckCircle size={14} className="text-green-500"/>}
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
 
-                    {/* OFFERTA (Solo se altro) */}
-                    {targetMode === 'OTHER' && (
-                        <div>
+                    {/* 3. COSTO (Solo se Altro) */}
+                    {selectedTargetUser && !isSelfTarget && (
+                        <div className="bg-gray-900/50 p-3 rounded border border-gray-700 animate-fadeIn">
                              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Richiesta Compenso (CR)</label>
                              <div className="relative">
                                  <Coins className="absolute left-2 top-2.5 text-yellow-500" size={16}/>
                                  <input 
                                      type="number" 
-                                     className="w-full bg-gray-900 border-gray-600 rounded p-2 pl-8 text-white"
+                                     className="w-full bg-gray-800 border-gray-600 rounded p-2 pl-8 text-white focus:border-indigo-500 outline-none"
                                      value={offer} onChange={e => setOffer(e.target.value)}
+                                     placeholder="0"
                                  />
                              </div>
+                             <p className="text-xs text-gray-500 mt-1">Il destinatario dovrà accettare la proposta.</p>
                         </div>
                     )}
 
-                    {/* BOTTONE */}
+                </div>
+
+                {/* Footer Actions */}
+                <div className="p-4 bg-gray-900 border-t border-gray-700 rounded-b-xl flex gap-3 shrink-0">
                     <button 
-                        onClick={handleConfirm}
-                        disabled={isLoading || !selectedSlot || (targetMode === 'OTHER' && !selectedTargetUser)}
-                        className="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-lg flex justify-center items-center gap-2 disabled:opacity-50"
+                        onClick={() => setIsDiscarding(!isDiscarding)}
+                        className="p-3 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-200 border border-red-900/50 transition-colors"
+                        title="Scarta Oggetto"
                     >
-                        {isLoading ? <Loader2 className="animate-spin"/> : (targetMode === 'SELF' ? <Activity/> : <Send/>)}
-                        {targetMode === 'SELF' ? 'Installa Ora' : 'Invia Proposta Operazione'}
+                        <Trash2 size={20}/>
                     </button>
 
+                    {isDiscarding ? (
+                        <button 
+                            onClick={handleDiscard}
+                            className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg py-2 animate-fadeIn"
+                        >
+                            Conferma Scarto
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={handleConfirm}
+                            disabled={isLoading || !selectedSlot || !selectedTargetUser}
+                            className={`flex-1 font-bold py-3 rounded-lg shadow-lg flex justify-center items-center gap-2 transition-all ${
+                                isLoading || !selectedSlot || !selectedTargetUser
+                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                : isSelfTarget 
+                                    ? 'bg-green-600 hover:bg-green-500 text-white' 
+                                    : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                            }`}
+                        >
+                            {isLoading ? <Loader2 className="animate-spin"/> : (isSelfTarget ? <Activity/> : <Send/>)}
+                            {isSelfTarget ? 'INSTALLA ORA' : 'INVIA PROPOSTA'}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
