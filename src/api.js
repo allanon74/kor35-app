@@ -80,6 +80,24 @@ export const fetchAuthenticated = async (endpoint, options = {}, onLogout) => {
 // --- Funzioni API specifiche ---
 
 /**
+ * Recupera la configurazione degli slot corporei (costanti).
+ * Utile se vuoi popolarli dinamicamente, altrimenti usiamo costanti nel frontend.
+ */
+export const getBodySlots = () => {
+  // Possiamo hardcodarlo nel frontend per semplicità o fare una chiamata
+  return [
+      { code: 'HD1', name: 'Testa 1 (Cervello/Occhi)' },
+      { code: 'HD2', name: 'Testa 2 (Volto/Orecchie)' },
+      { code: 'TR1', name: 'Tronco 1 (Cuore/Polmoni)' },
+      { code: 'TR2', name: 'Tronco 2 (Spina Dorsale/Pelle)' },
+      { code: 'RA', name: 'Braccio Destro' },
+      { code: 'LA', name: 'Braccio Sinistro' },
+      { code: 'RL', name: 'Gamba Destra' },
+      { code: 'LL', name: 'Gamba Sinistra' },
+  ];
+};
+
+/**
  * Recupera la lista dei personaggi associati all'utente.
  */
 export const getPersonaggiList = (onLogout, viewAll = false) => {
@@ -736,4 +754,42 @@ export const validateForging = (charId, infusioneId) => {
 
 export const getClassiOggetto = () => {
   return fetchAuthenticated('/personaggi/api/classi_oggetto/', { method: 'GET' });
+};
+
+/**
+ * Esegue l'installazione di un innesto da una forgiatura completata.
+ * (Operazione "Fai da te" o "Accettazione diretta")
+ */
+export const installaInnesto = (forgiaturaId, slot, characterId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/crafting/completa_forgiatura/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        forgiatura_id: forgiaturaId, 
+        char_id: characterId,
+        slot_scelto: slot // <--- Parametro chiave per innesti
+      })
+    }
+  );
+};
+
+/**
+ * Crea una richiesta di operazione chirurgica a un altro giocatore.
+ */
+export const richiediOperazioneChirurgica = (forgiaturaId, slot, medicoNome, offerta, characterId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/crea/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        committente_id: characterId,
+        forgiatura_id: forgiaturaId,
+        slot_destinazione: slot,
+        artigiano_nome: medicoNome,
+        offerta: offerta,
+        tipo_operazione: 'GRAF' // Codice per Graft/Innesto
+      })
+    }
+  );
 };
