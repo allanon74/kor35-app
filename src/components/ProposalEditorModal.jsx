@@ -26,10 +26,10 @@ const BODY_SLOTS = [
 
 // Mappa Tipi Oggetto per UI
 const ITEM_TYPES = {
-    'MOD': { label: 'Mod (Potenziamento Tecnologico)', icon: Settings, isBound: false },
-    'MAT': { label: 'Materia (Potenziamento Arcano)', icon: Zap, isBound: false },
-    'INNESTO': { label: 'Innesto (Impianto Corporeo)', icon: Activity, isBound: true },
-    'MUTAZIONE': { label: 'Mutazione (Alterazione Biologica)', icon: Activity, isBound: true }
+    'MOD': { label: 'Mod (Tecnologico)', icon: Settings, isBound: false },
+    'MAT': { label: 'Materia (Arcano)', icon: Zap, isBound: false },
+    'INNESTO': { label: 'Innesto (Chirurgico)', icon: Activity, isBound: true },
+    'MUTAZIONE': { label: 'Mutazione (Biologico)', icon: Activity, isBound: true }
 };
 
 const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
@@ -43,20 +43,13 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     
     // --- STATI LOGICA TIPO OGGETTO ---
     const [selectedItemType, setSelectedItemType] = useState(''); // 'MOD', 'MAT', 'INNESTO', 'MUTAZIONE'
-    const [availableItemOptions, setAvailableItemOptions] = useState([]); // Opzioni valide per l'aura corrente
+    const [availableItemOptions, setAvailableItemOptions] = useState([]); 
     
-    // --- STATI FILTRI (Condizionali) ---
-    const [selectedClasseId, setSelectedClasseId] = useState(''); // Per Mod/Materia
-    const [selectedSlots, setSelectedSlots] = useState([]); // Per Innesti/Mutazioni
+    // --- STATI FILTRI ---
+    const [selectedClasseId, setSelectedClasseId] = useState(''); 
+    const [selectedSlots, setSelectedSlots] = useState([]);
     
-    // Inizializza gli slot se stiamo modificando
-    useEffect(() => {
-        if (proposal?.slot_corpo_permessi) {
-            setSelectedSlots(proposal.slot_corpo_permessi.split(','));
-        }
-    }, [proposal]);
-
-    // Gestione componenti: Mappa { caratteristicaId: valore }
+    // Init componenti
     const initialComponents = {};
     if (proposal?.componenti) {
         proposal.componenti.forEach(c => {
@@ -66,7 +59,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     }
     const [componentsMap, setComponentsMap] = useState(initialComponents);
 
-    // --- CACHE DATI ---
+    // Cache
     const [allPunteggiCache, setAllPunteggiCache] = useState([]);
     const [availableAuras, setAvailableAuras] = useState([]);        
     const [availableInfusionAuras, setAvailableInfusionAuras] = useState([]); 
@@ -82,7 +75,14 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const isEditing = !!proposal;
     const isInfusion = type === 'Infusione';
 
-    // 1. CARICAMENTO INIZIALE
+    // Init Slot se edit
+    useEffect(() => {
+        if (proposal?.slot_corpo_permessi) {
+            setSelectedSlots(proposal.slot_corpo_permessi.split(','));
+        }
+    }, [proposal]);
+
+    // 1. CARICAMENTO DATI
     useEffect(() => {
         const initData = async () => {
             setIsLoadingData(true);
@@ -91,7 +91,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 setAllPunteggiCache(allData);
 
                 if (char && char.punteggi_base) {
-                    // Filtra Aure possedute
                     const validAuras = allData.filter(p => {
                         if (p.tipo !== 'AU') return false;
                         const val = char.punteggi_base[p.nome];
@@ -102,7 +101,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     });
                     setAvailableAuras(validAuras);
 
-                    // Filtra Caratteristiche
                     const validChars = allData.filter(p => {
                         if (p.tipo !== 'CA') return false;
                         const val = char.punteggi_base[p.nome];
@@ -125,7 +123,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         initData();
     }, [char, type, isInfusion]);
 
-    // 2. LOGICA CAMBIO AURA -> CALCOLO TIPI OGGETTO AMMESSI
+    // 2. CAMBIO AURA -> CALCOLO TIPI AMMESSI
     useEffect(() => {
         if (!selectedAuraId || !isInfusion) {
             setAvailableMattoni([]);
@@ -137,7 +135,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         // Carica Mattoni
         getMattoniAura(selectedAuraId).then(setAvailableMattoni).catch(console.error);
 
-        // Calcola Tipi Oggetto Possibili
+        // Calcola Opzioni
         const auraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
         if (auraObj) {
             const options = [];
@@ -148,7 +146,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             
             setAvailableItemOptions(options);
 
-            // Auto-selezione se c'è una sola opzione o reset se quella corrente non è valida
             if (options.length > 0 && !options.includes(selectedItemType)) {
                 setSelectedItemType(options[0]);
             } else if (options.length === 0) {
@@ -157,7 +154,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     }, [selectedAuraId, allPunteggiCache, isInfusion]);
 
-    // 3. LOGICA AURE SECONDARIE
+    // 3. AURE SECONDARIE
     useEffect(() => {
         if (!isInfusion || !selectedAuraId || allPunteggiCache.length === 0) {
             setAvailableInfusionAuras([]);
@@ -176,35 +173,57 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     }, [selectedAuraId, allPunteggiCache, isInfusion, selectedInfusionAuraId]);
 
 
-    // --- HANDLER SELEZIONE TIPO OGGETTO ---
-    const handleTypeChange = (newType) => {
-        setSelectedItemType(newType);
-        // Reset dei filtri non pertinenti
-        const typeInfo = ITEM_TYPES[newType];
-        if (typeInfo?.isBound) {
-            setSelectedClasseId(''); // Resetta classe se passo a innesto
-        } else {
-            setSelectedSlots([]); // Resetta slot se passo a mod
+    // --- HELPERS DI CALCOLO ---
+    const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
+    // Calcola il valore dell'aura del PG per sapere il limite massimo di punti spendibili
+    const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
+    // Calcola quanti punti sono stati spesi finora
+    const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
+    const cost = currentTotalCount * 10;
+
+
+    // --- HANDLERS LOGICI ---
+
+    // Handler Incremento (+): Aggiunto
+    const handleIncrement = (charId) => {
+        const currentVal = componentsMap[charId] || 0;
+        const charName = allPunteggiCache.find(p => p.id === charId)?.nome;
+        // Il valore massimo della caratteristica nella proposta non può superare quello che il PG possiede
+        const maxVal = char.punteggi_base[charName] || 0;
+        
+        // Verifica limiti: Non superare stat PG e non superare totale Aura PG
+        if (currentVal < maxVal && currentTotalCount < auraVal) {
+            setComponentsMap({ ...componentsMap, [charId]: currentVal + 1 });
         }
     };
 
-    // --- FILTRO VISIVO MATTONI ---
-    const isCharCompatible = (charId) => {
-        // Se è un oggetto "Vincolato" (Innesto), non filtriamo per classe oggetto (compatibile = sempre true)
-        const typeInfo = ITEM_TYPES[selectedItemType];
-        if (typeInfo?.isBound) return true;
+    // Handler Decremento (-): Aggiunto
+    const handleDecrement = (charId) => {
+        const currentVal = componentsMap[charId] || 0;
+        if (currentVal > 0) {
+            const newMap = { ...componentsMap, [charId]: currentVal - 1 };
+            if (newMap[charId] === 0) delete newMap[charId];
+            setComponentsMap(newMap);
+        }
+    };
 
-        // Se è un oggetto "Libero" (Mod/Mat) e ho selezionato una classe, filtro
-        if (selectedClasseId && !typeInfo?.isBound) {
+    const handleTypeChange = (newType) => {
+        setSelectedItemType(newType);
+        const typeInfo = ITEM_TYPES[newType];
+        if (typeInfo?.isBound) setSelectedClasseId('');
+        else setSelectedSlots([]);
+    };
+
+    const isCharCompatible = (charId) => {
+        const typeInfo = ITEM_TYPES[selectedItemType];
+        if (!typeInfo || typeInfo.isBound) return true;
+
+        if (selectedClasseId) {
             const classeObj = availableClassi.find(c => c.id == selectedClasseId);
             if (!classeObj) return true;
-
-            // Usa liste diverse in base al tipo (Mod o Materia)
-            if (selectedItemType === 'MOD') {
-                return classeObj.mod_allowed_ids.includes(parseInt(charId));
-            } else if (selectedItemType === 'MAT') {
-                return classeObj.materia_allowed_ids.includes(parseInt(charId));
-            }
+            
+            if (selectedItemType === 'MOD') return classeObj.mod_allowed_ids.includes(parseInt(charId));
+            if (selectedItemType === 'MAT') return classeObj.materia_allowed_ids.includes(parseInt(charId));
         }
         return true;
     };
@@ -215,15 +234,14 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         );
     };
 
-    // --- SALVATAGGIO ---
     const getPayload = () => {
         const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
             caratteristica: parseInt(id),
             valore: val
         }));
-
-        // Determina se salvare gli slot (solo per innesti/mutazioni)
-        const slotsToSave = ITEM_TYPES[selectedItemType]?.isBound ? selectedSlots.join(',') : '';
+        
+        const typeInfo = ITEM_TYPES[selectedItemType];
+        const slotsToSave = (typeInfo?.isBound) ? selectedSlots.join(',') : '';
 
         return {
             personaggio_id: selectedCharacterId,
@@ -234,8 +252,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             aura_infusione: isInfusion ? selectedInfusionAuraId : null,
             componenti: componentsArray,
             slot_corpo_permessi: slotsToSave
-            // Nota: Potremmo voler salvare anche 'tipo_oggetto_proposto' se il backend lo supporta,
-            // altrimenti lo deduciamo dagli slot o dall'aura.
         };
     };
 
@@ -261,17 +277,10 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("Cancellare questa bozza?")) return;
+        if (!window.confirm("Eliminare?")) return;
         try { await deleteProposta(proposal.id); onRefresh(); onClose(); } catch (e) { setError(e.message); }
     };
 
-    // --- RENDER HELPERS ---
-    const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
-    const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
-    const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
-    const cost = currentTotalCount * 10;
-    
-    // Helpers per visualizzazione mattoni
     const findBrickDefinition = (auraId, charId) => {
         if (parseInt(auraId) === parseInt(selectedAuraId)) {
             return availableMattoni.find(m => m.caratteristica?.id === parseInt(charId));
@@ -322,11 +331,17 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     </div>
                     
                     {/* --- ZONA TIPO OGGETTO & FILTRI --- */}
-                    {isInfusion && selectedAuraId && availableItemOptions.length > 0 && (
+                    {isInfusion && selectedAuraId && (
                         <div className="bg-gray-800 border border-gray-700 p-4 rounded-lg space-y-4">
                             
-                            {/* 1. Selezione Tipo Oggetto (Se l'aura ne permette più di uno) */}
-                            {availableItemOptions.length > 1 && (
+                            {/* Warning se non configurato */}
+                            {availableItemOptions.length === 0 ? (
+                                <div className="text-yellow-400 text-sm italic flex gap-2">
+                                    <AlertTriangle size={16}/> 
+                                    Attenzione: Questa Aura non ha tipi di oggetto abilitati. Contatta un admin.
+                                </div>
+                            ) : (
+                                /* Selezione Tipo Oggetto */
                                 <div>
                                     <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Tipo Oggetto Generato</label>
                                     <div className="flex flex-wrap gap-2">
@@ -352,11 +367,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 </div>
                             )}
 
-                            {/* 2. Pannello Configurazione Specifica (Classe o Slot) */}
+                            {/* Filtri Specifici */}
                             {selectedItemType && (
                                 <div className="pt-2 border-t border-gray-700">
                                     {ITEM_TYPES[selectedItemType].isBound ? (
-                                        // UI: INNESTI/MUTAZIONI (Slot Corpo)
+                                        // UI INNESTI/MUTAZIONI
                                         <div>
                                             <label className="text-xs font-bold text-pink-400 uppercase flex items-center gap-2 mb-2">
                                                 <Activity size={14}/> Slot Corporei Consentiti
@@ -369,20 +384,19 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                         className={`p-2 rounded text-xs font-bold border transition-all ${
                                                             selectedSlots.includes(slot.id)
                                                             ? 'bg-pink-900/50 border-pink-500 text-pink-200'
-                                                            : 'bg-gray-900 border-gray-600 text-gray-500 hover:border-gray-500'
+                                                            : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-500'
                                                         }`}
                                                     >
                                                         {slot.label}
                                                     </button>
                                                 ))}
                                             </div>
-                                            <p className="text-[10px] text-gray-500 mt-2">Seleziona dove può essere installato questo potenziamento.</p>
                                         </div>
                                     ) : (
-                                        // UI: MOD/MATERIA (Classe Oggetto)
+                                        // UI MOD/MATERIA
                                         <div>
                                             <label className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-2 mb-2">
-                                                <Box size={14}/> Filtra Mattoni per Classe Oggetto
+                                                <Box size={14}/> Filtra per Classe Oggetto
                                             </label>
                                             <select 
                                                 className="w-full bg-gray-900 border border-indigo-500/30 rounded p-2 text-white text-sm"
@@ -400,13 +414,12 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </div>
                     )}
                     
-                    {/* Descrizione */}
                     <div>
                         <label className="text-xs font-bold text-gray-400 uppercase">Descrizione</label>
                         <textarea value={description} onChange={e => setDescription(e.target.value)} disabled={!isDraft} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mt-1" rows={2}/>
                     </div>
 
-                    {/* LISTA MATTONI (Filtrabile) */}
+                    {/* LISTA MATTONI */}
                     {selectedAuraId && (
                     <div className="bg-gray-800/50 rounded border border-gray-700 p-2">
                         <div className="flex justify-between text-gray-400 text-xs mb-2 px-2 uppercase font-bold">
@@ -420,7 +433,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 const count = componentsMap[charObj.id] || 0;
                                 const hasPrimary = !!primaryBrick;
                                 
-                                // Check Compatibilità Classe (Solo se oggetto libero e classe selezionata)
                                 const isCompatible = isCharCompatible(charObj.id);
                                 const opacityClass = isCompatible ? 'opacity-100' : 'opacity-30 grayscale';
 
@@ -444,17 +456,14 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                         {charObj.sigla}
                                                     </span>
                                                 </div>
-                                                {!isCompatible && (
-                                                    <div className="text-[10px] text-red-400 font-bold uppercase">Non Compatibile</div>
-                                                )}
+                                                {!isCompatible && <div className="text-[10px] text-red-400 font-bold uppercase">Non Compatibile</div>}
                                             </div>
                                         </div>
                                         
                                         <div className="flex items-center gap-2 bg-gray-900 p-1 rounded border border-gray-700">
                                             <button onClick={() => handleDecrement(charObj.id)} disabled={!isDraft || count === 0} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white"><Minus size={12}/></button>
                                             <span className="w-6 text-center text-white font-mono">{count}</span>
-                                            {/* Impedisci incremento se non compatibile? Opzionale. Qui lo permetto ma è grigio. */}
-                                            <button onClick={() => handleIncrement(charObj.id)} disabled={!isDraft} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white"><Plus size={12}/></button>
+                                            <button onClick={() => handleIncrement(charObj.id)} disabled={!isDraft || !isCompatible} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30"><Plus size={12}/></button>
                                         </div>
                                     </div>
                                 );
