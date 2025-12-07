@@ -139,6 +139,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const auraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
         if (auraObj) {
             const options = [];
+            // Questi flag devono esistere nel DB e nel Serializer!
             if (auraObj.produce_mod) options.push('MOD');
             if (auraObj.produce_materia) options.push('MAT');
             if (auraObj.produce_innesti) options.push('INNESTO');
@@ -146,6 +147,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             
             setAvailableItemOptions(options);
 
+            // Auto-selezione
             if (options.length > 0 && !options.includes(selectedItemType)) {
                 setSelectedItemType(options[0]);
             } else if (options.length === 0) {
@@ -173,40 +175,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     }, [selectedAuraId, allPunteggiCache, isInfusion, selectedInfusionAuraId]);
 
 
-    // --- HELPERS DI CALCOLO ---
-    const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
-    // Calcola il valore dell'aura del PG per sapere il limite massimo di punti spendibili
-    const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
-    // Calcola quanti punti sono stati spesi finora
-    const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
-    const cost = currentTotalCount * 10;
-
-
-    // --- HANDLERS LOGICI ---
-
-    // Handler Incremento (+): Aggiunto
-    const handleIncrement = (charId) => {
-        const currentVal = componentsMap[charId] || 0;
-        const charName = allPunteggiCache.find(p => p.id === charId)?.nome;
-        // Il valore massimo della caratteristica nella proposta non può superare quello che il PG possiede
-        const maxVal = char.punteggi_base[charName] || 0;
-        
-        // Verifica limiti: Non superare stat PG e non superare totale Aura PG
-        if (currentVal < maxVal && currentTotalCount < auraVal) {
-            setComponentsMap({ ...componentsMap, [charId]: currentVal + 1 });
-        }
-    };
-
-    // Handler Decremento (-): Aggiunto
-    const handleDecrement = (charId) => {
-        const currentVal = componentsMap[charId] || 0;
-        if (currentVal > 0) {
-            const newMap = { ...componentsMap, [charId]: currentVal - 1 };
-            if (newMap[charId] === 0) delete newMap[charId];
-            setComponentsMap(newMap);
-        }
-    };
-
+    // HANDLERS
     const handleTypeChange = (newType) => {
         setSelectedItemType(newType);
         const typeInfo = ITEM_TYPES[newType];
@@ -234,9 +203,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         );
     };
 
+    // --- LOGICA DI SALVATAGGIO CORRETTA ---
     const getPayload = () => {
+        // CORREZIONE 1: Usa 'id' invece di 'caratteristica' per il backend
         const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
-            caratteristica: parseInt(id),
+            id: parseInt(id), 
             valore: val
         }));
         
@@ -250,7 +221,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             descrizione: description,
             aura: selectedAuraId,
             aura_infusione: isInfusion ? selectedInfusionAuraId : null,
-            componenti: componentsArray,
+            // CORREZIONE 2: Usa 'componenti_data' (input) invece di 'componenti' (output read-only)
+            componenti_data: componentsArray, 
             slot_corpo_permessi: slotsToSave
         };
     };
@@ -279,6 +251,31 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const handleDelete = async () => {
         if (!window.confirm("Eliminare?")) return;
         try { await deleteProposta(proposal.id); onRefresh(); onClose(); } catch (e) { setError(e.message); }
+    };
+
+    // --- RENDER HELPERS ---
+    const getAuraName = (id) => allPunteggiCache.find(p => p.id === parseInt(id))?.nome || '...';
+    const auraVal = char?.punteggi_base[getAuraName(selectedAuraId)] || 0;
+    const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
+    const cost = currentTotalCount * 10;
+    
+    // Funzioni increment/decrement (ripristinate)
+    const handleIncrement = (charId) => {
+        const currentVal = componentsMap[charId] || 0;
+        const charName = allPunteggiCache.find(p => p.id === charId)?.nome;
+        const maxVal = char.punteggi_base[charName] || 0;
+        if (currentVal < maxVal && currentTotalCount < auraVal) {
+            setComponentsMap({ ...componentsMap, [charId]: currentVal + 1 });
+        }
+    };
+
+    const handleDecrement = (charId) => {
+        const currentVal = componentsMap[charId] || 0;
+        if (currentVal > 0) {
+            const newMap = { ...componentsMap, [charId]: currentVal - 1 };
+            if (newMap[charId] === 0) delete newMap[charId];
+            setComponentsMap(newMap);
+        }
     };
 
     const findBrickDefinition = (auraId, charId) => {
@@ -338,7 +335,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             {availableItemOptions.length === 0 ? (
                                 <div className="text-yellow-400 text-sm italic flex gap-2">
                                     <AlertTriangle size={16}/> 
-                                    Attenzione: Questa Aura non ha tipi di oggetto abilitati. Contatta un admin.
+                                    Attenzione: Questa Aura non ha tipi di oggetto abilitati nel database. Contatta un admin.
                                 </div>
                             ) : (
                                 /* Selezione Tipo Oggetto */
@@ -419,7 +416,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         <textarea value={description} onChange={e => setDescription(e.target.value)} disabled={!isDraft} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mt-1" rows={2}/>
                     </div>
 
-                    {/* LISTA MATTONI */}
+                    {/* LISTA MATTONI (Filtrabile) */}
                     {selectedAuraId && (
                     <div className="bg-gray-800/50 rounded border border-gray-700 p-2">
                         <div className="flex justify-between text-gray-400 text-xs mb-2 px-2 uppercase font-bold">
