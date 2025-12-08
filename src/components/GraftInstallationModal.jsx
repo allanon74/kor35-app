@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, Activity, User, Coins, Send, Loader2, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Activity, User, Coins, Send, Loader2, Trash2, CheckCircle } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import { 
-    completeForging, // Usiamo questa passando slot_scelto per "Su di me"
-    richiediAssemblaggio, // Nuova funzione API per inviare proposta (ex richiediOperazioneChirurgica)
+    completeForging, 
+    richiediAssemblaggio, 
     searchPersonaggi, 
-    getBodySlots,
-    rifiutaRichiestaAssemblaggio // Usiamo una logica simile per "Scartare" (chiamata custom o delete)
+    getBodySlots 
 } from '../api';
 
 const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
     const { selectedCharacterData } = useCharacter();
     const [selectedSlot, setSelectedSlot] = useState('');
     
-    // Lista completa dei candidati compatibili scaricati dall'API
+    // Liste candidati
     const [compatibleCandidates, setCompatibleCandidates] = useState([]);
     const [filteredCandidates, setFilteredCandidates] = useState([]);
     
@@ -22,10 +21,11 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [isDiscarding, setIsDiscarding] = useState(false);
 
-    // Parsing slot permessi
+    // Parsing slot permessi (es. "HD1, HD2")
     const allowedSlotsCodes = task.infusione_slot_permessi 
         ? task.infusione_slot_permessi.split(',').map(s => s.trim()) 
         : [];
+        
     const allSlots = getBodySlots();
     const availableSlots = allSlots.filter(s => allowedSlotsCodes.includes(s.code));
 
@@ -33,17 +33,13 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
     useEffect(() => {
         const fetchCandidates = async () => {
             try {
-                // searchPersonaggi ora accetta infusione_id per filtrare lato server la compatibilità stat/livello
-                // Passiamo una query vuota per averli tutti (o " " se il backend lo richiede)
+                // Passiamo stringa vuota "" per ottenere tutti i compatibili senza filtro nome
                 const res = await searchPersonaggi("", selectedCharacterData.id, task.infusione_id);
-                
-                // Aggiungiamo "ME STESSO" manualmente alla lista se è compatibile (il backend lo esclude di solito)
-                // Ma per semplicità, se è "Su di Me", gestiamo l'oggetto `selectedCharacterData`
-                
-                // Nota: searchPersonaggi ritorna {id, nome, slots_occupati: []} grazie alla modifica serializer
                 setCompatibleCandidates(res);
                 setFilteredCandidates(res);
-            } catch (e) { console.error("Err fetch candidates", e); }
+            } catch (e) { 
+                console.error("Err fetch candidates", e); 
+            }
         };
         fetchCandidates();
     }, [task.infusione_id, selectedCharacterData.id]);
@@ -56,39 +52,44 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
         }
 
         const filtered = compatibleCandidates.filter(c => {
-            // Se il candidato ha lo slot occupato, via
+            // Se il candidato ha lo slot occupato, lo nascondiamo
             const occupied = c.slots_occupati || [];
             return !occupied.includes(selectedSlot);
         });
         setFilteredCandidates(filtered);
 
         // Se l'utente selezionato non è più valido per il nuovo slot, deselezionalo
+        // (A meno che non sia l'utente corrente, che gestiamo a parte per sicurezza visiva)
         if (selectedTargetUser && selectedTargetUser.id !== selectedCharacterData.id) {
             const isStillValid = filtered.find(c => c.id === selectedTargetUser.id);
             if (!isStillValid) setSelectedTargetUser(null);
         }
-    }, [selectedSlot, compatibleCandidates]);
+    }, [selectedSlot, compatibleCandidates, selectedCharacterData.id, selectedTargetUser]);
 
-    const isSelfTarget = selectedTargetUser && selectedTargetUser.id === selectedCharacterData.id;
+    // Determina se l'installazione è diretta (senza proposta)
+    // È diretta se il target sono IO oppure un MIO altro personaggio (is_mine)
+    const isDirectInstall = selectedTargetUser && (
+        selectedTargetUser.id === selectedCharacterData.id || 
+        selectedTargetUser.is_mine
+    );
 
-    // Gestione Conferma
     const handleConfirm = async () => {
         if (!selectedSlot) return alert("Seleziona uno slot corporeo!");
         if (!selectedTargetUser) return alert("Seleziona un paziente!");
         
         setIsLoading(true);
         try {
-            if (isSelfTarget) {
-                // --- SCENARIO 1: SU DI ME (Installazione Diretta) ---
-                // Chiamiamo completeForging passando lo slot. Il backend creerà l'oggetto e lo equipaggerà.
+            if (isDirectInstall) {
+                // --- INSTALLAZIONE DIRETTA ---
+                // Il backend monterà l'oggetto e chiuderà la forgiatura.
                 await completeForging(task.id, selectedCharacterData.id, selectedSlot); 
-                alert("Innesto installato con successo!");
+                alert(`Operazione completata con successo su ${selectedTargetUser.nome}!`);
             } else {
-                // --- SCENARIO 2: ALTRO GIOCATORE (Proposta) ---
-                // Chiamiamo l'API per creare una RichiestaAssemblaggio di tipo 'GRAF' (Innesto)
+                // --- PROPOSTA A TERZI ---
+                // Invia una richiesta che l'altro giocatore dovrà accettare.
                 await richiediAssemblaggio({
-                    committente_id: selectedTargetUser.id, // Chi riceve è il committente dell'operazione chirurgica
-                    artigiano_nome: selectedCharacterData.nome, // Chi offre è l'artigiano
+                    committente_id: selectedTargetUser.id,
+                    artigiano_nome: selectedCharacterData.nome,
                     forgiatura_id: task.id,
                     slot_destinazione: selectedSlot,
                     offerta: offer,
@@ -105,25 +106,12 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
         }
     };
 
-    // Gestione Scarto
     const handleDiscard = async () => {
+        // Qui andrebbe implementata la logica di scarto reale (API delete)
         if (!confirm("Sei sicuro? L'oggetto verrà distrutto e i materiali persi.")) return;
-        setIsLoading(true);
-        try {
-            // Usiamo una API di delete generica o una specifica per annullare forgiatura
-            // Qui assumo esista deleteForgiatura o simile, altrimenti si può usare rifiutaRichiestaAssemblaggio adattata
-            // Per ora uso una chiamata fittizia delete
-            // await api.delete(`/crafting/queue/${task.id}`); 
-            // Implementa la call corretta nel tuo api.js
-            alert("Oggetto scartato.");
-            onSuccess();
-            onClose();
-        } catch (e) {
-            alert("Errore scarto: " + e.message);
-        } finally {
-            setIsLoading(false);
-        }
-    }
+        alert("Funzione di scarto non ancora implementata (Placeholder).");
+        setIsDiscarding(false);
+    };
 
     return (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50 animate-fadeIn">
@@ -135,7 +123,7 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
                             <Activity className="text-pink-500"/> Sala Operatoria
                         </h3>
-                        <p className="text-xs text-gray-400">Finalizzazione {task.infusione_nome}</p>
+                        <p className="text-xs text-gray-400">Finalizzazione: {task.infusione_nome}</p>
                     </div>
                     <button onClick={onClose}><X className="text-gray-400 hover:text-white"/></button>
                 </div>
@@ -147,21 +135,25 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                         <h4 className="text-sm font-bold text-gray-300 uppercase mb-2 flex items-center gap-2">
                             1. Seleziona Slot Corporeo
                         </h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {availableSlots.map(s => (
-                                <button 
-                                    key={s.code}
-                                    onClick={() => setSelectedSlot(s.code)}
-                                    className={`p-2 border rounded text-xs font-bold transition-all ${
-                                        selectedSlot === s.code 
-                                        ? 'bg-pink-600 border-pink-400 text-white ring-2 ring-pink-400/50' 
-                                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                                    }`}
-                                >
-                                    {s.name}
-                                </button>
-                            ))}
-                        </div>
+                        {availableSlots.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {availableSlots.map(s => (
+                                    <button 
+                                        key={s.code}
+                                        onClick={() => setSelectedSlot(s.code)}
+                                        className={`p-2 border rounded text-xs font-bold transition-all ${
+                                            selectedSlot === s.code 
+                                            ? 'bg-pink-600 border-pink-400 text-white ring-2 ring-pink-400/50' 
+                                            : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        {s.name}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-red-400 text-sm">Nessuno slot definito per questo innesto.</div>
+                        )}
                         {!selectedSlot && <p className="text-xs text-amber-500 mt-1">* Seleziona uno slot per vedere i candidati validi.</p>}
                     </div>
 
@@ -169,7 +161,7 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                     <div className={`transition-opacity ${!selectedSlot ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                         <h4 className="text-sm font-bold text-gray-300 uppercase mb-2">2. Seleziona Paziente</h4>
                         
-                        {/* Opzione ME STESSO */}
+                        {/* Opzione ME STESSO (Sempre visibile per comodità, se lo slot è libero) */}
                         <div 
                             onClick={() => setSelectedTargetUser(selectedCharacterData)}
                             className={`p-3 rounded border mb-3 cursor-pointer flex items-center justify-between ${
@@ -188,13 +180,17 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                             {selectedTargetUser?.id === selectedCharacterData.id && <CheckCircle size={18} className="text-indigo-400"/>}
                         </div>
 
-                        {/* Lista ALTRI */}
-                        <div className="text-xs font-bold text-gray-500 mb-1">ALTRI PAZIENTI COMPATIBILI</div>
+                        {/* Lista ALTRI CANDIDATI */}
+                        <div className="text-xs font-bold text-gray-500 mb-1 uppercase">Altri Pazienti Compatibili</div>
                         <div className="bg-gray-900 border border-gray-700 rounded max-h-40 overflow-y-auto">
-                            {filteredCandidates.length === 0 ? (
-                                <div className="p-3 text-gray-500 text-center text-sm">Nessun altro candidato compatibile per questo slot.</div>
+                            {filteredCandidates.filter(c => c.id !== selectedCharacterData.id).length === 0 ? (
+                                <div className="p-3 text-gray-500 text-center text-sm">
+                                    Nessun altro candidato compatibile (o slot occupato).
+                                </div>
                             ) : (
-                                filteredCandidates.map(u => (
+                                filteredCandidates
+                                    .filter(c => c.id !== selectedCharacterData.id)
+                                    .map(u => (
                                     <div 
                                         key={u.id}
                                         onClick={() => setSelectedTargetUser(u)}
@@ -202,7 +198,10 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                                             selectedTargetUser?.id === u.id ? 'bg-gray-700 text-white' : 'text-gray-300'
                                         }`}
                                     >
-                                        <span>{u.nome}</span>
+                                        <div>
+                                            <span className="font-medium">{u.nome}</span>
+                                            {u.is_mine && <span className="ml-2 text-[10px] bg-blue-900 text-blue-200 px-1 rounded">MIO</span>}
+                                        </div>
                                         {selectedTargetUser?.id === u.id && <CheckCircle size={14} className="text-green-500"/>}
                                     </div>
                                 ))
@@ -210,8 +209,8 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                         </div>
                     </div>
 
-                    {/* 3. COSTO (Solo se Altro) */}
-                    {selectedTargetUser && !isSelfTarget && (
+                    {/* 3. COSTO (Solo se Altro Giocatore) */}
+                    {selectedTargetUser && !isDirectInstall && (
                         <div className="bg-gray-900/50 p-3 rounded border border-gray-700 animate-fadeIn">
                              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Richiesta Compenso (CR)</label>
                              <div className="relative">
@@ -219,11 +218,13 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                                  <input 
                                      type="number" 
                                      className="w-full bg-gray-800 border-gray-600 rounded p-2 pl-8 text-white focus:border-indigo-500 outline-none"
-                                     value={offer} onChange={e => setOffer(e.target.value)}
+                                     value={offer} 
+                                     onChange={e => setOffer(e.target.value)}
                                      placeholder="0"
+                                     min="0"
                                  />
                              </div>
-                             <p className="text-xs text-gray-500 mt-1">Il destinatario dovrà accettare la proposta.</p>
+                             <p className="text-xs text-gray-500 mt-1">Il destinatario dovrà accettare la proposta per pagare e ricevere l'innesto.</p>
                         </div>
                     )}
 
@@ -253,13 +254,13 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                             className={`flex-1 font-bold py-3 rounded-lg shadow-lg flex justify-center items-center gap-2 transition-all ${
                                 isLoading || !selectedSlot || !selectedTargetUser
                                 ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                : isSelfTarget 
+                                : isDirectInstall 
                                     ? 'bg-green-600 hover:bg-green-500 text-white' 
                                     : 'bg-indigo-600 hover:bg-indigo-500 text-white'
                             }`}
                         >
-                            {isLoading ? <Loader2 className="animate-spin"/> : (isSelfTarget ? <Activity/> : <Send/>)}
-                            {isSelfTarget ? 'INSTALLA ORA' : 'INVIA PROPOSTA'}
+                            {isLoading ? <Loader2 className="animate-spin"/> : (isDirectInstall ? <Activity/> : <Send/>)}
+                            {isDirectInstall ? 'INSTALLA SUBITO' : 'INVIA PROPOSTA'}
                         </button>
                     )}
                 </div>
