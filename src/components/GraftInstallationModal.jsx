@@ -35,7 +35,7 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
             try {
                 // searchPersonaggi ora accetta infusione_id per filtrare lato server la compatibilità stat/livello
                 // Passiamo una query vuota per averli tutti (o " " se il backend lo richiede)
-                const res = await searchPersonaggi(" ", selectedCharacterData.id, task.infusione_id);
+                const res = await searchPersonaggi("", selectedCharacterData.id, task.infusione_id);
                 
                 // Aggiungiamo "ME STESSO" manualmente alla lista se è compatibile (il backend lo esclude di solito)
                 // Ma per semplicità, se è "Su di Me", gestiamo l'oggetto `selectedCharacterData`
