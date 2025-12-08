@@ -795,3 +795,23 @@ export const richiediOperazioneChirurgica = (forgiaturaId, slot, medicoNome, off
     }
   );
 };
+
+export const richiediAssemblaggio = (data) => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/crea/', 
+    {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }
+  );
+};
+
+/**
+ * Rifiuta una richiesta (Wrapper per coerenza di naming).
+ */
+export const rifiutaRichiestaAssemblaggio = (requestId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
+    { method: 'POST' }
+  );
+};
