@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Activity, User, Coins, Send, Loader2, Trash2, CheckCircle } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import { 
-    completeForging, 
-    installaInnesto,
+    installaInnesto, // IMPORTANTE: Usa questo per l'installazione diretta
     richiediAssemblaggio, 
     searchPersonaggi, 
     getBodySlots 
@@ -36,6 +35,7 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
             try {
                 // Passiamo stringa vuota "" per ottenere tutti i compatibili senza filtro nome
                 const res = await searchPersonaggi("", selectedCharacterData.id, task.infusione_id);
+                console.log("Candidati trovati:", res); // DEBUG
                 setCompatibleCandidates(res);
                 setFilteredCandidates(res);
             } catch (e) { 
@@ -53,14 +53,11 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
         }
 
         const filtered = compatibleCandidates.filter(c => {
-            // Se il candidato ha lo slot occupato, lo nascondiamo
             const occupied = c.slots_occupati || [];
             return !occupied.includes(selectedSlot);
         });
         setFilteredCandidates(filtered);
 
-        // Se l'utente selezionato non è più valido per il nuovo slot, deselezionalo
-        // (A meno che non sia l'utente corrente, che gestiamo a parte per sicurezza visiva)
         if (selectedTargetUser && selectedTargetUser.id !== selectedCharacterData.id) {
             const isStillValid = filtered.find(c => c.id === selectedTargetUser.id);
             if (!isStillValid) setSelectedTargetUser(null);
@@ -68,10 +65,9 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
     }, [selectedSlot, compatibleCandidates, selectedCharacterData.id, selectedTargetUser]);
 
     // Determina se l'installazione è diretta (senza proposta)
-    // È diretta se il target sono IO oppure un MIO altro personaggio (is_mine)
     const isDirectInstall = selectedTargetUser && (
         selectedTargetUser.id === selectedCharacterData.id || 
-        selectedTargetUser.is_mine
+        selectedTargetUser.is_mine // <--- Assicurati che il backend invii questo campo nel serializer
     );
 
     const handleConfirm = async () => {
@@ -80,32 +76,40 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
         
         setIsLoading(true);
         try {
+            console.log("--- DEBUG CONFERMA ---");
+            console.log("Io (Dottore):", selectedCharacterData.nome, selectedCharacterData.id);
+            console.log("Target (Paziente):", selectedTargetUser.nome, selectedTargetUser.id);
+            console.log("Is Direct Install?", isDirectInstall);
+
             if (isDirectInstall) {
                 // --- INSTALLAZIONE DIRETTA ---
-                // Il backend monterà l'oggetto e chiuderà la forgiatura.
+                console.log("Eseguo installaInnesto...");
                 await installaInnesto(
                     task.id, 
                     selectedSlot, 
-                    selectedCharacterData.id, // Chi autorizza (Io)
-                    selectedTargetUser.id     // Chi riceve (Me stesso o il mio Alt)
+                    selectedCharacterData.id, // Forgiatore
+                    selectedTargetUser.id     // Destinatario (Me o Mio Alt)
                 ); 
                 alert(`Operazione completata con successo su ${selectedTargetUser.nome}!`);
             } else {
                 // --- PROPOSTA A TERZI ---
-                // Invia una richiesta che l'altro giocatore dovrà accettare.
-                await richiediAssemblaggio({
-                    committente_id: selectedTargetUser.id,
-                    artigiano_nome: selectedCharacterData.nome,
+                const payload = {
+                    committente_id: selectedTargetUser.id, // ID del Paziente
+                    artigiano_nome: selectedCharacterData.nome, // Nome del Dottore
                     forgiatura_id: task.id,
                     slot_destinazione: selectedSlot,
                     offerta: offer,
                     tipo_operazione: 'GRAF'
-                });
+                };
+                console.log("Invio Payload Proposta:", payload); // <--- CONTROLLA QUESTO LOG
+                
+                await richiediAssemblaggio(payload);
                 alert(`Proposta di operazione inviata a ${selectedTargetUser.nome}!`);
             }
             onSuccess();
             onClose();
         } catch (error) {
+            console.error("Errore operazione:", error);
             alert("Errore: " + error.message);
         } finally {
             setIsLoading(false);
@@ -113,9 +117,8 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
     };
 
     const handleDiscard = async () => {
-        // Qui andrebbe implementata la logica di scarto reale (API delete)
-        if (!confirm("Sei sicuro? L'oggetto verrà distrutto e i materiali persi.")) return;
-        alert("Funzione di scarto non ancora implementata (Placeholder).");
+        if (!confirm("Sei sicuro? L'oggetto verrà distrutto.")) return;
+        alert("Funzione di scarto non ancora implementata.");
         setIsDiscarding(false);
     };
 
@@ -167,7 +170,7 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                     <div className={`transition-opacity ${!selectedSlot ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                         <h4 className="text-sm font-bold text-gray-300 uppercase mb-2">2. Seleziona Paziente</h4>
                         
-                        {/* Opzione ME STESSO (Sempre visibile per comodità, se lo slot è libero) */}
+                        {/* Opzione ME STESSO */}
                         <div 
                             onClick={() => setSelectedTargetUser(selectedCharacterData)}
                             className={`p-3 rounded border mb-3 cursor-pointer flex items-center justify-between ${
@@ -191,7 +194,7 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                         <div className="bg-gray-900 border border-gray-700 rounded max-h-40 overflow-y-auto">
                             {filteredCandidates.filter(c => c.id !== selectedCharacterData.id).length === 0 ? (
                                 <div className="p-3 text-gray-500 text-center text-sm">
-                                    Nessun altro candidato compatibile (o slot occupato).
+                                    Nessun altro candidato (o slot occupato).
                                 </div>
                             ) : (
                                 filteredCandidates
@@ -230,7 +233,7 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
                                      min="0"
                                  />
                              </div>
-                             <p className="text-xs text-gray-500 mt-1">Il destinatario dovrà accettare la proposta per pagare e ricevere l'innesto.</p>
+                             <p className="text-xs text-gray-500 mt-1">Il destinatario riceverà una proposta da accettare.</p>
                         </div>
                     )}
 
