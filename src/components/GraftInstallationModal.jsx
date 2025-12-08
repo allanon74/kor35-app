@@ -3,6 +3,7 @@ import { X, Activity, User, Coins, Send, Loader2, Trash2, CheckCircle } from 'lu
 import { useCharacter } from './CharacterContext';
 import { 
     completeForging, 
+    installaInnesto,
     richiediAssemblaggio, 
     searchPersonaggi, 
     getBodySlots 
@@ -82,7 +83,12 @@ const GraftInstallationModal = ({ task, onClose, onSuccess }) => {
             if (isDirectInstall) {
                 // --- INSTALLAZIONE DIRETTA ---
                 // Il backend monterà l'oggetto e chiuderà la forgiatura.
-                await completeForging(task.id, selectedCharacterData.id, selectedSlot); 
+                await installaInnesto(
+                    task.id, 
+                    selectedSlot, 
+                    selectedCharacterData.id, // Chi autorizza (Io)
+                    selectedTargetUser.id     // Chi riceve (Me stesso o il mio Alt)
+                ); 
                 alert(`Operazione completata con successo su ${selectedTargetUser.nome}!`);
             } else {
                 // --- PROPOSTA A TERZI ---

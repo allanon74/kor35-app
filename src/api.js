@@ -762,19 +762,20 @@ export const getClassiOggetto = () => {
  * Esegue l'installazione di un innesto da una forgiatura completata.
  * (Operazione "Fai da te" o "Accettazione diretta")
  */
-export const installaInnesto = (forgiaturaId, slot, characterId) => {
+export const installaInnesto = (forgiaturaId, slot, characterId, targetId = null) => {
   return fetchAuthenticated(
     '/personaggi/api/crafting/completa_forgiatura/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
         forgiatura_id: forgiaturaId, 
-        char_id: characterId,
-        slot_scelto: slot // <--- Parametro chiave per innesti
+        char_id: characterId, // Chi esegue l'azione (Forgiatore)
+        slot_scelto: slot,
+        target_id: targetId   // NUOVO: Chi riceve l'innesto (Destinatario)
       })
     }
   );
-};
+}
 
 /**
  * Crea una richiesta di operazione chirurgica a un altro giocatore.
