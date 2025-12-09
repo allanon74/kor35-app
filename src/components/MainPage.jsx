@@ -23,7 +23,7 @@ import {
     DownloadCloud,
     ScrollText,    // Icona per i Log
     ArrowRightLeft, // Icona per le Transazioni
-    GamePad2
+    Gamepad2       // CORRETTO: Gamepad2 invece di GamePad2
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -32,13 +32,13 @@ import InfusioniTab from './InfusioniTab.jsx';
 import TessitureTab from './TessitureTab.jsx'; 
 import AdminMessageTab from './AdminMessageTab.jsx';
 import InventoryTab from './InventoryTab.jsx';
-// --- NUOVI COMPONENTI RECUPERATI ---
+// --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer.jsx';
 import TransazioniViewer from './TransazioniViewer.jsx';
 import GameTab from './GameTab.jsx';
 
 const MainPage = ({ token, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('game'); // Default: GameTab
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -80,6 +80,7 @@ const MainPage = ({ token, onLogout }) => {
   const {
     personaggiList,
     selectedCharacterId,
+    selectedCharacterData, // <--- AGGIUNTO: Serve per contare i lavori pendenti
     selectCharacter,
     fetchPersonaggi,
     isLoading: isCharacterLoading,
@@ -105,11 +106,17 @@ const MainPage = ({ token, onLogout }) => {
   };
 
   // --- CALCOLO NOTIFICHE GLOBALI ---
+  // 1. Priorità: Messaggi urgenti / Admin (Rosso)
   const hasUrgentNotification = unreadCount > 0 || (isAdmin && adminPendingCount > 0);
+  
+  // 2. Secondaria: Lavori pendenti (Ambra/Giallo)
+  const pendingJobs = selectedCharacterData?.lavori_pendenti_count || 0;
+  const hasJobsNotification = pendingJobs > 0;
   
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home': return <HomeTab />;
+      case 'game': return <GameTab onNavigate={handleMenuNavigation} />; // Passiamo onNavigate
       case 'abilita': return <AbilitaTab onLogout={onLogout} />;
       case 'infusioni': return <InfusioniTab onLogout={onLogout} />;
       case 'tessiture': return <TessitureTab onLogout={onLogout} />;
@@ -144,6 +151,8 @@ const MainPage = ({ token, onLogout }) => {
             return <p className="text-gray-500 text-xs italic p-2">Visualizzazione cronologica eventi.</p>;
         case 'transazioni':
             return <p className="text-gray-500 text-xs italic p-2">Storico movimenti economici.</p>;
+        case 'game':
+            return <p className="text-gray-500 text-xs italic p-2">Gestione rapida gioco e statistiche.</p>;
         default:
             return <p className="text-gray-500 text-sm italic p-2">Nessuna azione rapida disponibile.</p>;
     }
@@ -167,13 +176,18 @@ const MainPage = ({ token, onLogout }) => {
           >
             <Menu size={28} />
             
-            {/* Bollino Rosso: Notifiche Gioco */}
+            {/* 1. Bollino Rosso: Notifiche Urgenti */}
             {hasUrgentNotification && (
                 <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-red-500 animate-pulse" />
             )}
+
+            {/* 2. Bollino Giallo/Ambra: Lavori Pendenti (Se non c'è rosso) */}
+            {!hasUrgentNotification && hasJobsNotification && (
+                <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-amber-500 animate-bounce" />
+            )}
             
-            {/* Bollino Blu: Aggiornamento App Disponibile */}
-            {!hasUrgentNotification && needRefresh && (
+            {/* 3. Bollino Blu: Aggiornamento App (Se non ci sono altri avvisi) */}
+            {!hasUrgentNotification && !hasJobsNotification && needRefresh && (
                 <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-blue-500 animate-bounce" />
             )}
           </button>
@@ -244,6 +258,7 @@ const MainPage = ({ token, onLogout }) => {
                 </div>
             </div>
             
+            {/* PULSANTE QR CODE SPOSTATO QUI */}
             <div className="bg-gray-700/30 p-3 rounded-lg border border-gray-600">
                 <button 
                     onClick={() => handleMenuNavigation('qr')}
@@ -254,7 +269,7 @@ const MainPage = ({ token, onLogout }) => {
                 </button>
             </div>
 
-            {/* SEZIONE 2: STORIA E ECONOMIA (Nuova Sezione) */}
+            {/* SEZIONE 2: STORIA E ECONOMIA */}
             <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Storia e Economia</h3>
                 <nav className="space-y-2">
@@ -347,7 +362,6 @@ const MainPage = ({ token, onLogout }) => {
         <TabButton icon={<Zap size={28} />} label="Abilità" isActive={activeTab === 'abilita'} onClick={() => setActiveTab('abilita')} />
         <TabButton icon={<Scroll size={28} />} label="Tessiture" isActive={activeTab === 'tessiture'} onClick={() => setActiveTab('tessiture')} />
         <TabButton icon={<TestTube2 size={28} />} label="Infusioni" isActive={activeTab === 'infusioni'} onClick={() => setActiveTab('infusioni')} />
-        {/* <TabButton icon={<QrCode size={28} />} label="QR" isActive={activeTab === 'qr'} onClick={() => setActiveTab('qr')} /> */}
       </nav>
 
       {qrResultData && (
