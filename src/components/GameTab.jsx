@@ -42,7 +42,7 @@ const GameTab = ({ onNavigate }) => {
     const handleStatChange = async (sigla, mode) => {
         // mode: 'consuma' o 'reset'
         try {
-            await fetchAuthenticated('/api/game/modifica_stat_temp/', {
+            await fetchAuthenticated('/personaggi/api/game/modifica_stat_temp/', {
                 method: 'POST',
                 body: JSON.stringify({ 
                     char_id: char.id, 
@@ -59,7 +59,7 @@ const GameTab = ({ onNavigate }) => {
     const handleUseItem = async (item) => {
         if (item.cariche_attuali <= 0) return;
         try {
-            await fetchAuthenticated('/api/game/usa_oggetto/', {
+            await fetchAuthenticated('/personaggi/api/game/usa_oggetto/', {
                 method: 'POST',
                 body: JSON.stringify({ 
                     oggetto_id: item.id, 
@@ -78,7 +78,7 @@ const GameTab = ({ onNavigate }) => {
         
         if (window.confirm(msg)) {
             try {
-                await fetchAuthenticated('/api/game/ricarica_oggetto/', {
+                await fetchAuthenticated('/personaggi/api/game/ricarica_oggetto/', {
                     method: 'POST',
                     body: JSON.stringify({ 
                         oggetto_id: item.id, 
