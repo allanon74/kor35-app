@@ -22,7 +22,8 @@ import {
     Filter,
     DownloadCloud,
     ScrollText,    // Icona per i Log
-    ArrowRightLeft // Icona per le Transazioni
+    ArrowRightLeft, // Icona per le Transazioni
+    GamePad2
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -34,6 +35,7 @@ import InventoryTab from './InventoryTab.jsx';
 // --- NUOVI COMPONENTI RECUPERATI ---
 import LogViewer from './LogViewer.jsx';
 import TransazioniViewer from './TransazioniViewer.jsx';
+import GameTab from './GameTab.jsx';
 
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
@@ -241,6 +243,16 @@ const MainPage = ({ token, onLogout }) => {
                     )}
                 </div>
             </div>
+            
+            <div className="bg-gray-700/30 p-3 rounded-lg border border-gray-600">
+                <button 
+                    onClick={() => handleMenuNavigation('qr')}
+                    className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/20 transition-all"
+                >
+                    <QrCode size={20} />
+                    SCANNER QR
+                </button>
+            </div>
 
             {/* SEZIONE 2: STORIA E ECONOMIA (Nuova Sezione) */}
             <div>
@@ -329,12 +341,13 @@ const MainPage = ({ token, onLogout }) => {
       </main>
 
       <nav className="grid grid-cols-6 gap-0 p-1 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] shrink-0 border-t border-gray-700 z-10">
+        <TabButton icon={<Gamepad2 size={28} />} label="Game" isActive={activeTab === 'game'} onClick={() => setActiveTab('game')} />
         <TabButton icon={<Home size={24} />} label="Scheda" isActive={activeTab === 'home'} onClick={() => setActiveTab('home')} />
         <TabButton icon={<Backpack size={24} />} label="Zaino" isActive={activeTab === 'inventario'} onClick={() => setActiveTab('inventario')} />
         <TabButton icon={<Zap size={28} />} label="Abilità" isActive={activeTab === 'abilita'} onClick={() => setActiveTab('abilita')} />
         <TabButton icon={<Scroll size={28} />} label="Tessiture" isActive={activeTab === 'tessiture'} onClick={() => setActiveTab('tessiture')} />
         <TabButton icon={<TestTube2 size={28} />} label="Infusioni" isActive={activeTab === 'infusioni'} onClick={() => setActiveTab('infusioni')} />
-        <TabButton icon={<QrCode size={28} />} label="QR" isActive={activeTab === 'qr'} onClick={() => setActiveTab('qr')} />
+        {/* <TabButton icon={<QrCode size={28} />} label="QR" isActive={activeTab === 'qr'} onClick={() => setActiveTab('qr')} /> */}
       </nav>
 
       {qrResultData && (

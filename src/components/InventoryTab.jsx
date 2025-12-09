@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { equipaggiaOggetto } from '../api'; 
 import { useCharacter } from './CharacterContext';
-import { ShoppingBag, Box, Shield, Zap, Loader2, Wrench, Info, ChevronDown, ChevronUp, User, Activity } from 'lucide-react';
+// Aggiunta icona 'Power' per lo stato ON/OFF
+import { ShoppingBag, Box, Shield, Zap, Loader2, Wrench, Info, ChevronUp, User, Activity, Power } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
 
@@ -12,13 +13,14 @@ const InventoryTab = ({ onLogout }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showShop, setShowShop] = useState(false);
 
-  // Stati per modale assemblaggio
+  // Stati per la modale di assemblaggio/modifica oggetti
   const [showAssembly, setShowAssembly] = useState(false);
   const [assemblyHost, setAssemblyHost] = useState(null);
 
-  // --- AGGIUNTA: Stato per gestire l'espansione delle card (descrizioni) ---
+  // Stato per gestire quali card sono espande (per vedere descrizioni e dettagli)
   const [expandedItems, setExpandedItems] = useState({});
 
+  // Sincronizza lo stato locale con i dati del contesto
   useEffect(() => {
     if (characterData?.oggetti) {
       setItems(characterData.oggetti);
@@ -26,6 +28,8 @@ const InventoryTab = ({ onLogout }) => {
       setItems([]);
     }
   }, [characterData]);
+
+  // --- GESTIONE AZIONI ---
 
   const handleToggleEquip = async (itemId) => {
     if (isLoading) return;
@@ -50,7 +54,6 @@ const InventoryTab = ({ onLogout }) => {
     window.location.reload();
   };
 
-  // --- AGGIUNTA: Funzione per espandere/comprimere i dettagli ---
   const toggleExpand = (itemId) => {
     setExpandedItems(prev => ({
       ...prev,
@@ -58,8 +61,25 @@ const InventoryTab = ({ onLogout }) => {
     }));
   };
 
-  // --- AGGIUNTA: Configurazione dei Slot Corporei per la griglia visiva ---
-  // Mappa i codici del backend (models.py) a etichette e posizioni griglia
+  // --- HELPERS VISIVI ---
+
+  /**
+   * Determina lo stile della card (Bordo e Sfondo) in base allo stato
+   * Verde = Attivo e Funzionante
+   * Giallo = Equipaggiato ma Inattivo (es. scarico, rotto, o spento)
+   * Grigio = Nello zaino
+   */
+  const getStatusStyle = (item) => {
+    if (item.is_active) {
+        return 'border-2 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)] bg-green-900/10';
+    }
+    if (item.is_equipaggiato) {
+        return 'border-2 border-yellow-600/60 bg-yellow-900/10'; // Equipaggiato ma OFF
+    }
+    return 'border border-gray-700 bg-gray-800 hover:border-gray-600'; // Zaino
+  };
+
+  // Configurazione slot per la griglia visiva (Body)
   const slotsConfig = {
     'HD1': { label: 'Testa (Pri)', gridArea: 'head1', color: 'border-cyan-500/50' },
     'HD2': { label: 'Testa (Sec)', gridArea: 'head2', color: 'border-cyan-500/30' },
@@ -71,53 +91,63 @@ const InventoryTab = ({ onLogout }) => {
     'RL':  { label: 'Gamba Dx',   gridArea: 'rleg',   color: 'border-emerald-500/50' },
   };
 
-  // --- Render Card Oggetto Generico ---
-  const renderItemCard = (item, isCompact = false) => {
+  // --- RENDER COMPONENTI ---
+
+  /**
+   * Renderizza la card di un singolo oggetto (Arma, Armatura, Oggetto generico)
+   */
+  const renderItemCard = (item) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
-    const isEquipped = item.is_equipaggiato;
+    // Determina se l'oggetto è modificabile (Ha slot o è un innesto)
     const canBeModified = (isPhysical || ['INN', 'MUT'].includes(item.tipo_oggetto)) && (item.classe_oggetto_nome || item.tipo_oggetto === 'INN');
     const isExpanded = !!expandedItems[item.id];
+    const isActive = item.is_active; // Campo calcolato dal Backend
 
     return (
       <div 
         key={item.id} 
-        className={`relative p-3 mb-2 rounded-lg border flex flex-col transition-all ${
-          isEquipped 
-            ? 'bg-emerald-900/20 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]' 
-            : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-        }`}
+        className={`relative p-3 mb-3 rounded-lg flex flex-col transition-all ${getStatusStyle(item)}`}
       >
         <div className="flex flex-col sm:flex-row gap-3 items-start justify-between">
             <div className="grow w-full">
-            {/* Intestazione Card */}
+            
+            {/* INTESTAZIONE CARD (Cliccabile per espandere) */}
             <div className="flex items-center justify-between mb-1 cursor-pointer" onClick={() => toggleExpand(item.id)}>
                 <div className="flex items-center gap-2">
-                    <h4 className={`font-bold text-base ${isEquipped ? 'text-emerald-300' : 'text-gray-200'}`}>
-                    {item.nome}
+                    {/* Nome Oggetto con colore dinamico */}
+                    <h4 className={`font-bold text-base ${isActive ? 'text-green-400' : item.is_equipaggiato ? 'text-yellow-500' : 'text-gray-200'}`}>
+                        {item.nome}
                     </h4>
-                    {isEquipped && (
-                        <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded uppercase font-bold tracking-wider flex items-center gap-1">
-                            <Shield size={10} /> Equip
+                    
+                    {/* Badge di Stato */}
+                    {isActive && (
+                        <span className="text-[10px] bg-green-600 text-white px-1.5 py-0.5 rounded uppercase font-bold tracking-wider flex items-center gap-1">
+                            <Power size={10} /> ON
+                        </span>
+                    )}
+                    {item.is_equipaggiato && !isActive && (
+                        <span className="text-[10px] bg-yellow-600 text-black px-1.5 py-0.5 rounded uppercase font-bold tracking-wider flex items-center gap-1">
+                            <Shield size={10} /> OFF
                         </span>
                     )}
                 </div>
-                {/* Icona Espansione */}
+                {/* Icona Espansione/Contrazione */}
                 <button className="text-gray-400 hover:text-white p-1">
                     {isExpanded ? <ChevronUp size={18} /> : <Info size={18} />}
                 </button>
             </div>
             
-            {/* Badge Tipo e Classe (Sempre visibili) */}
+            {/* BADGE INFORMATIVI (Tipo, Classe, Mod installate) */}
             <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-1">
                 <span className="bg-gray-900 px-2 py-0.5 rounded border border-gray-700">
-                {item.tipo_oggetto_display}
+                    {item.tipo_oggetto_display}
                 </span>
                 {item.classe_oggetto_nome && (
                     <span className="bg-gray-900 px-2 py-0.5 rounded border border-gray-700">
-                    {item.classe_oggetto_nome}
+                        {item.classe_oggetto_nome}
                     </span>
                 )}
-                {/* Badge riassuntivo mod se compresso */}
+                {/* Se compresso, mostra solo il numero di mod */}
                 {!isExpanded && item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
                     <span className="flex items-center gap-1 text-indigo-400">
                         <Zap size={10} /> {item.potenziamenti_installati.length} Mod
@@ -125,37 +155,60 @@ const InventoryTab = ({ onLogout }) => {
                 )}
             </div>
 
-            {/* --- CONTENUTO ESPANDIBILE --- */}
+            {/* --- CONTENUTO ESPANDIBILE (Descrizioni e Dettagli) --- */}
             {isExpanded && (
-                <div className="mt-3 animate-fadeIn">
-                    {/* Descrizione Principale */}
-                    <div className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none leading-snug p-2 bg-gray-900/50 rounded border border-gray-700/50">
-                        <h5 className="text-[10px] uppercase font-bold text-gray-500 mb-1">Descrizione</h5>
+                <div className="mt-3 animate-fadeIn space-y-3">
+                    
+                    {/* 1. Descrizione Principale */}
+                    <div className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none leading-snug p-2 bg-black/20 rounded border border-gray-700/30">
+                        <h5 className="text-[10px] uppercase font-bold text-gray-500 mb-1">Specifiche Tecniche</h5>
                         {item.testo_formattato_personaggio ? (
                             <div dangerouslySetInnerHTML={{ __html: item.testo_formattato_personaggio }} />
                         ) : (
-                            <p>{item.testo || item.descrizione || "Nessuna descrizione disponibile."}</p>
+                            <p>{item.testo || item.descrizione || "Nessun dato disponibile."}</p>
+                        )}
+                        
+                        {/* Timer Scadenza (Se presente) */}
+                        {item.data_fine_attivazione && (
+                            <div className="mt-2 pt-2 border-t border-gray-700 text-xs text-orange-400 font-mono">
+                                <span>Scadenza: </span>
+                                {new Date(item.data_fine_attivazione).toLocaleString()}
+                            </div>
                         )}
                     </div>
 
-                    {/* Sezione Potenziamenti Dettagliata */}
+                    {/* 2. Lista Moduli Installati (Mod/Materia) */}
                     {item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
-                        <div className="mt-3 pl-2 border-l-2 border-indigo-500/30">
+                        <div className="pl-2 border-l-2 border-indigo-500/30">
                             <p className="text-[10px] font-bold text-indigo-400 uppercase mb-2 flex items-center gap-1">
-                                <Zap size={12} /> Modifiche Installate:
+                                <Zap size={12} /> Moduli Installati:
                             </p>
                             <div className="space-y-2">
-                                {item.potenziamenti_installati.map(mod => (
-                                <div key={mod.id} className="bg-indigo-900/20 p-2 rounded border border-indigo-500/20 text-xs">
-                                    <div className="font-bold text-indigo-200 flex justify-between">
-                                        <span>{mod.nome}</span>
-                                        <span className="text-gray-500 opacity-70">[{mod.tipo_oggetto_display}]</span>
-                                    </div>
-                                    {mod.cariche_attuali > 0 && (
-                                        <div className="text-[10px] text-yellow-500 mt-0.5">Cariche: {mod.cariche_attuali}</div>
-                                    )}
-                                </div>
-                                ))}
+                                {item.potenziamenti_installati.map(mod => {
+                                    // Se il backend manda is_active anche per le mod, usiamolo, altrimenti fallback a true
+                                    const isModActive = mod.is_active !== undefined ? mod.is_active : true;
+                                    
+                                    return (
+                                        <div key={mod.id} className={`p-2 rounded border text-xs ${isModActive ? 'bg-indigo-900/20 border-indigo-500/20' : 'bg-red-900/10 border-red-900/30 opacity-70'}`}>
+                                            <div className="font-bold text-indigo-200 flex justify-between items-center mb-1">
+                                                <span>{mod.nome}</span>
+                                                <span className="text-[9px] text-gray-500 uppercase tracking-wide">[{mod.tipo_oggetto_display}]</span>
+                                            </div>
+                                            
+                                            {/* Descrizione della Mod */}
+                                            {mod.descrizione && (
+                                                <p className="text-gray-400 italic mb-1 leading-tight">{mod.descrizione}</p>
+                                            )}
+
+                                            {/* Cariche della Mod */}
+                                            {mod.cariche_attuali !== undefined && (
+                                                <div className={`text-[10px] ${mod.cariche_attuali > 0 ? 'text-yellow-500' : 'text-red-500 font-bold'}`}>
+                                                    Stato Carica: {mod.cariche_attuali}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -163,38 +216,42 @@ const InventoryTab = ({ onLogout }) => {
             )}
             </div>
 
-            {/* Pulsanti Azione */}
+            {/* --- PULSANTI AZIONE (Colonna destra o riga sotto su mobile) --- */}
             <div className="shrink-0 flex flex-row sm:flex-col gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-            {canBeModified && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); handleOpenAssembly(item); }}
-                    className="flex-1 sm:flex-none px-3 py-2 rounded text-xs font-bold shadow-sm transition-all active:scale-95 bg-gray-700 hover:bg-gray-600 text-amber-400 border border-gray-600 flex items-center justify-center gap-2"
-                    title="Modifica / Assembla"
-                >
-                    <Wrench size={14} /> <span className="sm:hidden lg:inline">Modifica</span>
-                </button>
-            )}
+                {/* Tasto Modifica/Assembla */}
+                {canBeModified && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenAssembly(item); }}
+                        className="flex-1 sm:flex-none px-3 py-2 rounded text-xs font-bold shadow-sm transition-all active:scale-95 bg-gray-700 hover:bg-gray-600 text-amber-400 border border-gray-600 flex items-center justify-center gap-2"
+                        title="Gestisci Mod e Materia"
+                    >
+                        <Wrench size={14} /> <span className="sm:hidden lg:inline">Modifica</span>
+                    </button>
+                )}
 
-            {isPhysical && (
-                <button 
-                onClick={(e) => { e.stopPropagation(); handleToggleEquip(item.id); }}
-                disabled={isLoading}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded text-xs font-bold shadow-sm transition-all active:scale-95 ${
-                    isEquipped
-                    ? 'bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-700'
-                    : 'bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-600'
-                }`}
-                >
-                {isEquipped ? 'Rimuovi' : 'Equipaggia'}
-                </button>
-            )}
+                {/* Tasto Equipaggia/Rimuovi */}
+                {isPhysical && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); handleToggleEquip(item.id); }}
+                        disabled={isLoading}
+                        className={`flex-1 sm:flex-none px-3 py-2 rounded text-xs font-bold shadow-sm transition-all active:scale-95 ${
+                            item.is_equipaggiato
+                            ? 'bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-700'
+                            : 'bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-600'
+                        }`}
+                    >
+                        {item.is_equipaggiato ? 'Rimuovi' : 'Equipaggia'}
+                    </button>
+                )}
             </div>
         </div>
       </div>
     );
   };
 
-  // --- Funzione Render Body Slots ---
+  /**
+   * Renderizza la rappresentazione visiva del corpo (Body Slots)
+   */
   const renderBodyVisual = (corpoItems) => {
     // Organizza gli oggetti per slot
     const slots = {
@@ -230,21 +287,28 @@ const InventoryTab = ({ onLogout }) => {
                 ) : (
                     <div className="flex flex-col gap-1">
                         {itemsInSlot.map(item => (
-                            <div key={item.id} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 cursor-pointer hover:bg-gray-700 transition-colors" onClick={() => toggleExpand(item.id)}>
+                            <div 
+                                key={item.id} 
+                                className={`rounded px-2 py-1 cursor-pointer transition-colors border ${item.is_active ? 'bg-cyan-900/30 border-cyan-500/50' : 'bg-red-900/20 border-red-800/30 opacity-70'}`}
+                                onClick={() => toggleExpand(item.id)}
+                            >
                                 <div className="flex justify-between items-center">
-                                    <span className={`text-xs font-bold truncate ${item.tipo_oggetto === 'INN' ? 'text-cyan-300' : 'text-purple-300'}`}>
+                                    <span className={`text-xs font-bold truncate ${item.is_active ? 'text-cyan-300' : 'text-red-300 line-through'}`}>
                                         {item.nome}
                                     </span>
                                     <Info size={10} className="text-gray-500" />
                                 </div>
                                 {/* Se espanso, mostra un mini dettaglio anche qui */}
                                 {expandedItems[item.id] && (
-                                    <div className="mt-1 text-[10px] text-gray-400 leading-tight">
+                                    <div className="mt-1 text-[10px] text-gray-400 leading-tight animate-fadeIn">
                                         {item.potenziamenti_installati?.length > 0 && <div>Mods: {item.potenziamenti_installati.length}</div>}
-                                        <div className="mt-1 pt-1 border-t border-gray-700" dangerouslySetInnerHTML={{__html: item.TestoFormattato?.substring(0, 50) + "..."}} />
+                                        {/* Mostra estratto descrizione */}
+                                        <div className="mt-1 pt-1 border-t border-gray-700/50 italic">
+                                            {item.descrizione ? item.descrizione.substring(0, 50) + "..." : "..."}
+                                        </div>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleOpenAssembly(item); }}
-                                            className="mt-1 w-full text-center bg-gray-700 text-amber-500 text-[9px] py-0.5 rounded"
+                                            className="mt-2 w-full text-center bg-gray-700 hover:bg-gray-600 text-amber-500 text-[9px] py-1 rounded"
                                         >
                                             GESTISCI
                                         </button>
@@ -301,7 +365,7 @@ const InventoryTab = ({ onLogout }) => {
     );
   };
 
-  // --- Render Principale ---
+  // --- RENDER PRINCIPALE ---
   
   if (isContextLoading) {
     return (
@@ -315,6 +379,7 @@ const InventoryTab = ({ onLogout }) => {
     return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
   }
 
+  // Filtri liste oggetti
   const corpoItems = items.filter(i => ['INN', 'MUT'].includes(i.tipo_oggetto));
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
@@ -322,7 +387,7 @@ const InventoryTab = ({ onLogout }) => {
   return (
     <div className="pb-24 px-1 space-y-6 animate-fadeIn">
       
-      {/* HEADER */}
+      {/* HEADER TAB */}
       <div className="flex justify-between items-center p-3 rounded-lg border border-gray-700 shadow-sm mb-4 sticky top-0 z-20 backdrop-blur-md bg-gray-800/90">
          <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Box className="text-indigo-400" />
