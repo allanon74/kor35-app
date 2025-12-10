@@ -10,7 +10,8 @@ import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
 
 const InventoryTab = ({ onLogout }) => {
-  const { selectedCharacterData: characterData, isLoading: isContextLoading, fetchPersonaggi } = useCharacter();
+  // USA refreshCharacterData PER AGGIORNARE I DATI ISTANTANEAMENTE
+  const { selectedCharacterData: characterData, isLoading: isContextLoading, refreshCharacterData } = useCharacter();
   
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,8 +39,8 @@ const InventoryTab = ({ onLogout }) => {
     setIsLoading(true);
     try {
       await equipaggiaOggetto(itemId, characterData.id, onLogout);
-      // Ricarichiamo i dati per aggiornare lo stato
-      fetchPersonaggi();
+      // REFRESH COMPLETO DEI DATI
+      await refreshCharacterData(); 
     } catch (error) {
       console.error("Errore equipaggiamento:", error);
       alert(error.message || "Errore durante l'azione");
@@ -58,7 +59,7 @@ const InventoryTab = ({ onLogout }) => {
           setIsLoading(true);
           try {
               await ricaricaOggetto(item.id);
-              fetchPersonaggi(); // Aggiorna per vedere le nuove cariche
+              await refreshCharacterData(); // Aggiorna per vedere le nuove cariche
           } catch (error) {
               alert("Errore ricarica: " + error.message);
           } finally {
@@ -72,8 +73,8 @@ const InventoryTab = ({ onLogout }) => {
     setShowAssembly(true);
   };
 
-  const handleAssemblyComplete = () => {
-    fetchPersonaggi();
+  const handleAssemblyComplete = async () => {
+    await refreshCharacterData();
     setShowAssembly(false);
     setAssemblyHost(null);
   };
@@ -138,7 +139,7 @@ const InventoryTab = ({ onLogout }) => {
                              </span>
                         )}
                     </div>
-                    {/* Pulsante Ricarica */}
+                    {/* Pulsante Ricarica se serve */}
                     {(item.cariche_massime > 0 && item.cariche_attuali < item.cariche_massime) && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); handleRecharge(item); }}
@@ -239,6 +240,7 @@ const InventoryTab = ({ onLogout }) => {
                             </p>
                             <div className="space-y-2">
                                 {item.potenziamenti_installati.map(mod => {
+                                    // Se il backend non invia is_active, assumiamo true
                                     const isModActive = mod.is_active !== undefined ? mod.is_active : true;
                                     
                                     return (
@@ -305,9 +307,13 @@ const InventoryTab = ({ onLogout }) => {
 
   // --- RENDER VISUALE CORPO ---
   const renderBodyVisual = (corpoItems) => {
+    // Organizza gli oggetti per slot
     const slots = {
-        'HD1': [], 'HD2': [], 'TR1': [], 'TR2': [],
-        'LA': [], 'RA': [], 'LL': [], 'RL': [], 'GENERIC': []
+        'HD1': [], 'HD2': [],
+        'TR1': [], 'TR2': [],
+        'LA': [], 'RA': [],
+        'LL': [], 'RL': [],
+        'GENERIC': [] // Per oggetti corpo senza slot definito
     };
 
     corpoItems.forEach(item => {
@@ -318,6 +324,7 @@ const InventoryTab = ({ onLogout }) => {
         }
     });
 
+    // Helper per renderizzare un singolo slot nella griglia
     const renderSlotArea = (code) => {
         const config = slotsConfig[code];
         const itemsInSlot = slots[code];
@@ -345,9 +352,11 @@ const InventoryTab = ({ onLogout }) => {
                                     </span>
                                     <Info size={10} className="text-gray-500" />
                                 </div>
+                                {/* Se espanso, mostra un mini dettaglio anche qui */}
                                 {expandedItems[item.id] && (
                                     <div className="mt-1 text-[10px] text-gray-400 leading-tight animate-fadeIn">
                                         {item.potenziamenti_installati?.length > 0 && <div>Mods: {item.potenziamenti_installati.length}</div>}
+                                        {/* Mostra estratto descrizione */}
                                         <div 
                                             className="mt-1 pt-1 border-t border-gray-700/50 italic"
                                             dangerouslySetInnerHTML={{ __html: item.descrizione ? item.descrizione.substring(0, 50) + "..." : "..." }}
@@ -370,9 +379,12 @@ const InventoryTab = ({ onLogout }) => {
 
     return (
         <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-6 relative overflow-hidden">
+            {/* Sfondo decorativo */}
             <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
                 <User size={300} />
             </div>
+
+            {/* Griglia Body */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 relative z-10 max-w-3xl mx-auto"
                 style={{
                     display: 'grid',
@@ -383,13 +395,22 @@ const InventoryTab = ({ onLogout }) => {
                     `,
                 }}
             >
-                {renderSlotArea('HD1')} {renderSlotArea('HD2')}
-                {renderSlotArea('LA')} {renderSlotArea('TR1')} {renderSlotArea('TR2')} {renderSlotArea('RA')}
-                {renderSlotArea('LL')} {renderSlotArea('RL')}
+                {renderSlotArea('HD1')}
+                {renderSlotArea('HD2')}
+                
+                {renderSlotArea('LA')}
+                {renderSlotArea('TR1')}
+                {renderSlotArea('TR2')}
+                {renderSlotArea('RA')}
+                
+                {renderSlotArea('LL')}
+                {renderSlotArea('RL')}
             </div>
+
+            {/* Oggetti Generici (senza slot) */}
             {slots['GENERIC'].length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Altri Potenziamenti</h4>
+                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Altri Potenziamenti (Sistemici)</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {slots['GENERIC'].map(item => renderItemCard(item))}
                     </div>
@@ -399,44 +420,101 @@ const InventoryTab = ({ onLogout }) => {
     );
   };
 
-  if (isContextLoading) return <div className="p-8 text-center text-gray-500 flex justify-center"><Loader2 className="animate-spin" /></div>;
-  if (!characterData) return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
+  // --- RENDER PRINCIPALE ---
+  
+  if (isContextLoading) {
+    return (
+      <div className="p-8 text-center text-gray-500 flex justify-center">
+        <Loader2 className="animate-spin" />
+      </div>
+    );
+  }
+  
+  if (!characterData) {
+    return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
+  }
 
+  // Filtri liste oggetti
   const corpoItems = items.filter(i => ['INN', 'MUT'].includes(i.tipo_oggetto));
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
 
   return (
     <div className="pb-24 px-1 space-y-6 animate-fadeIn">
+      
+      {/* HEADER TAB */}
       <div className="flex justify-between items-center p-3 rounded-lg border border-gray-700 shadow-sm mb-4 sticky top-0 z-20 backdrop-blur-md bg-gray-800/90">
-         <h2 className="text-xl font-bold text-white flex items-center gap-2"><Box className="text-indigo-400" /> Inventario</h2>
-         <button onClick={() => setShowShop(true)} className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-lg shadow-yellow-900/20 transition-all active:scale-95 text-xs sm:text-sm border border-yellow-500">
-            <ShoppingBag size={16} /> <span>Negozio</span>
+         <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Box className="text-indigo-400" />
+            Inventario
+         </h2>
+         <button
+            onClick={() => setShowShop(true)}
+            className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-lg shadow-yellow-900/20 transition-all active:scale-95 text-xs sm:text-sm border border-yellow-500"
+         >
+            <ShoppingBag size={16} />
+            <span>Negozio</span>
          </button>
       </div>
 
+      {/* SEZIONE 1: Body Slots (Innesti & Mutazioni) */}
       <section>
-        <h3 className="text-sm font-bold text-indigo-300 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1"><Activity size={16} /> Diagnostica Corporea</h3>
-        {corpoItems.length > 0 ? renderBodyVisual(corpoItems) : <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">Nessun potenziamento.</p>}
+        <h3 className="text-sm font-bold text-indigo-300 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1">
+          <Activity size={16} /> Diagnostica Corporea
+        </h3>
+        {corpoItems.length > 0 ? (
+            renderBodyVisual(corpoItems)
+        ) : (
+          <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">
+            Sistemi organici standard. Nessun potenziamento rilevato.
+          </p>
+        )}
       </section>
 
+      {/* SEZIONE 2: Equipaggiamento Attivo */}
       <section>
-        <h3 className="text-sm font-bold text-emerald-300 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1"><Shield size={16} /> Equipaggiamento Attivo</h3>
-        {equipItems.length > 0 ? <div className="grid grid-cols-1 gap-2">{equipItems.map(item => renderItemCard(item))}</div> : <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">Mani vuote.</p>}
+        <h3 className="text-sm font-bold text-emerald-300 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1">
+          <Shield size={16} /> Equipaggiamento Attivo
+        </h3>
+        {equipItems.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2">
+                {equipItems.map(item => renderItemCard(item))}
+            </div>
+        ) : (
+          <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">
+            Mani vuote. Equipaggia qualcosa dallo zaino.
+          </p>
+        )}
       </section>
 
+      {/* SEZIONE 3: Zaino */}
       <section>
-        <h3 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1"><Box size={16} /> Zaino</h3>
-        {zainoItems.length > 0 ? <div className="grid grid-cols-1 gap-2">{zainoItems.map(item => renderItemCard(item))}</div> : <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">Zaino vuoto.</p>}
+        <h3 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1">
+          <Box size={16} /> Zaino
+        </h3>
+        {zainoItems.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2">
+                {zainoItems.map(item => renderItemCard(item))}
+            </div>
+        ) : (
+          <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">
+            Zaino vuoto. Visita il negozio!
+          </p>
+        )}
       </section>
 
+      {/* Modale Shop */}
       {showShop && <ShopModal onClose={() => setShowShop(false)} />}
-      
+
+      {/* Modale Assemblaggio */}
       {showAssembly && assemblyHost && (
         <ItemAssemblyModal 
             hostItem={assemblyHost}
             inventory={items}
-            onClose={() => { setShowAssembly(false); setAssemblyHost(null); }}
+            onClose={() => {
+                setShowAssembly(false);
+                setAssemblyHost(null);
+            }}
             onRefresh={handleAssemblyComplete}
         />
       )}
