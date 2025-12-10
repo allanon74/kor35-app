@@ -21,9 +21,11 @@ import {
     RefreshCw,  
     Filter,
     DownloadCloud,
-    ScrollText,    // Icona per i Log
-    ArrowRightLeft, // Icona per le Transazioni
-    Gamepad2       // CORRETTO: Gamepad2 invece di GamePad2
+    ScrollText,    
+    ArrowRightLeft,
+    Gamepad2,
+    Loader2,       // AGGIUNTO
+    ExternalLink   // AGGIUNTO
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -38,7 +40,7 @@ import TransazioniViewer from './TransazioniViewer.jsx';
 import GameTab from './GameTab.jsx';
 
 const MainPage = ({ token, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('game'); // Default: GameTab
+  const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -80,10 +82,10 @@ const MainPage = ({ token, onLogout }) => {
   const {
     personaggiList,
     selectedCharacterId,
-    selectedCharacterData, // <--- AGGIUNTO: Serve per contare i lavori pendenti
+    selectedCharacterData, 
     selectCharacter,
     fetchPersonaggi,
-    isLoading: isCharacterLoading,
+    isLoading, // USIAMO QUESTO PER IL LOADER
     error: characterError,
     isAdmin,
     viewAll,
@@ -105,18 +107,15 @@ const MainPage = ({ token, onLogout }) => {
     setIsMenuOpen(false);
   };
 
-  // --- CALCOLO NOTIFICHE GLOBALI ---
-  // 1. Priorità: Messaggi urgenti / Admin (Rosso)
-  const hasUrgentNotification = unreadCount > 0 || (isAdmin && adminPendingCount > 0);
-  
-  // 2. Secondaria: Lavori pendenti (Ambra/Giallo)
-  const pendingJobs = selectedCharacterData?.lavori_pendenti_count || 0;
-  const hasJobsNotification = pendingJobs > 0;
+  // --- CALCOLO NOTIFICHE SEPARATE ---
+  const hasAdminNotif = isAdmin && adminPendingCount > 0;
+  const hasMsgNotif = unreadCount > 0;
+  const hasJobNotif = selectedCharacterData?.lavori_pendenti_count > 0;
   
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home': return <HomeTab />;
-      case 'game': return <GameTab onNavigate={handleMenuNavigation} />; // Passiamo onNavigate
+      case 'game': return <GameTab onNavigate={handleMenuNavigation} />;
       case 'abilita': return <AbilitaTab onLogout={onLogout} />;
       case 'infusioni': return <InfusioniTab onLogout={onLogout} />;
       case 'tessiture': return <TessitureTab onLogout={onLogout} />;
@@ -125,7 +124,6 @@ const MainPage = ({ token, onLogout }) => {
       case 'admin_msg': return <AdminMessageTab onLogout={onLogout} />;
       case 'inventario': return <InventoryTab onLogout={onLogout} />;
       
-      // --- NUOVE TAB ---
       case 'logs': return <div className="p-4 h-full overflow-y-auto"><LogViewer charId={selectedCharacterId} /></div>;
       case 'transazioni': return <div className="p-4 h-full overflow-y-auto"><TransazioniViewer charId={selectedCharacterId} /></div>;
       
@@ -151,8 +149,6 @@ const MainPage = ({ token, onLogout }) => {
             return <p className="text-gray-500 text-xs italic p-2">Visualizzazione cronologica eventi.</p>;
         case 'transazioni':
             return <p className="text-gray-500 text-xs italic p-2">Storico movimenti economici.</p>;
-        case 'game':
-            return <p className="text-gray-500 text-xs italic p-2">Gestione rapida gioco e statistiche.</p>;
         default:
             return <p className="text-gray-500 text-sm italic p-2">Nessuna azione rapida disponibile.</p>;
     }
@@ -162,35 +158,65 @@ const MainPage = ({ token, onLogout }) => {
     <div className="flex flex-col h-dvh bg-gray-900 text-white relative overflow-hidden">
       
       {/* --- HEADER --- */}
-      <header className="flex justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 border-b border-gray-700 z-10">
-          <div className="flex items-center gap-3">
-              <img src="/pwa-512x512.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-lg" />
-              <h1 className="text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-linear-to-r from-blue-400 via-cyan-400 to-green-400 font-sans italic">
+      <header className="relative flex justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 border-b border-gray-700 z-10 h-16">
+          
+          {/* SX: LOGO */}
+          <div className="flex items-center gap-3 z-20">
+              <img src="/pwa-512x512.png" alt="Logo" className="w-9 h-9 object-contain drop-shadow-lg" />
+              <h1 className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-linear-to-r from-blue-400 via-cyan-400 to-green-400 font-sans italic hidden sm:block">
                 KOR-35
               </h1>
           </div>
 
-          <button 
-            onClick={() => setIsMenuOpen(true)}
-            className="relative p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-200"
-          >
-            <Menu size={28} />
-            
-            {/* 1. Bollino Rosso: Notifiche Urgenti */}
-            {hasUrgentNotification && (
-                <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-red-500 animate-pulse" />
+          {/* CENTRO: NOME PG */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none z-10">
+            {selectedCharacterData ? (
+                <div className="flex flex-col items-center justify-center">
+                    <span className="text-xs text-gray-500 uppercase tracking-widest leading-none mb-0.5">Operativo</span>
+                    <span className="font-bold text-white text-base tracking-wide drop-shadow-md">{selectedCharacterData.nome}</span>
+                </div>
+            ) : (
+                <span className="text-gray-500 italic text-sm">Seleziona Personaggio</span>
             )}
+          </div>
 
-            {/* 2. Bollino Giallo/Ambra: Lavori Pendenti (Se non c'è rosso) */}
-            {!hasUrgentNotification && hasJobsNotification && (
-                <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-amber-500 animate-bounce" />
-            )}
-            
-            {/* 3. Bollino Blu: Aggiornamento App (Se non ci sono altri avvisi) */}
-            {!hasUrgentNotification && !hasJobsNotification && needRefresh && (
-                <span className="absolute top-1 right-1 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-blue-500 animate-bounce" />
-            )}
-          </button>
+          {/* DX: LOADING + MENU */}
+          <div className="flex items-center gap-3 z-20">
+              
+              {/* GIF/SPINNER LOADING */}
+              {isLoading && (
+                  <div className="bg-indigo-900/40 p-1.5 rounded-full border border-indigo-500/30 animate-in fade-in zoom-in duration-300">
+                      <Loader2 size={20} className="text-indigo-400 animate-spin" />
+                  </div>
+              )}
+
+              <button 
+                onClick={() => setIsMenuOpen(true)}
+                className="relative p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-200"
+              >
+                <Menu size={28} />
+                
+                {/* 1. ADMIN (Rosso - Top Right) */}
+                {hasAdminNotif && (
+                    <span className="absolute top-0 right-0 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-red-600 animate-pulse" />
+                )}
+
+                {/* 2. MESSAGGI (Viola - Top Left) */}
+                {hasMsgNotif && (
+                    <span className="absolute top-0 left-0 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-purple-500" />
+                )}
+
+                {/* 3. LAVORI (Arancione - Bottom Right) */}
+                {hasJobNotif && (
+                    <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-orange-500 animate-bounce" />
+                )}
+                
+                {/* 4. UPDATE (Blu - Bottom Left) */}
+                {needRefresh && (
+                    <span className="absolute bottom-0 left-0 block h-3 w-3 rounded-full ring-2 ring-gray-800 bg-blue-500 animate-pulse" />
+                )}
+              </button>
+          </div>
       </header>
 
       {/* --- MENU LATERALE (DRAWER) --- */}
@@ -212,21 +238,21 @@ const MainPage = ({ token, onLogout }) => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
-            {/* --- SEZIONE AGGIORNAMENTO APP --- */}
+            {/* UPDATE WIDGET */}
             {needRefresh && (
                 <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 animate-in fade-in slide-in-from-right-4">
                     <div className="flex items-start gap-3 mb-3">
                         <DownloadCloud className="text-blue-400 shrink-0" size={24} />
                         <div>
                             <h3 className="font-bold text-blue-100 text-sm">Aggiornamento Disponibile</h3>
-                            <p className="text-xs text-blue-200 mt-1">Una nuova versione è disponibile.</p>
+                            <p className="text-xs text-blue-200 mt-1">Nuova versione pronta.</p>
                         </div>
                     </div>
                     <button 
                         onClick={() => updateServiceWorker(true)}
                         className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg transition-all text-sm flex items-center justify-center gap-2"
                     >
-                        <RefreshCw size={16} /> Installa e Ricarica
+                        <RefreshCw size={16} /> Installa
                     </button>
                 </div>
             )}
@@ -239,7 +265,7 @@ const MainPage = ({ token, onLogout }) => {
                         value={selectedCharacterId} 
                         onChange={(e) => { handleCharacterChange(e); setIsMenuOpen(false); }} 
                         className="w-full px-3 py-2 text-white bg-gray-800 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none font-medium mb-2" 
-                        disabled={isCharacterLoading}
+                        disabled={isLoading}
                     >
                         <option value="">-- Seleziona --</option>
                         {personaggiList.map((pg) => (
@@ -258,7 +284,7 @@ const MainPage = ({ token, onLogout }) => {
                 </div>
             </div>
             
-            {/* PULSANTE QR CODE SPOSTATO QUI */}
+            {/* QR CODE */}
             <div className="bg-gray-700/30 p-3 rounded-lg border border-gray-600">
                 <button 
                     onClick={() => handleMenuNavigation('qr')}
@@ -269,7 +295,7 @@ const MainPage = ({ token, onLogout }) => {
                 </button>
             </div>
 
-            {/* SEZIONE 2: STORIA E ECONOMIA */}
+            {/* SEZIONE 2: ECONOMIA */}
             <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Storia e Economia</h3>
                 <nav className="space-y-2">
@@ -278,7 +304,7 @@ const MainPage = ({ token, onLogout }) => {
                         className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${activeTab === 'logs' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
                     >
                         <ScrollText size={20} className="text-yellow-400" />
-                        <span>Diario Eventi (Logs)</span>
+                        <span>Diario Eventi</span>
                     </button>
                     <button 
                         onClick={() => handleMenuNavigation('transazioni')}
@@ -303,34 +329,40 @@ const MainPage = ({ token, onLogout }) => {
                             <span>Messaggi</span>
                         </div>
                         {unreadCount > 0 && (
-                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                            <span className="bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse shadow-lg shadow-purple-500/20">
                                 {unreadCount}
                             </span>
                         )}
                     </button>
 
+                    {/* PULSANTE ADMIN LINK ESTERNO */}
                     {isAdmin && (
-                        <button 
-                            onClick={() => handleMenuNavigation('admin_msg')}
-                            className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${activeTab === 'admin_msg' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                        <a 
+                            href="https://www.kor35.it/admin/personaggi/propostatecnica/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-800 text-red-200 hover:bg-red-900/30 hover:text-white transition-colors border border-red-900/30"
                         >
                             <div className="flex items-center gap-3">
                                 <UserCog size={20} />
-                                <span>Gestione Admin</span>
+                                <span>Amministrazione</span>
                             </div>
-                            {adminPendingCount > 0 && (
-                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-                                    {adminPendingCount}
-                                </span>
-                            )}
-                        </button>
+                            <div className="flex items-center gap-2">
+                                {adminPendingCount > 0 && (
+                                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                                        {adminPendingCount}
+                                    </span>
+                                )}
+                                <ExternalLink size={14} className="opacity-50"/>
+                            </div>
+                        </a>
                     )}
                 </nav>
             </div>
-
-            {/* SEZIONE 4: AZIONI CONTESTUALI */}
+            
+            {/* AZIONI CONTESTUALI */}
             <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Azioni Tab Corrente ({activeTab})</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Azioni Tab</h3>
                 <div className="bg-gray-700/50 rounded-lg p-2 border border-gray-700">
                     {renderContextualActions()}
                 </div>

@@ -7,51 +7,45 @@ import {
 } from 'lucide-react';
 
 const GameTab = ({ onNavigate }) => {
-    // USA refreshCharacterData PER AGGIORNARE I DETTAGLI (HP, OGGETTI, ECC.)
+    // 1. Context: estraiamo refreshCharacterData per aggiornamento real-time
     const { selectedCharacterData: char, refreshCharacterData } = useCharacter();
     const [favorites, setFavorites] = useState([]);
     const [timers, setTimers] = useState({});
 
-    // Carica preferiti
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
         setFavorites(savedFavs);
     }, []);
 
-    // Helper: Recupera tutti gli oggetti (anche Mod interne) che hanno meccaniche attive
+    // 2. Logica Appiattimento Oggetti (Recupera anche Mod installate)
     const getAllActiveItems = () => {
         if (!char?.oggetti) return [];
         let list = [];
         
         char.oggetti.forEach(item => {
-            // Un oggetto ha meccaniche se ha cariche max > 0 o una durata
+            // Un oggetto è "interattivo" se ha cariche o durata
             const hasMechanics = (obj) => (obj.cariche_massime > 0 || obj.durata_totale > 0);
             
-            // 1. Controlla l'oggetto padre (Container)
+            // Verifica se il contenitore (oggetto padre) è attivo
             let isContainerActive = false;
-            // Fisico: deve essere equipaggiato
             if (item.tipo_oggetto === 'FIS' && item.is_equipaggiato) isContainerActive = true;
-            // Innesto: deve essere montato (slot_corpo presente)
             if (item.tipo_oggetto === 'INN' && item.slot_corpo) isContainerActive = true;
-            // Mutazione: sempre attiva
             if (item.tipo_oggetto === 'MUT') isContainerActive = true;
 
-            // Se l'oggetto stesso è un device usabile
+            // Se l'oggetto padre ha meccaniche, aggiungilo
             if (isContainerActive && hasMechanics(item)) {
                 list.push(item);
             }
 
-            // 2. Controlla le Mod installate (Solo se il contenitore è attivo!)
+            // Se l'oggetto padre ha Mod installate con meccaniche, aggiungile
             if (isContainerActive && item.potenziamenti_installati) {
                 item.potenziamenti_installati.forEach(mod => {
                     if (hasMechanics(mod)) {
-                        // Aggiungiamo metadati per la UI per far capire che è una Mod
                         list.push({ 
                             ...mod, 
                             is_mod: true, 
                             parent_name: item.nome,
-                            // Le mod ereditano lo stato "attivo" dal padre + le loro condizioni (cariche)
-                            // Il backend invia già is_active calcolato correttamente
+                            // Ereditano "attivo" dal padre nel backend, ma qui sappiamo che il padre è attivo
                         });
                     }
                 });
@@ -62,7 +56,7 @@ const GameTab = ({ onNavigate }) => {
 
     const activeItems = getAllActiveItems();
 
-    // Timer System Locale
+    // 3. Timer Locale (Countdown)
     useEffect(() => {
         const interval = setInterval(() => {
             const now = Date.now();
@@ -80,7 +74,7 @@ const GameTab = ({ onNavigate }) => {
         return () => clearInterval(interval);
     }, [char, activeItems]); 
 
-    // --- AZIONI ---
+    // --- HANDLERS ---
 
     const handleStatChange = async (sigla, mode) => {
         try {
@@ -88,11 +82,8 @@ const GameTab = ({ onNavigate }) => {
                 method: 'POST',
                 body: JSON.stringify({ char_id: char.id, stat_sigla: sigla, mode: mode })
             });
-            // IMPORTANTE: Aggiorna i dati locali
             await refreshCharacterData(); 
-        } catch (error) {
-            console.error("Errore modifica stat:", error);
-        }
+        } catch (error) { console.error("Errore stat:", error); }
     };
 
     const handleUseItem = async (item) => {
@@ -103,13 +94,12 @@ const GameTab = ({ onNavigate }) => {
                 body: JSON.stringify({ oggetto_id: item.id, char_id: char.id })
             });
             await refreshCharacterData();
-        } catch (error) { alert("Errore: " + error.message); }
+        } catch (error) { alert("Errore uso: " + error.message); }
     };
 
     const handleRecharge = async (item) => {
         const costo = item.costo_ricarica || 0;
         const msg = `Ricaricare ${item.nome}?\nCosto: ${costo} CR\nMetodo: ${item.testo_ricarica || 'Standard'}`;
-        
         if (window.confirm(msg)) {
             try {
                 await fetchAuthenticated('/personaggi/api/game/ricarica_oggetto/', {
@@ -134,7 +124,6 @@ const GameTab = ({ onNavigate }) => {
 
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    // Filtri
     const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
@@ -214,7 +203,6 @@ const GameTab = ({ onNavigate }) => {
                                 </div>
                                 <div className="bg-red-950/50 px-3 py-1 rounded border border-red-500/30">
                                     <span className="font-mono font-bold text-red-400 text-lg">
-                                        {/* Il backend ora fornisce attacco_formattato */}
                                         {w.attacco_formattato || w.attacco_base} 
                                     </span>
                                 </div>
@@ -224,7 +212,7 @@ const GameTab = ({ onNavigate }) => {
                 </section>
             )}
 
-            {/* 3. DISPOSITIVI & CARICHE */}
+            {/* 3. DISPOSITIVI & MODULI (CON TIMER VISUALE) */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi & Moduli
@@ -233,12 +221,21 @@ const GameTab = ({ onNavigate }) => {
                     {activeItems.map(item => {
                         const timeLeft = timers[item.id] || 0;
                         const isTimerRunning = timeLeft > 0;
-                        // Un oggetto è "scarico" se ha cariche max (quindi è consumabile) e ne ha 0
                         const isChargeEmpty = item.cariche_massime > 0 && item.cariche_attuali <= 0;
+                        const durationPct = item.durata_totale > 0 ? (timeLeft / item.durata_totale) * 100 : 0;
                         
                         return (
-                            <div key={item.id} className={`p-3 rounded-lg border transition-all ${item.is_active ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-gray-800 border-gray-700 opacity-90'}`}>
-                                <div className="flex justify-between items-start mb-2">
+                            <div key={item.id} className={`p-3 rounded-lg border transition-all relative overflow-hidden ${isTimerRunning ? 'bg-emerald-900/20 border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-gray-800 border-gray-700'}`}>
+                                
+                                {/* BARRA DI PROGRESSO SULLO SFONDO */}
+                                {isTimerRunning && (
+                                    <div 
+                                        className="absolute bottom-0 left-0 h-1 bg-emerald-500 shadow-[0_0_10px_#10b981] transition-all duration-1000 ease-linear" 
+                                        style={{width: `${durationPct}%`, zIndex: 1}} 
+                                    />
+                                )}
+
+                                <div className="flex justify-between items-start mb-2 relative z-10">
                                     <div className="w-full">
                                         <div className="flex justify-between w-full items-center">
                                             <div className="flex flex-col">
@@ -248,41 +245,41 @@ const GameTab = ({ onNavigate }) => {
                                                 </span>
                                                 {item.is_mod && (
                                                     <span className="text-[9px] text-indigo-300 uppercase tracking-wider flex items-center gap-1">
-                                                        <Shield size={8} /> Mod su: {item.parent_name}
+                                                        <Shield size={8} /> Su: {item.parent_name}
                                                     </span>
                                                 )}
                                             </div>
                                             
-                                            {/* Timer Attivo */}
+                                            {/* TIMER EVIDENTE */}
                                             {isTimerRunning && (
-                                                <div className="text-lg font-mono font-bold text-emerald-400 animate-pulse bg-emerald-900/40 px-2 rounded border border-emerald-500/30">
-                                                    {new Date(timeLeft * 1000).toISOString().substr(14, 5)}
+                                                <div className="flex items-center gap-2 bg-emerald-950/80 px-2 py-1 rounded border border-emerald-500/50 shadow-inner">
+                                                    <Clock size={12} className="text-emerald-400 animate-spin" />
+                                                    <span className="text-sm font-mono font-bold text-emerald-300 tracking-wider">
+                                                        {new Date(timeLeft * 1000).toISOString().substr(14, 5)}
+                                                    </span>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="flex items-center gap-3 mt-2 text-xs">
+                                        <div className="flex items-center gap-3 mt-2 text-xs relative z-10">
                                             {item.cariche_massime > 0 && (
                                                 <span className={`flex items-center gap-1 ${isChargeEmpty ? 'text-red-500 font-bold' : 'text-yellow-500'}`}>
                                                     <Battery size={10} /> {item.cariche_attuali} / {item.cariche_massime}
                                                 </span>
                                             )}
-                                            {item.durata_totale > 0 && (
+                                            {item.durata_totale > 0 && !isTimerRunning && (
                                                 <span className="flex items-center gap-1 text-blue-400">
                                                     <Clock size={10} /> {item.durata_totale}s
                                                 </span>
                                             )}
-                                            
-                                            {!item.is_active && (
-                                                 <span className="text-[9px] text-red-400 border border-red-900/50 px-1 rounded bg-red-900/10 ml-auto">
-                                                    {isChargeEmpty ? 'SCARICO' : 'DISATTIVATO'}
-                                                 </span>
+                                            {isChargeEmpty && !isTimerRunning && (
+                                                <span className="text-red-500 font-bold uppercase ml-auto text-[9px] border border-red-500 px-1 rounded bg-red-900/20">Scarico</span>
                                             )}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 mt-3">
+                                <div className="flex gap-2 mt-3 relative z-10">
                                     <button 
                                         onClick={() => handleUseItem(item)}
                                         disabled={isTimerRunning || isChargeEmpty}
@@ -294,14 +291,14 @@ const GameTab = ({ onNavigate }) => {
                                                     : 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-lg'
                                         }`}
                                     >
-                                        {isTimerRunning ? 'IN FUNZIONE...' : <><Play size={12} fill="currentColor" /> {item.durata_totale > 0 ? 'ATTIVA' : 'USA'}</>}
+                                        {isTimerRunning ? 'ATTIVO...' : <><Play size={12} fill="currentColor" /> {item.durata_totale > 0 ? 'ATTIVA' : 'USA'}</>}
                                     </button>
                                     
                                     {/* Mostra Ricarica se ha cariche max > 0 */}
                                     {item.cariche_massime > 0 && (
                                         <button 
                                             onClick={() => handleRecharge(item)}
-                                            className="px-3 bg-gray-700 hover:bg-gray-600 text-yellow-500 rounded border border-gray-600 flex items-center justify-center transition-colors"
+                                            className="px-3 bg-gray-700 text-yellow-500 rounded border border-gray-600 flex items-center justify-center transition-colors hover:bg-gray-600 active:scale-95"
                                             title={`Ricarica (${item.costo_ricarica} CR)`}
                                         >
                                             <RefreshCw size={14} />
@@ -311,16 +308,17 @@ const GameTab = ({ onNavigate }) => {
                             </div>
                         );
                     })}
+                    {activeItems.length === 0 && <p className="text-gray-600 text-xs italic text-center py-4">Nessun oggetto attivabile disponibile.</p>}
                 </div>
             </section>
 
             {/* 4. NOTIFICHE */}
             <div className="grid grid-cols-2 gap-3 mt-4">
-                <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750">
+                <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
                     {char.messaggi_non_letti_count > 0 ? <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{char.messaggi_non_letti_count}</span> : <span className="text-gray-600 text-xs">-</span>}
                 </button>
-                <button onClick={() => onNavigate('transazioni')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750">
+                <button onClick={() => onNavigate('transazioni')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-amber-400 font-bold text-xs"><Briefcase size={16} /> Lavori</div>
                     {char.lavori_pendenti_count > 0 ? <span className="bg-amber-500 text-black text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">{char.lavori_pendenti_count}</span> : <span className="text-gray-600 text-xs">-</span>}
                 </button>
