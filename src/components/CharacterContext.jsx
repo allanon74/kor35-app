@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useIsMutating } from '@tanstack/react-query';
 import { 
   getMessages, 
   markMessageAsRead, 
@@ -42,7 +42,9 @@ const sendSystemNotification = (title, body) => {
 };
 
 export const CharacterProvider = ({ children, onLogout }) => {
-  const queryClient = useQueryClient(); 
+  const queryClient = useQueryClient();
+  
+  const mutatingCount = useIsMutating();
   
   // --- STATI GLOBALI UI ---
   const [selectedCharacterId, setSelectedCharacterId] = useState(() => localStorage.getItem('kor35_last_char_id') || '');
@@ -225,9 +227,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
     acquirableInfusioni,
     acquirableTessiture,
     
-    isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi,
+    isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi || mutatingCount > 0,
     isLoadingList,
     isLoadingDetail,
+    isSyncing: mutatingCount > 0,
     
     selectCharacter: handleSelectCharacter,
     refreshCharacterData,
