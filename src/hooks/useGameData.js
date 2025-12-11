@@ -115,14 +115,11 @@ const useOptimisticAction = (queryKeyBase, mutationFn, updateFn) => {
     return useMutation({
       mutationFn: mutationFn,
       onMutate: async (variables) => {
-        // Fix ID Stringa (già presente e corretto)
         const rawCharId = variables.charId || variables.personaggio_id; 
         const charId = String(rawCharId); 
-        
         const queryKey = [...queryKeyBase, charId];
   
         await queryClient.cancelQueries({ queryKey });
-  
         const previousData = queryClient.getQueryData(queryKey);
   
         if (previousData) {
@@ -136,7 +133,6 @@ const useOptimisticAction = (queryKeyBase, mutationFn, updateFn) => {
                 }
             });
         }
-  
         return { previousData, queryKey };
       },
       onError: (err, newTodo, context) => {
@@ -155,31 +151,60 @@ const useOptimisticAction = (queryKeyBase, mutationFn, updateFn) => {
 
 // --- HOOKS DI SCRITTURA (OPTIMISTIC MUTATIONS) ---
 
-// A. CAMBIO STATISTICHE
+// A. CAMBIO STATISTICHE (Esteso per Zone Corpo)
 export const useOptimisticStatChange = () => {
     return useOptimisticAction(
         ['personaggio'], 
-        async ({ charId, stat_sigla, mode }) => {
+        async ({ charId, stat_sigla, mode, max_override }) => {
             return fetchAuthenticated('/personaggi/api/game/modifica_stat_temp/', {
                 method: 'POST',
-                body: JSON.stringify({ char_id: charId, stat_sigla, mode })
+                // Passiamo max_override se presente (per zone corpo)
+                body: JSON.stringify({ char_id: charId, stat_sigla, mode, max_value: max_override })
             });
         },
-        (oldData, { stat_sigla, mode }) => {
-            if (!oldData.statistiche_primarie) return oldData;
+        (oldData, { stat_sigla, mode, max_override }) => {
+            // Aggiorniamo statistiche_temporanee (la fonte di verità per i dati dinamici)
+            const tempStats = { ...oldData.statistiche_temporanee };
             
+            // Trova il valore corrente
+            let val = tempStats[stat_sigla];
+            
+            // Se non esiste nel temp, cerchiamo il default nei primari o usiamo il max_override passato
+            if (val === undefined) {
+                if (max_override !== undefined) val = max_override;
+                else {
+                    const primaryStat = oldData.statistiche_primarie?.find(s => s.sigla === stat_sigla);
+                    val = primaryStat ? primaryStat.valore_max : 0;
+                }
+            }
+
+            // Determina il massimale per il clamp
+            let maxVal = max_override;
+            if (maxVal === undefined) {
+                 const primaryStat = oldData.statistiche_primarie?.find(s => s.sigla === stat_sigla);
+                 maxVal = primaryStat ? primaryStat.valore_max : 999;
+            }
+
+            // Calcolo
+            if (mode === 'consuma') val = Math.max(0, val - 1);
+            else if (mode === 'reset') val = maxVal;
+            else if (mode === 'add') val = Math.min(maxVal, val + 1);
+
+            // Scrittura aggiornata
+            tempStats[stat_sigla] = val;
+
+            // Aggiorna anche l'array statistiche_primarie per coerenza visuale se la stat è lì
+            const updatedPrimaries = oldData.statistiche_primarie?.map(stat => {
+                if (stat.sigla === stat_sigla) {
+                    return { ...stat, valore_corrente: val };
+                }
+                return stat;
+            });
+
             return {
                 ...oldData,
-                statistiche_primarie: oldData.statistiche_primarie.map(stat => {
-                    if (stat.sigla !== stat_sigla) return stat;
-                    
-                    let nuovoValore = stat.valore_corrente;
-                    if (mode === 'consuma') nuovoValore = Math.max(0, stat.valore_corrente - 1);
-                    else if (mode === 'reset') nuovoValore = stat.valore_max;
-                    else if (mode === 'add') nuovoValore = Math.min(stat.valore_max, stat.valore_corrente + 1);
-
-                    return { ...stat, valore_corrente: nuovoValore };
-                })
+                statistiche_temporanee: tempStats,
+                statistiche_primarie: updatedPrimaries
             };
         }
     );
@@ -192,7 +217,6 @@ export const useOptimisticEquip = () => {
         ({ itemId, charId }) => equipaggiaOggetto(itemId, charId),
         (oldData, { itemId }) => {
             if (!oldData.oggetti) return oldData;
-            
             return {
                 ...oldData,
                 oggetti: oldData.oggetti.map(obj => 
@@ -205,7 +229,7 @@ export const useOptimisticEquip = () => {
     );
 };
 
-// C. USA OGGETTO (Consuma Carica & Start Timer)
+// C. USA OGGETTO
 export const useOptimisticUseItem = () => {
     return useOptimisticAction(
         ['personaggio'],
@@ -217,32 +241,23 @@ export const useOptimisticUseItem = () => {
         },
         (oldData, { oggetto_id, durata_totale, is_aura_zero_off }) => {
             if (!oldData.oggetti) return oldData;
-
             return {
                 ...oldData,
                 oggetti: oldData.oggetti.map(obj => {
                     if (obj.id !== oggetto_id) return obj;
-                    
-                    // 1. Scala Carica
                     const nuoveCariche = Math.max(0, (obj.cariche_attuali || 0) - 1);
-                    
                     let updates = { cariche_attuali: nuoveCariche };
-
-                    // 2. Gestione Timer e Stato Attivo
                     if (durata_totale > 0) {
-                        // Se l'aura si spegne a zero e siamo a zero, forza OFF e resetta timer
                         if (is_aura_zero_off && nuoveCariche === 0) {
                             updates.is_active = false;
                             updates.data_fine_attivazione = null;
                         } else {
-                            // Altrimenti attiva e imposta timer
                             const now = new Date();
                             const endDate = new Date(now.getTime() + durata_totale * 1000);
                             updates.data_fine_attivazione = endDate.toISOString();
                             updates.is_active = true;
                         }
                     }
-
                     return { ...obj, ...updates };
                 })
             };
@@ -262,7 +277,6 @@ export const useOptimisticRecharge = () => {
         },
         (oldData, { oggetto_id }) => {
             if (!oldData.oggetti) return oldData;
-
             return {
                 ...oldData,
                 oggetti: oldData.oggetti.map(obj => 
@@ -275,7 +289,7 @@ export const useOptimisticRecharge = () => {
     );
 };
 
-// E. ASSEMBLAGGIO (MONTA/SMONTA)
+// E. ASSEMBLAGGIO
 export const useOptimisticAssembly = (action) => {
     return useOptimisticAction(
         ['personaggio'],
@@ -285,13 +299,10 @@ export const useOptimisticAssembly = (action) => {
         },
         (oldData, { host_id, mod_id }) => {
             if (!oldData.oggetti) return oldData;
-
             const hostIndex = oldData.oggetti.findIndex(o => o.id === host_id);
             if (hostIndex === -1) return oldData;
-            
             const host = { ...oldData.oggetti[hostIndex] };
             let listaOggetti = [...oldData.oggetti];
-            
             if (action === 'monta') {
                 const mod = listaOggetti.find(o => o.id === mod_id);
                 if (mod) {
@@ -305,7 +316,6 @@ export const useOptimisticAssembly = (action) => {
                     listaOggetti.push({ ...mod, is_equipaggiato: false }); 
                 }
             }
-            
             listaOggetti[hostIndex] = host;
             return { ...oldData, oggetti: listaOggetti };
         }
@@ -315,26 +325,20 @@ export const useOptimisticAssembly = (action) => {
 // F. RITIRO FORGIATURA
 export const useOptimisticForgingCollect = () => {
     const queryClient = useQueryClient();
-    
     return useMutation({
         mutationFn: ({ forgiaturaId, charId }) => completeForging(forgiaturaId, charId),
         onMutate: async ({ forgiaturaId, charId }) => {
              const cId = String(charId);
-             
              const queueKey = ['forging_queue', cId];
              const charKey = ['personaggio', cId];
-
              await queryClient.cancelQueries({ queryKey: queueKey });
-             
              const prevQueue = queryClient.getQueryData(queueKey);
-
              if (prevQueue) {
                 queryClient.setQueryData(queueKey, (old) => {
                     if (!old) return [];
                     return old.filter(item => item.id !== forgiaturaId);
                 });
              }
-             
              return { prevQueue, queueKey, charKey };
         },
         onError: (err, vars, ctx) => {

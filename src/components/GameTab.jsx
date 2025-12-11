@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
-    Star, MessageSquare, Briefcase, Play, Backpack, Shield
+    Star, MessageSquare, Briefcase, Play, Backpack, Shield, AlertCircle, Plus, Minus,
+    ChevronDown, ChevronUp, ShieldAlert, Hexagon
 } from 'lucide-react';
 
 import { 
@@ -11,8 +12,201 @@ import {
     useOptimisticRecharge 
 } from '../hooks/useGameData';
 
+// --- COMPONENTI SVG TATTICI ---
+
+const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
+    // Mappa zone e path
+    const zones = [
+        { id: 'PV_TR', name: 'Tronco', d: "M85,60 L115,60 L110,130 L90,130 Z", cx: 100, cy: 95 },
+        { id: 'PV_RA', name: 'Braccio Dx', d: "M115,65 L135,70 L145,140 L130,135 L115,65 Z", cx: 130, cy: 100 },
+        { id: 'PV_LA', name: 'Braccio Sx', d: "M85,65 L65,70 L55,140 L70,135 L85,65 Z", cx: 70, cy: 100 },
+        { id: 'PV_RL', name: 'Gamba Dx', d: "M110,130 L125,130 L130,240 L110,240 Z", cx: 120, cy: 180 },
+        { id: 'PV_LL', name: 'Gamba Sx', d: "M90,130 L75,130 L70,240 L90,240 Z", cx: 80, cy: 180 },
+    ];
+
+    // Colori di stato
+    const getZoneColor = (current) => {
+        if (current <= 0) return '#ef4444'; // Rosso (Morto/Rotto)
+        if (current < maxHp / 2) return '#eab308'; // Giallo (Ferito)
+        return '#3b82f6'; // Blu (Sano)
+    };
+
+    const armorOpacity = maxArmor > 0 ? (stats['PA_CUR'] / maxArmor) : 0;
+    const shellOpacity = maxShell > 0 ? (stats['PG_CUR'] / maxShell) : 0;
+
+    return (
+        <div className="relative w-full max-w-[280px] mx-auto aspect-3/4 select-none">
+            <svg viewBox="0 0 200 300" className="w-full h-full drop-shadow-2xl">
+                <defs>
+                    <filter id="glow-shell" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                </defs>
+
+                {/* LAYER 1: GUSCIO (Esterno) */}
+                <g 
+                    opacity={Math.max(0.1, shellOpacity)} 
+                    className="transition-all duration-500 cursor-pointer"
+                    onClick={() => onHit('PG_CUR', maxShell)}
+                    filter="url(#glow-shell)"
+                >
+                    <path 
+                        d="M100,10 C150,10 180,50 180,150 C180,250 150,290 100,290 C50,290 20,250 20,150 C20,50 50,10 100,10 Z" 
+                        fill="transparent" 
+                        stroke="#8b5cf6" // Viola
+                        strokeWidth="3"
+                        strokeDasharray={shellOpacity === 0 ? "4 4" : "0"}
+                    />
+                    {maxShell > 0 && (
+                        <text x="100" y="25" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">
+                            GUSCIO {stats['PG_CUR']}/{maxShell}
+                        </text>
+                    )}
+                </g>
+
+                {/* LAYER 2: ARMATURA (Medio) */}
+                <g 
+                    opacity={Math.max(0.1, armorOpacity)} 
+                    className="transition-all duration-500 cursor-pointer"
+                    onClick={() => onHit('PA_CUR', maxArmor)}
+                >
+                    <path 
+                        d="M100,25 C135,25 155,60 155,150 C155,240 135,275 100,275 C65,275 45,240 45,150 C45,60 65,25 100,25 Z" 
+                        fill="rgba(16, 185, 129, 0.1)" 
+                        stroke="#10b981" // Verde
+                        strokeWidth="2"
+                        strokeDasharray={armorOpacity === 0 ? "2 2" : "0"}
+                    />
+                    {maxArmor > 0 && (
+                        <text x="100" y="270" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">
+                            ARM {stats['PA_CUR']}/{maxArmor}
+                        </text>
+                    )}
+                </g>
+
+                {/* LAYER 3: CORPO (Interno) */}
+                <g className="filter drop-shadow-md">
+                    {/* Testa (Non cliccabile) */}
+                    <circle cx="100" cy="40" r="15" fill="#4b5563" stroke="#9ca3af" />
+                    
+                    {zones.map(z => {
+                        const val = stats[z.id];
+                        return (
+                            <g key={z.id} onClick={() => onHit(z.id, maxHp)} className="cursor-pointer hover:opacity-80 transition-opacity">
+                                <path 
+                                    d={z.d} 
+                                    fill={getZoneColor(val)} 
+                                    stroke="rgba(255,255,255,0.3)" 
+                                    strokeWidth="1"
+                                />
+                                <text x={z.cx} y={z.cy} fill="white" fontSize="10" textAnchor="middle" pointerEvents="none" fontWeight="bold">
+                                    {val}
+                                </text>
+                            </g>
+                        );
+                    })}
+                </g>
+            </svg>
+
+            {/* Warning Coma */}
+            {stats['PV_TR'] <= 0 && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-900/90 text-white px-4 py-2 rounded-xl border-2 border-red-500 animate-pulse text-center shadow-2xl z-20">
+                    <AlertCircle className="mx-auto mb-1 text-red-400" />
+                    <span className="font-black text-lg uppercase tracking-widest">COMA</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const rows = [
+        { id: 'PG_CUR', label: 'Guscio', max: maxShell, color: 'text-purple-400' },
+        { id: 'PA_CUR', label: 'Armatura', max: maxArmor, color: 'text-emerald-400' },
+        { id: 'PV_TR', label: 'Tronco', max: maxHp, color: 'text-blue-400' },
+        { id: 'PV_RA', label: 'Br. Dx', max: maxHp, color: 'text-blue-300' },
+        { id: 'PV_LA', label: 'Br. Sx', max: maxHp, color: 'text-blue-300' },
+        { id: 'PV_RL', label: 'Gb. Dx', max: maxHp, color: 'text-blue-300' },
+        { id: 'PV_LL', label: 'Gb. Sx', max: maxHp, color: 'text-blue-300' },
+    ];
+
+    return (
+        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex justify-between items-center p-3 bg-gray-900/50 hover:bg-gray-700 transition-colors"
+            >
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                    <Crosshair size={14}/> Controlli Manuali
+                </span>
+                {isOpen ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+            </button>
+            
+            {isOpen && (
+                <div className="p-2 space-y-1 animate-in slide-in-from-top-2">
+                    {rows.map(r => {
+                        if (r.max <= 0 && (r.id === 'PG_CUR' || r.id === 'PA_CUR')) return null;
+                        const val = stats[r.id];
+                        return (
+                            <div key={r.id} className="flex items-center justify-between bg-gray-900/30 p-2 rounded">
+                                <span className={`text-xs font-bold ${r.color} w-20`}>{r.label}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-mono text-white w-8 text-right">{val}/{r.max}</span>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => onChange(r.id, 'add', r.max)} className="p-1 bg-green-900/50 hover:bg-green-700 rounded text-green-200"><Plus size={12}/></button>
+                                        <button onClick={() => onChange(r.id, 'consuma', r.max)} className="p-1 bg-red-900/50 hover:bg-red-700 rounded text-red-200"><Minus size={12}/></button>
+                                        <button onClick={() => onChange(r.id, 'reset', r.max)} className="p-1 bg-blue-900/50 hover:bg-blue-700 rounded text-blue-200"><RefreshCw size={12}/></button>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const ChakraWidget = ({ current, max, onChange }) => {
+    return (
+        <div className="bg-gray-800 rounded-xl p-3 border border-gray-700 shadow-md">
+            <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <Hexagon size={12} className="text-pink-500" /> Chakra / Mana
+                </span>
+                <div className="flex gap-2">
+                    <button onClick={() => onChange('CHK_CUR', 'add', max)} className="text-xs text-green-400 hover:text-green-300 font-bold px-2 bg-green-900/20 rounded">+1</button>
+                    <button onClick={() => onChange('CHK_CUR', 'reset', max)} className="text-gray-500 hover:text-white"><RefreshCw size={12}/></button>
+                </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-1.5">
+                {[...Array(max)].map((_, i) => (
+                    <button 
+                        key={i}
+                        onClick={() => onChange('CHK_CUR', 'consuma', max)}
+                        disabled={i >= current} // Clicca solo sui pieni per svuotarli (logica stack)
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                            i < current 
+                            ? 'bg-pink-600 border-pink-400 shadow-[0_0_8px_#db2777] scale-100' 
+                            : 'bg-gray-900 border-gray-700 scale-90 opacity-50'
+                        }`}
+                    >
+                        {i < current && <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />}
+                    </button>
+                ))}
+            </div>
+            <div className="text-right mt-1 text-[9px] text-gray-500 font-mono">
+                {current} / {max}
+            </div>
+        </div>
+    );
+};
+
 const GameTab = ({ onNavigate }) => {
-    // Usa unreadCount dal context per un conteggio fedele dei messaggi non letti locali
     const { selectedCharacterData: char, unreadCount } = useCharacter();
     const [favorites, setFavorites] = useState([]);
     const [timers, setTimers] = useState({});
@@ -26,11 +220,9 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // 2. Logica Appiattimento Oggetti (Recupera anche Mod installate)
     const getAllActiveItems = useCallback(() => {
         if (!char?.oggetti) return [];
         let list = [];
-        
         char.oggetti.forEach(item => {
             const hasMechanics = (obj) => (obj.cariche_massime > 0 || obj.durata_totale > 0);
             let isContainerActive = false;
@@ -38,18 +230,10 @@ const GameTab = ({ onNavigate }) => {
             if (item.tipo_oggetto === 'INN' && item.slot_corpo) isContainerActive = true;
             if (item.tipo_oggetto === 'MUT') isContainerActive = true;
 
-            if (isContainerActive && hasMechanics(item)) {
-                list.push(item);
-            }
+            if (isContainerActive && hasMechanics(item)) list.push(item);
             if (isContainerActive && item.potenziamenti_installati) {
                 item.potenziamenti_installati.forEach(mod => {
-                    if (hasMechanics(mod)) {
-                        list.push({ 
-                            ...mod, 
-                            is_mod: true, 
-                            parent_name: item.nome,
-                        });
-                    }
+                    if (hasMechanics(mod)) list.push({ ...mod, is_mod: true, parent_name: item.nome });
                 });
             }
         });
@@ -58,7 +242,6 @@ const GameTab = ({ onNavigate }) => {
 
     const activeItems = getAllActiveItems();
 
-    // 3. Timer Locale (Countdown) - Logica Aggiornata per UI Istantanea
     const updateTimers = useCallback(() => {
         const now = Date.now();
         const newTimers = {};
@@ -73,31 +256,28 @@ const GameTab = ({ onNavigate }) => {
     }, [activeItems]);
 
     useEffect(() => {
-        // Esegui subito all'avvio o quando i dati cambiano (es. Optimistic UI ha settato la data)
         updateTimers();
-        
         const interval = setInterval(updateTimers, 1000);
         return () => clearInterval(interval);
     }, [updateTimers]); 
 
     // --- HANDLERS ---
 
-    const handleStatChange = (sigla, mode) => {
+    const handleStatChange = (key, mode, maxOverride) => {
         statMutation.mutate({ 
             charId: char.id, 
-            stat_sigla: sigla, 
-            mode 
+            stat_sigla: key, 
+            mode,
+            max_override: maxOverride // Passiamo il max specifico per permettere il reset corretto
         });
     };
 
     const handleUseItem = (item) => {
         if (item.cariche_attuali <= 0) return;
-        
         useItemMutation.mutate({ 
             oggetto_id: item.id, 
             charId: char.id,
             durata_totale: item.durata_totale || 0,
-            // Passiamo il flag se presente, altrimenti false
             is_aura_zero_off: item.spegni_a_zero_cariche || false 
         });
     };
@@ -106,10 +286,7 @@ const GameTab = ({ onNavigate }) => {
         const costo = item.costo_ricarica || 0;
         const msg = `Ricaricare ${item.nome}?\nCosto: ${costo} CR\nMetodo: ${item.testo_ricarica || 'Standard'}`;
         if (window.confirm(msg)) {
-            rechargeMutation.mutate({ 
-                oggetto_id: item.id, 
-                charId: char.id 
-            });
+            rechargeMutation.mutate({ oggetto_id: item.id, charId: char.id });
         }
     };
 
@@ -126,118 +303,121 @@ const GameTab = ({ onNavigate }) => {
 
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
-    
-    // --- LOGICA CAPACITA' (COG) ---
+    // --- PREPARAZIONE DATI PER WIDGET TATTICO ---
+    const getStatMax = (sigla) => {
+        const s = char.statistiche_primarie?.find(x => x.sigla === sigla);
+        return s ? s.valore_max : 0;
+    };
+
+    const maxHP = getStatMax('PV');
+    const maxArmor = getStatMax('PA');
+    const maxShell = getStatMax('PG');
+    const maxChakra = getStatMax('CHK') || getStatMax('MANA') || 10; // Fallback
+
+    // Recupera valori correnti dal JSON temporaneo, con fallback al max se non presenti
+    const tempStats = char.statistiche_temporanee || {};
+    const tacticalStats = {
+        'PV_TR': tempStats['PV_TR'] !== undefined ? tempStats['PV_TR'] : maxHP,
+        'PV_RA': tempStats['PV_RA'] !== undefined ? tempStats['PV_RA'] : maxHP,
+        'PV_LA': tempStats['PV_LA'] !== undefined ? tempStats['PV_LA'] : maxHP,
+        'PV_RL': tempStats['PV_RL'] !== undefined ? tempStats['PV_RL'] : maxHP,
+        'PV_LL': tempStats['PV_LL'] !== undefined ? tempStats['PV_LL'] : maxHP,
+        'PA_CUR': tempStats['PA_CUR'] !== undefined ? tempStats['PA_CUR'] : maxArmor,
+        'PG_CUR': tempStats['PG_CUR'] !== undefined ? tempStats['PG_CUR'] : maxShell,
+        'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
+    };
+
+    // --- LOGICA CAPACITA' ---
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
-    
-    // Filtra oggetti che consumano capacità: Fisici + Equipaggiati + (hanno mod installate)
     const capacityConsumers = char.oggetti.filter(i => 
-        i.is_equipaggiato && 
-        i.tipo_oggetto === 'FIS' && 
-        i.potenziamenti_installati && 
-        i.potenziamenti_installati.length > 0
+        i.is_equipaggiato && i.tipo_oggetto === 'FIS' && 
+        i.potenziamenti_installati && i.potenziamenti_installati.length > 0
     );
     const capacityUsed = capacityConsumers.length;
     const isOverloaded = capacityUsed > capacityMax;
 
+    const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
+
     return (
-        <div className="pb-24 px-2 space-y-4 animate-fadeIn text-gray-100 pt-2">
+        <div className="pb-24 px-2 space-y-6 animate-fadeIn text-gray-100 pt-2">
             
-            {/* 1. STATISTICHE & CAPACITA' */}
-            <section className="bg-gray-900 rounded-xl p-3 border border-gray-700 shadow-lg">
-                <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold flex items-center gap-2">
-                    <Heart size={12} /> Parametri Vitali
-                </h3>
+            {/* 1. SEZIONE TATTICA (Omino + Controlli + Chakra) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {char.statistiche_primarie?.map(stat => (
-                        stat.sigla !== 'COG' && (
-                            <div key={stat.sigla} className="relative bg-gray-800 rounded-lg border border-gray-700 p-3 shadow-md flex flex-col justify-between h-32 overflow-hidden group">
-                                {/* Intestazione */}
-                                <div className="flex justify-between items-start z-10">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.nome}</span>
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); handleStatChange(stat.sigla, 'reset'); }}
-                                        className="text-gray-600 hover:text-emerald-400 transition-colors p-1 -mr-2 -mt-2"
-                                        title="Ripristina al massimo"
-                                    >
-                                        <RefreshCw size={14} />
-                                    </button>
-                                </div>
-
-                                {/* Valore Gigante Cliccabile */}
-                                <div 
-                                    className="flex-1 flex items-center justify-center cursor-pointer select-none active:scale-95 transition-transform z-10"
-                                    onClick={() => handleStatChange(stat.sigla, 'consuma')}
-                                >
-                                    <span className={`text-5xl font-black tracking-tighter drop-shadow-lg ${stat.valore_corrente <= stat.valore_max / 3 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                                        {stat.valore_corrente}
-                                    </span>
-                                </div>
-
-                                {/* Valore Massimo (Angolo basso) */}
-                                <div className="absolute bottom-2 right-3 text-right z-10">
-                                    <span className="text-xs text-gray-500 font-bold block leading-none">MAX</span>
-                                    <span className="text-lg font-bold text-gray-400 leading-none">{stat.valore_max}</span>
-                                </div>
-
-                                {/* Barra di sfondo opzionale per colpo d'occhio */}
-                                <div 
-                                    className="absolute bottom-0 left-0 h-1 bg-indigo-500/50 transition-all duration-500" 
-                                    style={{ width: `${(stat.valore_corrente / stat.valore_max) * 100}%` }} 
-                                />
-                            </div>
-                        )
-                    ))}
+                {/* SINISTRA: Scanner Tattico */}
+                <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
+                    <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2">
+                        <Activity size={12} /> Scansione Biometrica
+                    </h3>
                     
-                    {/* BOX CAPACITÀ (Nuovo Design) */}
-                    <div className={`relative bg-gray-800 rounded-lg border p-3 shadow-md flex flex-col h-32 overflow-hidden ${isOverloaded ? 'border-red-500/50 bg-red-900/10' : 'border-gray-700'}`}>
+                    <BodyDamageWidget 
+                        stats={tacticalStats}
+                        maxHp={maxHP}
+                        maxArmor={maxArmor}
+                        maxShell={maxShell}
+                        onHit={(id, max) => handleStatChange(id, 'consuma', max)}
+                    />
+                </div>
+
+                {/* DESTRA: Controlli e Risorse */}
+                <div className="flex flex-col gap-4">
+                    
+                    {/* Controlli Danni */}
+                    <DamageControlPanel 
+                        stats={tacticalStats}
+                        maxHp={maxHP}
+                        maxArmor={maxArmor}
+                        maxShell={maxShell}
+                        onChange={handleStatChange}
+                    />
+
+                    {/* Chakra / Mana */}
+                    {(maxChakra > 0) && (
+                        <ChakraWidget 
+                            current={tacticalStats['CHK_CUR']} 
+                            max={maxChakra} 
+                            onChange={handleStatChange} 
+                        />
+                    )}
+
+                    {/* Memory Dump (Capacità) */}
+                    <div className={`relative bg-gray-800 rounded-xl border p-3 shadow-md flex flex-col h-32 overflow-hidden ${isOverloaded ? 'border-red-500/50 bg-red-900/10' : 'border-gray-700'}`}>
                         <div className="flex justify-between items-center mb-1">
-                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Capacità</span>
+                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <Backpack size={12}/> Memory Buffer (COG)
+                             </span>
                              <span className={`text-xs font-bold ${isOverloaded ? 'text-red-400' : 'text-indigo-400'}`}>
                                 {capacityUsed} / {capacityMax}
                              </span>
                         </div>
-                        
                         <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
                             {capacityConsumers.length > 0 ? (
                                 <div className="flex flex-col gap-1 mt-1">
-                                    {capacityConsumers.map((item, idx) => (
+                                    {capacityConsumers.map((item) => (
                                         <div key={item.id} className="flex items-center gap-1.5 bg-gray-900/50 px-1.5 py-1 rounded border border-gray-700/50">
                                             <div className="w-1 h-1 rounded-full bg-indigo-500 shrink-0"></div>
-                                            <span className="text-[9px] text-gray-300 truncate w-full leading-tight font-mono">
-                                                {item.nome}
-                                            </span>
+                                            <span className="text-[9px] text-gray-300 truncate w-full font-mono">{item.nome}</span>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-50">
-                                    <Backpack size={24} />
-                                    <span className="text-[9px] mt-1">Buffer Vuoto</span>
+                                    <span className="text-[9px]">Buffer Libero</span>
                                 </div>
                             )}
                         </div>
-
-                        {/* Indicatore Sovraccarico */}
-                        {isOverloaded && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
-                                <span className="text-red-500 font-black text-xl -rotate-12 border-2 border-red-500 px-2 py-1 rounded">OVERLOAD</span>
-                            </div>
-                        )}
                     </div>
                 </div>
-            </section>
+            </div>
 
             {/* 2. ATTACCHI BASE */}
             {weapons.length > 0 && (
                 <section>
                     <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
-                        <Crosshair size={12} /> Attacchi Base
+                        <Crosshair size={12} /> Sistemi Offensivi
                     </h3>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 gap-2">
                         {weapons.map(w => (
                             <div key={w.id} className="bg-red-900/10 border border-red-500/20 p-3 rounded-lg flex justify-between items-center">
                                 <div>
@@ -258,7 +438,7 @@ const GameTab = ({ onNavigate }) => {
             {/* 3. DISPOSITIVI & MODULI */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
-                    <Zap size={12} /> Dispositivi & Moduli
+                    <Zap size={12} /> Dispositivi Attivi
                 </h3>
                 <div className="space-y-3">
                     {activeItems.map(item => {
@@ -269,14 +449,12 @@ const GameTab = ({ onNavigate }) => {
                         
                         return (
                             <div key={item.id} className={`p-3 rounded-lg border transition-all relative overflow-hidden ${isTimerRunning ? 'bg-emerald-900/20 border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-gray-800 border-gray-700'}`}>
-                                
                                 {isTimerRunning && (
                                     <div 
                                         className="absolute bottom-0 left-0 h-1 bg-emerald-500 shadow-[0_0_10px_#10b981] transition-all duration-1000 ease-linear" 
                                         style={{width: `${durationPct}%`, zIndex: 1}} 
                                     />
                                 )}
-
                                 <div className="flex justify-between items-start mb-2 relative z-10">
                                     <div className="w-full">
                                         <div className="flex justify-between w-full items-center">
@@ -291,7 +469,6 @@ const GameTab = ({ onNavigate }) => {
                                                     </span>
                                                 )}
                                             </div>
-                                            
                                             {isTimerRunning && (
                                                 <div className="flex items-center gap-2 bg-emerald-950/80 px-2 py-1 rounded border border-emerald-500/50 shadow-inner">
                                                     <Clock size={12} className="text-emerald-400 animate-spin" />
@@ -301,7 +478,6 @@ const GameTab = ({ onNavigate }) => {
                                                 </div>
                                             )}
                                         </div>
-
                                         <div className="flex items-center gap-3 mt-2 text-xs relative z-10">
                                             {item.cariche_massime > 0 && (
                                                 <span className={`flex items-center gap-1 ${isChargeEmpty ? 'text-red-500 font-bold' : 'text-yellow-500'}`}>
@@ -319,7 +495,6 @@ const GameTab = ({ onNavigate }) => {
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="flex gap-2 mt-3 relative z-10">
                                     <button 
                                         onClick={() => handleUseItem(item)}
@@ -334,7 +509,6 @@ const GameTab = ({ onNavigate }) => {
                                     >
                                         {isTimerRunning ? 'ATTIVO...' : <><Play size={12} fill="currentColor" /> {item.durata_totale > 0 ? 'ATTIVA' : 'USA'}</>}
                                     </button>
-                                    
                                     {item.cariche_massime > 0 && (
                                         <button 
                                             onClick={() => handleRecharge(item)}
@@ -348,15 +522,14 @@ const GameTab = ({ onNavigate }) => {
                             </div>
                         );
                     })}
-                    {activeItems.length === 0 && <p className="text-gray-600 text-xs italic text-center py-4">Nessun oggetto attivabile disponibile.</p>}
+                    {activeItems.length === 0 && <p className="text-gray-600 text-xs italic text-center py-4">Nessun dispositivo pronto.</p>}
                 </div>
             </section>
 
-            {/* 4. NOTIFICHE */}
+            {/* NOTIFICHE & PRONTUARIO */}
             <div className="grid grid-cols-2 gap-3 mt-4">
                 <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
-                    {/* Usa unreadCount dal Context invece di char.messaggi_non_letti_count */}
                     {unreadCount > 0 ? <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{unreadCount}</span> : <span className="text-gray-600 text-xs">-</span>}
                 </button>
                 <button onClick={() => onNavigate('transazioni')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
@@ -365,7 +538,6 @@ const GameTab = ({ onNavigate }) => {
                 </button>
             </div>
 
-            {/* 5. PRONTUARIO */}
             {favorites.length > 0 && (
                 <section className="mt-6 pt-4 border-t border-gray-800">
                     <h3 className="text-[10px] uppercase tracking-widest text-yellow-500 mb-3 font-bold flex items-center gap-2 ml-1"><Star size={12} /> Prontuario Rapido</h3>
