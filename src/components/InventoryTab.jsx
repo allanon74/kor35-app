@@ -3,92 +3,106 @@ import { useCharacter } from './CharacterContext';
 import { 
     ShoppingBag, Box, Shield, Zap, Loader2, Wrench, 
     Info, ChevronUp, User, Activity, Power, Battery, 
-    Clock, RefreshCw, Coins 
+    Clock, RefreshCw, Coins,
+    // Icone anatomiche
+    Brain, Eye, Heart, Hand, Footprints, Cpu
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
 import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
-// --- COMPONENTE VISUALE CORPO (SVG) ---
-const BodySilhouette = ({ slots, onSlotClick, selectedItemId }) => {
-    // Definizione dei percorsi SVG per le 8 zone del corpo
-    const paths = {
-        'HD1': { 
-            d: "M100,20 C115,20 125,30 125,45 L75,45 C75,30 85,20 100,20 Z", 
-            name: "Cranio (HD1)" 
-        },
-        'HD2': { 
-            d: "M75,45 L125,45 C125,60 115,75 100,75 C85,75 75,60 75,45 Z", 
-            name: "Volto (HD2)" 
-        },
-        'TR1': { 
-            d: "M65,80 L135,80 L130,140 L70,140 Z", 
-            name: "Torace (TR1)" 
-        },
-        'TR2': { 
-            d: "M70,140 L130,140 L125,190 L75,190 Z", 
-            name: "Addome (TR2)" 
-        },
-        'LA': { 
-            d: "M60,85 L35,90 L20,180 L45,175 L65,85 Z", 
-            name: "Braccio Sx (LA)" 
-        },
-        'RA': { 
-            d: "M140,85 L165,90 L180,180 L155,175 L135,85 Z", 
-            name: "Braccio Dx (RA)" 
-        },
-        'LL': { 
-            d: "M75,195 L95,195 L95,350 L70,350 Z", 
-            name: "Gamba Sx (LL)" 
-        },
-        'RL': { 
-            d: "M105,195 L125,195 L130,350 L105,350 Z", 
-            name: "Gamba Dx (RL)" 
-        }
+// --- COMPONENTE VISUALE CORPO (CYBER-DIAGNOSTICA) ---
+const BodyVisual = ({ slots, onSlotClick, selectedItemId }) => {
+    
+    // Sottocomponente per il singolo slot
+    const BodySlot = ({ code, label, icon: Icon, color, extraClass = "" }) => {
+        const items = slots[code] || [];
+        const item = items[0]; // Prendiamo il primo (di solito unico) oggetto
+        const isOccupied = !!item;
+        const isSelected = item && item.id === selectedItemId;
+        const isActive = item?.is_active;
+
+        return (
+            <div 
+                onClick={() => isOccupied && onSlotClick(item)}
+                className={`
+                    relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-300 cursor-pointer group
+                    ${extraClass}
+                    ${isOccupied 
+                        ? (isSelected 
+                            ? 'bg-indigo-600/30 border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-105 z-10' 
+                            : isActive 
+                                ? 'bg-emerald-900/20 border-emerald-500/50 hover:bg-emerald-900/30' 
+                                : 'bg-gray-800/60 border-gray-600 hover:border-gray-400') 
+                        : 'bg-gray-900/20 border-gray-800 border-dashed opacity-60 hover:opacity-100'}
+                `}
+            >
+                {/* Icona Slot */}
+                <Icon 
+                    size={20} 
+                    className={`mb-1 transition-colors ${isOccupied ? (isActive ? 'text-emerald-400' : 'text-gray-300') : color}`} 
+                />
+                
+                {/* Etichetta / Nome Oggetto */}
+                <div className="text-center w-full overflow-hidden">
+                    <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold block mb-0.5 leading-none">
+                        {label}
+                    </span>
+                    {isOccupied ? (
+                        <div className={`text-[10px] font-bold truncate leading-tight ${isActive ? 'text-emerald-200' : 'text-gray-300'}`}>
+                            {item.nome}
+                        </div>
+                    ) : (
+                        <span className="text-[9px] text-gray-700 italic">Vuoto</span>
+                    )}
+                </div>
+
+                {/* Indicatore Stato */}
+                {isOccupied && (
+                    <div className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-gray-500'}`} />
+                )}
+            </div>
+        );
     };
 
     return (
-        <div className="relative w-full max-w-[300px] mx-auto drop-shadow-xl">
-            <svg viewBox="0 0 200 380" className="w-full h-auto filter drop-shadow-lg">
-                {/* Sagoma di sfondo per dare contesto */}
-                <path 
-                    d="M100,10 C130,10 140,40 140,70 L190,80 L170,190 L140,180 L140,370 L110,370 L110,250 L90,250 L90,370 L60,370 L60,180 L30,190 L10,80 L60,70 C60,40 70,10 100,10 Z" 
-                    fill="#1a202c" 
-                    opacity="0.3"
-                />
-                
-                {Object.entries(paths).map(([code, { d, name }]) => {
-                    const item = slots[code] && slots[code][0]; // Prendi il primo oggetto nello slot
-                    const isOccupied = !!item;
-                    const isSelected = item && item.id === selectedItemId;
-                    
-                    // Colore Aura o Default
-                    const auraColor = item?.aura?.colore || '#4a5568'; 
-                    const fillColor = isOccupied ? auraColor : 'transparent';
-                    const strokeColor = isOccupied ? '#ffffff' : '#4a5568';
-                    const opacity = isOccupied ? (isSelected ? 1 : 0.8) : 0.1;
+        <div className="relative w-full max-w-[320px] mx-auto p-4">
+            {/* Sfondo Decorativo */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                <User size={300} />
+            </div>
 
-                    return (
-                        <g key={code} onClick={() => isOccupied && onSlotClick(item)} className="cursor-pointer transition-all hover:opacity-100">
-                            <path
-                                d={d}
-                                fill={fillColor}
-                                stroke={strokeColor}
-                                strokeWidth={isSelected ? 3 : 1}
-                                fillOpacity={opacity}
-                                className={`transition-all duration-300 ${!isOccupied ? 'hover:fill-gray-700 hover:fill-opacity-30' : ''}`}
-                            />
-                            {/* Etichetta Slot (visibile solo se vuoto o hover) */}
-                            {!isOccupied && (
-                                <text x={0} y={0} fontSize="8" fill="#555" textAnchor="middle" style={{pointerEvents: 'none'}}>
-                                    <textPath href={`#path-${code}`} startOffset="50%">{code}</textPath>
-                                </text>
-                            )}
-                            <title>{name} {isOccupied ? `: ${item.nome}` : '(Vuoto)'}</title>
-                        </g>
-                    );
-                })}
-            </svg>
+            <div className="relative z-10 flex flex-col gap-3">
+                {/* TESTA */}
+                <div className="flex justify-center gap-3">
+                    <BodySlot code="HD1" label="Cervello" icon={Brain} color="text-pink-500/50" extraClass="w-24 min-h-[60px]" />
+                    <BodySlot code="HD2" label="Sensori" icon={Eye} color="text-cyan-500/50" extraClass="w-24 min-h-[60px]" />
+                </div>
+
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-3">
+                    {/* BRACCIO SX */}
+                    <div className="pt-6 flex justify-end">
+                        <BodySlot code="LA" label="Braccio Sx" icon={Hand} color="text-amber-500/50" extraClass="w-24 min-h-[80px]" />
+                    </div>
+
+                    {/* TRONCO */}
+                    <div className="flex flex-col gap-2 w-28">
+                        <BodySlot code="TR1" label="Torace" icon={Heart} color="text-red-500/50" extraClass="min-h-[70px]" />
+                        <BodySlot code="TR2" label="Sistemi" icon={Activity} color="text-emerald-500/50" extraClass="min-h-[60px]" />
+                    </div>
+
+                    {/* BRACCIO DX */}
+                    <div className="pt-6 flex justify-start">
+                        <BodySlot code="RA" label="Braccio Dx" icon={Hand} color="text-amber-500/50" extraClass="w-24 min-h-[80px]" />
+                    </div>
+                </div>
+
+                {/* GAMBE */}
+                <div className="flex justify-center gap-4 mt-1">
+                    <BodySlot code="LL" label="Gamba Sx" icon={Footprints} color="text-indigo-500/50" extraClass="w-24 min-h-[70px]" />
+                    <BodySlot code="RL" label="Gamba Dx" icon={Footprints} color="text-indigo-500/50" extraClass="w-24 min-h-[70px]" />
+                </div>
+            </div>
         </div>
     );
 };
@@ -354,46 +368,41 @@ const InventoryTab = ({ onLogout }) => {
     });
 
     return (
-        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-6 flex flex-col md:flex-row items-center md:items-start gap-6">
+        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-6 flex flex-col items-center">
             
-            {/* SINISTRA: SILHOUETTE */}
-            <div className="w-full md:w-1/3 flex flex-col items-center">
-                <BodySilhouette 
-                    slots={slots} 
-                    onSlotClick={setSelectedBodyItem} 
-                    selectedItemId={selectedBodyItem?.id}
-                />
-                <p className="text-xs text-gray-500 mt-2 text-center italic">
-                    Clicca sulle zone colorate per i dettagli
-                </p>
-            </div>
+            {/* VISTA CORPO MIGLIORATA */}
+            <BodyVisual 
+                slots={slots} 
+                onSlotClick={setSelectedBodyItem} 
+                selectedItemId={selectedBodyItem?.id}
+            />
 
-            {/* DESTRA: DETTAGLI O LISTA GENERICA */}
-            <div className="w-full md:w-2/3 flex flex-col gap-4">
-                
-                {/* Pannello Dettaglio Selezione */}
-                <div className={`transition-all duration-300 ${selectedBodyItem ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 h-0 overflow-hidden'}`}>
-                    {selectedBodyItem && (
-                        <div className="bg-gray-800/80 border border-indigo-500/50 rounded-lg p-1 shadow-lg shadow-indigo-900/20 relative">
-                            <div className="absolute top-0 right-0 p-2">
-                                <button onClick={() => setSelectedBodyItem(null)} className="text-gray-400 hover:text-white bg-gray-900 rounded-full p-1"><Info size={14}/></button>
-                            </div>
-                            <h4 className="text-xs uppercase tracking-widest text-indigo-400 font-bold mb-2 pl-2 pt-2">Dettaglio Impianto</h4>
-                            {renderItemCard(selectedBodyItem, true)}
+            {/* DETTAGLIO SELEZIONE */}
+            <div className={`w-full max-w-lg transition-all duration-300 ${selectedBodyItem ? 'opacity-100 translate-y-0 mt-4' : 'opacity-0 -translate-y-4 h-0 overflow-hidden'}`}>
+                {selectedBodyItem && (
+                    <div className="bg-gray-800/80 border border-indigo-500/50 rounded-lg p-1 shadow-lg shadow-indigo-900/20 relative animate-fadeIn">
+                        <div className="absolute top-0 right-0 p-2 z-10">
+                            <button onClick={() => setSelectedBodyItem(null)} className="text-gray-400 hover:text-white bg-gray-900 rounded-full p-1 border border-gray-700"><Info size={14}/></button>
                         </div>
-                    )}
-                </div>
-
-                {/* Lista Generici (Sistemici/Senza Slot) */}
-                {genericItems.length > 0 && (
-                    <div className="border-t border-gray-700 pt-4">
-                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Potenziamenti Sistemici (Non localizzati)</h4>
-                        <div className="grid grid-cols-1 gap-2">
-                            {genericItems.map(item => renderItemCard(item))}
-                        </div>
+                        <h4 className="text-xs uppercase tracking-widest text-indigo-400 font-bold mb-2 pl-2 pt-2 flex items-center gap-2">
+                            <Activity size={14}/> Dettaglio Impianto
+                        </h4>
+                        {renderItemCard(selectedBodyItem, true)}
                     </div>
                 )}
             </div>
+
+            {/* LISTA SISTEMICA */}
+            {genericItems.length > 0 && (
+                <div className="w-full max-w-lg border-t border-gray-700 pt-4 mt-4">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
+                        <Cpu size={14} /> Potenziamenti Sistemici (Non localizzati)
+                    </h4>
+                    <div className="grid grid-cols-1 gap-2">
+                        {genericItems.map(item => renderItemCard(item))}
+                    </div>
+                </div>
+            )}
         </div>
     );
   };
