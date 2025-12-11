@@ -20,7 +20,6 @@ import {
 
 // --- HOOKS DI LETTURA (QUERY) ---
 
-// 1. Punteggi (Cache Globale Infinita)
 export const usePunteggi = (onLogout) => {
   return useQuery({
     queryKey: ['punteggi'],
@@ -30,7 +29,6 @@ export const usePunteggi = (onLogout) => {
   });
 };
 
-// 2. Lista Personaggi
 export const usePersonaggiList = (onLogout, viewAll) => {
   return useQuery({
     queryKey: ['personaggi_list', viewAll],
@@ -38,17 +36,15 @@ export const usePersonaggiList = (onLogout, viewAll) => {
   });
 };
 
-// 3. Dettaglio Personaggio
 export const usePersonaggioDetail = (id, onLogout) => {
   return useQuery({
-    queryKey: ['personaggio', String(id)], // Forziamo String anche qui per sicurezza
+    queryKey: ['personaggio', String(id)], 
     queryFn: () => getPersonaggioDetail(id, onLogout),
     enabled: !!id, 
     staleTime: 1000 * 60 * 5, 
   });
 };
 
-// 4. Abilità Acquistabili
 export const useAcquirableSkills = (id, onLogout) => {
   return useQuery({
     queryKey: ['abilita_acquistabili', id],
@@ -58,7 +54,6 @@ export const useAcquirableSkills = (id, onLogout) => {
   });
 };
 
-// 5. Infusioni Acquistabili
 export const useAcquirableInfusioni = (id) => {
   return useQuery({
     queryKey: ['infusioni_acquistabili', id],
@@ -68,7 +63,6 @@ export const useAcquirableInfusioni = (id) => {
   });
 };
 
-// 6. Tessiture Acquistabili
 export const useAcquirableTessiture = (id) => {
   return useQuery({
     queryKey: ['tessiture_acquistabili', id],
@@ -78,7 +72,6 @@ export const useAcquirableTessiture = (id) => {
   });
 };
 
-// 7. Logs Paginati
 export const usePersonaggioLogs = (page = 1) => {
   return useQuery({
     queryKey: ['personaggio_logs', page],
@@ -88,7 +81,6 @@ export const usePersonaggioLogs = (page = 1) => {
   });
 };
 
-// 8. Transazioni Paginati
 export const useTransazioni = (page = 1, tipo = 'entrata', charId = null) => {
   return useQuery({
     queryKey: ['personaggio_transazioni', charId, tipo, page], 
@@ -99,7 +91,6 @@ export const useTransazioni = (page = 1, tipo = 'entrata', charId = null) => {
   });
 };
 
-// 9. Coda Forgiatura
 export const useForgingQueue = (charId) => {
   return useQuery({
     queryKey: ['forging_queue', charId],
@@ -109,7 +100,6 @@ export const useForgingQueue = (charId) => {
   });
 };
 
-// 10. Negozio
 export const useShopItems = () => {
   return useQuery({
     queryKey: ['shop_items'],
@@ -125,21 +115,16 @@ const useOptimisticAction = (queryKeyBase, mutationFn, updateFn) => {
     return useMutation({
       mutationFn: mutationFn,
       onMutate: async (variables) => {
-        // --- FIX CRUCIALE ---
-        // Convertiamo l'ID in Stringa. Il Context usa stringhe (da localStorage),
-        // mentre i componenti passano numeri (da API). Questa conversione allinea le chiavi.
+        // Fix ID Stringa (già presente e corretto)
         const rawCharId = variables.charId || variables.personaggio_id; 
         const charId = String(rawCharId); 
         
         const queryKey = [...queryKeyBase, charId];
   
-        // 1. Blocca refetch in corso
         await queryClient.cancelQueries({ queryKey });
   
-        // 2. Snapshot stato precedente
         const previousData = queryClient.getQueryData(queryKey);
   
-        // 3. Aggiorna UI manualmente (Solo se i dati esistono in cache)
         if (previousData) {
             queryClient.setQueryData(queryKey, (old) => {
                 if (!old) return old;
@@ -155,16 +140,12 @@ const useOptimisticAction = (queryKeyBase, mutationFn, updateFn) => {
         return { previousData, queryKey };
       },
       onError: (err, newTodo, context) => {
-        // 4. Rollback in caso di errore
         if (context?.previousData) {
           queryClient.setQueryData(context.queryKey, context.previousData);
         }
         console.error("Optimistic Update Failed:", err);
-        // Alert opzionale, utile per debug
-        // alert("Sincronizzazione fallita: " + err.message); 
       },
       onSettled: (data, error, variables, context) => {
-        // 5. Invalida per sicurezza (riscarica dati veri)
         if (context?.queryKey) {
           queryClient.invalidateQueries({ queryKey: context.queryKey });
         }
@@ -174,7 +155,7 @@ const useOptimisticAction = (queryKeyBase, mutationFn, updateFn) => {
 
 // --- HOOKS DI SCRITTURA (OPTIMISTIC MUTATIONS) ---
 
-// A. CAMBIO STATISTICHE (HP, Mana, etc)
+// A. CAMBIO STATISTICHE
 export const useOptimisticStatChange = () => {
     return useOptimisticAction(
         ['personaggio'], 
@@ -224,7 +205,7 @@ export const useOptimisticEquip = () => {
     );
 };
 
-// C. USA OGGETTO (Consuma Carica)
+// C. USA OGGETTO (Consuma Carica & Start Timer)
 export const useOptimisticUseItem = () => {
     return useOptimisticAction(
         ['personaggio'],
@@ -234,15 +215,35 @@ export const useOptimisticUseItem = () => {
                 body: JSON.stringify({ oggetto_id, char_id: charId })
             });
         },
-        (oldData, { oggetto_id }) => {
+        (oldData, { oggetto_id, durata_totale, is_aura_zero_off }) => {
             if (!oldData.oggetti) return oldData;
 
             return {
                 ...oldData,
                 oggetti: oldData.oggetti.map(obj => {
                     if (obj.id !== oggetto_id) return obj;
+                    
+                    // 1. Scala Carica
                     const nuoveCariche = Math.max(0, (obj.cariche_attuali || 0) - 1);
-                    return { ...obj, cariche_attuali: nuoveCariche };
+                    
+                    let updates = { cariche_attuali: nuoveCariche };
+
+                    // 2. Gestione Timer e Stato Attivo
+                    if (durata_totale > 0) {
+                        // Se l'aura si spegne a zero e siamo a zero, forza OFF e resetta timer
+                        if (is_aura_zero_off && nuoveCariche === 0) {
+                            updates.is_active = false;
+                            updates.data_fine_attivazione = null;
+                        } else {
+                            // Altrimenti attiva e imposta timer
+                            const now = new Date();
+                            const endDate = new Date(now.getTime() + durata_totale * 1000);
+                            updates.data_fine_attivazione = endDate.toISOString();
+                            updates.is_active = true;
+                        }
+                    }
+
+                    return { ...obj, ...updates };
                 })
             };
         }
@@ -318,7 +319,6 @@ export const useOptimisticForgingCollect = () => {
     return useMutation({
         mutationFn: ({ forgiaturaId, charId }) => completeForging(forgiaturaId, charId),
         onMutate: async ({ forgiaturaId, charId }) => {
-             // FIX: Conversione ID in stringa
              const cId = String(charId);
              
              const queueKey = ['forging_queue', cId];

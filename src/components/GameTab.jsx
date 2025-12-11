@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
-    Star, MessageSquare, Briefcase, Play, Backpack, Shield, AlertCircle
+    Star, MessageSquare, Briefcase, Play, Backpack, Shield
 } from 'lucide-react';
 
 import { 
@@ -26,7 +26,8 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    const getAllActiveItems = () => {
+    // 2. Logica Appiattimento Oggetti (Recupera anche Mod installate)
+    const getAllActiveItems = useCallback(() => {
         if (!char?.oggetti) return [];
         let list = [];
         
@@ -53,25 +54,31 @@ const GameTab = ({ onNavigate }) => {
             }
         });
         return list;
-    };
+    }, [char]);
 
     const activeItems = getAllActiveItems();
 
+    // 3. Timer Locale (Countdown) - Logica Aggiornata per UI Istantanea
+    const updateTimers = useCallback(() => {
+        const now = Date.now();
+        const newTimers = {};
+        activeItems.forEach(item => {
+            if (item.data_fine_attivazione) {
+                const end = new Date(item.data_fine_attivazione).getTime();
+                const diff = Math.max(0, Math.floor((end - now) / 1000));
+                if (diff > 0) newTimers[item.id] = diff;
+            }
+        });
+        setTimers(newTimers);
+    }, [activeItems]);
+
     useEffect(() => {
-        const interval = setInterval(() => {
-            const now = Date.now();
-            const newTimers = {};
-            activeItems.forEach(item => {
-                if (item.data_fine_attivazione) {
-                    const end = new Date(item.data_fine_attivazione).getTime();
-                    const diff = Math.max(0, Math.floor((end - now) / 1000));
-                    if (diff > 0) newTimers[item.id] = diff;
-                }
-            });
-            setTimers(newTimers);
-        }, 1000);
+        // Esegui subito all'avvio o quando i dati cambiano (es. Optimistic UI ha settato la data)
+        updateTimers();
+        
+        const interval = setInterval(updateTimers, 1000);
         return () => clearInterval(interval);
-    }, [char, activeItems]); 
+    }, [updateTimers]); 
 
     // --- HANDLERS ---
 
@@ -85,9 +92,13 @@ const GameTab = ({ onNavigate }) => {
 
     const handleUseItem = (item) => {
         if (item.cariche_attuali <= 0) return;
+        
         useItemMutation.mutate({ 
             oggetto_id: item.id, 
-            charId: char.id 
+            charId: char.id,
+            durata_totale: item.durata_totale || 0,
+            // Passiamo il flag se presente, altrimenti false
+            is_aura_zero_off: item.spegni_a_zero_cariche || false 
         });
     };
 
