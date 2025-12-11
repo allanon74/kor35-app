@@ -1,43 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from './CharacterContext';
-import { fetchAuthenticated } from '../api';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
     Star, MessageSquare, Briefcase, Play, Backpack, Minus, Shield, Plus
 } from 'lucide-react';
 
+import { 
+    useOptimisticStatChange, 
+    useOptimisticUseItem, 
+    useOptimisticRecharge 
+} from '../hooks/useGameData';
+
 const GameTab = ({ onNavigate }) => {
-    // 1. Context: estraiamo refreshCharacterData per aggiornamento real-time
-    const { selectedCharacterData: char, refreshCharacterData } = useCharacter();
+    const { selectedCharacterData: char } = useCharacter();
     const [favorites, setFavorites] = useState([]);
     const [timers, setTimers] = useState({});
+
+    // --- MUTATIONS OTTIMISTICHE ---
+    const statMutation = useOptimisticStatChange();
+    const useItemMutation = useOptimisticUseItem();
+    const rechargeMutation = useOptimisticRecharge();
 
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
         setFavorites(savedFavs);
     }, []);
 
-    // 2. Logica Appiattimento Oggetti (Recupera anche Mod installate)
     const getAllActiveItems = () => {
         if (!char?.oggetti) return [];
         let list = [];
         
         char.oggetti.forEach(item => {
-            // Un oggetto è "interattivo" se ha cariche o durata
             const hasMechanics = (obj) => (obj.cariche_massime > 0 || obj.durata_totale > 0);
-            
-            // Verifica se il contenitore (oggetto padre) è attivo
             let isContainerActive = false;
             if (item.tipo_oggetto === 'FIS' && item.is_equipaggiato) isContainerActive = true;
             if (item.tipo_oggetto === 'INN' && item.slot_corpo) isContainerActive = true;
             if (item.tipo_oggetto === 'MUT') isContainerActive = true;
 
-            // Se l'oggetto padre ha meccaniche, aggiungilo
             if (isContainerActive && hasMechanics(item)) {
                 list.push(item);
             }
-
-            // Se l'oggetto padre ha Mod installate con meccaniche, aggiungile
             if (isContainerActive && item.potenziamenti_installati) {
                 item.potenziamenti_installati.forEach(mod => {
                     if (hasMechanics(mod)) {
@@ -45,7 +47,6 @@ const GameTab = ({ onNavigate }) => {
                             ...mod, 
                             is_mod: true, 
                             parent_name: item.nome,
-                            // Ereditano "attivo" dal padre nel backend, ma qui sappiamo che il padre è attivo
                         });
                     }
                 });
@@ -56,12 +57,10 @@ const GameTab = ({ onNavigate }) => {
 
     const activeItems = getAllActiveItems();
 
-    // 3. Timer Locale (Countdown)
     useEffect(() => {
         const interval = setInterval(() => {
             const now = Date.now();
             const newTimers = {};
-            
             activeItems.forEach(item => {
                 if (item.data_fine_attivazione) {
                     const end = new Date(item.data_fine_attivazione).getTime();
@@ -74,40 +73,32 @@ const GameTab = ({ onNavigate }) => {
         return () => clearInterval(interval);
     }, [char, activeItems]); 
 
-    // --- HANDLERS ---
+    // --- HANDLERS AGGIORNATI ---
 
-    const handleStatChange = async (sigla, mode) => {
-        try {
-            await fetchAuthenticated('/personaggi/api/game/modifica_stat_temp/', {
-                method: 'POST',
-                body: JSON.stringify({ char_id: char.id, stat_sigla: sigla, mode: mode })
-            });
-            await refreshCharacterData(); 
-        } catch (error) { console.error("Errore stat:", error); }
+    const handleStatChange = (sigla, mode) => {
+        statMutation.mutate({ 
+            charId: char.id, 
+            stat_sigla: sigla, 
+            mode 
+        });
     };
 
-    const handleUseItem = async (item) => {
+    const handleUseItem = (item) => {
         if (item.cariche_attuali <= 0) return;
-        try {
-            await fetchAuthenticated('/personaggi/api/game/usa_oggetto/', {
-                method: 'POST',
-                body: JSON.stringify({ oggetto_id: item.id, char_id: char.id })
-            });
-            await refreshCharacterData();
-        } catch (error) { alert("Errore uso: " + error.message); }
+        useItemMutation.mutate({ 
+            oggetto_id: item.id, 
+            charId: char.id 
+        });
     };
 
-    const handleRecharge = async (item) => {
+    const handleRecharge = (item) => {
         const costo = item.costo_ricarica || 0;
         const msg = `Ricaricare ${item.nome}?\nCosto: ${costo} CR\nMetodo: ${item.testo_ricarica || 'Standard'}`;
         if (window.confirm(msg)) {
-            try {
-                await fetchAuthenticated('/personaggi/api/game/ricarica_oggetto/', {
-                    method: 'POST',
-                    body: JSON.stringify({ oggetto_id: item.id, char_id: char.id })
-                });
-                await refreshCharacterData();
-            } catch (error) { alert("Errore ricarica: " + error.message); }
+            rechargeMutation.mutate({ 
+                oggetto_id: item.id, 
+                charId: char.id 
+            });
         }
     };
 
@@ -132,7 +123,6 @@ const GameTab = ({ onNavigate }) => {
     return (
         <div className="pb-24 px-2 space-y-4 animate-fadeIn text-gray-100 pt-2">
             
-            {/* 1. STATISTICHE (BOX QUADRATI) */}
             <section className="bg-gray-900 rounded-xl p-3 border border-gray-700 shadow-lg">
                 <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold flex items-center gap-2">
                     <Heart size={12} /> Parametri Vitali
@@ -171,7 +161,6 @@ const GameTab = ({ onNavigate }) => {
                         )
                     ))}
                     
-                    {/* BOX CAPACITÀ */}
                     <div className="aspect-square bg-gray-800 rounded-lg border border-gray-700/50 flex flex-col justify-between p-2 shadow-md">
                         <div className="text-center">
                              <span className="text-[10px] font-bold text-gray-400 uppercase">Capacità</span>
@@ -188,7 +177,6 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </section>
 
-            {/* 2. ATTACCHI BASE */}
             {weapons.length > 0 && (
                 <section>
                     <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
@@ -212,7 +200,6 @@ const GameTab = ({ onNavigate }) => {
                 </section>
             )}
 
-            {/* 3. DISPOSITIVI & MODULI (CON TIMER VISUALE) */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi & Moduli
@@ -227,7 +214,6 @@ const GameTab = ({ onNavigate }) => {
                         return (
                             <div key={item.id} className={`p-3 rounded-lg border transition-all relative overflow-hidden ${isTimerRunning ? 'bg-emerald-900/20 border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-gray-800 border-gray-700'}`}>
                                 
-                                {/* BARRA DI PROGRESSO SULLO SFONDO */}
                                 {isTimerRunning && (
                                     <div 
                                         className="absolute bottom-0 left-0 h-1 bg-emerald-500 shadow-[0_0_10px_#10b981] transition-all duration-1000 ease-linear" 
@@ -250,7 +236,6 @@ const GameTab = ({ onNavigate }) => {
                                                 )}
                                             </div>
                                             
-                                            {/* TIMER EVIDENTE */}
                                             {isTimerRunning && (
                                                 <div className="flex items-center gap-2 bg-emerald-950/80 px-2 py-1 rounded border border-emerald-500/50 shadow-inner">
                                                     <Clock size={12} className="text-emerald-400 animate-spin" />
@@ -294,7 +279,6 @@ const GameTab = ({ onNavigate }) => {
                                         {isTimerRunning ? 'ATTIVO...' : <><Play size={12} fill="currentColor" /> {item.durata_totale > 0 ? 'ATTIVA' : 'USA'}</>}
                                     </button>
                                     
-                                    {/* Mostra Ricarica se ha cariche max > 0 */}
                                     {item.cariche_massime > 0 && (
                                         <button 
                                             onClick={() => handleRecharge(item)}
@@ -312,7 +296,6 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </section>
 
-            {/* 4. NOTIFICHE */}
             <div className="grid grid-cols-2 gap-3 mt-4">
                 <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
@@ -324,7 +307,6 @@ const GameTab = ({ onNavigate }) => {
                 </button>
             </div>
 
-            {/* 5. PRONTUARIO */}
             {favorites.length > 0 && (
                 <section className="mt-6 pt-4 border-t border-gray-800">
                     <h3 className="text-[10px] uppercase tracking-widest text-yellow-500 mb-3 font-bold flex items-center gap-2 ml-1"><Star size={12} /> Prontuario Rapido</h3>

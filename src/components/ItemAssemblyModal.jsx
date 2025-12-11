@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Wrench, Send, ShieldAlert, Cpu, UserCheck, Loader2, Coins, GraduationCap, Trash2 } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
-import { assemblaOggetto, smontaOggetto, validateAssembly, createAssemblyRequest, getCapableArtisans } from '../api'; 
+import { validateAssembly, createAssemblyRequest, getCapableArtisans } from '../api'; 
+import { useOptimisticAssembly } from '../hooks/useGameData';
 
 const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   const { selectedCharacterData } = useCharacter();
   
-  // --- STATI ---
   const [mode, setMode] = useState('INSTALL'); // 'INSTALL' o 'REMOVE'
-  const [selectedMod, setSelectedMod] = useState(null); // Oggetto selezionato
+  const [selectedMod, setSelectedMod] = useState(null); 
   
   // Stati validazione
   const [isValidating, setIsValidating] = useState(false);
@@ -20,286 +20,309 @@ const ItemAssemblyModal = ({ hostItem, inventory, onClose, onRefresh }) => {
   const [selectedTarget, setSelectedTarget] = useState(''); 
   const [offerCredits, setOfferCredits] = useState(0);
   
-  // Loading e Feedback
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // Filtro oggetti installabili (Zaino)
-  const compatibleItems = useMemo(() => {
-    return inventory.filter(item => {
-        if (item.id === hostItem.id) return false;
-        const isTechHost = hostItem.is_tecnologico;
-        // Host Tecnologico -> accetta MOD
-        if (isTechHost && item.tipo_oggetto === 'MOD') return true;
-        // Host Mondano -> accetta MATERIA
-        if (!isTechHost && item.tipo_oggetto === 'MAT') return true;
-        return false;
-    });
-  }, [inventory, hostItem]);
+  // --- MUTATIONS OTTIMISTICHE ---
+  const installMutation = useOptimisticAssembly('monta');
+  const removeMutation = useOptimisticAssembly('smonta');
 
-  // Lista oggetti già installati (per rimozione)
+  // Filtro oggetti installabili (Zaino)
+  const compatibleMods = useMemo(() => {
+     if (mode !== 'INSTALL') return [];
+     return inventory.filter(item => {
+        if (item.is_equipaggiato) return false;
+        if (!['MOD', 'MAT', 'PROG'].includes(item.tipo_oggetto)) return false;
+        return true; 
+     });
+  }, [inventory, mode]);
+
   const installedMods = hostItem.potenziamenti_installati || [];
 
-  // Reset parziale quando cambia selezione
+  // Reset selezione al cambio modalità
   useEffect(() => {
+    setSelectedMod(null);
     setValidationData(null);
-    setCapableArtisans([]);
-    setSelectedTarget('');
     setError(null);
     setSuccess(null);
-  }, [selectedMod, mode]);
+  }, [mode]);
 
-  // --- VALIDAZIONE AUTOMATICA ---
+  // Validazione automatica
   useEffect(() => {
-    if (!selectedMod || !selectedCharacterData) return;
-
-    const runChecks = async () => {
-      setIsValidating(true);
-      setIsLoadingArtisans(true);
-      
-      try {
-        // 1. Verifica le mie competenze
-        const valData = await validateAssembly(selectedCharacterData.id, hostItem.id, selectedMod.id);
-        setValidationData(valData);
-
-        // 2. Se non ho skill, cerco chi può farlo (Artigiani)
-        if (valData && !valData.can_assemble_self) {
-            const artisans = await getCapableArtisans(selectedCharacterData.id, hostItem.id, selectedMod.id);
-            setCapableArtisans(artisans || []);
-        }
-      } catch (err) {
-        console.error("Errore controlli:", err);
-      } finally {
-        setIsValidating(false);
-        setIsLoadingArtisans(false);
-      }
-    };
-
-    const timer = setTimeout(runChecks, 500);
-    return () => clearTimeout(timer);
-  }, [selectedMod, hostItem, selectedCharacterData]);
-
-  // --- HANDLERS SELEZIONE ---
-  const handleSelectInstalled = (mod) => {
-      if (selectedMod?.id === mod.id && mode === 'REMOVE') {
-          setSelectedMod(null);
-          setMode('INSTALL');
-      } else {
-          setMode('REMOVE');
-          setSelectedMod(mod);
-      }
-  };
-
-  const handleSelectInventory = (e) => {
-      const modId = e.target.value;
-      if (!modId) {
-          setSelectedMod(null);
-          return;
-      }
-      const item = compatibleItems.find(i => i.id == modId);
-      setMode('INSTALL');
-      setSelectedMod(item);
-  };
-
-  // --- AZIONE PRINCIPALE (Esecuzione Diretta o Accademia) ---
-  const handleExecuteAction = async () => {
-    if (!selectedMod) return;
-    
-    const isAcademy = selectedTarget === 'ACADEMY';
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-        if (mode === 'INSTALL') {
-            await assemblaOggetto(hostItem.id, selectedMod.id, selectedCharacterData.id, isAcademy);
-            setSuccess(isAcademy ? "Installato via Accademia!" : "Installazione completata!");
-        } else {
-            await smontaOggetto(hostItem.id, selectedMod.id, selectedCharacterData.id, isAcademy);
-            setSuccess(isAcademy ? "Smontato via Accademia!" : "Smontaggio completato!");
-        }
+    if (selectedMod && selectedCharacterData) {
+        setIsValidating(true);
+        setValidationData(null);
+        setCapableArtisans([]);
         
-        setTimeout(() => { onRefresh(); onClose(); }, 1500);
-    } catch (err) {
-        setError(err.message || "Operazione fallita.");
-    } finally {
-        setIsProcessing(false);
+        validateAssembly(selectedCharacterData.id, hostItem.id, selectedMod.id)
+            .then(data => {
+                setValidationData(data);
+                
+                // Se serve un artigiano, caricali
+                if (!data.can_do_self && (data.requires_artisan || data.requires_skill)) {
+                    setIsLoadingArtisans(true);
+                    getCapableArtisans(selectedCharacterData.id, hostItem.id, selectedMod.id, null)
+                        .then(artisans => setCapableArtisans(artisans))
+                        .finally(() => setIsLoadingArtisans(false));
+                }
+            })
+            .catch(err => setError(err.message))
+            .finally(() => setIsValidating(false));
     }
+  }, [selectedMod, hostItem.id, selectedCharacterData]);
+
+
+  // --- HANDLERS OTTIMISTICI ---
+
+  const handleInstall = () => {
+     if (!selectedMod) return;
+     setIsProcessing(true);
+     
+     // 1. Usa Mutation Ottimistica invece di API diretta
+     installMutation.mutate(
+        { 
+           host_id: hostItem.id, 
+           mod_id: selectedMod.id, 
+           charId: selectedCharacterData.id,
+           useAcademy: false 
+        },
+        {
+            onSuccess: () => {
+                setSuccess("Installazione completata!");
+                setTimeout(() => {
+                    onRefresh(); // Chiude la modale e aggiorna (opzionale con optimistic)
+                }, 1000);
+            },
+            onError: (err) => {
+                setError("Errore installazione: " + err.message);
+                setIsProcessing(false);
+            }
+        }
+     );
   };
 
-  // --- AZIONE RICHIESTA ESTERNA (Giocatore) ---
+  const handleRemove = () => {
+     if (!selectedMod) return;
+     if (!window.confirm("Rimuovere questo componente?")) return;
+
+     setIsProcessing(true);
+     
+     // 1. Usa Mutation Ottimistica
+     removeMutation.mutate(
+        { 
+           host_id: hostItem.id, 
+           mod_id: selectedMod.id, 
+           charId: selectedCharacterData.id,
+           useAcademy: false
+        },
+        {
+            onSuccess: () => {
+                setSuccess("Componente rimosso!");
+                setTimeout(() => {
+                    onRefresh();
+                }, 1000);
+            },
+            onError: (err) => {
+                setError("Errore rimozione: " + err.message);
+                setIsProcessing(false);
+            }
+        }
+     );
+  };
+
   const handleSendRequest = async () => {
-      // Determina il tipo operazione
-      const opType = mode === 'REMOVE' ? 'RIMO' : 'INST';
-      const opLabel = mode === 'REMOVE' ? 'smontaggio' : 'assemblaggio';
-      
-      const artisanObj = capableArtisans.find(a => a.id.toString() === selectedTarget);
-      if (!artisanObj) {
-          setError("Devi selezionare un artigiano dalla lista.");
-          return;
-      }
-
-      setIsProcessing(true);
-      try {
-          await createAssemblyRequest(
-              selectedCharacterData.id, 
-              hostItem.id, 
-              selectedMod.id, 
-              artisanObj.nome, 
-              offerCredits,
-              opType // Passa 'RIMO' o 'INST' al backend
-          );
-          setSuccess(`Richiesta di ${opLabel} inviata a ${artisanObj.nome}!`);
-          setTimeout(() => { onClose(); }, 2000);
-      } catch (err) {
-          setError(err.message);
-      } finally {
-          setIsProcessing(false);
-      }
+     if (!selectedTarget) return;
+     setIsProcessing(true);
+     try {
+        await createAssemblyRequest(
+            selectedCharacterData.id, 
+            hostItem.id, 
+            selectedMod.id, 
+            selectedTarget, 
+            offerCredits,
+            mode === 'INSTALL' ? 'INST' : 'RIMO'
+        );
+        setSuccess("Richiesta inviata con successo!");
+        setTimeout(onClose, 2000);
+     } catch (err) {
+        setError(err.message);
+     } finally {
+        setIsProcessing(false);
+     }
   };
+
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-800 border border-gray-600 rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-gray-900 w-full max-w-lg rounded-xl shadow-2xl border border-gray-700 flex flex-col max-h-[90vh]">
         
         {/* HEADER */}
-        <div className="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center rounded-t-xl">
+        <div className="flex justify-between items-center p-4 border-b border-gray-800">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Wrench className="text-amber-400" size={20}/>
-                Gestione Moduli: <span className="text-amber-100">{hostItem.nome}</span>
+                <Wrench className="text-amber-500"/> Assemblaggio
             </h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+                <X size={24} />
+            </button>
         </div>
 
-        <div className="p-5 overflow-y-auto grow space-y-6">
+        {/* HOST ITEM INFO */}
+        <div className="p-4 bg-gray-800/50 border-b border-gray-800 flex items-center gap-3">
+             <div className="bg-gray-700 p-2 rounded">
+                 <Cpu size={24} className="text-indigo-400"/>
+             </div>
+             <div>
+                 <div className="text-xs text-gray-500 uppercase font-bold">Oggetto Ospite</div>
+                 <div className="font-bold text-white">{hostItem.nome}</div>
+             </div>
+        </div>
+
+        {/* TABS MODE */}
+        <div className="flex border-b border-gray-700">
+            <button 
+                onClick={() => setMode('INSTALL')}
+                className={`flex-1 py-3 text-sm font-bold uppercase transition-colors ${mode === 'INSTALL' ? 'bg-indigo-600 text-white' : 'hover:bg-gray-800 text-gray-400'}`}
+            >
+                Installa Mod
+            </button>
+            <button 
+                onClick={() => setMode('REMOVE')}
+                className={`flex-1 py-3 text-sm font-bold uppercase transition-colors ${mode === 'REMOVE' ? 'bg-red-900/50 text-red-200 border-b-2 border-red-500' : 'hover:bg-gray-800 text-gray-400'}`}
+            >
+                Rimuovi Mod
+            </button>
+        </div>
+
+        {/* CONTENT SCROLLABLE */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
             
-            {/* LISTA MOD INSTALLATE (Per Smontaggio) */}
+            {/* SELEZIONE MOD */}
             <div>
-                <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Moduli Installati</h4>
-                <div className="space-y-2">
-                    {installedMods.length === 0 ? (
-                        <div className="text-gray-500 text-sm italic bg-gray-900/30 p-2 rounded text-center">Nessun modulo installato.</div>
-                    ) : (
-                        installedMods.map(mod => (
-                            <div 
-                                key={mod.id}
-                                onClick={() => handleSelectInstalled(mod)}
-                                className={`
-                                    flex justify-between items-center p-3 rounded-lg border cursor-pointer transition-all
-                                    ${mode === 'REMOVE' && selectedMod?.id === mod.id 
-                                        ? 'bg-red-900/30 border-red-500 ring-1 ring-red-500' 
-                                        : 'bg-gray-700/30 border-gray-600 hover:bg-gray-700'}
-                                `}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Cpu size={16} className="text-cyan-400"/>
-                                    <span className="text-white font-medium">{mod.nome}</span>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                    {mode === 'INSTALL' ? 'Seleziona Componente da Zaino' : 'Seleziona Componente Installato'}
+                </label>
+                
+                {mode === 'INSTALL' ? (
+                    compatibleMods.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-2">
+                            {compatibleMods.map(mod => (
+                                <button 
+                                    key={mod.id} 
+                                    onClick={() => setSelectedMod(mod)}
+                                    className={`p-3 rounded border text-left flex justify-between items-center transition-all ${selectedMod?.id === mod.id ? 'bg-indigo-900/40 border-indigo-500 ring-1 ring-indigo-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}
+                                >
+                                    <span className="font-bold text-sm text-gray-200">{mod.nome}</span>
+                                    <span className="text-xs text-gray-500">{mod.tipo_oggetto_display}</span>
+                                </button>
+                            ))}
+                        </div>
+                    ) : <p className="text-gray-500 italic text-sm text-center py-4">Nessun componente compatibile nello zaino.</p>
+                ) : (
+                    installedMods.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-2">
+                            {installedMods.map(mod => (
+                                <button 
+                                    key={mod.id} 
+                                    onClick={() => setSelectedMod(mod)}
+                                    className={`p-3 rounded border text-left flex justify-between items-center transition-all ${selectedMod?.id === mod.id ? 'bg-red-900/20 border-red-500 ring-1 ring-red-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}
+                                >
+                                    <span className="font-bold text-sm text-gray-200">{mod.nome}</span>
+                                    <Trash2 size={16} className="text-red-400"/>
+                                </button>
+                            ))}
+                        </div>
+                    ) : <p className="text-gray-500 italic text-sm text-center py-4">Nessun componente installato su questo oggetto.</p>
+                )}
+            </div>
+
+            {/* VALIDATION & ACTIONS */}
+            {selectedMod && (
+                <div className="animate-fadeIn space-y-4 border-t border-gray-700 pt-4">
+                    
+                    {/* INFO SELEZIONE */}
+                    <div className="flex items-center gap-2 text-sm text-indigo-300 font-bold bg-indigo-900/20 p-2 rounded">
+                        <Wrench size={16}/> 
+                        {mode === 'INSTALL' ? `Installare ${selectedMod.nome}?` : `Rimuovere ${selectedMod.nome}?`}
+                    </div>
+
+                    {/* LOADING VALIDATION */}
+                    {isValidating && <div className="text-center py-2"><Loader2 className="animate-spin inline text-indigo-400"/> <span className="text-xs text-gray-400">Verifica compatibilità...</span></div>}
+
+                    {/* VALIDATION RESULT */}
+                    {!isValidating && validationData && (
+                        <div className={`text-sm p-3 rounded border ${validationData.is_valid ? 'bg-green-900/10 border-green-800' : 'bg-red-900/10 border-red-800'}`}>
+                             {validationData.is_valid ? (
+                                <div className="text-green-400 flex items-center gap-2">
+                                    <Shield size={16}/> Compatibilità confermata.
                                 </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                    {mode === 'REMOVE' && selectedMod?.id === mod.id ? (
-                                        <span className="text-red-300 font-bold flex items-center gap-1">
-                                            <Trash2 size={12}/> Selezionato per Rimozione
-                                        </span>
+                             ) : (
+                                <div className="text-red-400 flex items-center gap-2">
+                                    <ShieldAlert size={16}/> {validationData.error_message || "Non compatibile."}
+                                </div>
+                             )}
+
+                             {/* Requisiti Skill */}
+                             {validationData.requires_skill && (
+                                <div className="mt-2 text-xs text-gray-400">
+                                    Richiede abilità: <span className="text-white font-bold">{validationData.required_skill_name}</span>
+                                    {validationData.can_do_self ? (
+                                        <span className="text-green-500 ml-2">(Posseduta)</span>
                                     ) : (
-                                        <span className="text-gray-400">Clicca per smontare</span>
+                                        <span className="text-red-500 ml-2">(Mancante)</span>
                                     )}
                                 </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            <div className="border-t border-gray-700"></div>
-
-            {/* SELEZIONE PER INSTALLAZIONE */}
-            <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Installa Nuovo Modulo</label>
-                <select 
-                    className={`w-full bg-gray-900 border text-white rounded-lg p-3 outline-none transition-all
-                        ${mode === 'INSTALL' && selectedMod ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-gray-600'}
-                    `}
-                    onChange={handleSelectInventory}
-                    value={mode === 'INSTALL' && selectedMod ? selectedMod.id : ''}
-                >
-                    <option value="">-- Seleziona dallo Zaino --</option>
-                    {compatibleItems.map(item => (
-                        <option key={item.id} value={item.id}>{item.nome}</option>
-                    ))}
-                </select>
-            </div>
-
-            {/* BOX DI CONTROLLO E AZIONE */}
-            {selectedMod && validationData && (
-                <div className={`rounded-lg p-4 border animate-fadeIn ${mode === 'REMOVE' ? 'bg-red-900/10 border-red-800/50' : 'bg-emerald-900/10 border-emerald-800/50'}`}>
-                    
-                    <h4 className={`font-bold mb-3 flex items-center gap-2 ${mode === 'REMOVE' ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {mode === 'REMOVE' ? <Trash2 size={18}/> : <Wrench size={18}/>}
-                        {mode === 'REMOVE' ? 'Smontaggio:' : 'Assemblaggio:'} {selectedMod.nome}
-                    </h4>
-
-                    {/* Check Skill */}
-                    {validationData.can_assemble_self ? (
-                        <div className="text-gray-300 text-sm mb-4 flex gap-2">
-                            <UserCheck className="text-emerald-500" size={18}/>
-                            <span>Hai le competenze necessarie.</span>
-                        </div>
-                    ) : (
-                        <div className="text-amber-400 text-sm mb-4 flex gap-2 items-start">
-                            <ShieldAlert className="shrink-0 mt-0.5" size={18}/>
-                            <span>
-                                {validationData.reason_self || "Competenze insufficienti."}
-                            </span>
+                             )}
                         </div>
                     )}
 
-                    {/* Selezione Esecutore (Se non ho skill) */}
-                    {!validationData.can_assemble_self && (
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-gray-400 mb-1">Chi esegue il lavoro?</label>
-                            <select 
-                                className="w-full bg-gray-800 border border-gray-600 text-white rounded p-2 text-sm"
-                                value={selectedTarget}
-                                onChange={(e) => setSelectedTarget(e.target.value)}
-                            >
-                                <option value="">-- Seleziona Opzione --</option>
-                                <option value="ACADEMY" className="text-yellow-400 font-bold">
-                                    🏛️ Accademia (100 CR) - Immediato
-                                </option>
-                                
-                                {/* Mostra SEMPRE i giocatori se disponibili, anche per SMONTARE */}
-                                {capableArtisans.length > 0 && (
-                                    <optgroup label="Giocatori Disponibili">
-                                        {capableArtisans.map(a => (
-                                            <option key={a.id} value={a.id}>{a.nome}</option>
-                                        ))}
-                                    </optgroup>
-                                )}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* PULSANTI AZIONE */}
-                    <div className="flex gap-2">
-                        {/* 1. ESECUZIONE DIRETTA (Skill o Accademia) */}
-                        {(validationData.can_assemble_self || selectedTarget === 'ACADEMY') ? (
+                    {/* ACTION BUTTONS */}
+                    <div className="flex gap-2 items-center">
+                        {/* Fai da te */}
+                        {validationData?.can_do_self && (
                             <button 
-                                onClick={handleExecuteAction}
+                                onClick={mode === 'INSTALL' ? handleInstall : handleRemove}
                                 disabled={isProcessing}
-                                className={`flex-1 text-white py-2 rounded-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all
-                                    ${selectedTarget === 'ACADEMY' 
-                                        ? 'bg-yellow-700 hover:bg-yellow-600' 
-                                        : (mode === 'REMOVE' ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500')}
-                                `}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-lg font-bold shadow-lg disabled:opacity-50 flex justify-center items-center gap-2"
                             >
-                                {isProcessing ? <Loader2 className="animate-spin"/> : (selectedTarget === 'ACADEMY' ? <Coins size={18}/> : <Wrench size={18}/>)}
-                                {selectedTarget === 'ACADEMY' ? 'Paga 100 CR ed Esegui' : (mode === 'REMOVE' ? 'Smonta Ora' : 'Installa Ora')}
+                                {isProcessing ? <Loader2 className="animate-spin"/> : <Wrench size={18}/>}
+                                {mode === 'INSTALL' ? 'Procedi (Fai da te)' : 'Smonta (Fai da te)'}
                             </button>
+                        )}
+                        
+                        {/* Accademia */}
+                        {validationData?.can_use_academy && mode === 'INSTALL' && (
+                            <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold shadow-lg flex justify-center items-center gap-2">
+                                <GraduationCap size={18}/> Accademia
+                            </button>
+                        )}
+                    </div>
+
+                    {/* RICHIESTA ARTIGIANO */}
+                    <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Richiedi a Tecnico</h4>
+                        
+                        {isLoadingArtisans ? (
+                            <div className="text-center py-2"><Loader2 className="animate-spin inline"/></div>
+                        ) : capableArtisans.length === 0 && !validationData?.can_do_self ? (
+                            <p className="text-red-400 text-xs">Nessun tecnico disponibile online.</p>
                         ) : (
-                            /* 2. RICHIESTA GIOCATORE */
                             <>
-                                {selectedTarget && selectedTarget !== 'ACADEMY' && (
-                                    <div className="relative flex-1">
+                                <select 
+                                    className="w-full bg-gray-900 text-white border border-gray-600 rounded p-2 mb-2 text-sm"
+                                    value={selectedTarget}
+                                    onChange={(e) => setSelectedTarget(e.target.value)}
+                                >
+                                    <option value="">-- Seleziona Tecnico --</option>
+                                    {capableArtisans.map(a => (
+                                        <option key={a.id} value={a.id}>{a.nome} (Liv {a.livello_tecnico})</option>
+                                    ))}
+                                </select>
+                                {selectedTarget && (
+                                    <div className="flex gap-2 mb-2">
+                                        <div className="bg-gray-900 border border-gray-600 rounded px-3 flex items-center text-yellow-500">
+                                            <Coins size={16}/>
+                                        </div>
                                         <input 
                                             type="number" placeholder="Offerta CR"
                                             className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2 pl-2 text-white h-full"

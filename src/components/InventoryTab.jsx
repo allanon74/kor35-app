@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { equipaggiaOggetto, ricaricaOggetto } from '../api'; 
 import { useCharacter } from './CharacterContext';
 import { 
     ShoppingBag, Box, Shield, Zap, Loader2, Wrench, 
@@ -8,13 +7,12 @@ import {
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
+import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
 const InventoryTab = ({ onLogout }) => {
-  // USA refreshCharacterData PER AGGIORNARE I DATI ISTANTANEAMENTE
-  const { selectedCharacterData: characterData, isLoading: isContextLoading, refreshCharacterData } = useCharacter();
+  const { selectedCharacterData: characterData, isLoading: isContextLoading } = useCharacter();
   
   const [items, setItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [showShop, setShowShop] = useState(false);
 
   // Stati per modale assemblaggio
@@ -23,6 +21,10 @@ const InventoryTab = ({ onLogout }) => {
 
   // Stato per gestire l'espansione delle card
   const [expandedItems, setExpandedItems] = useState({});
+
+  // --- HOOKS OPTIMISTIC ---
+  const equipMutation = useOptimisticEquip();
+  const rechargeMutation = useOptimisticRecharge();
 
   useEffect(() => {
     if (characterData?.oggetti) {
@@ -34,37 +36,24 @@ const InventoryTab = ({ onLogout }) => {
 
   // --- GESTIONE AZIONI ---
 
-  const handleToggleEquip = async (itemId) => {
-    if (isLoading) return;
-    setIsLoading(true);
-    try {
-      await equipaggiaOggetto(itemId, characterData.id, onLogout);
-      // REFRESH COMPLETO DEI DATI
-      await refreshCharacterData(); 
-    } catch (error) {
-      console.error("Errore equipaggiamento:", error);
-      alert(error.message || "Errore durante l'azione");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleToggleEquip = (itemId) => {
+    // Non serve await o isLoading locale, l'UI si aggiorna subito
+    equipMutation.mutate({ 
+        itemId, 
+        charId: characterData.id 
+    });
   };
 
-  const handleRecharge = async (item) => {
+  const handleRecharge = (item) => {
       const costo = item.costo_ricarica || 0;
       const metodo = item.testo_ricarica || "Standard";
-      
       const confirmMsg = `Ricaricare ${item.nome}?\nCosto: ${costo} CR\nMetodo: ${metodo}`;
       
       if (window.confirm(confirmMsg)) {
-          setIsLoading(true);
-          try {
-              await ricaricaOggetto(item.id);
-              await refreshCharacterData(); // Aggiorna per vedere le nuove cariche
-          } catch (error) {
-              alert("Errore ricarica: " + error.message);
-          } finally {
-              setIsLoading(false);
-          }
+          rechargeMutation.mutate({ 
+              oggetto_id: item.id, 
+              charId: characterData.id 
+          });
       }
   };
 
@@ -73,8 +62,9 @@ const InventoryTab = ({ onLogout }) => {
     setShowAssembly(true);
   };
 
-  const handleAssemblyComplete = async () => {
-    await refreshCharacterData();
+  const handleAssemblyComplete = () => {
+    // Con l'optimistic UI non serve forzare un refresh qui, 
+    // ma la modale lo chiamava. Lo lasciamo vuoto o gestiamo chiusura
     setShowAssembly(false);
     setAssemblyHost(null);
   };
@@ -93,13 +83,11 @@ const InventoryTab = ({ onLogout }) => {
         return 'border-2 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)] bg-green-900/10';
     }
     if (item.is_equipaggiato) {
-        // Equipaggiato ma spento (es. scarico o timer finito)
         return 'border-2 border-yellow-600/60 bg-yellow-900/10'; 
     }
-    return 'border border-gray-700 bg-gray-800 hover:border-gray-600'; // Zaino
+    return 'border border-gray-700 bg-gray-800 hover:border-gray-600'; 
   };
 
-  // Configurazione slot per la griglia visiva (Body)
   const slotsConfig = {
     'HD1': { label: 'Testa (Pri)', gridArea: 'head1', color: 'border-cyan-500/50' },
     'HD2': { label: 'Testa (Sec)', gridArea: 'head2', color: 'border-cyan-500/30' },
@@ -119,11 +107,8 @@ const InventoryTab = ({ onLogout }) => {
     const isExpanded = !!expandedItems[item.id];
     const isActive = item.is_active;
 
-    // Helper per renderizzare info cariche e pulsante ricarica
     const renderChargeInfo = () => {
-        // Mostra solo se l'oggetto ha una capacità massima definita (quindi è ricaricabile/consumabile)
         if (!item.cariche_massime && !item.durata_totale) return null;
-
         const isLow = item.cariche_attuali === 0;
 
         return (
@@ -139,7 +124,6 @@ const InventoryTab = ({ onLogout }) => {
                              </span>
                         )}
                     </div>
-                    {/* Pulsante Ricarica se serve */}
                     {(item.cariche_massime > 0 && item.cariche_attuali < item.cariche_massime) && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); handleRecharge(item); }}
@@ -166,7 +150,6 @@ const InventoryTab = ({ onLogout }) => {
         <div className="flex flex-col sm:flex-row gap-3 items-start justify-between">
             <div className="grow w-full">
             
-            {/* INTESTAZIONE CARD */}
             <div className="flex items-center justify-between mb-1 cursor-pointer" onClick={() => toggleExpand(item.id)}>
                 <div className="flex items-center gap-2">
                     <h4 className={`font-bold text-base ${isActive ? 'text-green-400' : item.is_equipaggiato ? 'text-yellow-500' : 'text-gray-200'}`}>
@@ -189,7 +172,6 @@ const InventoryTab = ({ onLogout }) => {
                 </button>
             </div>
             
-            {/* BADGE TIPO E MOD */}
             <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-1">
                 <span className="bg-gray-900 px-2 py-0.5 rounded border border-gray-700">
                     {item.tipo_oggetto_display}
@@ -206,21 +188,12 @@ const InventoryTab = ({ onLogout }) => {
                 )}
             </div>
 
-            {/* --- CONTENUTO ESPANDIBILE --- */}
             {isExpanded && (
                 <div className="mt-3 animate-fadeIn space-y-3">
-                    
-                    {/* Descrizione Principale HTML */}
                     <div className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none leading-snug p-2 bg-black/20 rounded border border-gray-700/30">
                         <h5 className="text-[10px] uppercase font-bold text-gray-500 mb-1">Specifiche Tecniche</h5>
-                        {item.testo_formattato_personaggio ? (
-                            <div dangerouslySetInnerHTML={{ __html: item.testo_formattato_personaggio }} />
-                        ) : (
-                            // Fallback con interpretazione HTML anche per testo semplice se contiene tag
-                            <div dangerouslySetInnerHTML={{ __html: item.testo || item.descrizione || "Nessun dato disponibile." }} />
-                        )}
+                        <div dangerouslySetInnerHTML={{ __html: item.testo_formattato_personaggio || item.testo || item.descrizione || "Nessun dato disponibile." }} />
                         
-                        {/* Timer Scadenza */}
                         {item.data_fine_attivazione && (
                             <div className="mt-2 pt-2 border-t border-gray-700 text-xs text-orange-400 font-mono">
                                 <span>Scadenza: </span>
@@ -229,44 +202,28 @@ const InventoryTab = ({ onLogout }) => {
                         )}
                     </div>
 
-                    {/* BOX CARICHE E RICARICA */}
                     {renderChargeInfo()}
 
-                    {/* Lista Moduli Installati */}
                     {item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
                         <div className="pl-2 border-l-2 border-indigo-500/30">
                             <p className="text-[10px] font-bold text-indigo-400 uppercase mb-2 flex items-center gap-1">
                                 <Zap size={12} /> Moduli Installati:
                             </p>
                             <div className="space-y-2">
-                                {item.potenziamenti_installati.map(mod => {
-                                    // Se il backend non invia is_active, assumiamo true
-                                    const isModActive = mod.is_active !== undefined ? mod.is_active : true;
-                                    
-                                    return (
-                                        <div key={mod.id} className={`p-2 rounded border text-xs ${isModActive ? 'bg-indigo-900/20 border-indigo-500/20' : 'bg-red-900/10 border-red-900/30 opacity-70'}`}>
-                                            <div className="font-bold text-indigo-200 flex justify-between items-center mb-1">
-                                                <span>{mod.nome}</span>
-                                                <span className="text-[9px] text-gray-500 uppercase tracking-wide">[{mod.tipo_oggetto_display}]</span>
-                                            </div>
-                                            
-                                            {/* Descrizione Mod HTML */}
-                                            {mod.descrizione && (
-                                                <div 
-                                                    className="text-gray-400 italic mb-1 leading-tight"
-                                                    dangerouslySetInnerHTML={{ __html: mod.descrizione }}
-                                                />
-                                            )}
-
-                                            {/* Cariche Mod */}
-                                            {mod.cariche_attuali !== undefined && (
-                                                <div className={`text-[10px] ${mod.cariche_attuali > 0 ? 'text-yellow-500' : 'text-red-500 font-bold'}`}>
-                                                    Stato Carica: {mod.cariche_attuali}
-                                                </div>
-                                            )}
+                                {item.potenziamenti_installati.map(mod => (
+                                    <div key={mod.id} className={`p-2 rounded border text-xs ${mod.is_active !== false ? 'bg-indigo-900/20 border-indigo-500/20' : 'bg-red-900/10 border-red-900/30 opacity-70'}`}>
+                                        <div className="font-bold text-indigo-200 flex justify-between items-center mb-1">
+                                            <span>{mod.nome}</span>
+                                            <span className="text-[9px] text-gray-500 uppercase tracking-wide">[{mod.tipo_oggetto_display}]</span>
                                         </div>
-                                    );
-                                })}
+                                        {mod.descrizione && (
+                                            <div 
+                                                className="text-gray-400 italic mb-1 leading-tight"
+                                                dangerouslySetInnerHTML={{ __html: mod.descrizione }}
+                                            />
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
@@ -274,7 +231,6 @@ const InventoryTab = ({ onLogout }) => {
             )}
             </div>
 
-            {/* --- PULSANTI AZIONE --- */}
             <div className="shrink-0 flex flex-row sm:flex-col gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                 {canBeModified && (
                     <button
@@ -289,7 +245,7 @@ const InventoryTab = ({ onLogout }) => {
                 {isPhysical && (
                     <button 
                         onClick={(e) => { e.stopPropagation(); handleToggleEquip(item.id); }}
-                        disabled={isLoading}
+                        // Disabilita solo se l'oggetto è in fase di modifica locale
                         className={`flex-1 sm:flex-none px-3 py-2 rounded text-xs font-bold shadow-sm transition-all active:scale-95 ${
                             item.is_equipaggiato
                             ? 'bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-700'
@@ -305,15 +261,9 @@ const InventoryTab = ({ onLogout }) => {
     );
   };
 
-  // --- RENDER VISUALE CORPO ---
   const renderBodyVisual = (corpoItems) => {
-    // Organizza gli oggetti per slot
     const slots = {
-        'HD1': [], 'HD2': [],
-        'TR1': [], 'TR2': [],
-        'LA': [], 'RA': [],
-        'LL': [], 'RL': [],
-        'GENERIC': [] // Per oggetti corpo senza slot definito
+        'HD1': [], 'HD2': [], 'TR1': [], 'TR2': [], 'LA': [], 'RA': [], 'LL': [], 'RL': [], 'GENERIC': []
     };
 
     corpoItems.forEach(item => {
@@ -324,7 +274,6 @@ const InventoryTab = ({ onLogout }) => {
         }
     });
 
-    // Helper per renderizzare un singolo slot nella griglia
     const renderSlotArea = (code) => {
         const config = slotsConfig[code];
         const itemsInSlot = slots[code];
@@ -352,11 +301,9 @@ const InventoryTab = ({ onLogout }) => {
                                     </span>
                                     <Info size={10} className="text-gray-500" />
                                 </div>
-                                {/* Se espanso, mostra un mini dettaglio anche qui */}
                                 {expandedItems[item.id] && (
                                     <div className="mt-1 text-[10px] text-gray-400 leading-tight animate-fadeIn">
                                         {item.potenziamenti_installati?.length > 0 && <div>Mods: {item.potenziamenti_installati.length}</div>}
-                                        {/* Mostra estratto descrizione */}
                                         <div 
                                             className="mt-1 pt-1 border-t border-gray-700/50 italic"
                                             dangerouslySetInnerHTML={{ __html: item.descrizione ? item.descrizione.substring(0, 50) + "..." : "..." }}
@@ -379,12 +326,9 @@ const InventoryTab = ({ onLogout }) => {
 
     return (
         <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-6 relative overflow-hidden">
-            {/* Sfondo decorativo */}
             <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
                 <User size={300} />
             </div>
-
-            {/* Griglia Body */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 relative z-10 max-w-3xl mx-auto"
                 style={{
                     display: 'grid',
@@ -395,19 +339,10 @@ const InventoryTab = ({ onLogout }) => {
                     `,
                 }}
             >
-                {renderSlotArea('HD1')}
-                {renderSlotArea('HD2')}
-                
-                {renderSlotArea('LA')}
-                {renderSlotArea('TR1')}
-                {renderSlotArea('TR2')}
-                {renderSlotArea('RA')}
-                
-                {renderSlotArea('LL')}
-                {renderSlotArea('RL')}
+                {renderSlotArea('HD1')} {renderSlotArea('HD2')}
+                {renderSlotArea('LA')} {renderSlotArea('TR1')} {renderSlotArea('TR2')} {renderSlotArea('RA')}
+                {renderSlotArea('LL')} {renderSlotArea('RL')}
             </div>
-
-            {/* Oggetti Generici (senza slot) */}
             {slots['GENERIC'].length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-700">
                     <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Altri Potenziamenti (Sistemici)</h4>
@@ -419,8 +354,6 @@ const InventoryTab = ({ onLogout }) => {
         </div>
     );
   };
-
-  // --- RENDER PRINCIPALE ---
   
   if (isContextLoading) {
     return (
@@ -434,7 +367,6 @@ const InventoryTab = ({ onLogout }) => {
     return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
   }
 
-  // Filtri liste oggetti
   const corpoItems = items.filter(i => ['INN', 'MUT'].includes(i.tipo_oggetto));
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
@@ -442,7 +374,6 @@ const InventoryTab = ({ onLogout }) => {
   return (
     <div className="pb-24 px-1 space-y-6 animate-fadeIn">
       
-      {/* HEADER TAB */}
       <div className="flex justify-between items-center p-3 rounded-lg border border-gray-700 shadow-sm mb-4 sticky top-0 z-20 backdrop-blur-md bg-gray-800/90">
          <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Box className="text-indigo-400" />
@@ -457,7 +388,6 @@ const InventoryTab = ({ onLogout }) => {
          </button>
       </div>
 
-      {/* SEZIONE 1: Body Slots (Innesti & Mutazioni) */}
       <section>
         <h3 className="text-sm font-bold text-indigo-300 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1">
           <Activity size={16} /> Diagnostica Corporea
@@ -471,7 +401,6 @@ const InventoryTab = ({ onLogout }) => {
         )}
       </section>
 
-      {/* SEZIONE 2: Equipaggiamento Attivo */}
       <section>
         <h3 className="text-sm font-bold text-emerald-300 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1">
           <Shield size={16} /> Equipaggiamento Attivo
@@ -487,7 +416,6 @@ const InventoryTab = ({ onLogout }) => {
         )}
       </section>
 
-      {/* SEZIONE 3: Zaino */}
       <section>
         <h3 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wider pl-1">
           <Box size={16} /> Zaino
@@ -503,10 +431,8 @@ const InventoryTab = ({ onLogout }) => {
         )}
       </section>
 
-      {/* Modale Shop */}
       {showShop && <ShopModal onClose={() => setShowShop(false)} />}
 
-      {/* Modale Assemblaggio */}
       {showAssembly && assemblyHost && (
         <ItemAssemblyModal 
             hostItem={assemblyHost}
