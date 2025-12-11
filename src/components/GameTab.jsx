@@ -3,7 +3,7 @@ import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
     Star, MessageSquare, Briefcase, Play, Backpack, Shield, AlertCircle, Plus, Minus,
-    ChevronDown, ChevronUp, ShieldAlert, Hexagon
+    ChevronDown, ChevronUp, ShieldAlert, Hexagon, Activity // <--- AGGIUNTO QUI
 } from 'lucide-react';
 
 import { 
