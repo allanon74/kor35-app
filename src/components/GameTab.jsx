@@ -345,7 +345,7 @@ const GameTab = ({ onNavigate }) => {
     const maxHP = getStatMax('PV');
     const maxArmor = getStatMax('PA');
     const maxShell = getStatMax('PG');
-    const maxChakra = getStatMax('CHK') || getStatMax('MANA') || 10; // Fallback
+    const maxChakra = getStatMax('CHA') || 1; // Fallback
 
     // Recupera valori correnti dal JSON temporaneo, con fallback al max se non presenti
     const tempStats = char.statistiche_temporanee || {};
