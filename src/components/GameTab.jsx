@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
-    Star, MessageSquare, Briefcase, Play, Backpack, Minus, Shield, Plus
+    Star, MessageSquare, Briefcase, Play, Backpack, Shield, AlertCircle
 } from 'lucide-react';
 
 import { 
@@ -12,11 +12,11 @@ import {
 } from '../hooks/useGameData';
 
 const GameTab = ({ onNavigate }) => {
-    const { selectedCharacterData: char } = useCharacter();
+    // Usa unreadCount dal context per un conteggio fedele dei messaggi non letti locali
+    const { selectedCharacterData: char, unreadCount } = useCharacter();
     const [favorites, setFavorites] = useState([]);
     const [timers, setTimers] = useState({});
 
-    // --- MUTATIONS OTTIMISTICHE ---
     const statMutation = useOptimisticStatChange();
     const useItemMutation = useOptimisticUseItem();
     const rechargeMutation = useOptimisticRecharge();
@@ -73,7 +73,7 @@ const GameTab = ({ onNavigate }) => {
         return () => clearInterval(interval);
     }, [char, activeItems]); 
 
-    // --- HANDLERS AGGIORNATI ---
+    // --- HANDLERS ---
 
     const handleStatChange = (sigla, mode) => {
         statMutation.mutate({ 
@@ -116,67 +116,111 @@ const GameTab = ({ onNavigate }) => {
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
     const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
+    
+    // --- LOGICA CAPACITA' (COG) ---
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
-    const capacityUsed = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS').length;
+    
+    // Filtra oggetti che consumano capacità: Fisici + Equipaggiati + (hanno mod installate)
+    const capacityConsumers = char.oggetti.filter(i => 
+        i.is_equipaggiato && 
+        i.tipo_oggetto === 'FIS' && 
+        i.potenziamenti_installati && 
+        i.potenziamenti_installati.length > 0
+    );
+    const capacityUsed = capacityConsumers.length;
+    const isOverloaded = capacityUsed > capacityMax;
 
     return (
         <div className="pb-24 px-2 space-y-4 animate-fadeIn text-gray-100 pt-2">
             
+            {/* 1. STATISTICHE & CAPACITA' */}
             <section className="bg-gray-900 rounded-xl p-3 border border-gray-700 shadow-lg">
                 <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold flex items-center gap-2">
                     <Heart size={12} /> Parametri Vitali
                 </h3>
                 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {char.statistiche_primarie?.map(stat => (
                         stat.sigla !== 'COG' && (
-                            <div key={stat.sigla} className="aspect-square bg-gray-800 rounded-lg border border-gray-700/50 flex flex-col justify-between p-2 shadow-md relative overflow-hidden">
-                                <div className="text-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{stat.nome}</span>
+                            <div key={stat.sigla} className="relative bg-gray-800 rounded-lg border border-gray-700 p-3 shadow-md flex flex-col justify-between h-32 overflow-hidden group">
+                                {/* Intestazione */}
+                                <div className="flex justify-between items-start z-10">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.nome}</span>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleStatChange(stat.sigla, 'reset'); }}
+                                        className="text-gray-600 hover:text-emerald-400 transition-colors p-1 -mr-2 -mt-2"
+                                        title="Ripristina al massimo"
+                                    >
+                                        <RefreshCw size={14} />
+                                    </button>
                                 </div>
-                                <div className="flex flex-col items-center justify-center -mt-1">
-                                    <span className={`text-2xl sm:text-3xl font-black ${stat.valore_corrente < stat.valore_max / 3 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+
+                                {/* Valore Gigante Cliccabile */}
+                                <div 
+                                    className="flex-1 flex items-center justify-center cursor-pointer select-none active:scale-95 transition-transform z-10"
+                                    onClick={() => handleStatChange(stat.sigla, 'consuma')}
+                                >
+                                    <span className={`text-5xl font-black tracking-tighter drop-shadow-lg ${stat.valore_corrente <= stat.valore_max / 3 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                                         {stat.valore_corrente}
                                     </span>
-                                    <span className="text-[9px] text-gray-500 font-mono">
-                                        / {stat.valore_max}
-                                    </span>
                                 </div>
-                                <div className="grid grid-cols-2 gap-1 mt-1 w-full">
-                                    <button 
-                                        onClick={() => handleStatChange(stat.sigla, 'consuma')}
-                                        className="h-7 sm:h-8 rounded bg-red-900/30 hover:bg-red-900/60 text-red-200 border border-red-900/30 flex items-center justify-center active:scale-95 transition-all"
-                                    >
-                                        <Minus size={12} strokeWidth={3} />
-                                    </button>
-                                    <button 
-                                        onClick={() => handleStatChange(stat.sigla, 'reset')}
-                                        className="h-7 sm:h-8 rounded bg-emerald-900/30 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-900/30 flex items-center justify-center active:scale-95 transition-all"
-                                    >
-                                        <RefreshCw size={12} />
-                                    </button>
+
+                                {/* Valore Massimo (Angolo basso) */}
+                                <div className="absolute bottom-2 right-3 text-right z-10">
+                                    <span className="text-xs text-gray-500 font-bold block leading-none">MAX</span>
+                                    <span className="text-lg font-bold text-gray-400 leading-none">{stat.valore_max}</span>
                                 </div>
+
+                                {/* Barra di sfondo opzionale per colpo d'occhio */}
+                                <div 
+                                    className="absolute bottom-0 left-0 h-1 bg-indigo-500/50 transition-all duration-500" 
+                                    style={{ width: `${(stat.valore_corrente / stat.valore_max) * 100}%` }} 
+                                />
                             </div>
                         )
                     ))}
                     
-                    <div className="aspect-square bg-gray-800 rounded-lg border border-gray-700/50 flex flex-col justify-between p-2 shadow-md">
-                        <div className="text-center">
-                             <span className="text-[10px] font-bold text-gray-400 uppercase">Capacità</span>
+                    {/* BOX CAPACITÀ (Nuovo Design) */}
+                    <div className={`relative bg-gray-800 rounded-lg border p-3 shadow-md flex flex-col h-32 overflow-hidden ${isOverloaded ? 'border-red-500/50 bg-red-900/10' : 'border-gray-700'}`}>
+                        <div className="flex justify-between items-center mb-1">
+                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Capacità</span>
+                             <span className={`text-xs font-bold ${isOverloaded ? 'text-red-400' : 'text-indigo-400'}`}>
+                                {capacityUsed} / {capacityMax}
+                             </span>
                         </div>
-                        <div className="flex flex-col items-center justify-center">
-                            <Backpack size={20} className={capacityUsed > capacityMax ? "text-red-500" : "text-indigo-400"} />
-                            <span className="text-lg font-bold mt-1 text-white">{capacityMax - capacityUsed}</span>
-                            <span className="text-[8px] text-gray-500 uppercase">Liberi</span>
+                        
+                        <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                            {capacityConsumers.length > 0 ? (
+                                <div className="flex flex-col gap-1 mt-1">
+                                    {capacityConsumers.map((item, idx) => (
+                                        <div key={item.id} className="flex items-center gap-1.5 bg-gray-900/50 px-1.5 py-1 rounded border border-gray-700/50">
+                                            <div className="w-1 h-1 rounded-full bg-indigo-500 shrink-0"></div>
+                                            <span className="text-[9px] text-gray-300 truncate w-full leading-tight font-mono">
+                                                {item.nome}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-50">
+                                    <Backpack size={24} />
+                                    <span className="text-[9px] mt-1">Buffer Vuoto</span>
+                                </div>
+                            )}
                         </div>
-                         <div className="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                            <div className={`h-full ${capacityUsed > capacityMax ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${Math.min((capacityUsed / capacityMax) * 100, 100)}%` }} />
-                        </div>
+
+                        {/* Indicatore Sovraccarico */}
+                        {isOverloaded && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
+                                <span className="text-red-500 font-black text-xl -rotate-12 border-2 border-red-500 px-2 py-1 rounded">OVERLOAD</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </section>
 
+            {/* 2. ATTACCHI BASE */}
             {weapons.length > 0 && (
                 <section>
                     <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
@@ -200,6 +244,7 @@ const GameTab = ({ onNavigate }) => {
                 </section>
             )}
 
+            {/* 3. DISPOSITIVI & MODULI */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi & Moduli
@@ -296,10 +341,12 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </section>
 
+            {/* 4. NOTIFICHE */}
             <div className="grid grid-cols-2 gap-3 mt-4">
                 <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
-                    {char.messaggi_non_letti_count > 0 ? <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{char.messaggi_non_letti_count}</span> : <span className="text-gray-600 text-xs">-</span>}
+                    {/* Usa unreadCount dal Context invece di char.messaggi_non_letti_count */}
+                    {unreadCount > 0 ? <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{unreadCount}</span> : <span className="text-gray-600 text-xs">-</span>}
                 </button>
                 <button onClick={() => onNavigate('transazioni')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-amber-400 font-bold text-xs"><Briefcase size={16} /> Lavori</div>
@@ -307,6 +354,7 @@ const GameTab = ({ onNavigate }) => {
                 </button>
             </div>
 
+            {/* 5. PRONTUARIO */}
             {favorites.length > 0 && (
                 <section className="mt-6 pt-4 border-t border-gray-800">
                     <h3 className="text-[10px] uppercase tracking-widest text-yellow-500 mb-3 font-bold flex items-center gap-2 ml-1"><Star size={12} /> Prontuario Rapido</h3>

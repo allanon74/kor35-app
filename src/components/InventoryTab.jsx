@@ -3,7 +3,7 @@ import { useCharacter } from './CharacterContext';
 import { 
     ShoppingBag, Box, Shield, Zap, Loader2, Wrench, 
     Info, ChevronUp, User, Activity, Power, Battery, 
-    Clock, RefreshCw 
+    Clock, RefreshCw, Coins 
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
@@ -14,15 +14,10 @@ const InventoryTab = ({ onLogout }) => {
   
   const [items, setItems] = useState([]);
   const [showShop, setShowShop] = useState(false);
-
-  // Stati per modale assemblaggio
   const [showAssembly, setShowAssembly] = useState(false);
   const [assemblyHost, setAssemblyHost] = useState(null);
-
-  // Stato per gestire l'espansione delle card
   const [expandedItems, setExpandedItems] = useState({});
 
-  // --- HOOKS OPTIMISTIC ---
   const equipMutation = useOptimisticEquip();
   const rechargeMutation = useOptimisticRecharge();
 
@@ -37,7 +32,6 @@ const InventoryTab = ({ onLogout }) => {
   // --- GESTIONE AZIONI ---
 
   const handleToggleEquip = (itemId) => {
-    // Non serve await o isLoading locale, l'UI si aggiorna subito
     equipMutation.mutate({ 
         itemId, 
         charId: characterData.id 
@@ -63,8 +57,6 @@ const InventoryTab = ({ onLogout }) => {
   };
 
   const handleAssemblyComplete = () => {
-    // Con l'optimistic UI non serve forzare un refresh qui, 
-    // ma la modale lo chiamava. Lo lasciamo vuoto o gestiamo chiusura
     setShowAssembly(false);
     setAssemblyHost(null);
   };
@@ -222,6 +214,24 @@ const InventoryTab = ({ onLogout }) => {
                                                 dangerouslySetInnerHTML={{ __html: mod.descrizione }}
                                             />
                                         )}
+                                        
+                                        {/* INFO CARICHE PER MODULI (Fix: mostra solo se ha cariche max > 0) */}
+                                        {mod.cariche_massime > 0 && (
+                                            <div className="mt-1 pt-1 border-t border-indigo-500/20 flex flex-wrap gap-2 text-[10px] items-center">
+                                                <span className={`flex items-center gap-1 font-bold ${mod.cariche_attuali === 0 ? 'text-red-500' : 'text-yellow-500'}`}>
+                                                    <Battery size={10} /> 
+                                                    {mod.cariche_attuali} / {mod.cariche_massime}
+                                                </span>
+                                                
+                                                {(mod.costo_ricarica > 0 || mod.testo_ricarica) && (
+                                                    <span className="text-gray-400 flex items-center gap-1">
+                                                        <RefreshCw size={10} />
+                                                        {mod.testo_ricarica || "Standard"} 
+                                                        {mod.costo_ricarica > 0 && `(${mod.costo_ricarica} CR)`}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -245,7 +255,6 @@ const InventoryTab = ({ onLogout }) => {
                 {isPhysical && (
                     <button 
                         onClick={(e) => { e.stopPropagation(); handleToggleEquip(item.id); }}
-                        // Disabilita solo se l'oggetto è in fase di modifica locale
                         className={`flex-1 sm:flex-none px-3 py-2 rounded text-xs font-bold shadow-sm transition-all active:scale-95 ${
                             item.is_equipaggiato
                             ? 'bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-700'
