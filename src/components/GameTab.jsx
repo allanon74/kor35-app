@@ -208,7 +208,7 @@ const ChakraWidget = ({ current, max, onChange }) => {
         <div className="bg-gray-800 rounded-xl p-3 border border-gray-700 shadow-md">
             <div className="flex justify-between items-center mb-2">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <Hexagon size={12} className="text-pink-500" /> Chakra / Mana
+                    <Hexagon size={12} className="text-pink-500" /> Chakra
                 </span>
                 <div className="flex gap-2">
                     <button onClick={() => onChange('CHK_CUR', 'add', max)} className="text-xs text-green-400 hover:text-green-300 font-bold px-2 bg-green-900/20 rounded">+1</button>
@@ -381,7 +381,7 @@ const GameTab = ({ onNavigate }) => {
                 {/* SINISTRA: Scanner Tattico */}
                 <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
                     <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2">
-                        <Activity size={12} /> Scansione Biometrica
+                        <Activity size={12} /> Status Fisico
                     </h3>
                     
                     <BodyDamageWidget 
@@ -418,7 +418,7 @@ const GameTab = ({ onNavigate }) => {
                     <div className={`relative bg-gray-800 rounded-xl border p-3 shadow-md flex flex-col h-32 overflow-hidden ${isOverloaded ? 'border-red-500/50 bg-red-900/10' : 'border-gray-700'}`}>
                         <div className="flex justify-between items-center mb-1">
                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <Backpack size={12}/> Memory Buffer (COG)
+                                <Backpack size={12}/> Oggetti Speciali Equipaggiati
                              </span>
                              <span className={`text-xs font-bold ${isOverloaded ? 'text-red-400' : 'text-indigo-400'}`}>
                                 {capacityUsed} / {capacityMax}
