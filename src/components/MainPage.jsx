@@ -25,7 +25,8 @@ import {
     ArrowRightLeft,
     Gamepad2,
     Loader2,       // AGGIUNTO
-    ExternalLink   // AGGIUNTO
+    ExternalLink,
+    Tag,   // AGGIUNTO
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -106,6 +107,20 @@ const MainPage = ({ token, onLogout }) => {
     setActiveTab(tabName);
     setIsMenuOpen(false);
   };
+
+  // Funzione per forzare l'aggiornamento
+  const handleForceUpdate = () => {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (let registration of registrations) {
+                registration.unregister();
+            }
+            window.location.reload(true); // Ricarica forzata dalla cache del server
+        });
+    } else {
+        window.location.reload(true);
+    }
+};
 
   // --- CALCOLO NOTIFICHE SEPARATE ---
   const hasAdminNotif = isAdmin && adminPendingCount > 0;
@@ -367,7 +382,29 @@ const MainPage = ({ token, onLogout }) => {
                     {renderContextualActions()}
                 </div>
             </div>
+            <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Azioni Tab</h3>
+                <div className="bg-gray-700/50 rounded-lg p-2 border border-gray-700">
+                    {renderContextualActions()}
+                </div>
+            </div>
 
+            {/* --- NUOVA SEZIONE: AGGIORNAMENTO E VERSIONE --- */}
+            <div className="pt-4 mt-6 border-t border-gray-700">
+                <button
+                    onClick={handleForceUpdate}
+                    className="flex items-center gap-3 w-full p-3 rounded-lg text-yellow-500 hover:bg-gray-700 hover:text-yellow-400 transition-colors text-left group"
+                >
+                    <RefreshCw size={20} className="group-active:animate-spin" />
+                    <span className="font-bold">Forza Aggiornamento</span>
+                </button>
+                
+                <div className="flex items-center gap-3 w-full p-3 text-gray-500 text-xs font-mono">
+                    <Tag size={14} />
+                    {/* Visualizza la versione o 'Dev' se non definita */}
+                    <span>Release: {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'Dev'}</span>
+                </div>
+            </div>
         </div>
 
         <div className="p-4 border-t border-gray-700 bg-gray-900/50">
