@@ -9,6 +9,90 @@ import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
 import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
+// --- COMPONENTE VISUALE CORPO (SVG) ---
+const BodySilhouette = ({ slots, onSlotClick, selectedItemId }) => {
+    // Definizione dei percorsi SVG per le 8 zone del corpo
+    const paths = {
+        'HD1': { 
+            d: "M100,20 C115,20 125,30 125,45 L75,45 C75,30 85,20 100,20 Z", 
+            name: "Cranio (HD1)" 
+        },
+        'HD2': { 
+            d: "M75,45 L125,45 C125,60 115,75 100,75 C85,75 75,60 75,45 Z", 
+            name: "Volto (HD2)" 
+        },
+        'TR1': { 
+            d: "M65,80 L135,80 L130,140 L70,140 Z", 
+            name: "Torace (TR1)" 
+        },
+        'TR2': { 
+            d: "M70,140 L130,140 L125,190 L75,190 Z", 
+            name: "Addome (TR2)" 
+        },
+        'LA': { 
+            d: "M60,85 L35,90 L20,180 L45,175 L65,85 Z", 
+            name: "Braccio Sx (LA)" 
+        },
+        'RA': { 
+            d: "M140,85 L165,90 L180,180 L155,175 L135,85 Z", 
+            name: "Braccio Dx (RA)" 
+        },
+        'LL': { 
+            d: "M75,195 L95,195 L95,350 L70,350 Z", 
+            name: "Gamba Sx (LL)" 
+        },
+        'RL': { 
+            d: "M105,195 L125,195 L130,350 L105,350 Z", 
+            name: "Gamba Dx (RL)" 
+        }
+    };
+
+    return (
+        <div className="relative w-full max-w-[300px] mx-auto drop-shadow-xl">
+            <svg viewBox="0 0 200 380" className="w-full h-auto filter drop-shadow-lg">
+                {/* Sagoma di sfondo per dare contesto */}
+                <path 
+                    d="M100,10 C130,10 140,40 140,70 L190,80 L170,190 L140,180 L140,370 L110,370 L110,250 L90,250 L90,370 L60,370 L60,180 L30,190 L10,80 L60,70 C60,40 70,10 100,10 Z" 
+                    fill="#1a202c" 
+                    opacity="0.3"
+                />
+                
+                {Object.entries(paths).map(([code, { d, name }]) => {
+                    const item = slots[code] && slots[code][0]; // Prendi il primo oggetto nello slot
+                    const isOccupied = !!item;
+                    const isSelected = item && item.id === selectedItemId;
+                    
+                    // Colore Aura o Default
+                    const auraColor = item?.aura?.colore || '#4a5568'; 
+                    const fillColor = isOccupied ? auraColor : 'transparent';
+                    const strokeColor = isOccupied ? '#ffffff' : '#4a5568';
+                    const opacity = isOccupied ? (isSelected ? 1 : 0.8) : 0.1;
+
+                    return (
+                        <g key={code} onClick={() => isOccupied && onSlotClick(item)} className="cursor-pointer transition-all hover:opacity-100">
+                            <path
+                                d={d}
+                                fill={fillColor}
+                                stroke={strokeColor}
+                                strokeWidth={isSelected ? 3 : 1}
+                                fillOpacity={opacity}
+                                className={`transition-all duration-300 ${!isOccupied ? 'hover:fill-gray-700 hover:fill-opacity-30' : ''}`}
+                            />
+                            {/* Etichetta Slot (visibile solo se vuoto o hover) */}
+                            {!isOccupied && (
+                                <text x={0} y={0} fontSize="8" fill="#555" textAnchor="middle" style={{pointerEvents: 'none'}}>
+                                    <textPath href={`#path-${code}`} startOffset="50%">{code}</textPath>
+                                </text>
+                            )}
+                            <title>{name} {isOccupied ? `: ${item.nome}` : '(Vuoto)'}</title>
+                        </g>
+                    );
+                })}
+            </svg>
+        </div>
+    );
+};
+
 const InventoryTab = ({ onLogout }) => {
   const { selectedCharacterData: characterData, isLoading: isContextLoading } = useCharacter();
   
@@ -16,6 +100,10 @@ const InventoryTab = ({ onLogout }) => {
   const [showShop, setShowShop] = useState(false);
   const [showAssembly, setShowAssembly] = useState(false);
   const [assemblyHost, setAssemblyHost] = useState(null);
+  
+  // Stato per l'oggetto selezionato nella vista visuale
+  const [selectedBodyItem, setSelectedBodyItem] = useState(null);
+  
   const [expandedItems, setExpandedItems] = useState({});
 
   const equipMutation = useOptimisticEquip();
@@ -80,23 +168,12 @@ const InventoryTab = ({ onLogout }) => {
     return 'border border-gray-700 bg-gray-800 hover:border-gray-600'; 
   };
 
-  const slotsConfig = {
-    'HD1': { label: 'Testa (Pri)', gridArea: 'head1', color: 'border-cyan-500/50' },
-    'HD2': { label: 'Testa (Sec)', gridArea: 'head2', color: 'border-cyan-500/30' },
-    'TR1': { label: 'Tronco (Pri)', gridArea: 'chest1', color: 'border-orange-500/50' },
-    'TR2': { label: 'Tronco (Sec)', gridArea: 'chest2', color: 'border-orange-500/30' },
-    'LA':  { label: 'Braccio Sx', gridArea: 'larm',   color: 'border-indigo-500/50' },
-    'RA':  { label: 'Braccio Dx', gridArea: 'rarm',   color: 'border-indigo-500/50' },
-    'LL':  { label: 'Gamba Sx',   gridArea: 'lleg',   color: 'border-emerald-500/50' },
-    'RL':  { label: 'Gamba Dx',   gridArea: 'rleg',   color: 'border-emerald-500/50' },
-  };
-
   // --- RENDER COMPONENTI ---
 
-  const renderItemCard = (item) => {
+  const renderItemCard = (item, forceExpand = false) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
     const canBeModified = (isPhysical || ['INN', 'MUT'].includes(item.tipo_oggetto)) && (item.classe_oggetto_nome || item.tipo_oggetto === 'INN');
-    const isExpanded = !!expandedItems[item.id];
+    const isExpanded = forceExpand || !!expandedItems[item.id];
     const isActive = item.is_active;
 
     const renderChargeInfo = () => {
@@ -142,7 +219,7 @@ const InventoryTab = ({ onLogout }) => {
         <div className="flex flex-col sm:flex-row gap-3 items-start justify-between">
             <div className="grow w-full">
             
-            <div className="flex items-center justify-between mb-1 cursor-pointer" onClick={() => toggleExpand(item.id)}>
+            <div className="flex items-center justify-between mb-1 cursor-pointer" onClick={() => !forceExpand && toggleExpand(item.id)}>
                 <div className="flex items-center gap-2">
                     <h4 className={`font-bold text-base ${isActive ? 'text-green-400' : item.is_equipaggiato ? 'text-yellow-500' : 'text-gray-200'}`}>
                         {item.nome}
@@ -159,9 +236,11 @@ const InventoryTab = ({ onLogout }) => {
                         </span>
                     )}
                 </div>
-                <button className="text-gray-400 hover:text-white p-1">
-                    {isExpanded ? <ChevronUp size={18} /> : <Info size={18} />}
-                </button>
+                {!forceExpand && (
+                    <button className="text-gray-400 hover:text-white p-1">
+                        {isExpanded ? <ChevronUp size={18} /> : <Info size={18} />}
+                    </button>
+                )}
             </div>
             
             <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-1">
@@ -214,22 +293,12 @@ const InventoryTab = ({ onLogout }) => {
                                                 dangerouslySetInnerHTML={{ __html: mod.descrizione }}
                                             />
                                         )}
-                                        
-                                        {/* INFO CARICHE PER MODULI (Fix: mostra solo se ha cariche max > 0) */}
                                         {mod.cariche_massime > 0 && (
                                             <div className="mt-1 pt-1 border-t border-indigo-500/20 flex flex-wrap gap-2 text-[10px] items-center">
                                                 <span className={`flex items-center gap-1 font-bold ${mod.cariche_attuali === 0 ? 'text-red-500' : 'text-yellow-500'}`}>
                                                     <Battery size={10} /> 
                                                     {mod.cariche_attuali} / {mod.cariche_massime}
                                                 </span>
-                                                
-                                                {(mod.costo_ricarica > 0 || mod.testo_ricarica) && (
-                                                    <span className="text-gray-400 flex items-center gap-1">
-                                                        <RefreshCw size={10} />
-                                                        {mod.testo_ricarica || "Standard"} 
-                                                        {mod.costo_ricarica > 0 && `(${mod.costo_ricarica} CR)`}
-                                                    </span>
-                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -271,95 +340,60 @@ const InventoryTab = ({ onLogout }) => {
   };
 
   const renderBodyVisual = (corpoItems) => {
-    const slots = {
-        'HD1': [], 'HD2': [], 'TR1': [], 'TR2': [], 'LA': [], 'RA': [], 'LL': [], 'RL': [], 'GENERIC': []
-    };
+    // Mappa gli oggetti per slot
+    const slots = {};
+    const genericItems = [];
 
     corpoItems.forEach(item => {
-        if (item.slot_corpo && slots[item.slot_corpo]) {
+        if (item.slot_corpo) {
+            if (!slots[item.slot_corpo]) slots[item.slot_corpo] = [];
             slots[item.slot_corpo].push(item);
         } else {
-            slots['GENERIC'].push(item);
+            genericItems.push(item);
         }
     });
 
-    const renderSlotArea = (code) => {
-        const config = slotsConfig[code];
-        const itemsInSlot = slots[code];
-        const isEmpty = itemsInSlot.length === 0;
+    return (
+        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-6 flex flex-col md:flex-row items-center md:items-start gap-6">
+            
+            {/* SINISTRA: SILHOUETTE */}
+            <div className="w-full md:w-1/3 flex flex-col items-center">
+                <BodySilhouette 
+                    slots={slots} 
+                    onSlotClick={setSelectedBodyItem} 
+                    selectedItemId={selectedBodyItem?.id}
+                />
+                <p className="text-xs text-gray-500 mt-2 text-center italic">
+                    Clicca sulle zone colorate per i dettagli
+                </p>
+            </div>
 
-        return (
-            <div 
-                className={`p-2 rounded bg-gray-800/80 border ${isEmpty ? 'border-gray-700 border-dashed' : config.color} min-h-20 flex flex-col`}
-                style={{ gridArea: config.gridArea }}
-            >
-                <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1 text-center">{config.label}</div>
-                {isEmpty ? (
-                    <div className="flex-1 flex items-center justify-center text-gray-700 text-xs italic">Vuoto</div>
-                ) : (
-                    <div className="flex flex-col gap-1">
-                        {itemsInSlot.map(item => (
-                            <div 
-                                key={item.id} 
-                                className={`rounded px-2 py-1 cursor-pointer transition-colors border ${item.is_active ? 'bg-cyan-900/30 border-cyan-500/50' : 'bg-red-900/20 border-red-800/30 opacity-70'}`}
-                                onClick={() => toggleExpand(item.id)}
-                            >
-                                <div className="flex justify-between items-center">
-                                    <span className={`text-xs font-bold truncate ${item.is_active ? 'text-cyan-300' : 'text-red-300 line-through'}`}>
-                                        {item.nome}
-                                    </span>
-                                    <Info size={10} className="text-gray-500" />
-                                </div>
-                                {expandedItems[item.id] && (
-                                    <div className="mt-1 text-[10px] text-gray-400 leading-tight animate-fadeIn">
-                                        {item.potenziamenti_installati?.length > 0 && <div>Mods: {item.potenziamenti_installati.length}</div>}
-                                        <div 
-                                            className="mt-1 pt-1 border-t border-gray-700/50 italic"
-                                            dangerouslySetInnerHTML={{ __html: item.descrizione ? item.descrizione.substring(0, 50) + "..." : "..." }}
-                                        />
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleOpenAssembly(item); }}
-                                            className="mt-2 w-full text-center bg-gray-700 hover:bg-gray-600 text-amber-500 text-[9px] py-1 rounded"
-                                        >
-                                            GESTISCI
-                                        </button>
-                                    </div>
-                                )}
+            {/* DESTRA: DETTAGLI O LISTA GENERICA */}
+            <div className="w-full md:w-2/3 flex flex-col gap-4">
+                
+                {/* Pannello Dettaglio Selezione */}
+                <div className={`transition-all duration-300 ${selectedBodyItem ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 h-0 overflow-hidden'}`}>
+                    {selectedBodyItem && (
+                        <div className="bg-gray-800/80 border border-indigo-500/50 rounded-lg p-1 shadow-lg shadow-indigo-900/20 relative">
+                            <div className="absolute top-0 right-0 p-2">
+                                <button onClick={() => setSelectedBodyItem(null)} className="text-gray-400 hover:text-white bg-gray-900 rounded-full p-1"><Info size={14}/></button>
                             </div>
-                        ))}
+                            <h4 className="text-xs uppercase tracking-widest text-indigo-400 font-bold mb-2 pl-2 pt-2">Dettaglio Impianto</h4>
+                            {renderItemCard(selectedBodyItem, true)}
+                        </div>
+                    )}
+                </div>
+
+                {/* Lista Generici (Sistemici/Senza Slot) */}
+                {genericItems.length > 0 && (
+                    <div className="border-t border-gray-700 pt-4">
+                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Potenziamenti Sistemici (Non localizzati)</h4>
+                        <div className="grid grid-cols-1 gap-2">
+                            {genericItems.map(item => renderItemCard(item))}
+                        </div>
                     </div>
                 )}
             </div>
-        );
-    };
-
-    return (
-        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-6 relative overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-                <User size={300} />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 relative z-10 max-w-3xl mx-auto"
-                style={{
-                    display: 'grid',
-                    gridTemplateAreas: `
-                        "head1 head1 head2 head2"
-                        "larm chest1 chest2 rarm"
-                        "lleg chest1 chest2 rleg"
-                    `,
-                }}
-            >
-                {renderSlotArea('HD1')} {renderSlotArea('HD2')}
-                {renderSlotArea('LA')} {renderSlotArea('TR1')} {renderSlotArea('TR2')} {renderSlotArea('RA')}
-                {renderSlotArea('LL')} {renderSlotArea('RL')}
-            </div>
-            {slots['GENERIC'].length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Altri Potenziamenti (Sistemici)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {slots['GENERIC'].map(item => renderItemCard(item))}
-                    </div>
-                </div>
-            )}
         </div>
     );
   };
