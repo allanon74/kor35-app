@@ -15,20 +15,51 @@ import {
 // --- COMPONENTI SVG TATTICI ---
 
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
-    // Mappa zone e path
+    // Definizione zone con curve (C = Cubic Bezier, Q = Quadratic Bezier)
+    // Coordinate basate su viewBox="0 0 200 300"
     const zones = [
-        { id: 'PV_TR', name: 'Tronco', d: "M85,60 L115,60 L110,130 L90,130 Z", cx: 100, cy: 95 },
-        { id: 'PV_RA', name: 'Braccio Dx', d: "M115,65 L135,70 L145,140 L130,135 L115,65 Z", cx: 130, cy: 100 },
-        { id: 'PV_LA', name: 'Braccio Sx', d: "M85,65 L65,70 L55,140 L70,135 L85,65 Z", cx: 70, cy: 100 },
-        { id: 'PV_RL', name: 'Gamba Dx', d: "M110,130 L125,130 L130,240 L110,240 Z", cx: 120, cy: 180 },
-        { id: 'PV_LL', name: 'Gamba Sx', d: "M90,130 L75,130 L70,240 L90,240 Z", cx: 80, cy: 180 },
+        { 
+            id: 'PV_TR', 
+            name: 'Tronco', 
+            // Forma torace + addome arrotondata
+            d: "M70,55 C70,55 85,65 100,65 C115,65 130,55 130,55 C135,65 135,80 130,130 C120,145 80,145 70,130 C65,80 65,65 70,55 Z",
+            cx: 100, cy: 90 
+        },
+        { 
+            id: 'PV_RA', 
+            name: 'Braccio Dx', 
+            // Spalla arrotondata -> braccio -> mano
+            d: "M132,55 C145,52 155,58 155,70 C155,90 150,110 160,135 C162,140 150,145 145,135 C135,110 135,90 132,80 Z", 
+            cx: 145, cy: 95 
+        },
+        { 
+            id: 'PV_LA', 
+            name: 'Braccio Sx', 
+            // Simmetrico al destro
+            d: "M68,55 C55,52 45,58 45,70 C45,90 50,110 40,135 C38,140 50,145 55,135 C65,110 65,90 68,80 Z", 
+            cx: 55, cy: 95 
+        },
+        { 
+            id: 'PV_RL', 
+            name: 'Gamba Dx', 
+            // Coscia -> Ginocchio -> Piede
+            d: "M105,135 C115,135 125,140 125,150 C125,180 128,210 125,240 C120,250 140,255 130,260 C110,260 110,240 110,220 C110,190 102,150 105,135 Z", 
+            cx: 120, cy: 190 
+        },
+        { 
+            id: 'PV_LL', 
+            name: 'Gamba Sx', 
+            // Simmetrico
+            d: "M95,135 C85,135 75,140 75,150 C75,180 72,210 75,240 C80,250 60,255 70,260 C90,260 90,240 90,220 C90,190 98,150 95,135 Z", 
+            cx: 80, cy: 190 
+        },
     ];
 
-    // Colori di stato
+    // Colori di stato (invariati)
     const getZoneColor = (current) => {
-        if (current <= 0) return '#ef4444'; // Rosso (Morto/Rotto)
-        if (current < maxHp / 2) return '#eab308'; // Giallo (Ferito)
-        return '#3b82f6'; // Blu (Sano)
+        if (current <= 0) return '#ef4444'; // Rosso
+        if (current < maxHp / 2) return '#eab308'; // Giallo
+        return '#3b82f6'; // Blu
     };
 
     const armorOpacity = maxArmor > 0 ? (stats['PA_CUR'] / maxArmor) : 0;
@@ -36,59 +67,59 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
 
     return (
         <div className="relative w-full max-w-[280px] mx-auto aspect-3/4 select-none">
-            <svg viewBox="0 0 200 300" className="w-full h-full drop-shadow-2xl">
+            <svg viewBox="0 0 200 280" className="w-full h-full drop-shadow-2xl">
                 <defs>
                     <filter id="glow-shell" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feGaussianBlur stdDeviation="3" result="blur" />
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
                     </filter>
                 </defs>
 
-                {/* LAYER 1: GUSCIO (Esterno) */}
+                {/* LAYER 1: GUSCIO (Aura ellittica esterna) */}
                 <g 
                     opacity={Math.max(0.1, shellOpacity)} 
                     className="transition-all duration-500 cursor-pointer"
                     onClick={() => onHit('PG_CUR', maxShell)}
                     filter="url(#glow-shell)"
                 >
-                    <path 
-                        d="M100,10 C150,10 180,50 180,150 C180,250 150,290 100,290 C50,290 20,250 20,150 C20,50 50,10 100,10 Z" 
+                    <ellipse cx="100" cy="130" rx="90" ry="140"
                         fill="transparent" 
-                        stroke="#8b5cf6" // Viola
+                        stroke="#8b5cf6" 
                         strokeWidth="3"
                         strokeDasharray={shellOpacity === 0 ? "4 4" : "0"}
                     />
                     {maxShell > 0 && (
-                        <text x="100" y="25" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">
+                        <text x="100" y="15" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">
                             GUSCIO {stats['PG_CUR']}/{maxShell}
                         </text>
                     )}
                 </g>
 
-                {/* LAYER 2: ARMATURA (Medio) */}
+                {/* LAYER 2: ARMATURA (Silhouette ingrandita) */}
                 <g 
                     opacity={Math.max(0.1, armorOpacity)} 
                     className="transition-all duration-500 cursor-pointer"
                     onClick={() => onHit('PA_CUR', maxArmor)}
                 >
+                    {/* Disegno semplificato che avvolge il corpo */}
                     <path 
-                        d="M100,25 C135,25 155,60 155,150 C155,240 135,275 100,275 C65,275 45,240 45,150 C45,60 65,25 100,25 Z" 
+                        d="M100,15 C130,15 165,50 165,130 C165,220 140,265 100,265 C60,265 35,220 35,130 C35,50 70,15 100,15 Z"
                         fill="rgba(16, 185, 129, 0.1)" 
-                        stroke="#10b981" // Verde
+                        stroke="#10b981" 
                         strokeWidth="2"
                         strokeDasharray={armorOpacity === 0 ? "2 2" : "0"}
                     />
                     {maxArmor > 0 && (
-                        <text x="100" y="270" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">
+                        <text x="100" y="275" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">
                             ARM {stats['PA_CUR']}/{maxArmor}
                         </text>
                     )}
                 </g>
 
-                {/* LAYER 3: CORPO (Interno) */}
+                {/* LAYER 3: CORPO (Interno - Zone Interattive) */}
                 <g className="filter drop-shadow-md">
-                    {/* Testa (Non cliccabile) */}
-                    <circle cx="100" cy="40" r="15" fill="#4b5563" stroke="#9ca3af" />
+                    {/* Testa (Cerchio semplice) */}
+                    <circle cx="100" cy="35" r="18" fill="#4b5563" stroke="#9ca3af" />
                     
                     {zones.map(z => {
                         const val = stats[z.id];
@@ -97,10 +128,11 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
                                 <path 
                                     d={z.d} 
                                     fill={getZoneColor(val)} 
-                                    stroke="rgba(255,255,255,0.3)" 
+                                    stroke="rgba(255,255,255,0.4)" 
                                     strokeWidth="1"
+                                    strokeLinejoin="round"
                                 />
-                                <text x={z.cx} y={z.cy} fill="white" fontSize="10" textAnchor="middle" pointerEvents="none" fontWeight="bold">
+                                <text x={z.cx} y={z.cy} fill="white" fontSize="10" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{textShadow: '0px 1px 2px black'}}>
                                     {val}
                                 </text>
                             </g>
@@ -119,6 +151,7 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
         </div>
     );
 };
+
 
 const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
