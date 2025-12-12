@@ -3,7 +3,7 @@ import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
     Star, MessageSquare, Briefcase, Play, Backpack, Shield, AlertCircle, Plus, Minus,
-    ChevronDown, ChevronUp, ShieldAlert, Hexagon, Activity // <--- AGGIUNTO QUI
+    ChevronDown, ChevronUp, ShieldAlert, Hexagon, Activity, Weight // [UPDATE] Aggiunto Weight
 } from 'lucide-react';
 
 import { 
@@ -239,6 +239,68 @@ const ChakraWidget = ({ current, max, onChange }) => {
     );
 };
 
+// [UPDATE] Nuovo Componente: Dashboard Capacità e Ingombro
+// Sostituisce il vecchio "Memory Dump" e aggiunge la gestione Oggetti Pesanti
+const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavyUsed, heavyMax, heavyConsumers }) => {
+    const isOverloaded = capacityUsed > capacityMax;
+    const isHeavyOverloaded = heavyUsed > heavyMax;
+
+    return (
+        <div className="w-full bg-gray-800 rounded-xl border border-gray-700 p-3 shadow-md mb-4 flex flex-col md:flex-row gap-4">
+            
+            {/* SEZIONE CAPACITA' (OGGETTI SPECIALI/COG) */}
+            <div className={`flex-1 flex flex-col gap-2 p-2 rounded-lg border bg-gray-900/30 ${isOverloaded ? 'border-red-500/50 bg-red-900/10' : 'border-gray-700/50'}`}>
+                <div className="flex justify-between items-center border-b border-gray-700/50 pb-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Backpack size={12} className="text-indigo-400"/> Oggetti Speciali (COG)
+                    </span>
+                    <span className={`text-xs font-bold font-mono ${isOverloaded ? 'text-red-400' : 'text-indigo-400'}`}>
+                        {capacityUsed} / {capacityMax}
+                    </span>
+                </div>
+                {/* Lista espandibile senza scrollbar interna fissa */}
+                <div className="flex flex-wrap gap-1.5">
+                    {capacityConsumers.length > 0 ? (
+                        capacityConsumers.map((item) => (
+                            <div key={item.id} className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></div>
+                                <span className="text-[10px] text-gray-300 truncate font-mono max-w-[120px]">{item.nome}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <span className="text-[10px] text-gray-600 italic px-1">Nessun oggetto speciale equipaggiato</span>
+                    )}
+                </div>
+            </div>
+
+            {/* SEZIONE INGOMBRO (OGGETTI PESANTI/OGP) */}
+            <div className={`flex-1 flex flex-col gap-2 p-2 rounded-lg border bg-gray-900/30 ${isHeavyOverloaded ? 'border-orange-500/50 bg-orange-900/10' : 'border-gray-700/50'}`}>
+                <div className="flex justify-between items-center border-b border-gray-700/50 pb-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Weight size={12} className="text-orange-400"/> Oggetti Pesanti (OGP)
+                    </span>
+                    <span className={`text-xs font-bold font-mono ${isHeavyOverloaded ? 'text-orange-400' : 'text-green-400'}`}>
+                        {heavyUsed} / {heavyMax}
+                    </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                    {heavyConsumers.length > 0 ? (
+                        heavyConsumers.map((item) => (
+                            <div key={item.id} className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm">
+                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0"></div>
+                                <span className="text-[10px] text-gray-300 truncate font-mono max-w-[120px]">{item.nome}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <span className="text-[10px] text-gray-600 italic px-1">Carico leggero</span>
+                    )}
+                </div>
+            </div>
+
+        </div>
+    );
+};
+
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount } = useCharacter();
     const [favorites, setFavorites] = useState([]);
@@ -301,7 +363,7 @@ const GameTab = ({ onNavigate }) => {
             charId: char.id, 
             stat_sigla: key, 
             mode,
-            max_override: maxOverride // Passiamo il max specifico per permettere il reset corretto
+            max_override: maxOverride 
         });
     };
 
@@ -345,7 +407,7 @@ const GameTab = ({ onNavigate }) => {
     const maxHP = getStatMax('PV');
     const maxArmor = getStatMax('PA');
     const maxShell = getStatMax('PG');
-    const maxChakra = getStatMax('CHA') || 1; // Fallback
+    const maxChakra = getStatMax('CHA') || 1; 
 
     // Recupera valori correnti dal JSON temporaneo, con fallback al max se non presenti
     const tempStats = char.statistiche_temporanee || {};
@@ -360,7 +422,8 @@ const GameTab = ({ onNavigate }) => {
         'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
     };
 
-    // --- LOGICA CAPACITA' ---
+    // --- [UPDATE] LOGICA CAPACITA' E PESO ---
+    // 1. Capacità (COG)
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
     const capacityConsumers = char.oggetti.filter(i => 
@@ -368,13 +431,30 @@ const GameTab = ({ onNavigate }) => {
         i.potenziamenti_installati && i.potenziamenti_installati.length > 0
     );
     const capacityUsed = capacityConsumers.length;
-    const isOverloaded = capacityUsed > capacityMax;
+
+    // 2. Ingombro (OGP)
+    const statOgp = char.statistiche_primarie?.find(s => s.sigla === 'OGP');
+    const heavyMax = statOgp ? statOgp.valore_max : 0;
+    const heavyConsumers = char.oggetti.filter(i => 
+        i.is_equipaggiato && i.is_pesante // Usa il nuovo flag
+    );
+    const heavyUsed = heavyConsumers.length;
 
     const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
 
     return (
         <div className="pb-24 px-2 space-y-6 animate-fadeIn text-gray-100 pt-2">
             
+            {/* [UPDATE] DASHBOARD COMPLETA (Capacità + Ingombro) */}
+            <CapacityDashboard 
+                capacityUsed={capacityUsed}
+                capacityMax={capacityMax}
+                capacityConsumers={capacityConsumers}
+                heavyUsed={heavyUsed}
+                heavyMax={heavyMax}
+                heavyConsumers={heavyConsumers}
+            />
+
             {/* 1. SEZIONE TATTICA (Omino + Controlli + Chakra) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
@@ -414,33 +494,7 @@ const GameTab = ({ onNavigate }) => {
                         />
                     )}
 
-                    {/* Memory Dump (Capacità) */}
-                    <div className={`relative bg-gray-800 rounded-xl border p-3 shadow-md flex flex-col h-32 overflow-hidden ${isOverloaded ? 'border-red-500/50 bg-red-900/10' : 'border-gray-700'}`}>
-                        <div className="flex justify-between items-center mb-1">
-                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <Backpack size={12}/> Oggetti Speciali Equipaggiati
-                             </span>
-                             <span className={`text-xs font-bold ${isOverloaded ? 'text-red-400' : 'text-indigo-400'}`}>
-                                {capacityUsed} / {capacityMax}
-                             </span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                            {capacityConsumers.length > 0 ? (
-                                <div className="flex flex-col gap-1 mt-1">
-                                    {capacityConsumers.map((item) => (
-                                        <div key={item.id} className="flex items-center gap-1.5 bg-gray-900/50 px-1.5 py-1 rounded border border-gray-700/50">
-                                            <div className="w-1 h-1 rounded-full bg-indigo-500 shrink-0"></div>
-                                            <span className="text-[9px] text-gray-300 truncate w-full font-mono">{item.nome}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-50">
-                                    <span className="text-[9px]">Buffer Libero</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    {/* [UPDATE] Il Memory Dump è stato rimosso da qui e integrato nella Dashboard in alto */}
                 </div>
             </div>
 
@@ -454,7 +508,11 @@ const GameTab = ({ onNavigate }) => {
                         {weapons.map(w => (
                             <div key={w.id} className="bg-red-900/10 border border-red-500/20 p-3 rounded-lg flex justify-between items-center">
                                 <div>
-                                    <div className="font-bold text-red-100 text-sm">{w.nome}</div>
+                                    <div className="font-bold text-red-100 text-sm flex items-center gap-2">
+                                        {w.nome}
+                                        {/* [UPDATE] Icona Pesante anche qui per coerenza */}
+                                        {w.is_pesante && <Weight size={12} className="text-orange-500" />}
+                                    </div>
                                     <div className="text-[10px] text-red-300/70">{w.tipo_oggetto_display}</div>
                                 </div>
                                 <div className="bg-red-950/50 px-3 py-1 rounded border border-red-500/30">
@@ -494,6 +552,12 @@ const GameTab = ({ onNavigate }) => {
                                             <div className="flex flex-col">
                                                 <span className={`font-bold text-sm flex items-center gap-2 ${item.is_active ? 'text-emerald-200' : 'text-gray-400'}`}>
                                                     {item.nome}
+                                                    {/* [UPDATE] Icona Oggetto Pesante */}
+                                                    {item.is_pesante && (
+                                                        <div className="bg-orange-900/40 text-orange-400 rounded p-0.5 border border-orange-700/50" title="Oggetto Pesante">
+                                                            <Weight size={12} />
+                                                        </div>
+                                                    )}
                                                     <button onClick={() => toggleFavorite(item)} className="text-gray-600 hover:text-yellow-400"><Star size={14} fill={favorites.find(f => f.id === item.id) ? "currentColor" : "none"} /></button>
                                                 </span>
                                                 {item.is_mod && (
