@@ -245,18 +245,21 @@ export const useOptimisticUseItem = () => {
                 ...oldData,
                 oggetti: oldData.oggetti.map(obj => {
                     if (obj.id !== oggetto_id) return obj;
+                    const attuali = obj.cariche_attuali || 0;
                     const nuoveCariche = Math.max(0, (obj.cariche_attuali || 0) - 1);
                     let updates = { cariche_attuali: nuoveCariche };
                     if (durata_totale > 0) {
-                        if (is_aura_zero_off && nuoveCariche === 0) {
-                            updates.is_active = false;
-                            updates.data_fine_attivazione = null;
-                        } else {
+                        if (attuali > 0) { // Puoi attivare solo se avevi cariche
                             const now = new Date();
+                            // Imposta la fine nel futuro
                             const endDate = new Date(now.getTime() + durata_totale * 1000);
                             updates.data_fine_attivazione = endDate.toISOString();
-                            updates.is_active = true;
+                            updates.is_active = true; // Diventa attivo
                         }
+                    }
+                    if (is_aura_zero_off && nuoveCariche === 0) {
+                        updates.is_active = false;
+                        updates.data_fine_attivazione = null; // Reset timer se si spegne forzatamente
                     }
                     return { ...obj, ...updates };
                 })
