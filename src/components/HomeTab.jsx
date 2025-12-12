@@ -4,7 +4,7 @@ import { Coins, Star, Bell, Backpack, Zap } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay';
 import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
-import ActiveItemWidget from './ActiveItemWidget'; // <--- IMPORT WIDGET
+
 
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
@@ -174,24 +174,7 @@ const CharacterSheet = ({ data }) => {
 
       <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center">{nome}</h2>
       
-      {/* --- NUOVA SEZIONE: DISPOSITIVI ATTIVI --- */}
-      {activeItems && activeItems.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3 border-b border-gray-700 pb-2">
-             <Zap className="w-5 h-5 text-yellow-400" />
-             <h3 className="text-2xl font-semibold text-gray-200">Dispositivi Attivi</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {activeItems.map(item => (
-              <ActiveItemWidget 
-                key={item.id} 
-                item={item} 
-                onUpdate={fetchCharacterData} 
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      
 
       {/* Valute */}
       <div className="grid grid-cols-2 gap-4 mb-6 max-w-lg mx-auto"> 

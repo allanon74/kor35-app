@@ -211,12 +211,35 @@ const GameTab = ({ onNavigate }) => {
     // Filtro oggetti attivi (dispositivi usabili)
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
-        return char.oggetti.filter(item => {
-             const isActiveContainer = (item.tipo_oggetto === 'FIS' && item.is_equipaggiato) || 
-                                       (['INN', 'MUT'].includes(item.tipo_oggetto) && item.slot_corpo);
-             const hasMechanics = item.cariche_massime > 0 || item.durata_totale > 0;
-             return isActiveContainer && hasMechanics;
+        
+        const activatables = [];
+
+        // 1. Identifica gli Host Attivi (Equipaggiati o Installati)
+        const activeHosts = char.oggetti.filter(item => {
+             const isPhysEquipped = (item.tipo_oggetto === 'FIS' && item.is_equipaggiato);
+             const isInnateInstalled = (['INN', 'MUT'].includes(item.tipo_oggetto) && item.slot_corpo);
+             return isPhysEquipped || isInnateInstalled;
         });
+
+        // 2. Estrai tutto ciò che è attivabile (Host e le loro Mod)
+        activeHosts.forEach(host => {
+             // A. Aggiungi l'Host se ha meccaniche proprie (cariche/durata)
+             if (host.cariche_massime > 0 || host.durata_totale > 0) {
+                 activatables.push(host);
+             }
+
+             // B. Aggiungi i Potenziamenti (Mod/Materia) installati nell'Host
+             if (host.potenziamenti_installati && host.potenziamenti_installati.length > 0) {
+                 host.potenziamenti_installati.forEach(mod => {
+                     if (mod.cariche_massime > 0 || mod.durata_totale > 0) {
+                         // Le mod ereditano lo stato "attivo" dal genitore, ma ActiveItemWidget gestisce il proprio timer
+                         activatables.push(mod);
+                     }
+                 });
+             }
+        });
+
+        return activatables;
     }, [char]);
 
     const handleStatChange = (key, mode, maxOverride) => {
@@ -337,6 +360,7 @@ const GameTab = ({ onNavigate }) => {
 )}
 
             {/* 3. DISPOSITIVI ATTIVI */}
+            
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi Attivi
