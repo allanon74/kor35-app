@@ -383,12 +383,59 @@ const GameTab = ({ onNavigate }) => {
     return (
         <div className="pb-24 px-2 space-y-6 animate-fadeIn text-gray-100 pt-2">
             
-            {/* DASHBOARD CAPACITA' (Riutilizza componente precedente o importalo) */}
-            {/* <CapacityDashboard ... /> */}
+            
+            {/* [UPDATE] DASHBOARD COMPLETA (Capacità + Ingombro) */}
+            <CapacityDashboard 
+                capacityUsed={capacityUsed}
+                capacityMax={capacityMax}
+                capacityConsumers={capacityConsumers}
+                heavyUsed={heavyUsed}
+                heavyMax={heavyMax}
+                heavyConsumers={heavyConsumers}
+            />
 
-            {/* SEZIONE TATTICA (Omino SVG) */}
-            {/* ... */}
+            {/* 1. SEZIONE TATTICA (Omino + Controlli + Chakra) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* SINISTRA: Scanner Tattico */}
+                <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
+                    <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2">
+                        <Activity size={12} /> Status Fisico
+                    </h3>
+                    
+                    <BodyDamageWidget 
+                        stats={tacticalStats}
+                        maxHp={maxHP}
+                        maxArmor={maxArmor}
+                        maxShell={maxShell}
+                        onHit={(id, max) => handleStatChange(id, 'consuma', max)}
+                    />
+                </div>
 
+                {/* DESTRA: Controlli e Risorse */}
+                <div className="flex flex-col gap-4">
+                    
+                    {/* Controlli Danni */}
+                    <DamageControlPanel 
+                        stats={tacticalStats}
+                        maxHp={maxHP}
+                        maxArmor={maxArmor}
+                        maxShell={maxShell}
+                        onChange={handleStatChange}
+                    />
+
+                    {/* Chakra / Mana */}
+                    {(maxChakra > 0) && (
+                        <ChakraWidget 
+                            current={tacticalStats['CHK_CUR']} 
+                            max={maxChakra} 
+                            onChange={handleStatChange} 
+                        />
+                    )}
+
+                    {/* [UPDATE] Il Memory Dump è stato rimosso da qui e integrato nella Dashboard in alto */}
+                </div>
+            </div>
             {/* 2. ATTACCHI BASE (MODIFICATO) */}
             {weapons.length > 0 && (
                 <section>
