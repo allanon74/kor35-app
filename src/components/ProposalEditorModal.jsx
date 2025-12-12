@@ -203,29 +203,37 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         );
     };
 
-    // --- LOGICA DI SALVATAGGIO CORRETTA ---
-    const getPayload = () => {
-        // CORREZIONE 1: Usa 'id' invece di 'caratteristica' per il backend
-        const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
-            id: parseInt(id), 
-            valore: val
-        }));
-        
-        const typeInfo = ITEM_TYPES[selectedItemType];
-        const slotsToSave = (typeInfo?.isBound) ? selectedSlots.join(',') : '';
+// 1. Definisci una mappa inversa o logica per convertire la selezione UI in Tipo DB
+const mapUiTypeToDb = (uiType) => {
+    if (uiType === 'INNESTO' || uiType === 'MUTAZIONE') return 'AUM';
+    return 'POT';
+};
 
-        return {
-            personaggio_id: selectedCharacterId,
-            tipo: isInfusion ? 'INF' : 'TES',
-            nome: name,
-            descrizione: description,
-            aura: selectedAuraId,
-            aura_infusione: isInfusion ? selectedInfusionAuraId : null,
-            // CORREZIONE 2: Usa 'componenti_data' (input) invece di 'componenti' (output read-only)
-            componenti_data: componentsArray, 
-            slot_corpo_permessi: slotsToSave
-        };
+const getPayload = () => {
+    const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
+        id: parseInt(id), 
+        valore: val
+    }));
+    
+    const typeInfo = ITEM_TYPES[selectedItemType];
+    const slotsToSave = (typeInfo?.isBound) ? selectedSlots.join(',') : '';
+
+    return {
+        personaggio_id: selectedCharacterId,
+        tipo: isInfusion ? 'INF' : 'TES',
+        nome: name,
+        descrizione: description,
+        aura: selectedAuraId,
+        aura_infusione: isInfusion ? selectedInfusionAuraId : null,
+        
+        // --- CORREZIONE QUI ---
+        tipo_risultato_atteso: mapUiTypeToDb(selectedItemType), 
+        // ---------------------
+        
+        componenti_data: componentsArray, 
+        slot_corpo_permessi: slotsToSave
     };
+};
 
     const handleSaveAction = async (send = false) => {
         setError(''); setIsSaving(true);
