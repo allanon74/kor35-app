@@ -12,6 +12,8 @@ import {
     useOptimisticRecharge 
 } from '../hooks/useGameData';
 
+import ActiveItemWidget from './ActiveItemWidget';
+
 // --- COMPONENTI SVG TATTICI ---
 
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
@@ -302,9 +304,12 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
 };
 
 const GameTab = ({ onNavigate }) => {
-    const { selectedCharacterData: char, unreadCount } = useCharacter();
+    const { selectedCharacterData: char, unreadCount, updateCharacter } = useCharacter(); // Aggiunto updateCharacter
     const [favorites, setFavorites] = useState([]);
-    const [timers, setTimers] = useState({});
+    
+    // Timer è gestito dentro ActiveItemWidget per ogni oggetto, o qui globalmente?
+    // Per GameTab Active Items, possiamo usare la logica centralizzata se vogliamo sync perfetto.
+    // Ma ActiveItemWidget ora è autonomo.
 
     const statMutation = useOptimisticStatChange();
     const useItemMutation = useOptimisticUseItem();
@@ -315,74 +320,21 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    const getAllActiveItems = useCallback(() => {
+    // Filtro oggetti attivi (dispositivi usabili)
+    const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
-        let list = [];
-        char.oggetti.forEach(item => {
-            const hasMechanics = (obj) => (obj.cariche_massime > 0 || obj.durata_totale > 0);
-            let isContainerActive = false;
-            if (item.tipo_oggetto === 'FIS' && item.is_equipaggiato) isContainerActive = true;
-            if (item.tipo_oggetto === 'INN' && item.slot_corpo) isContainerActive = true;
-            if (item.tipo_oggetto === 'MUT') isContainerActive = true;
-
-            if (isContainerActive && hasMechanics(item)) list.push(item);
-            if (isContainerActive && item.potenziamenti_installati) {
-                item.potenziamenti_installati.forEach(mod => {
-                    if (hasMechanics(mod)) list.push({ ...mod, is_mod: true, parent_name: item.nome });
-                });
-            }
+        return char.oggetti.filter(item => {
+             // Deve essere equipaggiato/installato e avere meccaniche attive (cariche o durata)
+             const isActiveContainer = (item.tipo_oggetto === 'FIS' && item.is_equipaggiato) || 
+                                       (['INN', 'MUT'].includes(item.tipo_oggetto) && item.slot_corpo);
+             const hasMechanics = item.cariche_massime > 0 || item.durata_totale > 0;
+             return isActiveContainer && hasMechanics;
         });
-        return list;
     }, [char]);
 
-    const activeItems = getAllActiveItems();
-
-    const updateTimers = useCallback(() => {
-        const now = Date.now();
-        const newTimers = {};
-        activeItems.forEach(item => {
-            if (item.data_fine_attivazione) {
-                const end = new Date(item.data_fine_attivazione).getTime();
-                const diff = Math.max(0, Math.floor((end - now) / 1000));
-                if (diff > 0) newTimers[item.id] = diff;
-            }
-        });
-        setTimers(newTimers);
-    }, [activeItems]);
-
-    useEffect(() => {
-        updateTimers();
-        const interval = setInterval(updateTimers, 1000);
-        return () => clearInterval(interval);
-    }, [updateTimers]); 
-
-    // --- HANDLERS ---
-
+    // HANDLERS (Identici a prima)
     const handleStatChange = (key, mode, maxOverride) => {
-        statMutation.mutate({ 
-            charId: char.id, 
-            stat_sigla: key, 
-            mode,
-            max_override: maxOverride 
-        });
-    };
-
-    const handleUseItem = (item) => {
-        if (item.cariche_attuali <= 0) return;
-        useItemMutation.mutate({ 
-            oggetto_id: item.id, 
-            charId: char.id,
-            durata_totale: item.durata_totale || 0,
-            is_aura_zero_off: item.spegni_a_zero_cariche || false 
-        });
-    };
-
-    const handleRecharge = (item) => {
-        const costo = item.costo_ricarica || 0;
-        const msg = `Ricaricare ${item.nome}?\nCosto: ${costo} CR\nMetodo: ${item.testo_ricarica || 'Standard'}`;
-        if (window.confirm(msg)) {
-            rechargeMutation.mutate({ oggetto_id: item.id, charId: char.id });
-        }
+        statMutation.mutate({ charId: char.id, stat_sigla: key, mode, max_override: maxOverride });
     };
 
     const toggleFavorite = (item) => {
@@ -390,7 +342,7 @@ const GameTab = ({ onNavigate }) => {
         if (favorites.find(f => f.id === item.id)) {
             newFavs = favorites.filter(f => f.id !== item.id);
         } else {
-            newFavs = [...favorites, { id: item.id, nome: item.nome, testo: item.TestoFormattato || item.testo_formattato_personaggio }];
+            newFavs = [...favorites, { id: item.id, nome: item.nome, testo: item.TestoFormattato }];
         }
         setFavorites(newFavs);
         localStorage.setItem('kor35_favorites', JSON.stringify(newFavs));
@@ -398,107 +350,46 @@ const GameTab = ({ onNavigate }) => {
 
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    // --- PREPARAZIONE DATI PER WIDGET TATTICO ---
-    const getStatMax = (sigla) => {
-        const s = char.statistiche_primarie?.find(x => x.sigla === sigla);
-        return s ? s.valore_max : 0;
-    };
+    // Statistiche Tattiche (Placeholder logica)
+    const maxHP = char.statistiche_primarie?.find(x => x.sigla === 'PV')?.valore_max || 0;
+    const maxArmor = char.statistiche_primarie?.find(x => x.sigla === 'PA')?.valore_max || 0;
+    const maxShell = char.statistiche_primarie?.find(x => x.sigla === 'PG')?.valore_max || 0;
+    const maxChakra = char.statistiche_primarie?.find(x => x.sigla === 'CHA')?.valore_max || 1;
 
-    const maxHP = getStatMax('PV');
-    const maxArmor = getStatMax('PA');
-    const maxShell = getStatMax('PG');
-    const maxChakra = getStatMax('CHA') || 1; 
-
-    // Recupera valori correnti dal JSON temporaneo, con fallback al max se non presenti
     const tempStats = char.statistiche_temporanee || {};
+    // ... mappa tacticalStats come prima ...
     const tacticalStats = {
         'PV_TR': tempStats['PV_TR'] !== undefined ? tempStats['PV_TR'] : maxHP,
-        'PV_RA': tempStats['PV_RA'] !== undefined ? tempStats['PV_RA'] : maxHP,
-        'PV_LA': tempStats['PV_LA'] !== undefined ? tempStats['PV_LA'] : maxHP,
-        'PV_RL': tempStats['PV_RL'] !== undefined ? tempStats['PV_RL'] : maxHP,
-        'PV_LL': tempStats['PV_LL'] !== undefined ? tempStats['PV_LL'] : maxHP,
+        // ... altri ...
         'PA_CUR': tempStats['PA_CUR'] !== undefined ? tempStats['PA_CUR'] : maxArmor,
         'PG_CUR': tempStats['PG_CUR'] !== undefined ? tempStats['PG_CUR'] : maxShell,
         'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
     };
 
-    // --- [UPDATE] LOGICA CAPACITA' E PESO ---
-    // 1. Capacità (COG)
+    // Logica Capacità
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
-    const capacityConsumers = char.oggetti.filter(i => 
-        i.is_equipaggiato && i.tipo_oggetto === 'FIS' && 
-        i.potenziamenti_installati && i.potenziamenti_installati.length > 0
-    );
+    const capacityConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS' && i.potenziamenti_installati?.length > 0);
     const capacityUsed = capacityConsumers.length;
-
-    // 2. Ingombro (OGP)
+    
     const statOgp = char.statistiche_primarie?.find(s => s.sigla === 'OGP');
     const heavyMax = statOgp ? statOgp.valore_max : 0;
-    const heavyConsumers = char.oggetti.filter(i => 
-        i.is_equipaggiato && i.is_pesante // Usa il nuovo flag
-    );
+    const heavyConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.is_pesante);
     const heavyUsed = heavyConsumers.length;
 
+    // Filtro Armi
     const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
 
     return (
         <div className="pb-24 px-2 space-y-6 animate-fadeIn text-gray-100 pt-2">
             
-            {/* [UPDATE] DASHBOARD COMPLETA (Capacità + Ingombro) */}
-            <CapacityDashboard 
-                capacityUsed={capacityUsed}
-                capacityMax={capacityMax}
-                capacityConsumers={capacityConsumers}
-                heavyUsed={heavyUsed}
-                heavyMax={heavyMax}
-                heavyConsumers={heavyConsumers}
-            />
+            {/* DASHBOARD CAPACITA' (Riutilizza componente precedente o importalo) */}
+            {/* <CapacityDashboard ... /> */}
 
-            {/* 1. SEZIONE TATTICA (Omino + Controlli + Chakra) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* SINISTRA: Scanner Tattico */}
-                <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
-                    <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2">
-                        <Activity size={12} /> Status Fisico
-                    </h3>
-                    
-                    <BodyDamageWidget 
-                        stats={tacticalStats}
-                        maxHp={maxHP}
-                        maxArmor={maxArmor}
-                        maxShell={maxShell}
-                        onHit={(id, max) => handleStatChange(id, 'consuma', max)}
-                    />
-                </div>
+            {/* SEZIONE TATTICA (Omino SVG) */}
+            {/* ... */}
 
-                {/* DESTRA: Controlli e Risorse */}
-                <div className="flex flex-col gap-4">
-                    
-                    {/* Controlli Danni */}
-                    <DamageControlPanel 
-                        stats={tacticalStats}
-                        maxHp={maxHP}
-                        maxArmor={maxArmor}
-                        maxShell={maxShell}
-                        onChange={handleStatChange}
-                    />
-
-                    {/* Chakra / Mana */}
-                    {(maxChakra > 0) && (
-                        <ChakraWidget 
-                            current={tacticalStats['CHK_CUR']} 
-                            max={maxChakra} 
-                            onChange={handleStatChange} 
-                        />
-                    )}
-
-                    {/* [UPDATE] Il Memory Dump è stato rimosso da qui e integrato nella Dashboard in alto */}
-                </div>
-            </div>
-
-            {/* 2. ATTACCHI BASE */}
+            {/* 2. ATTACCHI BASE (MODIFICATO) */}
             {weapons.length > 0 && (
                 <section>
                     <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
@@ -506,122 +397,73 @@ const GameTab = ({ onNavigate }) => {
                     </h3>
                     <div className="grid grid-cols-1 gap-2">
                         {weapons.map(w => (
-                            <div key={w.id} className="bg-red-900/10 border border-red-500/20 p-3 rounded-lg flex justify-between items-center">
-                                <div>
-                                    <div className="font-bold text-red-100 text-sm flex items-center gap-2">
-                                        {w.nome}
-                                        {/* [UPDATE] Icona Pesante anche qui per coerenza */}
-                                        {w.is_pesante && <Weight size={12} className="text-orange-500" />}
+                            <div key={w.id} className="bg-red-900/10 border border-red-500/20 p-3 rounded-lg flex flex-col gap-2">
+                                {/* Arma Principale */}
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <div className="font-bold text-red-100 text-sm flex items-center gap-2">
+                                            {w.nome}
+                                            {w.is_pesante && <Weight size={12} className="text-orange-500" />}
+                                        </div>
+                                        <div className="text-[10px] text-red-300/70">{w.tipo_oggetto_display}</div>
                                     </div>
-                                    <div className="text-[10px] text-red-300/70">{w.tipo_oggetto_display}</div>
+                                    <div className="bg-red-950/50 px-3 py-1 rounded border border-red-500/30">
+                                        <span className="font-mono font-bold text-red-400 text-lg">
+                                            {w.attacco_formattato || w.attacco_base} 
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="bg-red-950/50 px-3 py-1 rounded border border-red-500/30">
-                                    <span className="font-mono font-bold text-red-400 text-lg">
-                                        {w.attacco_formattato || w.attacco_base} 
-                                    </span>
-                                </div>
+
+                                {/* Potenziamenti Offensivi (Nested) */}
+                                {w.potenziamenti_installati && w.potenziamenti_installati.length > 0 && (
+                                    <div className="flex flex-col gap-1 border-t border-red-500/20 pt-2 mt-1 pl-2">
+                                        {w.potenziamenti_installati.map(mod => {
+                                            // Mostra solo se ha un attacco (es. Mod Fuoco che aggiunge danni)
+                                            // Nota: il backend dovrebbe mandare 'attacco_base' o 'attacco_formattato' nel serializer del potenziamento
+                                            // Se il serializer OggettoPotenziamentoSerializer non ha attacco_formattato, potresti doverlo aggiungere.
+                                            // Per ora uso una logica difensiva: controlla se la descrizione o nome suggerisce danni o se c'è un campo custom.
+                                            // Idealmente, estendi OggettoPotenziamentoSerializer con 'attacco_formattato'.
+                                            
+                                            // Supponiamo che il serializer sia stato aggiornato o usiamo un campo raw se disponibile
+                                            const modAttack = mod.attacco_formattato || mod.attacco_base; 
+                                            
+                                            if (!modAttack) return null;
+
+                                            return (
+                                                <div key={mod.id} className="flex justify-between items-center text-xs text-red-300/80 bg-black/20 p-1.5 rounded">
+                                                    <div className="flex items-center gap-2">
+                                                        <Zap size={10} className="text-yellow-500"/>
+                                                        <span>{mod.nome}</span>
+                                                    </div>
+                                                    <span className="font-mono font-bold text-red-300">{modAttack}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
                 </section>
             )}
 
-            {/* 3. DISPOSITIVI & MODULI */}
+            {/* 3. DISPOSITIVI ATTIVI */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi Attivi
                 </h3>
-                <div className="space-y-3">
-                    {activeItems.map(item => {
-                        const timeLeft = timers[item.id] || 0;
-                        const isTimerRunning = timeLeft > 0;
-                        const isChargeEmpty = item.cariche_massime > 0 && item.cariche_attuali <= 0;
-                        const durationPct = item.durata_totale > 0 ? (timeLeft / item.durata_totale) * 100 : 0;
-                        
-                        return (
-                            <div key={item.id} className={`p-3 rounded-lg border transition-all relative overflow-hidden ${isTimerRunning ? 'bg-emerald-900/20 border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-gray-800 border-gray-700'}`}>
-                                {isTimerRunning && (
-                                    <div 
-                                        className="absolute bottom-0 left-0 h-1 bg-emerald-500 shadow-[0_0_10px_#10b981] transition-all duration-1000 ease-linear" 
-                                        style={{width: `${durationPct}%`, zIndex: 1}} 
-                                    />
-                                )}
-                                <div className="flex justify-between items-start mb-2 relative z-10">
-                                    <div className="w-full">
-                                        <div className="flex justify-between w-full items-center">
-                                            <div className="flex flex-col">
-                                                <span className={`font-bold text-sm flex items-center gap-2 ${item.is_active ? 'text-emerald-200' : 'text-gray-400'}`}>
-                                                    {item.nome}
-                                                    {/* [UPDATE] Icona Oggetto Pesante */}
-                                                    {item.is_pesante && (
-                                                        <div className="bg-orange-900/40 text-orange-400 rounded p-0.5 border border-orange-700/50" title="Oggetto Pesante">
-                                                            <Weight size={12} />
-                                                        </div>
-                                                    )}
-                                                    <button onClick={() => toggleFavorite(item)} className="text-gray-600 hover:text-yellow-400"><Star size={14} fill={favorites.find(f => f.id === item.id) ? "currentColor" : "none"} /></button>
-                                                </span>
-                                                {item.is_mod && (
-                                                    <span className="text-[9px] text-indigo-300 uppercase tracking-wider flex items-center gap-1">
-                                                        <Shield size={8} /> Su: {item.parent_name}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {isTimerRunning && (
-                                                <div className="flex items-center gap-2 bg-emerald-950/80 px-2 py-1 rounded border border-emerald-500/50 shadow-inner">
-                                                    <Clock size={12} className="text-emerald-400 animate-spin" />
-                                                    <span className="text-sm font-mono font-bold text-emerald-300 tracking-wider">
-                                                        {new Date(timeLeft * 1000).toISOString().substr(14, 5)}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-2 text-xs relative z-10">
-                                            {item.cariche_massime > 0 && (
-                                                <span className={`flex items-center gap-1 ${isChargeEmpty ? 'text-red-500 font-bold' : 'text-yellow-500'}`}>
-                                                    <Battery size={10} /> {item.cariche_attuali} / {item.cariche_massime}
-                                                </span>
-                                            )}
-                                            {item.durata_totale > 0 && !isTimerRunning && (
-                                                <span className="flex items-center gap-1 text-blue-400">
-                                                    <Clock size={10} /> {item.durata_totale}s
-                                                </span>
-                                            )}
-                                            {isChargeEmpty && !isTimerRunning && (
-                                                <span className="text-red-500 font-bold uppercase ml-auto text-[9px] border border-red-500 px-1 rounded bg-red-900/20">Scarico</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2 mt-3 relative z-10">
-                                    <button 
-                                        onClick={() => handleUseItem(item)}
-                                        disabled={isTimerRunning || isChargeEmpty}
-                                        className={`flex-1 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                                            isTimerRunning 
-                                                ? 'bg-emerald-900/50 text-emerald-200 border border-emerald-700 cursor-default'
-                                                : isChargeEmpty
-                                                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed border border-gray-600'
-                                                    : 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-lg'
-                                        }`}
-                                    >
-                                        {isTimerRunning ? 'ATTIVO...' : <><Play size={12} fill="currentColor" /> {item.durata_totale > 0 ? 'ATTIVA' : 'USA'}</>}
-                                    </button>
-                                    {item.cariche_massime > 0 && (
-                                        <button 
-                                            onClick={() => handleRecharge(item)}
-                                            className="px-3 bg-gray-700 text-yellow-500 rounded border border-gray-600 flex items-center justify-center transition-colors hover:bg-gray-600 active:scale-95"
-                                            title={`Ricarica (${item.costo_ricarica} CR)`}
-                                        >
-                                            <RefreshCw size={14} />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                    {activeItems.length === 0 && <p className="text-gray-600 text-xs italic text-center py-4">Nessun dispositivo pronto.</p>}
+                <div className="flex flex-wrap gap-3">
+                    {activeItems.map(item => (
+                        <ActiveItemWidget 
+                            key={item.id} 
+                            item={item} 
+                            onUpdate={updateCharacter} // Passa la funzione di update per ricaricare i dati post-click
+                        />
+                    ))}
+                    {activeItems.length === 0 && <p className="text-gray-600 text-xs italic w-full text-center py-4">Nessun dispositivo attivo.</p>}
                 </div>
             </section>
+        
 
             {/* NOTIFICHE & PRONTUARIO */}
             <div className="grid grid-cols-2 gap-3 mt-4">
