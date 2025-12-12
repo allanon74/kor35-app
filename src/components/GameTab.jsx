@@ -1,22 +1,20 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
-    Star, MessageSquare, Briefcase, Play, Backpack, Shield, AlertCircle, Plus, Minus,
-    ChevronDown, ChevronUp, ShieldAlert, Hexagon, Activity, Weight 
+    Star, MessageSquare, Briefcase, Backpack, AlertCircle, Plus, Minus,
+    ChevronDown, ChevronUp, Hexagon, Activity, Weight 
 } from 'lucide-react';
 
 import { 
     useOptimisticStatChange, 
-    useOptimisticUseItem, 
-    useOptimisticRecharge 
 } from '../hooks/useGameData';
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-// --- WIDGET DANNI (FIX CLICK LAYER) ---
+// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
-    // Zone del corpo originali (Tutte presenti)
+    // Zone del corpo
     const zones = [
         { id: 'PV_TR', name: 'Tronco', d: "M70,55 C70,55 85,65 100,65 C115,65 130,55 130,55 C135,65 135,80 130,130 C120,145 80,145 70,130 C65,80 65,65 70,55 Z", cx: 100, cy: 90 },
         { id: 'PV_RA', name: 'Braccio Dx', d: "M132,55 C145,52 155,58 155,70 C155,90 150,110 160,135 C162,140 150,145 145,135 C135,110 135,90 132,80 Z", cx: 145, cy: 95 },
@@ -31,8 +29,9 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
         return '#3b82f6';
     };
 
+    // Calcolo opacità barre (PS usa PG_CUR o PS_CUR a seconda della mappatura)
     const armorOpacity = maxArmor > 0 ? (stats['PA_CUR'] / maxArmor) : 0;
-    const shellOpacity = maxShell > 0 ? (stats['PG_CUR'] / maxShell) : 0;
+    const shellOpacity = maxShell > 0 ? (stats['PS_CUR'] / maxShell) : 0;
 
     return (
         <div className="relative w-full max-w-[280px] mx-auto aspect-3/4 select-none">
@@ -44,24 +43,22 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
                     </filter>
                 </defs>
 
-                {/* LAYER 1: GUSCIO (Sopra le barre HP se cliccabile, altrimenti pass-through) */}
+                {/* LAYER 1: GUSCIO (PS) */}
                 <g 
                     opacity={Math.max(0.1, shellOpacity)} 
                     className="transition-all duration-500"
-                    // IMPORTANTE: Se non c'è shell o è 0, pointer-events: none per cliccare sotto
                     style={{ pointerEvents: maxShell > 0 ? 'auto' : 'none', cursor: maxShell > 0 ? 'pointer' : 'default' }}
-                    onClick={() => maxShell > 0 && onHit('PG_CUR', maxShell)}
+                    onClick={() => maxShell > 0 && onHit('PS_CUR', maxShell)}
                     filter="url(#glow-shell)"
                 >
                     <ellipse cx="100" cy="130" rx="90" ry="140" fill="transparent" stroke="#8b5cf6" strokeWidth="3" strokeDasharray={shellOpacity === 0 ? "4 4" : "0"} />
-                    {maxShell > 0 && <text x="100" y="15" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PG_CUR']}/{maxShell}</text>}
+                    {maxShell > 0 && <text x="100" y="15" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
                 </g>
 
-                {/* LAYER 2: ARMATURA */}
+                {/* LAYER 2: ARMATURA (PA) */}
                 <g 
                     opacity={Math.max(0.1, armorOpacity)} 
                     className="transition-all duration-500"
-                    // FIX: se armatura finita, lascia passare il click
                     style={{ pointerEvents: maxArmor > 0 ? 'auto' : 'none', cursor: maxArmor > 0 ? 'pointer' : 'default' }}
                     onClick={() => maxArmor > 0 && onHit('PA_CUR', maxArmor)}
                 >
@@ -93,12 +90,11 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     );
 };
 
-
 const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const rows = [
-        { id: 'PG_CUR', label: 'Guscio', max: maxShell, color: 'text-purple-400' },
+        { id: 'PS_CUR', label: 'Guscio (PS)', max: maxShell, color: 'text-purple-400' }, // UPDATED ID
         { id: 'PA_CUR', label: 'Armatura', max: maxArmor, color: 'text-emerald-400' },
         { id: 'PV_TR', label: 'Tronco', max: maxHp, color: 'text-blue-400' },
         { id: 'PV_RA', label: 'Br. Dx', max: maxHp, color: 'text-blue-300' },
@@ -116,7 +112,8 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
             {isOpen && (
                 <div className="p-2 space-y-1 animate-in slide-in-from-top-2">
                     {rows.map(r => {
-                        if (r.max <= 0 && (r.id === 'PG_CUR' || r.id === 'PA_CUR')) return null;
+                        // Mostra Guscio/Armatura solo se il max > 0
+                        if (r.max <= 0 && (r.id === 'PS_CUR' || r.id === 'PA_CUR')) return null;
                         const val = stats[r.id];
                         return (
                             <div key={r.id} className="flex items-center justify-between bg-gray-900/30 p-2 rounded">
@@ -192,23 +189,20 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
     );
 };
 
-
-
-
+// --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount, updateCharacter } = useCharacter();
     const [favorites, setFavorites] = useState([]);
     
     const statMutation = useOptimisticStatChange();
-    const useItemMutation = useOptimisticUseItem();
-    const rechargeMutation = useOptimisticRecharge();
 
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
         setFavorites(savedFavs);
     }, []);
 
-    // Filtro oggetti attivi (dispositivi usabili)
+    // --- FIX: Filtro Oggetti Attivi Ricorsivo (Host + Mod) ---
+    // Questo risolve il problema "Nessun dispositivo attivo" in GameTab
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
@@ -243,7 +237,6 @@ const GameTab = ({ onNavigate }) => {
     }, [char]);
 
     const handleStatChange = (key, mode, maxOverride) => {
-        // Safe check se maxOverride è 0/undefined
         statMutation.mutate({ charId: char.id, stat_sigla: key, mode, max_override: maxOverride || 0 });
     };
 
@@ -260,10 +253,13 @@ const GameTab = ({ onNavigate }) => {
 
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    // Statistiche Tattiche
+    // Statistiche Tattiche (FIX: Uso sigla 'PS' invece di 'PG')
     const maxHP = char.statistiche_primarie?.find(x => x.sigla === 'PV')?.valore_max || 0;
     const maxArmor = char.statistiche_primarie?.find(x => x.sigla === 'PA')?.valore_max || 0;
-    const maxShell = char.statistiche_primarie?.find(x => x.sigla === 'PG')?.valore_max || 0;
+    
+    // FIX: Cerca 'PS' (Punti Guscio) invece di 'PG'
+    const maxShell = char.statistiche_primarie?.find(x => x.sigla === 'PS')?.valore_max || 0;
+    
     const maxChakra = char.statistiche_primarie?.find(x => x.sigla === 'CHA')?.valore_max || 1;
 
     const tempStats = char.statistiche_temporanee || {};
@@ -274,7 +270,8 @@ const GameTab = ({ onNavigate }) => {
         'PV_RL': tempStats['PV_RL'] !== undefined ? tempStats['PV_RL'] : maxHP,
         'PV_LL': tempStats['PV_LL'] !== undefined ? tempStats['PV_LL'] : maxHP,
         'PA_CUR': tempStats['PA_CUR'] !== undefined ? tempStats['PA_CUR'] : maxArmor,
-        'PG_CUR': tempStats['PG_CUR'] !== undefined ? tempStats['PG_CUR'] : maxShell,
+        // FIX: Usa 'PS_CUR'
+        'PS_CUR': tempStats['PS_CUR'] !== undefined ? tempStats['PS_CUR'] : maxShell,
         'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
     };
 
@@ -303,6 +300,7 @@ const GameTab = ({ onNavigate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
                     <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2"><Activity size={12} /> Status Fisico</h3>
+                    {/* Passaggio Punti Guscio corretti */}
                     <BodyDamageWidget stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onHit={(id, max) => handleStatChange(id, 'consuma', max)} />
                 </div>
                 <div className="flex flex-col gap-4">
@@ -311,56 +309,52 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </div>
 
-            {/* 2. ATTACCHI BASE (MODIFICATO PER MOSTRORE MOD OFFENSIVE) */}
- {weapons.length > 0 && (
-    <section>
-        <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
-            <Crosshair size={12} /> Sistemi Offensivi
-        </h3>
-        <div className="grid grid-cols-1 gap-2">
-            {weapons.map(w => (
-                <div key={w.id} className="bg-linear-to-r from-red-900/20 to-gray-900/20 border border-red-500/30 p-3 rounded-lg shadow-sm">
-                    {/* Header Arma */}
-                    <div className="flex justify-between items-start mb-2">
-                        <div>
-                            <div className="font-bold text-red-100 text-sm flex items-center gap-2">
-                                {w.nome}
-                                {w.is_pesante && <Weight size={12} className="text-orange-500" title="Oggetto Pesante"/>}
-                            </div>
-                            <div className="text-[10px] text-red-300/60 uppercase">{w.tipo_oggetto_display}</div>
-                        </div>
-                        {/* Danno Principale */}
-                        <div className="text-right">
-                             <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
-                                 {w.attacco_formattato || w.attacco_base}
-                             </div>
-                        </div>
-                    </div>
-
-                    {/* Potenziamenti Offensivi INTEGRATI */}
-                    {w.potenziamenti_installati && w.potenziamenti_installati.some(m => m.attacco_base) && (
-                        <div className="mt-2 space-y-1">
-                            {w.potenziamenti_installati.filter(m => m.attacco_base).map(mod => (
-                                <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
-                                    <div className="flex items-center gap-2">
-                                        <Zap size={10} className="text-yellow-500" />
-                                        <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
+            {/* 2. ATTACCHI BASE + MOD */}
+            {weapons.length > 0 && (
+                <section>
+                    <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
+                        <Crosshair size={12} /> Sistemi Offensivi
+                    </h3>
+                    <div className="grid grid-cols-1 gap-2">
+                        {weapons.map(w => (
+                            <div key={w.id} className="bg-linear-to-r from-red-900/20 to-gray-900/20 border border-red-500/30 p-3 rounded-lg shadow-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div className="font-bold text-red-100 text-sm flex items-center gap-2">
+                                            {w.nome}
+                                            {w.is_pesante && <Weight size={12} className="text-orange-500" title="Oggetto Pesante"/>}
+                                        </div>
+                                        <div className="text-[10px] text-red-300/60 uppercase">{w.tipo_oggetto_display}</div>
                                     </div>
-                                    <span className="font-mono text-xs font-bold text-yellow-100">
-                                        {mod.attacco_formattato || mod.attacco_base}
-                                    </span>
+                                    <div className="text-right">
+                                         <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
+                                             {w.attacco_formattato || w.attacco_base}
+                                         </div>
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            ))}
-        </div>
-    </section>
-)}
 
-            {/* 3. DISPOSITIVI ATTIVI */}
-            
+                                {w.potenziamenti_installati && w.potenziamenti_installati.some(m => m.attacco_base) && (
+                                    <div className="mt-2 space-y-1">
+                                        {w.potenziamenti_installati.filter(m => m.attacco_base).map(mod => (
+                                            <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
+                                                <div className="flex items-center gap-2">
+                                                    <Zap size={10} className="text-yellow-500" />
+                                                    <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
+                                                </div>
+                                                <span className="font-mono text-xs font-bold text-yellow-100">
+                                                    {mod.attacco_formattato || mod.attacco_base}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* 3. DISPOSITIVI ATTIVI (Ora mostra tutto) */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi Attivi
@@ -370,14 +364,16 @@ const GameTab = ({ onNavigate }) => {
                         <ActiveItemWidget 
                             key={item.id} 
                             item={item} 
-                            onUpdate={updateCharacter} // Sync dati
+                            // onUpdate rimosso se ActiveItemWidget gestisce tutto in optimistic
+                            // ma lo teniamo come fallback se la cache non si allinea
+                            onUpdate={updateCharacter} 
                         />
                     ))}
                     {activeItems.length === 0 && <p className="text-gray-600 text-xs italic w-full text-center py-4">Nessun dispositivo attivo.</p>}
                 </div>
             </section>
 
-            {/* NOTIFICHE & PRONTUARIO (Invariati) */}
+            {/* Link Navigazione */}
             <div className="grid grid-cols-2 gap-3 mt-4">
                 <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
