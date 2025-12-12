@@ -7,7 +7,7 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [error, setError] = useState(null);
 
-  // Gestione Timer Corretta (Countdown basato su data_fine)
+  // Gestione Timer (Calcolo basato su data_fine_attivazione)
   useEffect(() => {
     const calculateTimeLeft = () => {
         if (!item.data_fine_attivazione) return 0;
@@ -16,16 +16,13 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
         return Math.max(0, Math.floor((end - now) / 1000));
     };
 
-    // Set iniziale
+    // Set immediato
     setTimeLeft(calculateTimeLeft());
 
+    // Loop ogni secondo
     const interval = setInterval(() => {
         const remaining = calculateTimeLeft();
         setTimeLeft(remaining);
-        if (remaining <= 0 && item.data_fine_attivazione) {
-            // Se scade, potremmo voler aggiornare lo stato genitore
-            // onUpdate(); // Opzionale: refresh quando scade
-        }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -38,10 +35,8 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
 
     try {
       const data = await usaCarica(item.id);
-      // La risposta dell'API contiene la nuova data_fine_attivazione
-      // Chiamando onUpdate, ricarichiamo i dati del personaggio e il timer si aggiornerà via useEffect
+      // Callback per ricaricare i dati e attivare il timer via useEffect
       if (onUpdate) onUpdate();
-      
     } catch (err) {
       console.error(err);
       setError("Errore");
@@ -53,11 +48,14 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
   const isScarico = item.cariche_attuali <= 0;
   const isTimerRunning = timeLeft > 0;
 
-  // Formatta timer mm:ss
+  // Formatta timer mm:ss o hh:mm
   const formatTimer = (s) => {
-      const min = Math.floor(s / 60);
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
       const sec = s % 60;
-      return `${min}:${String(sec).padStart(2, '0')}`;
+      
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
   return (
