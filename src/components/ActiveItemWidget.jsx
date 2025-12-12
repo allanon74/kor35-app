@@ -4,47 +4,59 @@ import { useCharacter } from './CharacterContext';
 import { useOptimisticUseItem, useOptimisticRecharge } from '../hooks/useGameData';
 
 const ActiveItemWidget = ({ item, onUpdate }) => {
-    // Gestione ottimistica locale tramite hook già esistenti nel padre o passati qui
     const useItemMutation = useOptimisticUseItem();
     const rechargeMutation = useOptimisticRecharge();
-    const { selectedCharacterData } = useCharacter(); // Serve per ID e refresh
+    const { selectedCharacterData } = useCharacter(); 
 
     const [timeLeft, setTimeLeft] = useState(0);
 
-    // Sincronizza il timer con data_fine_attivazione
+    // Gestione Timer Intelligente
     useEffect(() => {
+        // Se non c'è una data di fine, il timer è 0
         if (!item.data_fine_attivazione) {
             setTimeLeft(0);
             return;
         }
-        const end = new Date(item.data_fine_attivazione).getTime();
-        
-        const updateTimer = () => {
+
+        const calculateTimeLeft = () => {
             const now = new Date().getTime();
+            const end = new Date(item.data_fine_attivazione).getTime();
             const diff = Math.floor((end - now) / 1000);
-            if (diff <= 0) {
-                setTimeLeft(0);
-                // Opzionale: chiamare onUpdate() se il timer scade per refreshare lo stato
-            } else {
-                setTimeLeft(diff);
-            }
+            return diff > 0 ? diff : 0;
         };
 
-        updateTimer();
-        const interval = setInterval(updateTimer, 1000);
+        // Imposta subito il tempo (per evitare flash di 0)
+        setTimeLeft(calculateTimeLeft());
+
+        // Aggiorna ogni secondo
+        const interval = setInterval(() => {
+            const remaining = calculateTimeLeft();
+            setTimeLeft(remaining);
+            if (remaining <= 0) clearInterval(interval);
+        }, 1000);
+
         return () => clearInterval(interval);
     }, [item.data_fine_attivazione]);
 
-    const formatTimer = (s) => {
-        const min = Math.floor(s / 60);
-        const sec = s % 60;
-        return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    // Formatter Human Readable (es. 1h 30m 10s)
+    const formatTimer = (totalSeconds) => {
+        if (!totalSeconds) return "Scaduto";
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
     const handleUseCharge = () => {
+        // IMPORTANTE: Passiamo tutti i dati necessari per l'Optimistic Update
         useItemMutation.mutate({ 
             oggetto_id: item.id, 
-            charId: selectedCharacterData.id 
+            charId: selectedCharacterData.id,
+            // Questi due campi servono a useGameData.js per simulare l'effetto subito:
+            durata_totale: item.durata_totale || 0,
+            is_aura_zero_off: item.spegne_a_zero_cariche || false
         });
     };
 
@@ -57,48 +69,62 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
         }
     };
 
-    // Stili dinamici
+    // Logica di stato visuale
     const isWorking = timeLeft > 0;
     const hasCharges = item.cariche_attuali > 0;
     const maxCharges = item.cariche_massime || 0;
+    
+    // Un oggetto è "scarico" se non ha cariche E non è attualmente attivo (timer > 0)
+    // Se il timer gira, l'oggetto sta funzionando anche se le cariche sono 0 (ha consumato l'ultima)
+    const isDepleted = !hasCharges && !isWorking;
 
     return (
-        <div className={`p-3 rounded-lg border shadow-sm w-full sm:w-[calc(50%-0.5rem)] flex flex-col gap-2 transition-all ${isWorking ? 'bg-green-900/20 border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.1)]' : 'bg-gray-800 border-gray-700'}`}>
+        <div className={`p-3 rounded-lg border shadow-sm w-full sm:w-[calc(50%-0.5rem)] flex flex-col gap-2 transition-all duration-300 ${isWorking ? 'bg-emerald-900/20 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-gray-800 border-gray-700'}`}>
+            
+            {/* Header */}
             <div className="flex justify-between items-start">
-                <span className={`font-bold text-sm ${isWorking ? 'text-green-400' : 'text-gray-300'}`}>{item.nome}</span>
-                {/* Indicatore Stato */}
-                {isWorking && <span className="animate-pulse text-green-500"><Activity size={14}/></span>}
+                <span className={`font-bold text-sm leading-tight ${isWorking ? 'text-emerald-400' : 'text-gray-300'}`}>
+                    {item.nome}
+                </span>
+                {isWorking && <span className="animate-pulse text-emerald-500 shrink-0 ml-2"><Activity size={16}/></span>}
             </div>
 
-            {/* BARRA CARICHE */}
+            {/* Barra Cariche */}
             {maxCharges > 0 && (
-                <div className="bg-black/30 rounded p-1.5 flex justify-between items-center">
+                <div className={`rounded p-1.5 flex justify-between items-center transition-colors ${isDepleted ? 'bg-red-900/20 border border-red-900/30' : 'bg-black/30'}`}>
                     <div className="flex items-center gap-1.5 text-xs font-mono">
                          <Battery size={14} className={hasCharges ? "text-yellow-400" : "text-red-500"} />
-                         <span className={hasCharges ? "text-white" : "text-red-400"}>{item.cariche_attuali} / {maxCharges}</span>
+                         <span className={hasCharges ? "text-white" : "text-red-400 font-bold"}>
+                            {item.cariche_attuali} <span className="text-gray-500">/</span> {maxCharges}
+                         </span>
                     </div>
-                    {/* Pulsante USA */}
+                    
                     <button 
                         onClick={handleUseCharge}
-                        disabled={!hasCharges || isWorking} // Disabilita se non ha cariche o se è già attivo
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
-                            hasCharges && !isWorking
-                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500' 
-                            : 'bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed'
+                        disabled={!hasCharges || isWorking}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider transition-all active:scale-95 ${
+                            isWorking
+                            ? 'bg-emerald-600/20 text-emerald-400 border-emerald-600/50 cursor-default'
+                            : hasCharges
+                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm hover:shadow-md'
+                                : 'bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed'
                         }`}
                     >
-                        {isWorking ? 'ATTIVO' : 'ATTIVA'}
+                        {isWorking ? 'ON' : 'USA'}
                     </button>
                 </div>
             )}
 
-            {/* TIMER E RICARICA */}
-            <div className="flex justify-between items-end mt-1">
-                <div className="flex flex-col">
-                    {item.durata_totale > 0 && (
-                        <div className={`text-xs font-mono flex items-center gap-1 ${timeLeft > 0 ? 'text-blue-300 font-bold' : 'text-gray-500'}`}>
+            {/* Footer: Timer e Ricarica */}
+            <div className="flex justify-between items-end mt-1 h-6">
+                <div className="flex flex-col justify-end">
+                    {(item.durata_totale > 0 || isWorking) && (
+                        <div className={`text-xs font-mono flex items-center gap-1 transition-colors ${isWorking ? 'text-blue-300 font-bold' : 'text-gray-500'}`}>
                             <Clock size={12} />
-                            {timeLeft > 0 ? formatTimer(timeLeft) : <span className="text-[10px]">{formatTimer(item.durata_totale)} (Durata)</span>}
+                            {isWorking 
+                                ? <span>{formatTimer(timeLeft)}</span> 
+                                : <span className="text-[10px]">Durata: {formatTimer(item.durata_totale)}</span>
+                            }
                         </div>
                     )}
                 </div>
@@ -106,10 +132,10 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
                 {item.costo_ricarica > 0 && item.cariche_attuali < maxCharges && (
                     <button 
                         onClick={handleRecharge}
-                        className="text-[10px] flex items-center gap-1 text-yellow-500 hover:text-yellow-300 transition-colors"
+                        className="flex items-center gap-1 bg-yellow-900/10 hover:bg-yellow-900/30 text-yellow-500 hover:text-yellow-200 px-2 py-0.5 rounded border border-transparent hover:border-yellow-700/50 transition-all text-[10px]"
                         title={item.testo_ricarica}
                     >
-                        <RefreshCw size={12} /> Ricarica ({item.costo_ricarica} CR)
+                        <RefreshCw size={10} /> {item.costo_ricarica} CR
                     </button>
                 )}
             </div>
