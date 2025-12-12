@@ -24,6 +24,34 @@ const formatDuration = (seconds) => {
     return parts.join(' ');
 };
 
+const LazyList = ({ items, renderItem, batchSize = 10 }) => {
+    const [displayedItems, setDisplayedItems] = useState([]);
+    
+    useEffect(() => {
+        // Reset quando cambiano gli items
+        setDisplayedItems(items.slice(0, batchSize));
+    }, [items, batchSize]);
+
+    const showMore = () => {
+        setDisplayedItems(prev => items.slice(0, prev.length + batchSize));
+    };
+
+    return (
+        <div className="space-y-2">
+            {displayedItems.map(renderItem)}
+            
+            {displayedItems.length < items.length && (
+                <button 
+                    onClick={showMore}
+                    className="w-full py-3 mt-2 text-sm font-bold text-gray-400 bg-gray-800/50 hover:bg-gray-700 border border-dashed border-gray-600 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                    <ChevronDown size={16} /> Carica altri ({items.length - displayedItems.length})
+                </button>
+            )}
+        </div>
+    );
+};
+
 // --- COMPONENTE VISUALE CORPO (SVG ORGANICO 8 SLOT) ---
 const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
     const paths = {
@@ -352,21 +380,23 @@ const InventoryTab = ({ onLogout }) => {
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
 
   // Render Helper per liste (utilizza il componente Memoizzato)
-  const renderList = (list) => (
-      <div className="grid grid-cols-1 gap-2">
-          {list.map(item => (
-              <InventoryItemCard 
-                  key={item.id} 
-                  item={item} 
-                  isExpanded={!!expandedItems[item.id]}
-                  onToggleExpand={toggleExpand}
-                  onEquip={handleToggleEquip}
-                  onRecharge={handleRecharge}
-                  onAssembly={handleOpenAssembly}
-              />
-          ))}
-      </div>
-  );
+    const renderList = (list) => (
+        <LazyList 
+            items={list} 
+            batchSize={10} // Carica 10 elementi alla volta per fluidità immediata
+            renderItem={(item) => (
+                <InventoryItemCard 
+                    key={item.id} 
+                    item={item} 
+                    isExpanded={!!expandedItems[item.id]}
+                    onToggleExpand={toggleExpand}
+                    onEquip={handleToggleEquip}
+                    onRecharge={handleRecharge}
+                    onAssembly={handleOpenAssembly}
+                />
+            )}
+        />
+    );
   
   const slots = {};
   const genericItems = [];

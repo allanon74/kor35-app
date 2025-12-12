@@ -192,6 +192,120 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
     );
 };
 
+const ActiveItemWidget = ({ item, onUpdate }) => {
+    // Gestione ottimistica locale tramite hook già esistenti nel padre o passati qui
+    const useItemMutation = useOptimisticUseItem();
+    const rechargeMutation = useOptimisticRecharge();
+    const { selectedCharacterData } = useCharacter(); // Serve per ID e refresh
+
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    // Sincronizza il timer con data_fine_attivazione
+    useEffect(() => {
+        if (!item.data_fine_attivazione) {
+            setTimeLeft(0);
+            return;
+        }
+        const end = new Date(item.data_fine_attivazione).getTime();
+        
+        const updateTimer = () => {
+            const now = new Date().getTime();
+            const diff = Math.floor((end - now) / 1000);
+            if (diff <= 0) {
+                setTimeLeft(0);
+                // Opzionale: chiamare onUpdate() se il timer scade per refreshare lo stato
+            } else {
+                setTimeLeft(diff);
+            }
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [item.data_fine_attivazione]);
+
+    const formatTimer = (s) => {
+        const min = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    };
+
+    const handleUseCharge = () => {
+        useItemMutation.mutate({ 
+            oggetto_id: item.id, 
+            charId: selectedCharacterData.id 
+        });
+    };
+
+    const handleRecharge = () => {
+        if (window.confirm(`Ricaricare ${item.nome}?\nCosto: ${item.costo_ricarica} CR\nMetodo: ${item.testo_ricarica}`)) {
+            rechargeMutation.mutate({ 
+                oggetto_id: item.id, 
+                charId: selectedCharacterData.id 
+            });
+        }
+    };
+
+    // Stili dinamici
+    const isWorking = timeLeft > 0;
+    const hasCharges = item.cariche_attuali > 0;
+    const maxCharges = item.cariche_massime || 0;
+
+    return (
+        <div className={`p-3 rounded-lg border shadow-sm w-full sm:w-[calc(50%-0.5rem)] flex flex-col gap-2 transition-all ${isWorking ? 'bg-green-900/20 border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.1)]' : 'bg-gray-800 border-gray-700'}`}>
+            <div className="flex justify-between items-start">
+                <span className={`font-bold text-sm ${isWorking ? 'text-green-400' : 'text-gray-300'}`}>{item.nome}</span>
+                {/* Indicatore Stato */}
+                {isWorking && <span className="animate-pulse text-green-500"><Activity size={14}/></span>}
+            </div>
+
+            {/* BARRA CARICHE */}
+            {maxCharges > 0 && (
+                <div className="bg-black/30 rounded p-1.5 flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 text-xs font-mono">
+                         <Battery size={14} className={hasCharges ? "text-yellow-400" : "text-red-500"} />
+                         <span className={hasCharges ? "text-white" : "text-red-400"}>{item.cariche_attuali} / {maxCharges}</span>
+                    </div>
+                    {/* Pulsante USA */}
+                    <button 
+                        onClick={handleUseCharge}
+                        disabled={!hasCharges || isWorking} // Disabilita se non ha cariche o se è già attivo (se logica lo prevede)
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
+                            hasCharges && !isWorking
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500' 
+                            : 'bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed'
+                        }`}
+                    >
+                        {isWorking ? 'ATTIVO' : 'ATTIVA'}
+                    </button>
+                </div>
+            )}
+
+            {/* TIMER E RICARICA */}
+            <div className="flex justify-between items-end mt-1">
+                <div className="flex flex-col">
+                    {item.durata_totale > 0 && (
+                        <div className={`text-xs font-mono flex items-center gap-1 ${timeLeft > 0 ? 'text-blue-300 font-bold' : 'text-gray-500'}`}>
+                            <Clock size={12} />
+                            {timeLeft > 0 ? formatTimer(timeLeft) : <span className="text-[10px]">{formatTimer(item.durata_totale)} (Durata)</span>}
+                        </div>
+                    )}
+                </div>
+
+                {item.costo_ricarica > 0 && item.cariche_attuali < maxCharges && (
+                    <button 
+                        onClick={handleRecharge}
+                        className="text-[10px] flex items-center gap-1 text-yellow-500 hover:text-yellow-300 transition-colors"
+                        title={item.testo_ricarica}
+                    >
+                        <RefreshCw size={12} /> Ricarica ({item.costo_ricarica} CR)
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
 
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount, updateCharacter } = useCharacter();
@@ -287,53 +401,52 @@ const GameTab = ({ onNavigate }) => {
             </div>
 
             {/* 2. ATTACCHI BASE (MODIFICATO PER MOSTRORE MOD OFFENSIVE) */}
-            {weapons.length > 0 && (
-                <section>
-                    <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
-                        <Crosshair size={12} /> Sistemi Offensivi
-                    </h3>
-                    <div className="grid grid-cols-1 gap-2">
-                        {weapons.map(w => (
-                            <div key={w.id} className="bg-red-900/10 border border-red-500/20 p-3 rounded-lg flex flex-col gap-2">
-                                {/* Arma Principale */}
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <div className="font-bold text-red-100 text-sm flex items-center gap-2">
-                                            {w.nome}
-                                            {w.is_pesante && <Weight size={12} className="text-orange-500" />}
-                                        </div>
-                                        <div className="text-[10px] text-red-300/70">{w.tipo_oggetto_display}</div>
-                                    </div>
-                                    <div className="bg-red-950/50 px-3 py-1 rounded border border-red-500/30">
-                                        <span className="font-mono font-bold text-red-400 text-lg">
-                                            {w.attacco_formattato || w.attacco_base} 
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Potenziamenti Offensivi (Nested) */}
-                                {w.potenziamenti_installati && w.potenziamenti_installati.length > 0 && (
-                                    <div className="flex flex-col gap-1 border-t border-red-500/20 pt-2 mt-1 pl-2">
-                                        {w.potenziamenti_installati.map(mod => {
-                                            const modAttack = mod.attacco_formattato || mod.attacco_base; 
-                                            if (!modAttack) return null;
-                                            return (
-                                                <div key={mod.id} className="flex justify-between items-center text-xs text-red-300/80 bg-black/20 p-1.5 rounded">
-                                                    <div className="flex items-center gap-2">
-                                                        <Zap size={10} className="text-yellow-500"/>
-                                                        <span>{mod.nome}</span>
-                                                    </div>
-                                                    <span className="font-mono font-bold text-red-300">{modAttack}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+ {weapons.length > 0 && (
+    <section>
+        <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
+            <Crosshair size={12} /> Sistemi Offensivi
+        </h3>
+        <div className="grid grid-cols-1 gap-2">
+            {weapons.map(w => (
+                <div key={w.id} className="bg-linear-to-r from-red-900/20 to-gray-900/20 border border-red-500/30 p-3 rounded-lg shadow-sm">
+                    {/* Header Arma */}
+                    <div className="flex justify-between items-start mb-2">
+                        <div>
+                            <div className="font-bold text-red-100 text-sm flex items-center gap-2">
+                                {w.nome}
+                                {w.is_pesante && <Weight size={12} className="text-orange-500" title="Oggetto Pesante"/>}
                             </div>
-                        ))}
+                            <div className="text-[10px] text-red-300/60 uppercase">{w.tipo_oggetto_display}</div>
+                        </div>
+                        {/* Danno Principale */}
+                        <div className="text-right">
+                             <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
+                                 {w.attacco_formattato || w.attacco_base}
+                             </div>
+                        </div>
                     </div>
-                </section>
-            )}
+
+                    {/* Potenziamenti Offensivi INTEGRATI */}
+                    {w.potenziamenti_installati && w.potenziamenti_installati.some(m => m.attacco_base) && (
+                        <div className="mt-2 space-y-1">
+                            {w.potenziamenti_installati.filter(m => m.attacco_base).map(mod => (
+                                <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
+                                    <div className="flex items-center gap-2">
+                                        <Zap size={10} className="text-yellow-500" />
+                                        <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
+                                    </div>
+                                    <span className="font-mono text-xs font-bold text-yellow-100">
+                                        {mod.attacco_formattato || mod.attacco_base}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    </section>
+)}
 
             {/* 3. DISPOSITIVI ATTIVI */}
             <section>
