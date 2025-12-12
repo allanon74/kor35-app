@@ -1,117 +1,120 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Clock, Battery, BatteryWarning, Weight } from 'lucide-react';
-import { usaCarica } from '../api';
+import { Activity, Battery, Clock, RefreshCw } from 'lucide-react';
+import { useCharacter } from './CharacterContext';
+import { useOptimisticUseItem, useOptimisticRecharge } from '../hooks/useGameData';
 
 const ActiveItemWidget = ({ item, onUpdate }) => {
-  const [loading, setLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [error, setError] = useState(null);
+    // Gestione ottimistica locale tramite hook già esistenti nel padre o passati qui
+    const useItemMutation = useOptimisticUseItem();
+    const rechargeMutation = useOptimisticRecharge();
+    const { selectedCharacterData } = useCharacter(); // Serve per ID e refresh
 
-  // Gestione Timer (Calcolo basato su data_fine_attivazione)
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-        if (!item.data_fine_attivazione) return 0;
-        const now = Date.now();
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    // Sincronizza il timer con data_fine_attivazione
+    useEffect(() => {
+        if (!item.data_fine_attivazione) {
+            setTimeLeft(0);
+            return;
+        }
         const end = new Date(item.data_fine_attivazione).getTime();
-        return Math.max(0, Math.floor((end - now) / 1000));
+        
+        const updateTimer = () => {
+            const now = new Date().getTime();
+            const diff = Math.floor((end - now) / 1000);
+            if (diff <= 0) {
+                setTimeLeft(0);
+                // Opzionale: chiamare onUpdate() se il timer scade per refreshare lo stato
+            } else {
+                setTimeLeft(diff);
+            }
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [item.data_fine_attivazione]);
+
+    const formatTimer = (s) => {
+        const min = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${min}:${sec < 10 ? '0' : ''}${sec}`;
     };
 
-    // Set immediato
-    setTimeLeft(calculateTimeLeft());
+    const handleUseCharge = () => {
+        useItemMutation.mutate({ 
+            oggetto_id: item.id, 
+            charId: selectedCharacterData.id 
+        });
+    };
 
-    // Loop ogni secondo
-    const interval = setInterval(() => {
-        const remaining = calculateTimeLeft();
-        setTimeLeft(remaining);
-    }, 1000);
+    const handleRecharge = () => {
+        if (window.confirm(`Ricaricare ${item.nome}?\nCosto: ${item.costo_ricarica} CR\nMetodo: ${item.testo_ricarica}`)) {
+            rechargeMutation.mutate({ 
+                oggetto_id: item.id, 
+                charId: selectedCharacterData.id 
+            });
+        }
+    };
 
-    return () => clearInterval(interval);
-  }, [item.data_fine_attivazione]);
+    // Stili dinamici
+    const isWorking = timeLeft > 0;
+    const hasCharges = item.cariche_attuali > 0;
+    const maxCharges = item.cariche_massime || 0;
 
-  const handleActivate = async () => {
-    if (item.cariche_attuali <= 0) return;
-    setLoading(true);
-    setError(null);
+    return (
+        <div className={`p-3 rounded-lg border shadow-sm w-full sm:w-[calc(50%-0.5rem)] flex flex-col gap-2 transition-all ${isWorking ? 'bg-green-900/20 border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.1)]' : 'bg-gray-800 border-gray-700'}`}>
+            <div className="flex justify-between items-start">
+                <span className={`font-bold text-sm ${isWorking ? 'text-green-400' : 'text-gray-300'}`}>{item.nome}</span>
+                {/* Indicatore Stato */}
+                {isWorking && <span className="animate-pulse text-green-500"><Activity size={14}/></span>}
+            </div>
 
-    try {
-      const data = await usaCarica(item.id);
-      // Callback per ricaricare i dati e attivare il timer via useEffect
-      if (onUpdate) onUpdate();
-    } catch (err) {
-      console.error(err);
-      setError("Errore");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isScarico = item.cariche_attuali <= 0;
-  const isTimerRunning = timeLeft > 0;
-
-  // Formatta timer mm:ss o hh:mm
-  const formatTimer = (s) => {
-      const h = Math.floor(s / 3600);
-      const m = Math.floor((s % 3600) / 60);
-      const sec = s % 60;
-      
-      if (h > 0) return `${h}h ${m}m`;
-      return `${m}:${String(sec).padStart(2, '0')}`;
-  };
-
-  return (
-    <div className={`relative flex flex-col justify-between p-3 rounded-lg border bg-gray-800 shadow-md transition-all w-32 min-h-32 hover:border-gray-500 group ${
-      isScarico ? 'border-red-500/50 opacity-80' : 'border-gray-700'
-    }`}>
-      
-      {/* HEADER */}
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex flex-col w-full">
-            <span className="font-bold text-gray-200 text-xs leading-tight line-clamp-2 min-h-[2.5em]">{item.nome}</span>
-            {item.is_pesante && (
-                <div className="absolute top-2 right-2 text-orange-500 bg-gray-900 rounded-full p-0.5 shadow-sm" title="Oggetto Pesante">
-                    <Weight size={12} />
+            {/* BARRA CARICHE */}
+            {maxCharges > 0 && (
+                <div className="bg-black/30 rounded p-1.5 flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 text-xs font-mono">
+                         <Battery size={14} className={hasCharges ? "text-yellow-400" : "text-red-500"} />
+                         <span className={hasCharges ? "text-white" : "text-red-400"}>{item.cariche_attuali} / {maxCharges}</span>
+                    </div>
+                    {/* Pulsante USA */}
+                    <button 
+                        onClick={handleUseCharge}
+                        disabled={!hasCharges || isWorking} // Disabilita se non ha cariche o se è già attivo
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
+                            hasCharges && !isWorking
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500' 
+                            : 'bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed'
+                        }`}
+                    >
+                        {isWorking ? 'ATTIVO' : 'ATTIVA'}
+                    </button>
                 </div>
             )}
-        </div>
-      </div>
-      
-      {/* BODY INFO */}
-      <div className="flex items-center gap-1.5 mt-auto text-[10px] text-gray-400 font-mono">
-          {isScarico 
-            ? <BatteryWarning className="w-3 h-3 text-red-400" /> 
-            : <Battery className="w-3 h-3 text-green-400" />
-          }
-          <span>{item.cariche_attuali}</span>
-      </div>
-      {error && <span className="text-[10px] text-red-400 absolute bottom-1 right-2">{error}</span>}
 
-      {/* FOOTER BUTTON */}
-      <div className="mt-2">
-        {isTimerRunning ? (
-          <div className="flex items-center justify-center gap-1 bg-gray-900 px-2 py-1 rounded text-orange-400 font-mono font-bold text-[10px] border border-orange-900/50 animate-pulse">
-            <Clock className="w-3 h-3" />
-            {formatTimer(timeLeft)}
-          </div>
-        ) : (
-          <button
-            onClick={handleActivate}
-            disabled={loading || isScarico}
-            className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95
-              ${isScarico 
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed border border-gray-600' 
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-sm'
-              }`}
-          >
-            {loading ? (
-              <span className="animate-spin">..</span>
-            ) : (
-              <><Zap className="w-3 h-3 fill-current" /> USA</>
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  );
+            {/* TIMER E RICARICA */}
+            <div className="flex justify-between items-end mt-1">
+                <div className="flex flex-col">
+                    {item.durata_totale > 0 && (
+                        <div className={`text-xs font-mono flex items-center gap-1 ${timeLeft > 0 ? 'text-blue-300 font-bold' : 'text-gray-500'}`}>
+                            <Clock size={12} />
+                            {timeLeft > 0 ? formatTimer(timeLeft) : <span className="text-[10px]">{formatTimer(item.durata_totale)} (Durata)</span>}
+                        </div>
+                    )}
+                </div>
+
+                {item.costo_ricarica > 0 && item.cariche_attuali < maxCharges && (
+                    <button 
+                        onClick={handleRecharge}
+                        className="text-[10px] flex items-center gap-1 text-yellow-500 hover:text-yellow-300 transition-colors"
+                        title={item.testo_ricarica}
+                    >
+                        <RefreshCw size={12} /> Ricarica ({item.costo_ricarica} CR)
+                    </button>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default ActiveItemWidget;
