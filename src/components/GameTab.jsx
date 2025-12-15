@@ -366,7 +366,7 @@ const GameTab = ({ onNavigate }) => {
                             item={item} 
                             // onUpdate rimosso se ActiveItemWidget gestisce tutto in optimistic
                             // ma lo teniamo come fallback se la cache non si allinea
-                            onUpdate={fatchCharacterData} 
+                            onUpdate={fetchCharacterData} 
                         />
                     ))}
                     {activeItems.length === 0 && <p className="text-gray-600 text-xs italic w-full text-center py-4">Nessun dispositivo attivo.</p>}
