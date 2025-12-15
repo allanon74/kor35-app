@@ -94,7 +94,7 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const rows = [
-        { id: 'PS_CUR', label: 'Guscio (PS)', max: maxShell, color: 'text-purple-400' }, // UPDATED ID
+        { id: 'PS_CUR', label: 'Guscio (PS)', max: maxShell, color: 'text-purple-400' }, 
         { id: 'PA_CUR', label: 'Armatura', max: maxArmor, color: 'text-emerald-400' },
         { id: 'PV_TR', label: 'Tronco', max: maxHp, color: 'text-blue-400' },
         { id: 'PV_RA', label: 'Br. Dx', max: maxHp, color: 'text-blue-300' },
@@ -112,7 +112,6 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
             {isOpen && (
                 <div className="p-2 space-y-1 animate-in slide-in-from-top-2">
                     {rows.map(r => {
-                        // Mostra Guscio/Armatura solo se il max > 0
                         if (r.max <= 0 && (r.id === 'PS_CUR' || r.id === 'PA_CUR')) return null;
                         const val = stats[r.id];
                         return (
@@ -191,7 +190,6 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
 
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
-    // CORREZIONE: Estrai refreshCharacterData invece di fetchCharacterData
     const { 
         selectedCharacterData: char, 
         unreadCount, 
@@ -207,37 +205,45 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- Filtro Oggetti Attivi Ricorsivo (Host + Mod) ---
+    // --- CORREZIONE LOGICA ACTIVE ITEMS ---
+    // Usiamo una mappa per essere sicuri di prendere sempre l'oggetto "fresco"
+    // dalla root list (char.oggetti) che riceve gli update ottimistici.
+    // I 'potenziamenti_installati' dentro un host potrebbero essere "stale" (vecchie copie).
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
+        // 1. Mappa di riferimento per avere sempre i dati aggiornati (timer, cariche)
+        const itemMap = new Map(char.oggetti.map(i => [i.id, i]));
         const activatables = [];
 
-        // 1. Identifica gli Host Attivi (Equipaggiati o Installati)
+        // 2. Identifica gli Host Attivi
         const activeHosts = char.oggetti.filter(item => {
              const isPhysEquipped = (item.tipo_oggetto === 'FIS' && item.is_equipaggiato);
              const isInnateInstalled = (['INN', 'MUT'].includes(item.tipo_oggetto) && item.slot_corpo);
              return isPhysEquipped || isInnateInstalled;
         });
 
-        // 2. Estrai tutto ciò che è attivabile (Host e le loro Mod)
+        // 3. Estrai tutto ciò che è attivabile
         activeHosts.forEach(host => {
-             // A. Aggiungi l'Host se ha meccaniche proprie (cariche/durata)
+             // A. Aggiungi l'Host (è già fresco dal loop su char.oggetti)
              if (host.cariche_massime > 0 || host.durata_totale > 0) {
                  activatables.push(host);
              }
 
-             // B. Aggiungi i Potenziamenti (Mod/Materia) installati nell'Host
+             // B. Aggiungi le Mod installate
+             // ATTENZIONE: Qui usiamo itemMap.get(mod.id) invece di usare 'mod' direttamente!
              if (host.potenziamenti_installati && host.potenziamenti_installati.length > 0) {
-                 host.potenziamenti_installati.forEach(mod => {
-                     if (mod.cariche_massime > 0 || mod.durata_totale > 0) {
-                         activatables.push(mod);
+                 host.potenziamenti_installati.forEach(staleMod => {
+                     const freshMod = itemMap.get(staleMod.id);
+                     if (freshMod && (freshMod.cariche_massime > 0 || freshMod.durata_totale > 0)) {
+                         activatables.push(freshMod);
                      }
                  });
              }
         });
 
-        return activatables;
+        // Rimuovi duplicati (per sicurezza)
+        return [...new Set(activatables)];
     }, [char]);
 
     const handleStatChange = (key, mode, maxOverride) => {
@@ -257,7 +263,6 @@ const GameTab = ({ onNavigate }) => {
 
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    // Statistiche Tattiche
     const maxHP = char.statistiche_primarie?.find(x => x.sigla === 'PV')?.valore_max || 0;
     const maxArmor = char.statistiche_primarie?.find(x => x.sigla === 'PA')?.valore_max || 0;
     const maxShell = char.statistiche_primarie?.find(x => x.sigla === 'PS')?.valore_max || 0;
@@ -275,7 +280,6 @@ const GameTab = ({ onNavigate }) => {
         'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
     };
 
-    // Logica Capacità
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
     const capacityConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS' && i.potenziamenti_installati?.length > 0);
@@ -286,7 +290,6 @@ const GameTab = ({ onNavigate }) => {
     const heavyConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.is_pesante);
     const heavyUsed = heavyConsumers.length;
 
-    // Filtro Armi
     const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
 
     return (
@@ -308,7 +311,6 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </div>
 
-            {/* 2. ATTACCHI BASE + MOD */}
             {weapons.length > 0 && (
                 <section>
                     <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
@@ -326,7 +328,6 @@ const GameTab = ({ onNavigate }) => {
                                         <div className="text-[10px] text-red-300/60 uppercase">{w.tipo_oggetto_display}</div>
                                     </div>
                                     <div className="text-right">
-                                         {/* CORREZIONE: Aggiunto toString e fallback esplicito */}
                                          <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
                                              {w.attacco_formattato ? String(w.attacco_formattato) : String(w.attacco_base || '')}
                                          </div>
@@ -341,7 +342,6 @@ const GameTab = ({ onNavigate }) => {
                                                     <Zap size={10} className="text-yellow-500" />
                                                     <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
                                                 </div>
-                                                {/* CORREZIONE: Aggiunto toString e fallback esplicito */}
                                                 <span className="font-mono text-xs font-bold text-yellow-100">
                                                     {mod.attacco_formattato ? String(mod.attacco_formattato) : String(mod.attacco_base || '')}
                                                 </span>
@@ -355,7 +355,6 @@ const GameTab = ({ onNavigate }) => {
                 </section>
             )}
 
-            {/* 3. DISPOSITIVI ATTIVI */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi Attivi
@@ -365,7 +364,6 @@ const GameTab = ({ onNavigate }) => {
                         <ActiveItemWidget 
                             key={item.id} 
                             item={item} 
-                            // CORREZIONE: Uso della funzione corretta
                             onUpdate={refreshCharacterData} 
                         />
                     ))}
@@ -373,7 +371,6 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </section>
 
-            {/* Link Navigazione */}
             <div className="grid grid-cols-2 gap-3 mt-4">
                 <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
