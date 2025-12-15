@@ -201,37 +201,6 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // Funzione Helper per verificare se un oggetto/mod è attivo secondo le regole Temporali
-    const isActiveByTime = (item) => {
-        // Se non ha scadenza (durata 0 o null), è sempre attivo (se equipaggiato/montato)
-        if (!item.data_fine_attivazione) return true;
-        
-        // Se ha scadenza, controlliamo se è nel futuro
-        const now = new Date().getTime();
-        const end = new Date(item.data_fine_attivazione).getTime();
-        return end >= now;
-    };
-
-    // Funzione Helper per regola "spegne_a_zero_cariche"
-    const isActiveByCharges = (item) => {
-        if (item.spegne_a_zero_cariche) {
-             // Se richiede cariche, ne ha 0, e non è nel periodo di "attivazione residua" (timer attivo)
-             // Nota: Se il timer gira (isActiveByTime è true), consideriamo che stia usando l'ultima carica.
-             const hasCharges = (item.cariche_attuali || 0) > 0;
-             if (!hasCharges && !isActiveByTime(item)) return false;
-        }
-        return true;
-    };
-
-    // Filtro Armi (Oggetti Base)
-    // Regola 1 (Equipaggiato) + Regola 2 (Cariche/Aura se applicabile)
-    const weapons = char.oggetti.filter(i => 
-        i.is_equipaggiato && 
-        i.attacco_base && 
-        isActiveByCharges(i) // Aggiunto controllo cariche per l'oggetto stesso
-    );
-
-
     // --- FIX: Filtro Oggetti Attivi Ricorsivo (Host + Mod) ---
     // Questo risolve il problema "Nessun dispositivo attivo" in GameTab
     const activeItems = useMemo(() => {
@@ -283,6 +252,36 @@ const GameTab = ({ onNavigate }) => {
     };
 
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
+
+        // Funzione Helper per verificare se un oggetto/mod è attivo secondo le regole Temporali
+    const isActiveByTime = (item) => {
+        // Se non ha scadenza (durata 0 o null), è sempre attivo (se equipaggiato/montato)
+        if (!item.data_fine_attivazione) return true;
+        
+        // Se ha scadenza, controlliamo se è nel futuro
+        const now = new Date().getTime();
+        const end = new Date(item.data_fine_attivazione).getTime();
+        return end >= now;
+    };
+
+    // Funzione Helper per regola "spegne_a_zero_cariche"
+    const isActiveByCharges = (item) => {
+        if (item.spegne_a_zero_cariche) {
+             // Se richiede cariche, ne ha 0, e non è nel periodo di "attivazione residua" (timer attivo)
+             // Nota: Se il timer gira (isActiveByTime è true), consideriamo che stia usando l'ultima carica.
+             const hasCharges = (item.cariche_attuali || 0) > 0;
+             if (!hasCharges && !isActiveByTime(item)) return false;
+        }
+        return true;
+    };
+
+    // Filtro Armi (Oggetti Base)
+    // Regola 1 (Equipaggiato) + Regola 2 (Cariche/Aura se applicabile)
+    const weapons = char.oggetti.filter(i => 
+        i.is_equipaggiato && 
+        i.attacco_base && 
+        isActiveByCharges(i) // Aggiunto controllo cariche per l'oggetto stesso
+    );
 
     // Statistiche Tattiche (FIX: Uso sigla 'PS' invece di 'PG')
     const maxHP = char.statistiche_primarie?.find(x => x.sigla === 'PV')?.valore_max || 0;
