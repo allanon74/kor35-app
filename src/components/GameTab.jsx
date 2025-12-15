@@ -201,6 +201,37 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
+    // Funzione Helper per verificare se un oggetto/mod è attivo secondo le regole Temporali
+    const isActiveByTime = (item) => {
+        // Se non ha scadenza (durata 0 o null), è sempre attivo (se equipaggiato/montato)
+        if (!item.data_fine_attivazione) return true;
+        
+        // Se ha scadenza, controlliamo se è nel futuro
+        const now = new Date().getTime();
+        const end = new Date(item.data_fine_attivazione).getTime();
+        return end >= now;
+    };
+
+    // Funzione Helper per regola "spegne_a_zero_cariche"
+    const isActiveByCharges = (item) => {
+        if (item.spegne_a_zero_cariche) {
+             // Se richiede cariche, ne ha 0, e non è nel periodo di "attivazione residua" (timer attivo)
+             // Nota: Se il timer gira (isActiveByTime è true), consideriamo che stia usando l'ultima carica.
+             const hasCharges = (item.cariche_attuali || 0) > 0;
+             if (!hasCharges && !isActiveByTime(item)) return false;
+        }
+        return true;
+    };
+
+    // Filtro Armi (Oggetti Base)
+    // Regola 1 (Equipaggiato) + Regola 2 (Cariche/Aura se applicabile)
+    const weapons = char.oggetti.filter(i => 
+        i.is_equipaggiato && 
+        i.attacco_base && 
+        isActiveByCharges(i) // Aggiunto controllo cariche per l'oggetto stesso
+    );
+
+
     // --- FIX: Filtro Oggetti Attivi Ricorsivo (Host + Mod) ---
     // Questo risolve il problema "Nessun dispositivo attivo" in GameTab
     const activeItems = useMemo(() => {
@@ -286,8 +317,6 @@ const GameTab = ({ onNavigate }) => {
     const heavyConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.is_pesante);
     const heavyUsed = heavyConsumers.length;
 
-    // Filtro Armi
-    const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
 
     return (
         <div className="pb-24 px-2 space-y-6 animate-fadeIn text-gray-100 pt-2">
@@ -311,48 +340,40 @@ const GameTab = ({ onNavigate }) => {
 
             {/* 2. ATTACCHI BASE + MOD */}
             {weapons.length > 0 && (
-                <section>
-                    <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
-                        <Crosshair size={12} /> Sistemi Offensivi
-                    </h3>
-                    <div className="grid grid-cols-1 gap-2">
-                        {weapons.map(w => (
-                            <div key={w.id} className="bg-linear-to-r from-red-900/20 to-gray-900/20 border border-red-500/30 p-3 rounded-lg shadow-sm">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <div className="font-bold text-red-100 text-sm flex items-center gap-2">
-                                            {w.nome}
-                                            {w.is_pesante && <Weight size={12} className="text-orange-500" title="Oggetto Pesante"/>}
+        <section>
+            <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
+                <Crosshair size={12} /> Sistemi Offensivi
+            </h3>
+            <div className="grid grid-cols-1 gap-2">
+                {weapons.map(w => (
+                    <div key={w.id} className="bg-linear-to-r from-red-900/20 to-gray-900/20 border border-red-500/30 p-3 rounded-lg shadow-sm">
+                        {/* ... Intestazione Arma ... */}
+                        
+                        {/* Render Potenziamenti (MOD) - CORREZIONE REGOLA 4 */}
+                        {w.potenziamenti_installati && w.potenziamenti_installati.some(m => m.attacco_base) && (
+                            <div className="mt-2 space-y-1">
+                                {w.potenziamenti_installati
+                                    .filter(m => m.attacco_base)
+                                    // FILTRO AGGIUNTO: Verifica Regola 4 (Durata)
+                                    .filter(m => isActiveByTime(m)) 
+                                    .map(mod => (
+                                    <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
+                                        <div className="flex items-center gap-2">
+                                            <Zap size={10} className="text-yellow-500" />
+                                            <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
                                         </div>
-                                        <div className="text-[10px] text-red-300/60 uppercase">{w.tipo_oggetto_display}</div>
+                                        <span className="font-mono text-xs font-bold text-yellow-100">
+                                            {mod.attacco_formattato || mod.attacco_base}
+                                        </span>
                                     </div>
-                                    <div className="text-right">
-                                         <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
-                                             {w.attacco_formattato || w.attacco_base}
-                                         </div>
-                                    </div>
-                                </div>
-
-                                {w.potenziamenti_installati && w.potenziamenti_installati.some(m => m.attacco_base) && (
-                                    <div className="mt-2 space-y-1">
-                                        {w.potenziamenti_installati.filter(m => m.attacco_base).map(mod => (
-                                            <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
-                                                <div className="flex items-center gap-2">
-                                                    <Zap size={10} className="text-yellow-500" />
-                                                    <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
-                                                </div>
-                                                <span className="font-mono text-xs font-bold text-yellow-100">
-                                                    {mod.attacco_formattato || mod.attacco_base}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                ))}
                             </div>
-                        ))}
+                        )}
                     </div>
-                </section>
-            )}
+                ))}
+            </div>
+        </section>
+    )}
 
             {/* 3. DISPOSITIVI ATTIVI (Ora mostra tutto) */}
             <section>
