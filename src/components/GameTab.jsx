@@ -206,44 +206,49 @@ const GameTab = ({ onNavigate }) => {
     }, []);
 
     // --- CORREZIONE LOGICA ACTIVE ITEMS ---
-    // Usiamo una mappa per essere sicuri di prendere sempre l'oggetto "fresco"
-    // dalla root list (char.oggetti) che riceve gli update ottimistici.
-    // I 'potenziamenti_installati' dentro un host potrebbero essere "stale" (vecchie copie).
+    // Logica più permissiva: 
+    // 1. Scansiona TUTTI gli oggetti.
+    // 2. Cerca di usare la versione "fresca" (dalla root list) per avere timer aggiornati.
+    // 3. Fallback alla versione annidata se la fresca non si trova.
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
-        // 1. Mappa di riferimento per avere sempre i dati aggiornati (timer, cariche)
+        // Mappa per lookup veloce della versione "live" degli oggetti
         const itemMap = new Map(char.oggetti.map(i => [i.id, i]));
         const activatables = [];
+        const addedIds = new Set(); // Per evitare duplicati tra host e mod
 
-        // 2. Identifica gli Host Attivi
-        const activeHosts = char.oggetti.filter(item => {
-             const isPhysEquipped = (item.tipo_oggetto === 'FIS' && item.is_equipaggiato);
-             const isInnateInstalled = (['INN', 'MUT'].includes(item.tipo_oggetto) && item.slot_corpo);
-             return isPhysEquipped || isInnateInstalled;
+        char.oggetti.forEach(item => {
+            // Se l'oggetto è equipaggiato O installato (logica permissiva)
+            const isActive = item.is_equipaggiato || item.slot_corpo;
+            
+            if (!isActive) return;
+
+            // 1. Aggiungi l'Oggetto stesso (Host) se ha cariche/durata
+            if (item.cariche_massime > 0 || item.durata_totale > 0) {
+                activatables.push(item);
+                addedIds.add(item.id);
+            }
+
+            // 2. Cerca Mod/Potenziamenti installati al suo interno
+            if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
+                item.potenziamenti_installati.forEach(mod => {
+                    // Tenta di prendere la versione fresca dalla root list
+                    const freshMod = itemMap.get(mod.id);
+                    // FALLBACK: Se non c'è nella root, usa quella annidata (meglio stale che invisibile)
+                    const targetMod = freshMod || mod;
+
+                    if (targetMod.cariche_massime > 0 || targetMod.durata_totale > 0) {
+                        if (!addedIds.has(targetMod.id)) {
+                            activatables.push(targetMod);
+                            addedIds.add(targetMod.id);
+                        }
+                    }
+                });
+            }
         });
 
-        // 3. Estrai tutto ciò che è attivabile
-        activeHosts.forEach(host => {
-             // A. Aggiungi l'Host (è già fresco dal loop su char.oggetti)
-             if (host.cariche_massime > 0 || host.durata_totale > 0) {
-                 activatables.push(host);
-             }
-
-             // B. Aggiungi le Mod installate
-             // ATTENZIONE: Qui usiamo itemMap.get(mod.id) invece di usare 'mod' direttamente!
-             if (host.potenziamenti_installati && host.potenziamenti_installati.length > 0) {
-                 host.potenziamenti_installati.forEach(staleMod => {
-                     const freshMod = itemMap.get(staleMod.id);
-                     if (freshMod && (freshMod.cariche_massime > 0 || freshMod.durata_totale > 0)) {
-                         activatables.push(freshMod);
-                     }
-                 });
-             }
-        });
-
-        // Rimuovi duplicati (per sicurezza)
-        return [...new Set(activatables)];
+        return activatables;
     }, [char]);
 
     const handleStatChange = (key, mode, maxOverride) => {
