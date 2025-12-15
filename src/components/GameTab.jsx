@@ -29,7 +29,7 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
         return '#3b82f6';
     };
 
-    // Calcolo opacità barre (PS usa PG_CUR o PS_CUR a seconda della mappatura)
+    // Calcolo opacità barre
     const armorOpacity = maxArmor > 0 ? (stats['PA_CUR'] / maxArmor) : 0;
     const shellOpacity = maxShell > 0 ? (stats['PS_CUR'] / maxShell) : 0;
 
@@ -205,51 +205,22 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- CORREZIONE LOGICA ACTIVE ITEMS ---
-    // Logica più permissiva: 
-    // 1. Scansiona TUTTI gli oggetti.
-    // 2. Cerca di usare la versione "fresca" (dalla root list) per avere timer aggiornati.
-    // 3. Fallback alla versione annidata se la fresca non si trova.
+    // --- LOGICA ACTIVE ITEMS ---
+    // COPIATA ESATTAMENTE DA HOMETAB.JSX
+    // Usa direttamente char.oggetti (la lista root) per garantire dati freschi.
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
-        // Mappa per lookup veloce della versione "live" degli oggetti
-        const itemMap = new Map(char.oggetti.map(i => [i.id, i]));
-        const activatables = [];
-        const addedIds = new Set(); // Per evitare duplicati tra host e mod
-
-        char.oggetti.forEach(item => {
-            // Se l'oggetto è equipaggiato O installato (logica permissiva)
-            const isActive = item.is_equipaggiato || item.slot_corpo;
-            
-            if (!isActive) return;
-
-            // 1. Aggiungi l'Oggetto stesso (Host) se ha cariche/durata
-            if (item.cariche_massime > 0 || item.durata_totale > 0) {
-                activatables.push(item);
-                addedIds.add(item.id);
-            }
-
-            // 2. Cerca Mod/Potenziamenti installati al suo interno
-            if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
-                item.potenziamenti_installati.forEach(mod => {
-                    // Tenta di prendere la versione fresca dalla root list
-                    const freshMod = itemMap.get(mod.id);
-                    // FALLBACK: Se non c'è nella root, usa quella annidata (meglio stale che invisibile)
-                    const targetMod = freshMod || mod;
-
-                    if (targetMod.cariche_massime > 0 || targetMod.durata_totale > 0) {
-                        if (!addedIds.has(targetMod.id)) {
-                            activatables.push(targetMod);
-                            addedIds.add(targetMod.id);
-                        }
-                    }
-                });
-            }
+        return char.oggetti.filter(obj => {
+          // 1. Mostra sempre Innesti (INN) e Mod (MOD), anche se scarichi
+          if (['INN', 'MOD'].includes(obj.tipo_oggetto)) return true;
+          
+          // 2. Mostra oggetti fisici (es. armi/bacchette) SOLO se hanno cariche attive > 0
+          if (obj.cariche_attuali > 0) return true;
+          
+          return false;
         });
-
-        return activatables;
-    }, [char]);
+      }, [char?.oggetti]);
 
     const handleStatChange = (key, mode, maxOverride) => {
         statMutation.mutate({ charId: char.id, stat_sigla: key, mode, max_override: maxOverride || 0 });
