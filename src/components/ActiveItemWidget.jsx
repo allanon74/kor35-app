@@ -12,7 +12,6 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
 
     // Gestione Timer Intelligente
     useEffect(() => {
-        // Se non c'è una data di fine, il timer è 0
         if (!item.data_fine_attivazione) {
             setTimeLeft(0);
             return;
@@ -25,10 +24,8 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
             return diff > 0 ? diff : 0;
         };
 
-        // Imposta subito il tempo (per evitare flash di 0)
         setTimeLeft(calculateTimeLeft());
 
-        // Aggiorna ogni secondo
         const interval = setInterval(() => {
             const remaining = calculateTimeLeft();
             setTimeLeft(remaining);
@@ -38,7 +35,6 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
         return () => clearInterval(interval);
     }, [item.data_fine_attivazione]);
 
-    // Formatter Human Readable (es. 1h 30m 10s)
     const formatTimer = (totalSeconds) => {
         if (!totalSeconds) return "Scaduto";
         const h = Math.floor(totalSeconds / 3600);
@@ -50,13 +46,16 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
     };
 
     const handleUseCharge = () => {
-        // IMPORTANTE: Passiamo tutti i dati necessari per l'Optimistic Update
         useItemMutation.mutate({ 
             oggetto_id: item.id, 
             charId: selectedCharacterData.id,
-            // Questi due campi servono a useGameData.js per simulare l'effetto subito:
             durata_totale: item.durata_totale || 0,
             is_aura_zero_off: item.spegne_a_zero_cariche || false
+        }, {
+            // CORREZIONE QUI: Chiamiamo onUpdate se l'operazione ha successo
+            onSuccess: () => {
+                if (onUpdate) onUpdate();
+            }
         });
     };
 
@@ -65,6 +64,11 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
             rechargeMutation.mutate({ 
                 oggetto_id: item.id, 
                 charId: selectedCharacterData.id 
+            }, {
+                // CORREZIONE QUI: Chiamiamo onUpdate anche per la ricarica
+                onSuccess: () => {
+                    if (onUpdate) onUpdate();
+                }
             });
         }
     };
@@ -73,9 +77,6 @@ const ActiveItemWidget = ({ item, onUpdate }) => {
     const isWorking = timeLeft > 0;
     const hasCharges = item.cariche_attuali > 0;
     const maxCharges = item.cariche_massime || 0;
-    
-    // Un oggetto è "scarico" se non ha cariche E non è attualmente attivo (timer > 0)
-    // Se il timer gira, l'oggetto sta funzionando anche se le cariche sono 0 (ha consumato l'ultima)
     const isDepleted = !hasCharges && !isWorking;
 
     return (
