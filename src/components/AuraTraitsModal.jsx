@@ -1,72 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Check, Lock, ChevronRight, Loader2 } from 'lucide-react';
 import { acquireAbilita } from '../api'; 
 
-export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCharacter }) {
+export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCharacter, currentValue }) {
   const [selectedStep, setSelectedStep] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // --- DEBUG INIZIALE (Controlla la Console F12) ---
-  useEffect(() => {
-    console.log("--- AURA TRAITS DEBUG ---");
-    console.log("Aura Target (dal bottone):", aura);
-    console.log("Punteggi Personaggio:", personaggio?.punteggi);
-  }, [aura, personaggio]);
+  // --- LOGICA RECUPERO VALORE SEMPLIFICATA ---
+  // Se currentValue è passato (da PunteggioDisplay), usalo.
+  // Altrimenti, fallback su 0.
+  const currentAuraVal = currentValue !== undefined ? parseInt(currentValue, 10) : 0;
+  // --------------------------------------------
 
-  // --- LOGICA RECUPERO VALORE BASATA SU ID ---
-  const getCurrentAuraValue = () => {
-    if (!personaggio) return 0;
-    
-    // 1. Cerca nell'array 'punteggi'
-    if (personaggio.punteggi && Array.isArray(personaggio.punteggi)) {
-        
-        // Tentativo A: L'ID nell'array del PG corrisponde all'ID dell'Aura (Struttura piatta)
-        let found = personaggio.punteggi.find(p => p.id === aura.id);
-
-        // Tentativo B: L'ID è dentro un oggetto nidificato (es. p.punteggio.id) o campo estero (p.punteggio_id)
-        if (!found) {
-            found = personaggio.punteggi.find(p => 
-                (p.punteggio && p.punteggio.id === aura.id) || // Serializer Deep
-                (p.punteggio_id === aura.id) ||                // Serializer Flat
-                (p.punteggio === aura.id)                      // Serializer PrimaryKey
-            );
-        }
-
-        if (found) {
-            // Logica per determinare quale campo contiene il numero
-            const val = found.valore_totale ?? found.valore ?? 0;
-            return parseInt(val, 10);
-        }
-    }
-
-    // 2. Fallback: Dizionario caratteristiche_base (per compatibilità vecchie strutture)
-    if (personaggio.caratteristiche_base && personaggio.caratteristiche_base[aura.nome] !== undefined) {
-        return parseInt(personaggio.caratteristiche_base[aura.nome], 10);
-    }
-
-    return 0;
-  };
-
-  const currentAuraVal = getCurrentAuraValue();
-  // -----------------------------------------------------
-
-  // Helper: trova se il PG ha già un tratto per questo livello
   const getPossessedTrait = (level) => {
     if (!personaggio?.abilita_possedute || !aura.tratti_disponibili) return null;
     
-    // Trova gli ID delle abilità valide per questo livello
     const availableIdsAtLevel = aura.tratti_disponibili
         .filter(t => t.livello_riferimento === level)
         .map(t => t.id);
     
-    // Cerca tra le possedute
     return personaggio.abilita_possedute.find(ab => availableIdsAtLevel.includes(ab.id));
   };
 
   const handleStepClick = (config) => {
-    // Blocca se il livello non è sufficiente
-    if (currentAuraVal < config.livello) return; 
+    if (currentAuraVal < config.livello) return; // Blocco se livello insufficiente
     setSelectedStep(config);
   };
 
@@ -74,9 +32,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     setLoading(true);
     setError(null);
     try {
-      // API call
       await acquireAbilita(trait.id, personaggio.id, null); 
-      
       if (onUpdateCharacter) await onUpdateCharacter(); 
       setSelectedStep(null); 
     } catch (err) {
@@ -87,7 +43,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     }
   };
 
-  // --- RENDER SELEZIONE (Detail) ---
+  // --- RENDER OPZIONI ---
   if (selectedStep) {
     const options = aura.tratti_disponibili.filter(t => t.livello_riferimento === selectedStep.livello);
     const possessed = getPossessedTrait(selectedStep.livello);
@@ -146,12 +102,11 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     );
   }
 
-  // --- RENDER TIMELINE (Main) ---
+  // --- RENDER TIMELINE ---
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
         
-        {/* Header */}
         <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-linear-to-r from-slate-900 to-slate-800 shrink-0">
             <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded bg-slate-800 border border-slate-600 flex items-center justify-center text-xl font-bold text-slate-300">
@@ -169,23 +124,19 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
             </button>
         </div>
 
-        {/* Timeline Content */}
         <div className="p-6 space-y-6 overflow-y-auto">
             {aura.configurazione_livelli && aura.configurazione_livelli.map((step, index) => {
                 const possessedTrait = getPossessedTrait(step.livello);
                 
-                // CHECK SBLOCCO
                 const isLocked = currentAuraVal < step.livello;
                 const isCompleted = !!possessedTrait;
 
                 return (
                     <div key={step.id || index} className="relative pl-8 last:pb-0">
-                        {/* Linea verticale */}
                         {index !== aura.configurazione_livelli.length - 1 && (
                             <div className={`absolute left-[11px] top-8 bottom-6 w-0.5 ${isCompleted ? 'bg-amber-500/50' : 'bg-slate-700'}`} />
                         )}
 
-                        {/* Indicatore Cerchio */}
                         <div className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center border-2 z-10 
                             ${isCompleted ? 'bg-amber-900 border-amber-500 text-amber-500' : 
                               isLocked ? 'bg-slate-800 border-slate-600 text-slate-600' : 
@@ -193,7 +144,6 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                             {isLocked ? <Lock size={12} /> : isCompleted ? <Check size={12} /> : <div className="w-2 h-2 bg-cyan-400 rounded-full" />}
                         </div>
 
-                        {/* Card Step */}
                         <div 
                             className={`p-4 rounded-lg border transition-all ${
                                 isLocked ? 'bg-slate-900/50 border-slate-800 opacity-60' : 
