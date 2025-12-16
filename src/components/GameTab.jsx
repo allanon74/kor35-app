@@ -12,7 +12,7 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-// --- WIDGET DANNI ---
+// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     // Zone del corpo
     const zones = [
@@ -94,7 +94,7 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const rows = [
-        { id: 'PS_CUR', label: 'Guscio (PS)', max: maxShell, color: 'text-purple-400' }, 
+        { id: 'PS_CUR', label: 'Guscio (PS)', max: maxShell, color: 'text-purple-400' },
         { id: 'PA_CUR', label: 'Armatura', max: maxArmor, color: 'text-emerald-400' },
         { id: 'PV_TR', label: 'Tronco', max: maxHp, color: 'text-blue-400' },
         { id: 'PV_RA', label: 'Br. Dx', max: maxHp, color: 'text-blue-300' },
@@ -190,14 +190,9 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
 
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
-    const { 
-        selectedCharacterData: char, 
-        punteggiList, 
-        unreadCount, 
-        refreshCharacterData 
-    } = useCharacter();
-    
+    const { selectedCharacterData: char, unreadCount, updateCharacter, fetchCharacterData } = useCharacter();
     const [favorites, setFavorites] = useState([]);
+    
     const statMutation = useOptimisticStatChange();
 
     useEffect(() => {
@@ -205,62 +200,64 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- LOGICA ACTIVE ITEMS ROBUSTA (Timer + Filtro Gerarchico) ---
+    // --- FUNZIONI HELPER PER VISUALIZZAZIONE ---
+    const isActiveByTime = (item) => {
+        if (!item.data_fine_attivazione) return true;
+        const now = new Date().getTime();
+        const end = new Date(item.data_fine_attivazione).getTime();
+        return end >= now;
+    };
+
+    const isActiveByCharges = (item) => {
+        if (item.spegne_a_zero_cariche) {
+             const hasCharges = (item.cariche_attuali || 0) > 0;
+             if (!hasCharges && !isActiveByTime(item)) return false;
+        }
+        return true;
+    };
+
+    // --- FILTRO OGGETTI ATTIVI (LOGICA GAME TAB) ---
     const activeItems = useMemo(() => {
-        if (!char?.oggetti) return [];
+        // Protezione anti-crash: se char non è ancora caricato, ritorna array vuoto
+        if (!char || !char.oggetti) return [];
         
-        // 1. Mappa di riferimento per i dati "freschi" (Timer aggiornati)
-        // Usiamo String(id) per evitare discrepanze di tipo
-        const freshMap = new Map();
-        char.oggetti.forEach(item => {
-            freshMap.set(String(item.id), item);
+        const activatables = [];
+
+        // 1. Identifica gli Host Attivi (Equipaggiati o Installati)
+        const activeHosts = char.oggetti.filter(item => {
+             const isPhysEquipped = (item.tipo_oggetto === 'FIS' && item.is_equipaggiato);
+             const isInnateInstalled = (['INN', 'MUT'].includes(item.tipo_oggetto) && item.slot_corpo);
+             return isPhysEquipped || isInnateInstalled;
         });
 
-        // 2. Set per i risultati (evita duplicati)
-        const resultMap = new Map();
+        // 2. Estrai tutto ciò che è attivabile (Host e le loro Mod)
+        activeHosts.forEach(host => {
+             // A. Aggiungi l'Host se ha meccaniche proprie (cariche/durata)
+             if (host.cariche_massime > 0 || host.durata_totale > 0) {
+                 activatables.push(host);
+             }
 
-        // Helper per aggiungere alla lista finale prendendo il dato "fresco"
-        const addIfFresh = (id, fallback) => {
-            const strId = String(id);
-            const freshItem = freshMap.get(strId);
-            // Se esiste nella root list, usa quello (Timer OK). Altrimenti fallback (Timer Stale).
-            const target = freshItem || fallback;
-            if (!resultMap.has(strId)) {
-                resultMap.set(strId, target);
-            }
-        };
-
-        // 3. Scansione per regole di visualizzazione
-        char.oggetti.forEach(item => {
-            const hasCharges = (item.cariche_massime || 0) > 0;
-
-            // A. AUMENTI (Innesti/Mutazioni) - Sempre visibili se hanno cariche
-            if (['INN', 'MUT', 'AUM'].includes(item.tipo_oggetto)) {
-                if (hasCharges) {
-                    addIfFresh(item.id, item);
-                }
-            }
-            
-            // B. OGGETTI EQUIPAGGIATI
-            if (item.is_equipaggiato) {
-                // L'host stesso ha cariche?
-                if (hasCharges) {
-                    addIfFresh(item.id, item);
-                }
-                
-                // C. MOD dentro l'oggetto equipaggiato
-                if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
-                    item.potenziamenti_installati.forEach(mod => {
-                        if ((mod.cariche_massime || 0) > 0) {
-                            addIfFresh(mod.id, mod);
-                        }
-                    });
-                }
-            }
+             // B. Aggiungi i Potenziamenti (Mod/Materia) installati nell'Host
+             if (host.potenziamenti_installati && host.potenziamenti_installati.length > 0) {
+                 host.potenziamenti_installati.forEach(mod => {
+                     if (mod.cariche_massime > 0 || mod.durata_totale > 0) {
+                         activatables.push(mod);
+                     }
+                 });
+             }
         });
 
-        return Array.from(resultMap.values());
-    }, [char?.oggetti]);
+        return activatables;
+    }, [char]); // Dipendenza da 'char' completa
+
+    // --- FILTRO ARMI (CON PROTEZIONE CRASH) ---
+    const weapons = (char && char.oggetti) 
+        ? char.oggetti.filter(i => 
+            i.is_equipaggiato && 
+            i.attacco_base && 
+            isActiveByCharges(i)
+          ) 
+        : [];
 
     const handleStatChange = (key, mode, maxOverride) => {
         statMutation.mutate({ charId: char.id, stat_sigla: key, mode, max_override: maxOverride || 0 });
@@ -277,23 +274,13 @@ const GameTab = ({ onNavigate }) => {
         localStorage.setItem('kor35_favorites', JSON.stringify(newFavs));
     };
 
-    // --- CALCOLO STATISTICHE DINAMICO ---
-    const getEffectiveStat = (sigla) => {
-        if (!char || !punteggiList) return 0;
-        const def = punteggiList.find(p => p.sigla === sigla);
-        if (!def) return 0;
-        const mods = (char.modificatori_calcolati && char.modificatori_calcolati[def.parametro]) 
-                     ? char.modificatori_calcolati[def.parametro] 
-                     : { add: 0, mol: 1.0 };
-        return Math.round((def.valore_predefinito + mods.add) * mods.mol);
-    };
-
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    const maxHP = getEffectiveStat('PV');
-    const maxArmor = getEffectiveStat('PA');
-    const maxShell = getEffectiveStat('PS');
-    const maxChakra = getEffectiveStat('CHA');
+    // Statistiche Tattiche
+    const maxHP = char.statistiche_primarie?.find(x => x.sigla === 'PV')?.valore_max || 0;
+    const maxArmor = char.statistiche_primarie?.find(x => x.sigla === 'PA')?.valore_max || 0;
+    const maxShell = char.statistiche_primarie?.find(x => x.sigla === 'PS')?.valore_max || 0;
+    const maxChakra = char.statistiche_primarie?.find(x => x.sigla === 'CHA')?.valore_max || 1;
 
     const tempStats = char.statistiche_temporanee || {};
     const tacticalStats = {
@@ -307,6 +294,7 @@ const GameTab = ({ onNavigate }) => {
         'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
     };
 
+    // Logica Capacità
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
     const capacityConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS' && i.potenziamenti_installati?.length > 0);
@@ -316,8 +304,6 @@ const GameTab = ({ onNavigate }) => {
     const heavyMax = statOgp ? statOgp.valore_max : 0;
     const heavyConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.is_pesante);
     const heavyUsed = heavyConsumers.length;
-
-    const weapons = char.oggetti.filter(i => i.is_equipaggiato && i.attacco_base);
 
     return (
         <div className="pb-24 px-2 space-y-6 animate-fadeIn text-gray-100 pt-2">
@@ -338,6 +324,7 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </div>
 
+            {/* 2. ATTACCHI BASE + MOD */}
             {weapons.length > 0 && (
                 <section>
                     <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
@@ -356,21 +343,24 @@ const GameTab = ({ onNavigate }) => {
                                     </div>
                                     <div className="text-right">
                                          <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
-                                             {w.attacco_formattato ? String(w.attacco_formattato) : String(w.attacco_base || '')}
+                                             {w.attacco_formattato || w.attacco_base}
                                          </div>
                                     </div>
                                 </div>
 
                                 {w.potenziamenti_installati && w.potenziamenti_installati.some(m => m.attacco_base) && (
                                     <div className="mt-2 space-y-1">
-                                        {w.potenziamenti_installati.filter(m => m.attacco_base).map(mod => (
+                                        {w.potenziamenti_installati
+                                            .filter(m => m.attacco_base)
+                                            .filter(m => isActiveByTime(m))
+                                            .map(mod => (
                                             <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
                                                 <div className="flex items-center gap-2">
                                                     <Zap size={10} className="text-yellow-500" />
                                                     <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
                                                 </div>
                                                 <span className="font-mono text-xs font-bold text-yellow-100">
-                                                    {mod.attacco_formattato ? String(mod.attacco_formattato) : String(mod.attacco_base || '')}
+                                                    {mod.attacco_formattato || mod.attacco_base}
                                                 </span>
                                             </div>
                                         ))}
@@ -382,6 +372,7 @@ const GameTab = ({ onNavigate }) => {
                 </section>
             )}
 
+            {/* 3. DISPOSITIVI ATTIVI (Ora mostra tutto) */}
             <section>
                 <h3 className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2 mb-2 ml-1">
                     <Zap size={12} /> Dispositivi Attivi
@@ -391,13 +382,15 @@ const GameTab = ({ onNavigate }) => {
                         <ActiveItemWidget 
                             key={item.id} 
                             item={item} 
-                            onUpdate={refreshCharacterData} 
+                            // IMPORTANTE: Assicura il refresh dei dati al click
+                            onUpdate={fetchCharacterData} 
                         />
                     ))}
                     {activeItems.length === 0 && <p className="text-gray-600 text-xs italic w-full text-center py-4">Nessun dispositivo attivo.</p>}
                 </div>
             </section>
 
+            {/* Link Navigazione */}
             <div className="grid grid-cols-2 gap-3 mt-4">
                 <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
