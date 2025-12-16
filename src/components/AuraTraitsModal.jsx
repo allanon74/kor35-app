@@ -83,7 +83,10 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                                         <h4 className={`font-bold ${isSelected ? 'text-amber-400' : 'text-slate-200'}`}>{trait.nome}</h4>
                                         {isSelected && <Check size={18} className="text-amber-500" />}
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-3 mb-2">{trait.descrizione || "Nessuna descrizione."}</p>
+                                    <div 
+                                        className="text-xs text-slate-400 line-clamp-3 mb-2 prose prose-invert prose-p:my-1 prose-strong:text-slate-200"
+                                        dangerouslySetInnerHTML={{ __html: trait.descrizione || "Nessuna descrizione." }}
+                                    />
                                     
                                     {trait.statistica_modificata && (
                                         <span className="inline-flex items-center px-2 py-1 bg-slate-900 rounded text-[10px] text-cyan-400 border border-slate-700">
