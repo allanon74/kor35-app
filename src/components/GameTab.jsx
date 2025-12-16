@@ -192,6 +192,7 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
 const GameTab = ({ onNavigate }) => {
     const { 
         selectedCharacterData: char, 
+        punteggiList, // NECESSARIO PER IL CALCOLO DEI MODIFICATORI
         unreadCount, 
         refreshCharacterData 
     } = useCharacter();
@@ -206,18 +207,12 @@ const GameTab = ({ onNavigate }) => {
     }, []);
 
     // --- LOGICA ACTIVE ITEMS ---
-    // COPIATA ESATTAMENTE DA HOMETAB.JSX
-    // Usa direttamente char.oggetti (la lista root) per garantire dati freschi.
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
         return char.oggetti.filter(obj => {
-          // 1. Mostra sempre Innesti (INN) e Mod (MOD), anche se scarichi
           if (['INN', 'MOD'].includes(obj.tipo_oggetto)) return true;
-          
-          // 2. Mostra oggetti fisici (es. armi/bacchette) SOLO se hanno cariche attive > 0
           if (obj.cariche_attuali > 0) return true;
-          
           return false;
         });
       }, [char?.oggetti]);
@@ -237,12 +232,33 @@ const GameTab = ({ onNavigate }) => {
         localStorage.setItem('kor35_favorites', JSON.stringify(newFavs));
     };
 
+    // --- CALCOLO STATISTICHE DINAMICO (INCLUDE MODIFICATORI) ---
+    // Questa funzione calcola il valore "Max" effettivo sommando i bonus (es. +5 PG da Mod attivata)
+    const getEffectiveStat = (sigla) => {
+        if (!char || !punteggiList) return 0;
+        
+        // 1. Trova la definizione della statistica (es. PS, PV, PA)
+        const def = punteggiList.find(p => p.sigla === sigla);
+        if (!def) return 0;
+
+        // 2. Recupera i modificatori calcolati dal backend (es. {add: 5, mol: 1.0})
+        // char.modificatori_calcolati è aggiornato quando si attivano gli oggetti
+        const mods = (char.modificatori_calcolati && char.modificatori_calcolati[def.parametro]) 
+                     ? char.modificatori_calcolati[def.parametro] 
+                     : { add: 0, mol: 1.0 };
+
+        // 3. Calcolo finale: (Valore Base + Additivi) * Moltiplicatori
+        // Nota: valore_predefinito è il valore "nudo" definito nel sistema
+        return Math.round((def.valore_predefinito + mods.add) * mods.mol);
+    };
+
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    const maxHP = char.statistiche_primarie?.find(x => x.sigla === 'PV')?.valore_max || 0;
-    const maxArmor = char.statistiche_primarie?.find(x => x.sigla === 'PA')?.valore_max || 0;
-    const maxShell = char.statistiche_primarie?.find(x => x.sigla === 'PS')?.valore_max || 0;
-    const maxChakra = char.statistiche_primarie?.find(x => x.sigla === 'CHA')?.valore_max || 1;
+    // Uso la funzione di calcolo per avere i massimali aggiornati in tempo reale
+    const maxHP = getEffectiveStat('PV');
+    const maxArmor = getEffectiveStat('PA');
+    const maxShell = getEffectiveStat('PS');
+    const maxChakra = getEffectiveStat('CHA');
 
     const tempStats = char.statistiche_temporanee || {};
     const tacticalStats = {
@@ -279,6 +295,7 @@ const GameTab = ({ onNavigate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
                     <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2"><Activity size={12} /> Status Fisico</h3>
+                    {/* Passiamo i massimali calcolati dinamicamente */}
                     <BodyDamageWidget stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onHit={(id, max) => handleStatChange(id, 'consuma', max)} />
                 </div>
                 <div className="flex flex-col gap-4">
