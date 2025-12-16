@@ -205,47 +205,61 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- LOGICA ACTIVE ITEMS DEFINITIVA ---
-    // 1. Identifica gli ID degli oggetti che hanno diritto di apparire (equipaggiati, innesti, o mod su equipaggiati).
-    // 2. Filtra la lista principale (char.oggetti) usando questi ID.
-    // Questo garantisce che usiamo sempre l'oggetto "fresco" con il timer aggiornato dalla lista root.
+    // --- LOGICA ACTIVE ITEMS ROBUSTA (Timer + Filtro Gerarchico) ---
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
-        // Step 1: Costruisci un Set degli ID validi da mostrare
-        const idsToDisplay = new Set();
-
+        // 1. Mappa di riferimento per i dati "freschi" (Timer aggiornati)
+        // Usiamo String(id) per evitare discrepanze di tipo
+        const freshMap = new Map();
         char.oggetti.forEach(item => {
-            // A. AUMENTI (Innesti/Mutazioni) - Sempre validi se hanno cariche
+            freshMap.set(String(item.id), item);
+        });
+
+        // 2. Set per i risultati (evita duplicati)
+        const resultMap = new Map();
+
+        // Helper per aggiungere alla lista finale prendendo il dato "fresco"
+        const addIfFresh = (id, fallback) => {
+            const strId = String(id);
+            const freshItem = freshMap.get(strId);
+            // Se esiste nella root list, usa quello (Timer OK). Altrimenti fallback (Timer Stale).
+            const target = freshItem || fallback;
+            if (!resultMap.has(strId)) {
+                resultMap.set(strId, target);
+            }
+        };
+
+        // 3. Scansione per regole di visualizzazione
+        char.oggetti.forEach(item => {
+            const hasCharges = (item.cariche_massime || 0) > 0;
+
+            // A. AUMENTI (Innesti/Mutazioni) - Sempre visibili se hanno cariche
             if (['INN', 'MUT', 'AUM'].includes(item.tipo_oggetto)) {
-                if (item.cariche_massime > 0) {
-                    idsToDisplay.add(item.id);
+                if (hasCharges) {
+                    addIfFresh(item.id, item);
                 }
             }
             
-            // B. OGGETTI EQUIPAGGIATI (Host)
+            // B. OGGETTI EQUIPAGGIATI
             if (item.is_equipaggiato) {
-                // L'oggetto stesso ha cariche?
-                if (item.cariche_massime > 0) {
-                    idsToDisplay.add(item.id);
+                // L'host stesso ha cariche?
+                if (hasCharges) {
+                    addIfFresh(item.id, item);
                 }
                 
-                // C. POTENZIAMENTI MONTATI SULL'OGGETTO EQUIPAGGIATO
+                // C. MOD dentro l'oggetto equipaggiato
                 if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
                     item.potenziamenti_installati.forEach(mod => {
-                        if (mod.cariche_massime > 0) {
-                            idsToDisplay.add(mod.id);
+                        if ((mod.cariche_massime || 0) > 0) {
+                            addIfFresh(mod.id, mod);
                         }
                     });
                 }
             }
         });
 
-        // Step 2: Filtra la lista ROOT (char.oggetti) mantenendo solo quelli nel Set.
-        // Questo è il trucco: HomeTab usa char.oggetti e i timer vanno. 
-        // Noi usiamo char.oggetti ma filtriamo via la roba inutile (mod nello zaino).
-        return char.oggetti.filter(item => idsToDisplay.has(item.id));
-
+        return Array.from(resultMap.values());
     }, [char?.oggetti]);
 
     const handleStatChange = (key, mode, maxOverride) => {
