@@ -12,7 +12,7 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) ---
+// --- WIDGET DANNI ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     // Zone del corpo
     const zones = [
@@ -198,6 +198,7 @@ const GameTab = ({ onNavigate }) => {
     } = useCharacter();
     
     const [favorites, setFavorites] = useState([]);
+    
     const statMutation = useOptimisticStatChange();
 
     useEffect(() => {
@@ -205,52 +206,62 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- LOGICA ACTIVE ITEMS IBRIDA ---
-    // 1. Filtra gli oggetti usando le regole strette (solo equipaggiati o innesti).
-    // 2. Recupera l'oggetto "fresco" dalla mappa root per avere i timer aggiornati.
+    // --- LOGICA ACTIVE ITEMS IBRIDA E ROBUSTA ---
+    // 1. Filtra rigorosamente (solo equipaggiati o innesti).
+    // 2. Usa un Map per prendere la versione "completa" dell'oggetto (con data_fine_attivazione).
+    //    Questo risolve il bug dei timer che sparivano.
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
-        // Mappa per accesso veloce ai dati aggiornati (timer/cariche)
-        const itemMap = new Map(char.oggetti.map(i => [i.id, i]));
+        // Mappa per accesso veloce ai dati completi (timer/cariche)
+        // Usiamo sia ID numerici che stringa per sicurezza
+        const itemMap = new Map();
+        char.oggetti.forEach(i => {
+            itemMap.set(i.id, i);
+            itemMap.set(String(i.id), i);
+        });
+
         const results = [];
-        
+        const addedIds = new Set(); // Per evitare duplicati (es. se un oggetto è sia equipaggiato che trovato nella map)
+
         char.oggetti.forEach(item => {
             // A. AUMENTI (Innesti/Mutazioni) - Sempre attivi se hanno cariche
             if (['INN', 'MUT', 'AUM'].includes(item.tipo_oggetto)) {
-                if (item.cariche_massime > 0) {
+                if (item.cariche_massime > 0 && !addedIds.has(item.id)) {
                     results.push(item);
+                    addedIds.add(item.id);
                 }
             }
             
             // B. OGGETTI EQUIPAGGIATI (Host)
             if (item.is_equipaggiato) {
                 // L'oggetto stesso ha cariche?
-                if (item.cariche_massime > 0) {
+                if (item.cariche_massime > 0 && !addedIds.has(item.id)) {
                     results.push(item);
+                    addedIds.add(item.id);
                 }
                 
                 // C. POTENZIAMENTI MONTATI
                 if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
                     item.potenziamenti_installati.forEach(mod => {
                         // CRUCIALE: Recupera la versione "fresca" della Mod dalla mappa root
-                        // Le mod montate sono presenti anche nella lista root 'char.oggetti'
-                        const freshMod = itemMap.get(mod.id);
+                        // Le mod montate sono presenti anche nella lista root 'char.oggetti'.
+                        // Se non le troviamo, usiamo 'mod' (fallback), ma 'mod' annidato spesso non ha data_fine_attivazione.
+                        // Grazie a itemMap, recuperiamo quello con il timer.
+                        const freshMod = itemMap.get(mod.id) || itemMap.get(String(mod.id));
                         
-                        // Se troviamo la versione fresca, usiamo quella (ha il timer aggiornato)
-                        // Altrimenti fallback su 'mod' (rischio timer vecchio, ma l'oggetto c'è)
                         const targetMod = freshMod || mod;
 
-                        if (targetMod.cariche_massime > 0) {
+                        if (targetMod.cariche_massime > 0 && !addedIds.has(targetMod.id)) {
                             results.push(targetMod);
+                            addedIds.add(targetMod.id);
                         }
                     });
                 }
             }
         });
 
-        // Rimuovi duplicati (per sicurezza)
-        return [...new Set(results)];
+        return results;
     }, [char?.oggetti]);
 
     const handleStatChange = (key, mode, maxOverride) => {
