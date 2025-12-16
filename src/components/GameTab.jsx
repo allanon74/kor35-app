@@ -12,7 +12,7 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) ---
+// --- WIDGET DANNI ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     // Zone del corpo
     const zones = [
@@ -206,16 +206,46 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- LOGICA ACTIVE ITEMS ---
+    // --- LOGICA ACTIVE ITEMS CORRETTA ---
+    // Filtra rigorosamente:
+    // 1. Aumenti (INN/MUT) con cariche
+    // 2. Oggetti Equipaggiati con cariche
+    // 3. Potenziamenti (MOD/MAT) SU Oggetti Equipaggiati
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
-        return char.oggetti.filter(obj => {
-          if (['INN', 'MOD'].includes(obj.tipo_oggetto)) return true;
-          if (obj.cariche_attuali > 0) return true;
-          return false;
+        const results = [];
+        
+        char.oggetti.forEach(item => {
+            // 1. AUMENTI (Innesti, Mutazioni) - Sempre attivi se hanno cariche
+            // (Si assume che se sono nella lista oggetti del PG, sono "installati" o innati)
+            if (['INN', 'MUT', 'AUM'].includes(item.tipo_oggetto)) {
+                if (item.cariche_massime > 0) {
+                    results.push(item);
+                }
+            }
+            
+            // 2. OGGETTI EQUIPAGGIATI (Armi, Oggetti)
+            if (item.is_equipaggiato) {
+                // A. L'oggetto stesso se ha cariche
+                if (item.cariche_massime > 0) {
+                    results.push(item);
+                }
+                
+                // B. I suoi potenziamenti (Mod, Materia) se hanno cariche
+                if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
+                    item.potenziamenti_installati.forEach(mod => {
+                        if (mod.cariche_massime > 0) {
+                            results.push(mod);
+                        }
+                    });
+                }
+            }
         });
-      }, [char?.oggetti]);
+
+        // Rimuovi eventuali duplicati (anche se con questa logica non dovrebbero essercene)
+        return [...new Set(results)];
+    }, [char?.oggetti]);
 
     const handleStatChange = (key, mode, maxOverride) => {
         statMutation.mutate({ charId: char.id, stat_sigla: key, mode, max_override: maxOverride || 0 });
@@ -232,29 +262,19 @@ const GameTab = ({ onNavigate }) => {
         localStorage.setItem('kor35_favorites', JSON.stringify(newFavs));
     };
 
-    // --- CALCOLO STATISTICHE DINAMICO (INCLUDE MODIFICATORI) ---
-    // Questa funzione calcola il valore "Max" effettivo sommando i bonus (es. +5 PG da Mod attivata)
+    // --- CALCOLO STATISTICHE DINAMICO ---
     const getEffectiveStat = (sigla) => {
         if (!char || !punteggiList) return 0;
-        
-        // 1. Trova la definizione della statistica (es. PS, PV, PA)
         const def = punteggiList.find(p => p.sigla === sigla);
         if (!def) return 0;
-
-        // 2. Recupera i modificatori calcolati dal backend (es. {add: 5, mol: 1.0})
-        // char.modificatori_calcolati è aggiornato quando si attivano gli oggetti
         const mods = (char.modificatori_calcolati && char.modificatori_calcolati[def.parametro]) 
                      ? char.modificatori_calcolati[def.parametro] 
                      : { add: 0, mol: 1.0 };
-
-        // 3. Calcolo finale: (Valore Base + Additivi) * Moltiplicatori
-        // Nota: valore_predefinito è il valore "nudo" definito nel sistema
         return Math.round((def.valore_predefinito + mods.add) * mods.mol);
     };
 
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
-    // Uso la funzione di calcolo per avere i massimali aggiornati in tempo reale
     const maxHP = getEffectiveStat('PV');
     const maxArmor = getEffectiveStat('PA');
     const maxShell = getEffectiveStat('PS');
@@ -295,7 +315,6 @@ const GameTab = ({ onNavigate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
                     <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2"><Activity size={12} /> Status Fisico</h3>
-                    {/* Passiamo i massimali calcolati dinamicamente */}
                     <BodyDamageWidget stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onHit={(id, max) => handleStatChange(id, 'consuma', max)} />
                 </div>
                 <div className="flex flex-col gap-4">
