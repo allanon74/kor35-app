@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import IconaPunteggio, { getContrastColor } from './IconaPunteggio';
 import { useCharacter } from './CharacterContext';
 import ModelloAuraSelectionModal from './ModelloAuraSelectionModal';
-import { AlertTriangle } from 'lucide-react';
+import AuraTraitsModal from './AuraTraitsModal'; // <--- IMPORTO IL NUOVO MODALE
+import { AlertTriangle, Crown } from 'lucide-react'; // Aggiungi Crown o altra icona per indicare "Special"
 
 const PunteggioDisplay = ({ 
   punteggio, 
@@ -12,8 +13,9 @@ const PunteggioDisplay = ({
   size = "m",
   className = ""
 }) => {
-  const { selectedCharacterData } = useCharacter();
+  const { selectedCharacterData, refreshCharacterData } = useCharacter();
   const [showModal, setShowModal] = useState(false);
+  const [showTraitsModal, setShowTraitsModal] = useState(false); // <--- STATO PER TRATTI
   
   if (!punteggio || !punteggio.colore) {
     return (
@@ -49,37 +51,55 @@ const PunteggioDisplay = ({
   const layout = layoutConfig[size] || layoutConfig.m;
   const url = punteggio.icona_url || punteggio.icona;
 
-  // --- LOGICA MODELLI AURA ---
+  // --- LOGICA MODELLI AURA ESISTENTE ---
   const isAura = punteggio.tipo === 'AU';
-  const hasModelsAvailable = punteggio.has_models; // Campo booleano dal backend
+  const hasModelsAvailable = punteggio.has_models;
   const userValue = parseInt(value) || 0;
   
-  // Cerchiamo se il PG ha un modello associato a questa aura
-  // Nota: Richiede che il backend (PersonaggioDetailSerializer) restituisca 'modelli_aura' con campo 'aura'
   const selectedModelName = isAura && selectedCharacterData?.modelli_aura
       ? selectedCharacterData.modelli_aura.find(m => m.aura === punteggio.id)?.nome 
       : null;
 
-  // Mostriamo il pulsante se: è Aura, PG ha punteggio > 0, ci sono modelli disponibili, e non ne ha scelto uno
   const needsSelection = isAura && userValue > 0 && hasModelsAvailable && !selectedModelName;
+
+  // --- NUOVA LOGICA TRATTI AURA (Configurazione Livelli) ---
+  // Verifica se esiste l'array configurazione_livelli nel punteggio (dal serializer)
+  const hasTraitsConfig = punteggio.configurazione_livelli && punteggio.configurazione_livelli.length > 0;
+
+  // Handler Principale
+  const handleContainerClick = () => {
+    if (hasTraitsConfig) {
+        setShowTraitsModal(true);
+    }
+  };
 
   return (
     <>
         <div 
-          className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} grow ${className}`}
+          className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} grow ${className} 
+            ${hasTraitsConfig ? 'cursor-pointer hover:brightness-110 relative group' : ''}`} // <--- Cursore se cliccabile
           style={{ backgroundColor: punteggio.colore }}
+          onClick={handleContainerClick} // <--- Click Handler
         >
           <div className={`flex items-center ${layout.gap} grow min-w-0`}> 
             
             {/* Icona */}
             {iconMode && url && (
-              <IconaPunteggio 
-                url={url} 
-                color={punteggio.colore} 
-                mode={iconMode} 
-                size={size}
-                className="shrink-0" 
-              />
+              <div className="relative">
+                  <IconaPunteggio 
+                    url={url} 
+                    color={punteggio.colore} 
+                    mode={iconMode} 
+                    size={size}
+                    className="shrink-0" 
+                  />
+                  {/* Badge per indicare che è cliccabile/configurabile */}
+                  {hasTraitsConfig && (
+                    <div className="absolute -top-1 -right-1 bg-amber-500 rounded-full p-0.5 border border-black/50 shadow-sm">
+                        <Crown size={8} className="text-white" fill="currentColor" />
+                    </div>
+                  )}
+              </div>
             )}
             
             {/* Contenitore Testo + Info Modello */}
@@ -93,7 +113,7 @@ const PunteggioDisplay = ({
                   </span>
                 )}
 
-                {/* Caso 1: Serve Selezione */}
+                {/* Caso 1: Serve Selezione Modello (Vecchio sistema) */}
                 {needsSelection && (
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
@@ -112,6 +132,13 @@ const PunteggioDisplay = ({
                         {selectedModelName}
                     </span>
                 )}
+                
+                {/* Caso 3: Label per Tratti (Opzionale, se vuoi indicare 'Gestisci') */}
+                {hasTraitsConfig && !needsSelection && !selectedModelName && (
+                    <span className="text-[9px] opacity-75 font-light italic leading-none hidden group-hover:block" style={{ color: textColor }}>
+                        Gestisci
+                    </span>
+                )}
             </div>
           </div>
           
@@ -126,11 +153,21 @@ const PunteggioDisplay = ({
           )}
         </div>
 
-        {/* Modale Selezione (Renderizzata solo se serve) */}
+        {/* Modale Selezione Modello (Vecchio sistema) */}
         {showModal && (
             <ModelloAuraSelectionModal 
                 aura={punteggio} 
                 onClose={() => setShowModal(false)} 
+            />
+        )}
+
+        {/* Modale Tratti Aura (Nuovo sistema) */}
+        {showTraitsModal && (
+            <AuraTraitsModal 
+                aura={punteggio}
+                personaggio={selectedCharacterData}
+                onClose={() => setShowTraitsModal(false)}
+                onUpdateCharacter={refreshCharacterData} // Passo la funzione di refresh del contesto
             />
         )}
     </>

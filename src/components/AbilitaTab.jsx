@@ -56,6 +56,13 @@ const AbilitaTab = ({ onLogout }) => {
 
   const possessedSkills = char?.abilita_possedute || [];
 
+  // --- FILTRO MODIFICA: Rimuovo i tratti speciali dalla lista acquistabili ---
+  // Questi verranno gestiti tramite il modale in PunteggioDisplay
+  const filteredAcquirableSkills = acquirableSkills 
+    ? acquirableSkills.filter(skill => !skill.is_tratto_aura) 
+    : [];
+  // --------------------------------------------------------------------------
+
   if (isLoadingAcquirable || isLoadingDetail || !char) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -216,7 +223,6 @@ const AbilitaTab = ({ onLogout }) => {
   };
 
   // --- DEFINIZIONE DELLE DUE LISTE ---
-  // Creiamo le liste qui per riutilizzarle sia nel layout Tabs che nel layout Grid
   
   const PossessedListComponent = (
     <GenericGroupedList 
@@ -235,7 +241,8 @@ const AbilitaTab = ({ onLogout }) => {
 
   const AcquirableListComponent = (
     <GenericGroupedList 
-      items={acquirableSkills} 
+      // USO LA LISTA FILTRATA QUI
+      items={filteredAcquirableSkills} 
       groupByKey="caratteristica"
       orderKey="ordine"
       titleKey="nome"
@@ -265,7 +272,7 @@ const AbilitaTab = ({ onLogout }) => {
             </div>
         </div>
 
-        {/* --- LAYOUT MOBILE: TABS (Visibile solo su width < md) --- */}
+        {/* --- LAYOUT MOBILE: TABS --- */}
         <div className="md:hidden">
             <Tab.Group>
             <Tab.List className="flex space-x-1 rounded-xl bg-gray-800/80 p-1 mb-4 shadow-inner">
@@ -291,7 +298,7 @@ const AbilitaTab = ({ onLogout }) => {
                             ? 'bg-indigo-600 text-white shadow-lg scale-[1.02]' 
                             : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
                     )}>
-                    Nuove <span className="ml-1 opacity-70 text-xs">({acquirableSkills.length})</span>
+                    Nuove <span className="ml-1 opacity-70 text-xs">({filteredAcquirableSkills.length})</span>
                     </button>
                 )}
                 </Tab>
@@ -308,10 +315,9 @@ const AbilitaTab = ({ onLogout }) => {
             </Tab.Group>
         </div>
 
-        {/* --- LAYOUT DESKTOP: DUE COLONNE (Visibile solo su width >= md) --- */}
+        {/* --- LAYOUT DESKTOP: DUE COLONNE --- */}
         <div className="hidden md:grid grid-cols-2 gap-6">
             
-            {/* Colonna Sinistra: Possedute */}
             <div>
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
                     <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -323,13 +329,12 @@ const AbilitaTab = ({ onLogout }) => {
                 {PossessedListComponent}
             </div>
 
-            {/* Colonna Destra: Nuove */}
             <div>
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
                     <PlusCircle className="w-6 h-6 text-indigo-500" />
                     <h2 className="text-xl font-bold text-white">
                         Nuove Abilità
-                        <span className="ml-2 text-sm font-normal text-gray-400">({acquirableSkills.length})</span>
+                        <span className="ml-2 text-sm font-normal text-gray-400">({filteredAcquirableSkills.length})</span>
                     </h2>
                 </div>
                 {AcquirableListComponent}

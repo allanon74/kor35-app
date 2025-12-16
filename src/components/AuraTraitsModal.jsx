@@ -1,67 +1,58 @@
-import React, { useState } from 'react';
-import { X, Check, Lock, ChevronRight, Loader2 } from 'lucide-react';
-import { acquireAbilita } from '../api'; 
+import React, { useState, useEffect } from 'react';
+import { X, Check, Lock, ChevronRight } from 'lucide-react'; // Assicurati di avere lucide-react o usa icone simili
+import { api } from '../api'; // Il tuo wrapper API
 
 export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCharacter }) {
-  const [selectedStep, setSelectedStep] = useState(null);
+  const [selectedStep, setSelectedStep] = useState(null); // Per gestire quale livello stiamo visualizzando (selezione)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Helper: trova se il PG ha già un tratto per questo livello
+  // 1. Helper per trovare se il PG ha già un tratto per questo livello
   const getPossessedTrait = (level) => {
-    if (!personaggio?.abilita_possedute || !aura.tratti_disponibili) return null;
-    
-    // Identifica gli ID validi per questo livello dall'aura
+    if (!personaggio?.abilita_possedute) return null;
+    // Cerca tra le abilità possedute quelle che matchano l'aura e il livello
+    // Nota: Backend deve serializzare 'livello_riferimento' e 'aura_riferimento' nelle abilità possedute, 
+    // oppure filtriamo per ID confrontando con tratti_disponibili.
+    // Metodo robusto basato su ID:
     const availableIdsAtLevel = aura.tratti_disponibili
         .filter(t => t.livello_riferimento === level)
         .map(t => t.id);
     
-    // Cerca se tra le possedute c'è uno di questi ID
     return personaggio.abilita_possedute.find(ab => availableIdsAtLevel.includes(ab.id));
   };
 
-  // Gestione Click su uno Step
+  // 2. Gestione Click su uno Step
   const handleStepClick = (config) => {
-    // Recupera il valore dell'aura dal personaggio. 
-    // Assumo che 'aura.nome' corrisponda alla chiave in 'caratteristiche_base' o 'punteggi'
-    // Se la struttura dati è diversa (es. array), va adattato. 
-    // Basandoci su PunteggioDisplay, sembra tu abbia 'value' passato come prop, qui lo ricalcoliamo o passiamo.
-    // Per sicurezza cerchiamo nel personaggio:
-    const auraName = aura.nome; 
-    let currentAuraValue = 0;
-    
-    // Tentativo di recupero valore (adatta in base alla tua struttura dati reale in 'personaggio')
-    if (personaggio.caratteristiche_base && personaggio.caratteristiche_base[auraName] !== undefined) {
-        currentAuraValue = personaggio.caratteristiche_base[auraName];
-    } else if (personaggio.punteggi) {
-        const p = personaggio.punteggi.find(p => p.nome === auraName);
-        if (p) currentAuraValue = p.valore_totale || p.valore;
-    }
-
+    const currentAuraValue = personaggio.caratteristiche_base[aura.nome] || 0; // O usa la logica corretta per leggere il valore
+    // Controllo se sbloccato
     if (currentAuraValue < config.livello) return; 
     
+    // Se già posseduto, magari mostriamo solo info (o logica cambio se supportata)
+    // Se non posseduto, apriamo la selezione
     setSelectedStep(config);
   };
 
-  // Gestione Acquisto
+  // 3. Gestione Acquisto (Selezione Tratto)
   const handleSelectTrait = async (trait) => {
     setLoading(true);
     setError(null);
     try {
-      // Uso la funzione esportata da api.js
-      await acquireAbilita(trait.id, personaggio.id, null); // onLogout null o passato come prop
+      // Usiamo l'endpoint standard di acquisto, il backend farà i controlli di validità speciali
+      const response = await api.post('/api/abilita/acquista/', {
+        personaggio_id: personaggio.id,
+        abilita_id: trait.id
+      });
       
-      if (onUpdateCharacter) await onUpdateCharacter(); // Refresh dei dati
-      setSelectedStep(null); 
+      onUpdateCharacter(response.data); // Aggiorna il PG nel contesto globale
+      setSelectedStep(null); // Chiudi la selezione
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Errore durante la selezione.");
+      setError(err.response?.data?.error || "Errore durante la selezione.");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- RENDER: LISTA OPZIONI ---
+  // --- RENDER: LISTA OPZIONI (QUANDO UNO STEP È SELEZIONATO) ---
   if (selectedStep) {
     const options = aura.tratti_disponibili.filter(t => t.livello_riferimento === selectedStep.livello);
     const possessed = getPossessedTrait(selectedStep.livello);
@@ -69,21 +60,23 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+            {/* Header Selezione */}
             <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 rounded-t-xl">
                 <div>
                     <h3 className="text-xl font-bold text-amber-400">Seleziona {selectedStep.nome_step}</h3>
                     <p className="text-sm text-slate-400">Livello Aura richiesto: {selectedStep.livello}</p>
                 </div>
-                <button onClick={() => setSelectedStep(null)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white">
+                <button onClick={() => setSelectedStep(null)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors">
                     <X size={24} />
                 </button>
             </div>
 
+            {/* Body Opzioni */}
             <div className="p-4 overflow-y-auto space-y-3 flex-1">
                 {error && <div className="p-3 bg-red-900/50 border border-red-500/50 text-red-200 rounded mb-4">{error}</div>}
                 
                 {options.length === 0 ? (
-                    <div className="text-center text-slate-500 py-8">Nessuna opzione disponibile.</div>
+                    <div className="text-center text-slate-500 py-8">Nessuna opzione disponibile per questo livello.</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {options.map(trait => {
@@ -101,13 +94,13 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                                         <h4 className={`font-bold ${isSelected ? 'text-amber-400' : 'text-slate-200'}`}>{trait.nome}</h4>
                                         {isSelected && <Check size={18} className="text-amber-500" />}
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-3 mb-2">{trait.descrizione_breve || "Nessuna descrizione."}</p>
+                                    <p className="text-xs text-slate-400 line-clamp-3">{trait.descrizione_breve || "Nessuna descrizione."}</p>
                                     
-                                    {/* Statistiche Bonus (se presenti nel serializer) */}
+                                    {/* Statistiche Bonus */}
                                     {trait.statistica_modificata && (
-                                        <span className="inline-flex items-center px-2 py-1 bg-slate-900 rounded text-[10px] text-cyan-400 border border-slate-700">
+                                        <div className="mt-2 inline-flex items-center px-2 py-1 bg-slate-900 rounded text-xs text-cyan-400 border border-slate-700">
                                             {trait.statistica_modificata}: +{trait.valore_modifica}
-                                        </span>
+                                        </div>
                                     )}
                                 </div>
                             );
@@ -115,55 +108,50 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                     </div>
                 )}
             </div>
-            {loading && <div className="p-2 text-center text-amber-400 text-sm">Elaborazione in corso...</div>}
         </div>
       </div>
     );
   }
 
-  // --- RENDER: TIMELINE ---
+  // --- RENDER: TIMELINE PRINCIPALE ---
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl relative overflow-hidden">
         
-        <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-linear-to-r from-slate-900 to-slate-800 shrink-0">
+        {/* Header Modal */}
+        <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-linear-to-r from-slate-900 to-slate-800">
             <div className="flex items-center gap-3">
+                {/* Icona Aura se disponibile */}
                 <div className="w-10 h-10 rounded bg-slate-800 border border-slate-600 flex items-center justify-center text-xl font-bold text-slate-300">
                    {aura.nome.charAt(0)}
                 </div>
                 <div>
                     <h2 className="text-xl font-bold text-white tracking-wide">Evoluzione {aura.nome}</h2>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider">Tratti & Caratteristiche</p>
+                    <p className="text-xs text-slate-400 uppercase tracking-wider">Configurazione Tratti</p>
                 </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white">
+            <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors">
                 <X size={24} />
             </button>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto">
-            {aura.configurazione_livelli && aura.configurazione_livelli.map((step, index) => {
+        {/* Timeline Content */}
+        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+            {aura.configurazione_livelli.map((step, index) => {
                 const possessedTrait = getPossessedTrait(step.livello);
-                
-                // Recupero valore aura (logica duplicata per sicurezza nel render)
-                let currentVal = 0;
-                // Logica euristica per trovare il valore dell'aura corrente
-                if (personaggio.punteggi) {
-                     const p = personaggio.punteggi.find(pt => pt.id === aura.id || pt.nome === aura.nome);
-                     if (p) currentVal = parseInt(p.valore_totale || p.valore);
-                }
-
+                const currentVal = personaggio.caratteristiche_base[aura.nome] || 0; // Assicurati di prendere il valore base corretto
                 const isLocked = currentVal < step.livello;
                 const isCompleted = !!possessedTrait;
+                const isNext = !isLocked && !isCompleted;
 
                 return (
-                    <div key={step.id || index} className="relative pl-8 last:pb-0">
-                        {/* Linea verticale */}
+                    <div key={step.id} className="relative pl-8 last:pb-0">
+                        {/* Linea verticale connettore */}
                         {index !== aura.configurazione_livelli.length - 1 && (
-                            <div className={`absolute left-[11px] top-8 bottom-6 w-0.5 ${isCompleted ? 'bg-amber-500/50' : 'bg-slate-700'}`} />
+                            <div className={`absolute left-[11px] top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-amber-500/50' : 'bg-slate-700'}`} />
                         )}
 
-                        {/* Indicatore Cerchio */}
+                        {/* Indicatore Stato (Cerchio) */}
                         <div className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center border-2 z-10 
                             ${isCompleted ? 'bg-amber-900 border-amber-500 text-amber-500' : 
                               isLocked ? 'bg-slate-800 border-slate-600 text-slate-600' : 
@@ -171,34 +159,35 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                             {isLocked ? <Lock size={12} /> : isCompleted ? <Check size={12} /> : <div className="w-2 h-2 bg-cyan-400 rounded-full" />}
                         </div>
 
-                        {/* Card Step */}
+                        {/* Card Contenuto */}
                         <div 
                             className={`p-4 rounded-lg border transition-all ${
                                 isLocked ? 'bg-slate-900/50 border-slate-800 opacity-60' : 
                                 isCompleted ? 'bg-slate-800 border-amber-500/30' : 
-                                'bg-slate-800 border-cyan-500/50 cursor-pointer hover:bg-slate-750 hover:shadow-lg'
+                                'bg-slate-800 border-cyan-500/50 cursor-pointer hover:bg-slate-750 hover:shadow-lg hover:shadow-cyan-900/20'
                             }`}
-                            onClick={() => !isLocked && handleStepClick(step)}
+                            onClick={() => handleStepClick(step)}
                         >
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <span className="text-[10px] font-mono text-slate-500 mb-1 block uppercase">Livello {step.livello}</span>
-                                    <h3 className={`font-bold text-lg leading-tight ${isCompleted ? 'text-amber-400' : 'text-slate-200'}`}>
+                                    <span className="text-xs font-mono text-slate-500 mb-1 block">LIVELLO AURA {step.livello}</span>
+                                    <h3 className={`font-bold text-lg ${isCompleted ? 'text-amber-400' : 'text-slate-100'}`}>
                                         {step.nome_step}
                                     </h3>
                                 </div>
                                 {!isLocked && !isCompleted && <ChevronRight size={20} className="text-cyan-500" />}
                             </div>
                             
+                            {/* Descrizione o Tratto Selezionato */}
                             <div className="mt-2 text-sm">
                                 {isLocked ? (
-                                    <p className="text-slate-600 italic text-xs">Sblocca al livello {step.livello}</p>
+                                    <p className="text-slate-600 italic">Richiede punteggio Aura {step.livello}</p>
                                 ) : isCompleted ? (
-                                    <div className="flex items-center gap-2 bg-amber-950/30 px-3 py-2 rounded border border-amber-500/20 mt-1">
-                                        <span className="text-amber-200 font-medium text-sm">{possessedTrait.nome}</span>
+                                    <div className="flex items-center gap-2 bg-amber-950/30 px-3 py-2 rounded border border-amber-500/20">
+                                        <span className="text-amber-200 font-medium">{possessedTrait.nome}</span>
                                     </div>
                                 ) : (
-                                    <p className="text-slate-400 text-xs">{step.descrizione_fluff || "Clicca per selezionare un tratto."}</p>
+                                    <p className="text-slate-400">{step.descrizione_fluff || "Seleziona un tratto per questo livello."}</p>
                                 )}
                             </div>
                         </div>
@@ -206,6 +195,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                 );
             })}
         </div>
+
       </div>
     </div>
   );
