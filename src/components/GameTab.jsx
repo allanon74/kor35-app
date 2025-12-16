@@ -12,7 +12,7 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-// --- WIDGET DANNI ---
+// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     // Zone del corpo
     const zones = [
@@ -192,13 +192,12 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
 const GameTab = ({ onNavigate }) => {
     const { 
         selectedCharacterData: char, 
-        punteggiList, // NECESSARIO PER IL CALCOLO DEI MODIFICATORI
+        punteggiList, 
         unreadCount, 
         refreshCharacterData 
     } = useCharacter();
     
     const [favorites, setFavorites] = useState([]);
-    
     const statMutation = useOptimisticStatChange();
 
     useEffect(() => {
@@ -206,44 +205,51 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- LOGICA ACTIVE ITEMS CORRETTA ---
-    // Filtra rigorosamente:
-    // 1. Aumenti (INN/MUT) con cariche
-    // 2. Oggetti Equipaggiati con cariche
-    // 3. Potenziamenti (MOD/MAT) SU Oggetti Equipaggiati
+    // --- LOGICA ACTIVE ITEMS IBRIDA ---
+    // 1. Filtra gli oggetti usando le regole strette (solo equipaggiati o innesti).
+    // 2. Recupera l'oggetto "fresco" dalla mappa root per avere i timer aggiornati.
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
+        // Mappa per accesso veloce ai dati aggiornati (timer/cariche)
+        const itemMap = new Map(char.oggetti.map(i => [i.id, i]));
         const results = [];
         
         char.oggetti.forEach(item => {
-            // 1. AUMENTI (Innesti, Mutazioni) - Sempre attivi se hanno cariche
-            // (Si assume che se sono nella lista oggetti del PG, sono "installati" o innati)
+            // A. AUMENTI (Innesti/Mutazioni) - Sempre attivi se hanno cariche
             if (['INN', 'MUT', 'AUM'].includes(item.tipo_oggetto)) {
                 if (item.cariche_massime > 0) {
                     results.push(item);
                 }
             }
             
-            // 2. OGGETTI EQUIPAGGIATI (Armi, Oggetti)
+            // B. OGGETTI EQUIPAGGIATI (Host)
             if (item.is_equipaggiato) {
-                // A. L'oggetto stesso se ha cariche
+                // L'oggetto stesso ha cariche?
                 if (item.cariche_massime > 0) {
                     results.push(item);
                 }
                 
-                // B. I suoi potenziamenti (Mod, Materia) se hanno cariche
+                // C. POTENZIAMENTI MONTATI
                 if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
                     item.potenziamenti_installati.forEach(mod => {
-                        if (mod.cariche_massime > 0) {
-                            results.push(mod);
+                        // CRUCIALE: Recupera la versione "fresca" della Mod dalla mappa root
+                        // Le mod montate sono presenti anche nella lista root 'char.oggetti'
+                        const freshMod = itemMap.get(mod.id);
+                        
+                        // Se troviamo la versione fresca, usiamo quella (ha il timer aggiornato)
+                        // Altrimenti fallback su 'mod' (rischio timer vecchio, ma l'oggetto c'è)
+                        const targetMod = freshMod || mod;
+
+                        if (targetMod.cariche_massime > 0) {
+                            results.push(targetMod);
                         }
                     });
                 }
             }
         });
 
-        // Rimuovi eventuali duplicati (anche se con questa logica non dovrebbero essercene)
+        // Rimuovi duplicati (per sicurezza)
         return [...new Set(results)];
     }, [char?.oggetti]);
 
