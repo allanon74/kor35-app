@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check, Lock, ChevronRight, Loader2 } from 'lucide-react';
 import { acquireAbilita } from '../api'; 
 
@@ -7,30 +7,47 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // --- LOGICA DI RECUPERO VALORE AURA (CORRETTA) ---
+  // --- DEBUG INIZIALE (Controlla la Console F12) ---
+  useEffect(() => {
+    console.log("--- AURA TRAITS DEBUG ---");
+    console.log("Aura Target (dal bottone):", aura);
+    console.log("Punteggi Personaggio:", personaggio?.punteggi);
+  }, [aura, personaggio]);
+
+  // --- LOGICA RECUPERO VALORE BASATA SU ID ---
   const getCurrentAuraValue = () => {
     if (!personaggio) return 0;
-    let val = 0;
-
-    // 1. Cerca nell'array 'punteggi' (Metodo preferito: contiene ID e valori calcolati)
+    
+    // 1. Cerca nell'array 'punteggi'
     if (personaggio.punteggi && Array.isArray(personaggio.punteggi)) {
-        // Cerca prima per ID (univoco), poi fallback su Nome
-        const found = personaggio.punteggi.find(p => p.id === aura.id || p.nome === aura.nome);
+        
+        // Tentativo A: L'ID nell'array del PG corrisponde all'ID dell'Aura (Struttura piatta)
+        let found = personaggio.punteggi.find(p => p.id === aura.id);
+
+        // Tentativo B: L'ID è dentro un oggetto nidificato (es. p.punteggio.id) o campo estero (p.punteggio_id)
+        if (!found) {
+            found = personaggio.punteggi.find(p => 
+                (p.punteggio && p.punteggio.id === aura.id) || // Serializer Deep
+                (p.punteggio_id === aura.id) ||                // Serializer Flat
+                (p.punteggio === aura.id)                      // Serializer PrimaryKey
+            );
+        }
+
         if (found) {
-            // Usa valore_totale se esiste (include bonus), altrimenti valore base
-            val = found.valore_totale ?? found.valore;
+            // Logica per determinare quale campo contiene il numero
+            const val = found.valore_totale ?? found.valore ?? 0;
+            return parseInt(val, 10);
         }
     }
-    // 2. Fallback: cerca nell'oggetto chiave-valore 'caratteristiche_base' (se esiste)
-    else if (personaggio.caratteristiche_base && personaggio.caratteristiche_base[aura.nome] !== undefined) {
-        val = personaggio.caratteristiche_base[aura.nome];
+
+    // 2. Fallback: Dizionario caratteristiche_base (per compatibilità vecchie strutture)
+    if (personaggio.caratteristiche_base && personaggio.caratteristiche_base[aura.nome] !== undefined) {
+        return parseInt(personaggio.caratteristiche_base[aura.nome], 10);
     }
 
-    // Restituisce un intero (gestisce casi in cui il valore è stringa "2")
-    return parseInt(val || 0, 10);
+    return 0;
   };
 
-  // Calcoliamo il valore una volta sola per tutto il render
   const currentAuraVal = getCurrentAuraValue();
   // -----------------------------------------------------
 
@@ -38,32 +55,29 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
   const getPossessedTrait = (level) => {
     if (!personaggio?.abilita_possedute || !aura.tratti_disponibili) return null;
     
-    // Identifica gli ID validi per questo livello dall'aura
+    // Trova gli ID delle abilità valide per questo livello
     const availableIdsAtLevel = aura.tratti_disponibili
         .filter(t => t.livello_riferimento === level)
         .map(t => t.id);
     
-    // Cerca se tra le possedute c'è uno di questi ID
+    // Cerca tra le possedute
     return personaggio.abilita_possedute.find(ab => availableIdsAtLevel.includes(ab.id));
   };
 
-  // Gestione Click su uno Step
   const handleStepClick = (config) => {
-    // Controllo di sicurezza usando il valore calcolato correttamente
+    // Blocca se il livello non è sufficiente
     if (currentAuraVal < config.livello) return; 
-    
     setSelectedStep(config);
   };
 
-  // Gestione Acquisto
   const handleSelectTrait = async (trait) => {
     setLoading(true);
     setError(null);
     try {
-      // Uso la funzione esportata da api.js
+      // API call
       await acquireAbilita(trait.id, personaggio.id, null); 
       
-      if (onUpdateCharacter) await onUpdateCharacter(); // Refresh dei dati
+      if (onUpdateCharacter) await onUpdateCharacter(); 
       setSelectedStep(null); 
     } catch (err) {
       console.error(err);
@@ -73,7 +87,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     }
   };
 
-  // --- RENDER: LISTA OPZIONI (Detail View) ---
+  // --- RENDER SELEZIONE (Detail) ---
   if (selectedStep) {
     const options = aura.tratti_disponibili.filter(t => t.livello_riferimento === selectedStep.livello);
     const possessed = getPossessedTrait(selectedStep.livello);
@@ -132,7 +146,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     );
   }
 
-  // --- RENDER: TIMELINE (Main View) ---
+  // --- RENDER TIMELINE (Main) ---
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
@@ -160,7 +174,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
             {aura.configurazione_livelli && aura.configurazione_livelli.map((step, index) => {
                 const possessedTrait = getPossessedTrait(step.livello);
                 
-                // USA LA VARIABILE CALCOLATA
+                // CHECK SBLOCCO
                 const isLocked = currentAuraVal < step.livello;
                 const isCompleted = !!possessedTrait;
 
