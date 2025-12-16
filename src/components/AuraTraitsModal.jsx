@@ -87,7 +87,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                                     
                                     {trait.statistica_modificata && (
                                         <span className="inline-flex items-center px-2 py-1 bg-slate-900 rounded text-[10px] text-cyan-400 border border-slate-700">
-                                            {trait.statistica_modificata}: +{trait.valore_modifica}
+                                            {trait.statistica_modificata}
                                         </span>
                                     )}
                                 </div>
