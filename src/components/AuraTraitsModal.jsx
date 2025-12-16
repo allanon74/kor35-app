@@ -7,6 +7,33 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // --- LOGICA DI RECUPERO VALORE AURA (CORRETTA) ---
+  const getCurrentAuraValue = () => {
+    if (!personaggio) return 0;
+    let val = 0;
+
+    // 1. Cerca nell'array 'punteggi' (Metodo preferito: contiene ID e valori calcolati)
+    if (personaggio.punteggi && Array.isArray(personaggio.punteggi)) {
+        // Cerca prima per ID (univoco), poi fallback su Nome
+        const found = personaggio.punteggi.find(p => p.id === aura.id || p.nome === aura.nome);
+        if (found) {
+            // Usa valore_totale se esiste (include bonus), altrimenti valore base
+            val = found.valore_totale ?? found.valore;
+        }
+    }
+    // 2. Fallback: cerca nell'oggetto chiave-valore 'caratteristiche_base' (se esiste)
+    else if (personaggio.caratteristiche_base && personaggio.caratteristiche_base[aura.nome] !== undefined) {
+        val = personaggio.caratteristiche_base[aura.nome];
+    }
+
+    // Restituisce un intero (gestisce casi in cui il valore è stringa "2")
+    return parseInt(val || 0, 10);
+  };
+
+  // Calcoliamo il valore una volta sola per tutto il render
+  const currentAuraVal = getCurrentAuraValue();
+  // -----------------------------------------------------
+
   // Helper: trova se il PG ha già un tratto per questo livello
   const getPossessedTrait = (level) => {
     if (!personaggio?.abilita_possedute || !aura.tratti_disponibili) return null;
@@ -22,23 +49,8 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
 
   // Gestione Click su uno Step
   const handleStepClick = (config) => {
-    // Recupera il valore dell'aura dal personaggio. 
-    // Assumo che 'aura.nome' corrisponda alla chiave in 'caratteristiche_base' o 'punteggi'
-    // Se la struttura dati è diversa (es. array), va adattato. 
-    // Basandoci su PunteggioDisplay, sembra tu abbia 'value' passato come prop, qui lo ricalcoliamo o passiamo.
-    // Per sicurezza cerchiamo nel personaggio:
-    const auraName = aura.nome; 
-    let currentAuraValue = 0;
-    
-    // Tentativo di recupero valore (adatta in base alla tua struttura dati reale in 'personaggio')
-    if (personaggio.caratteristiche_base && personaggio.caratteristiche_base[auraName] !== undefined) {
-        currentAuraValue = personaggio.caratteristiche_base[auraName];
-    } else if (personaggio.punteggi) {
-        const p = personaggio.punteggi.find(p => p.nome === auraName);
-        if (p) currentAuraValue = p.valore_totale || p.valore;
-    }
-
-    if (currentAuraValue < config.livello) return; 
+    // Controllo di sicurezza usando il valore calcolato correttamente
+    if (currentAuraVal < config.livello) return; 
     
     setSelectedStep(config);
   };
@@ -49,7 +61,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     setError(null);
     try {
       // Uso la funzione esportata da api.js
-      await acquireAbilita(trait.id, personaggio.id, null); // onLogout null o passato come prop
+      await acquireAbilita(trait.id, personaggio.id, null); 
       
       if (onUpdateCharacter) await onUpdateCharacter(); // Refresh dei dati
       setSelectedStep(null); 
@@ -61,7 +73,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     }
   };
 
-  // --- RENDER: LISTA OPZIONI ---
+  // --- RENDER: LISTA OPZIONI (Detail View) ---
   if (selectedStep) {
     const options = aura.tratti_disponibili.filter(t => t.livello_riferimento === selectedStep.livello);
     const possessed = getPossessedTrait(selectedStep.livello);
@@ -103,7 +115,6 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                                     </div>
                                     <p className="text-xs text-slate-400 line-clamp-3 mb-2">{trait.descrizione_breve || "Nessuna descrizione."}</p>
                                     
-                                    {/* Statistiche Bonus (se presenti nel serializer) */}
                                     {trait.statistica_modificata && (
                                         <span className="inline-flex items-center px-2 py-1 bg-slate-900 rounded text-[10px] text-cyan-400 border border-slate-700">
                                             {trait.statistica_modificata}: +{trait.valore_modifica}
@@ -121,11 +132,12 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
     );
   }
 
-  // --- RENDER: TIMELINE ---
+  // --- RENDER: TIMELINE (Main View) ---
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
         
+        {/* Header */}
         <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-linear-to-r from-slate-900 to-slate-800 shrink-0">
             <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded bg-slate-800 border border-slate-600 flex items-center justify-center text-xl font-bold text-slate-300">
@@ -133,7 +145,9 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                 </div>
                 <div>
                     <h2 className="text-xl font-bold text-white tracking-wide">Evoluzione {aura.nome}</h2>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider">Tratti & Caratteristiche</p>
+                    <p className="text-xs text-slate-400 uppercase tracking-wider">
+                        Livello Attuale: <span className="text-amber-400 font-bold ml-1">{currentAuraVal}</span>
+                    </p>
                 </div>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white">
@@ -141,19 +155,13 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
             </button>
         </div>
 
+        {/* Timeline Content */}
         <div className="p-6 space-y-6 overflow-y-auto">
             {aura.configurazione_livelli && aura.configurazione_livelli.map((step, index) => {
                 const possessedTrait = getPossessedTrait(step.livello);
                 
-                // Recupero valore aura (logica duplicata per sicurezza nel render)
-                let currentVal = 0;
-                // Logica euristica per trovare il valore dell'aura corrente
-                if (personaggio.punteggi) {
-                     const p = personaggio.punteggi.find(pt => pt.id === aura.id || pt.nome === aura.nome);
-                     if (p) currentVal = parseInt(p.valore_totale || p.valore);
-                }
-
-                const isLocked = currentVal < step.livello;
+                // USA LA VARIABILE CALCOLATA
+                const isLocked = currentAuraVal < step.livello;
                 const isCompleted = !!possessedTrait;
 
                 return (
