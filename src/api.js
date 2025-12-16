@@ -1,212 +1,818 @@
-import React, { useState } from 'react';
-import { X, Check, Lock, ChevronRight, Loader2 } from 'lucide-react';
-import { acquireAbilita } from '../api'; 
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://www.k-o-r-35.it';
 
-export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCharacter }) {
-  const [selectedStep, setSelectedStep] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Helper: trova se il PG ha già un tratto per questo livello
-  const getPossessedTrait = (level) => {
-    if (!personaggio?.abilita_possedute || !aura.tratti_disponibili) return null;
-    
-    // Identifica gli ID validi per questo livello dall'aura
-    const availableIdsAtLevel = aura.tratti_disponibili
-        .filter(t => t.livello_riferimento === level)
-        .map(t => t.id);
-    
-    // Cerca se tra le possedute c'è uno di questi ID
-    return personaggio.abilita_possedute.find(ab => availableIdsAtLevel.includes(ab.id));
-  };
-
-  // Gestione Click su uno Step
-  const handleStepClick = (config) => {
-    // Recupera il valore dell'aura dal personaggio. 
-    // Assumo che 'aura.nome' corrisponda alla chiave in 'caratteristiche_base' o 'punteggi'
-    // Se la struttura dati è diversa (es. array), va adattato. 
-    // Basandoci su PunteggioDisplay, sembra tu abbia 'value' passato come prop, qui lo ricalcoliamo o passiamo.
-    // Per sicurezza cerchiamo nel personaggio:
-    const auraName = aura.nome; 
-    let currentAuraValue = 0;
-    
-    // Tentativo di recupero valore (adatta in base alla tua struttura dati reale in 'personaggio')
-    if (personaggio.caratteristiche_base && personaggio.caratteristiche_base[auraName] !== undefined) {
-        currentAuraValue = personaggio.caratteristiche_base[auraName];
-    } else if (personaggio.punteggi) {
-        const p = personaggio.punteggi.find(p => p.nome === auraName);
-        if (p) currentAuraValue = p.valore_totale || p.valore;
-    }
-
-    if (currentAuraValue < config.livello) return; 
-    
-    setSelectedStep(config);
-  };
-
-  // Gestione Acquisto
-  const handleSelectTrait = async (trait) => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Uso la funzione esportata da api.js
-      await acquireAbilita(trait.id, personaggio.id, null); // onLogout null o passato come prop
-      
-      if (onUpdateCharacter) await onUpdateCharacter(); // Refresh dei dati
-      setSelectedStep(null); 
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Errore durante la selezione.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- RENDER: LISTA OPZIONI ---
-  if (selectedStep) {
-    const options = aura.tratti_disponibili.filter(t => t.livello_riferimento === selectedStep.livello);
-    const possessed = getPossessedTrait(selectedStep.livello);
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-            <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 rounded-t-xl">
-                <div>
-                    <h3 className="text-xl font-bold text-amber-400">Seleziona {selectedStep.nome_step}</h3>
-                    <p className="text-sm text-slate-400">Livello Aura richiesto: {selectedStep.livello}</p>
-                </div>
-                <button onClick={() => setSelectedStep(null)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white">
-                    <X size={24} />
-                </button>
-            </div>
-
-            <div className="p-4 overflow-y-auto space-y-3 flex-1">
-                {error && <div className="p-3 bg-red-900/50 border border-red-500/50 text-red-200 rounded mb-4">{error}</div>}
-                
-                {options.length === 0 ? (
-                    <div className="text-center text-slate-500 py-8">Nessuna opzione disponibile.</div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {options.map(trait => {
-                            const isSelected = possessed?.id === trait.id;
-                            return (
-                                <div key={trait.id} 
-                                     className={`relative p-4 rounded-lg border transition-all cursor-pointer group
-                                        ${isSelected 
-                                            ? 'bg-amber-900/20 border-amber-500 ring-1 ring-amber-500' 
-                                            : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-750'
-                                        }`}
-                                     onClick={() => !isSelected && handleSelectTrait(trait)}
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h4 className={`font-bold ${isSelected ? 'text-amber-400' : 'text-slate-200'}`}>{trait.nome}</h4>
-                                        {isSelected && <Check size={18} className="text-amber-500" />}
-                                    </div>
-                                    <p className="text-xs text-slate-400 line-clamp-3 mb-2">{trait.descrizione_breve || "Nessuna descrizione."}</p>
-                                    
-                                    {/* Statistiche Bonus (se presenti nel serializer) */}
-                                    {trait.statistica_modificata && (
-                                        <span className="inline-flex items-center px-2 py-1 bg-slate-900 rounded text-[10px] text-cyan-400 border border-slate-700">
-                                            {trait.statistica_modificata}: +{trait.valore_modifica}
-                                        </span>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-            {loading && <div className="p-2 text-center text-amber-400 text-sm">Elaborazione in corso...</div>}
-        </div>
-      </div>
-    );
+/**
+ * Helper generico per le chiamate API autenticate.
+ * Gestisce l'header Authorization e il caso di token non valido.
+ * @param {string} endpoint - L'endpoint API (es. /personaggi/api/personaggi/)
+ * @param {object} options - Opzioni standard di fetch (method, body, etc.)
+ * @param {function} onLogout - La funzione di logout da App.jsx
+ */
+export const fetchAuthenticated = async (endpoint, options = {}, onLogout) => {
+  const token = localStorage.getItem('kor35_token');
+  
+  if (!token) {
+    console.error('Nessun token trovato, logout in corso.');
+    if (onLogout) onLogout();
+    // NOTA: Restituire una Promise reietta è corretto qui
+    return Promise.reject(new Error('Nessun token di autenticazione.'));
   }
 
-  // --- RENDER: TIMELINE ---
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
+  const headers = {
+    // 'Content-Type': 'application/json', // Rimosso: vedi nota sotto
+    'Authorization': `Token ${token}`,
+    ...options.headers,
+  };
+
+  // Aggiungi Content-Type solo se il corpo non è FormData
+  // (per gestire futuri upload di file)
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  } else if (!options.body) {
+    // Aggiungi solo se non c'è corpo (come nelle GET)
+    headers['Content-Type'] = 'application/json';
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+
+    if (response.status === 401 || response.status === 403) {
+      console.error('Token non valido o scaduto, logout in corso.');
+      if (onLogout) onLogout();
+      throw new Error('Autenticazione fallita.');
+    }
+    
+    if (!response.ok) {
+        // --- CORREZIONE: Gestione Errori "Body Stream" ---
+        // Leggiamo la risposta come testo *una sola volta*.
+        const errorText = await response.text();
+        let errorMsg = errorText; // Default all'intero testo
         
-        <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-linear-to-r from-slate-900 to-slate-800 shrink-0">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded bg-slate-800 border border-slate-600 flex items-center justify-center text-xl font-bold text-slate-300">
-                   {aura.nome.charAt(0)}
-                </div>
-                <div>
-                    <h2 className="text-xl font-bold text-white tracking-wide">Evoluzione {aura.nome}</h2>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider">Tratti & Caratteristiche</p>
-                </div>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white">
-                <X size={24} />
-            </button>
-        </div>
+        try {
+            // Proviamo a parsare il testo come JSON
+            const errorData = JSON.parse(errorText);
+            // Se ci riusciamo, cerchiamo un messaggio di errore più pulito
+            errorMsg = errorData.detail || errorData.error || JSON.stringify(errorData);
+        } catch (e) {
+            // Non era JSON, va bene. 'errorMsg' rimane l'HTML/testo
+            // (es. la pagina 404 di Django)
+        }
+        
+        // Ora lanciamo l'errore in modo pulito
+        console.error(`Errore API ${response.status} (${response.statusText}) per ${endpoint}:`, errorMsg);
+        throw new Error(`Errore API (${response.status}): ${errorMsg}`);
+        // --- FINE CORREZIONE ---
+    }
 
-        <div className="p-6 space-y-6 overflow-y-auto">
-            {aura.configurazione_livelli && aura.configurazione_livelli.map((step, index) => {
-                const possessedTrait = getPossessedTrait(step.livello);
-                
-                // Recupero valore aura (logica duplicata per sicurezza nel render)
-                let currentVal = 0;
-                // Logica euristica per trovare il valore dell'aura corrente
-                if (personaggio.punteggi) {
-                     const p = personaggio.punteggi.find(pt => pt.id === aura.id || pt.nome === aura.nome);
-                     if (p) currentVal = parseInt(p.valore_totale || p.valore);
-                }
+    if (response.status === 204) { // No Content
+        return null;
+    }
 
-                const isLocked = currentVal < step.livello;
-                const isCompleted = !!possessedTrait;
+    return await response.json();
+  
+  } catch (error) {
+    // Rimuoviamo il console.error qui perché lo gestiamo già sopra
+    // in modo più pulito nel blocco !response.ok
+    // console.error(`Errore durante il fetch a ${endpoint}:`, error);
+    throw error;
+  }
+};
 
-                return (
-                    <div key={step.id || index} className="relative pl-8 last:pb-0">
-                        {/* Linea verticale */}
-                        {index !== aura.configurazione_livelli.length - 1 && (
-                            <div className={`absolute left-[11px] top-8 bottom-6 w-0.5 ${isCompleted ? 'bg-amber-500/50' : 'bg-slate-700'}`} />
-                        )}
+// --- Funzioni API specifiche ---
 
-                        {/* Indicatore Cerchio */}
-                        <div className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center border-2 z-10 
-                            ${isCompleted ? 'bg-amber-900 border-amber-500 text-amber-500' : 
-                              isLocked ? 'bg-slate-800 border-slate-600 text-slate-600' : 
-                              'bg-cyan-900 border-cyan-500 text-cyan-400 animate-pulse'}`}>
-                            {isLocked ? <Lock size={12} /> : isCompleted ? <Check size={12} /> : <div className="w-2 h-2 bg-cyan-400 rounded-full" />}
-                        </div>
+/**
+ * Recupera la configurazione degli slot corporei (costanti).
+ * Utile se vuoi popolarli dinamicamente, altrimenti usiamo costanti nel frontend.
+ */
+export const getBodySlots = () => {
+  // Possiamo hardcodarlo nel frontend per semplicità o fare una chiamata
+  return [
+      { code: 'HD1', name: 'Testa 1 (Cervello/Occhi)' },
+      { code: 'HD2', name: 'Testa 2 (Volto/Orecchie)' },
+      { code: 'TR1', name: 'Tronco 1 (Cuore/Polmoni)' },
+      { code: 'TR2', name: 'Tronco 2 (Spina Dorsale/Pelle)' },
+      { code: 'RA', name: 'Braccio Destro' },
+      { code: 'LA', name: 'Braccio Sinistro' },
+      { code: 'RL', name: 'Gamba Destra' },
+      { code: 'LL', name: 'Gamba Sinistra' },
+  ];
+};
 
-                        {/* Card Step */}
-                        <div 
-                            className={`p-4 rounded-lg border transition-all ${
-                                isLocked ? 'bg-slate-900/50 border-slate-800 opacity-60' : 
-                                isCompleted ? 'bg-slate-800 border-amber-500/30' : 
-                                'bg-slate-800 border-cyan-500/50 cursor-pointer hover:bg-slate-750 hover:shadow-lg'
-                            }`}
-                            onClick={() => !isLocked && handleStepClick(step)}
-                        >
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <span className="text-[10px] font-mono text-slate-500 mb-1 block uppercase">Livello {step.livello}</span>
-                                    <h3 className={`font-bold text-lg leading-tight ${isCompleted ? 'text-amber-400' : 'text-slate-200'}`}>
-                                        {step.nome_step}
-                                    </h3>
-                                </div>
-                                {!isLocked && !isCompleted && <ChevronRight size={20} className="text-cyan-500" />}
-                            </div>
-                            
-                            <div className="mt-2 text-sm">
-                                {isLocked ? (
-                                    <p className="text-slate-600 italic text-xs">Sblocca al livello {step.livello}</p>
-                                ) : isCompleted ? (
-                                    <div className="flex items-center gap-2 bg-amber-950/30 px-3 py-2 rounded border border-amber-500/20 mt-1">
-                                        <span className="text-amber-200 font-medium text-sm">{possessedTrait.nome}</span>
-                                    </div>
-                                ) : (
-                                    <p className="text-slate-400 text-xs">{step.descrizione_fluff || "Clicca per selezionare un tratto."}</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-      </div>
-    </div>
+/**
+ * Recupera la lista dei personaggi associati all'utente.
+ */
+export const getPersonaggiList = (onLogout, viewAll = false) => {
+  // Costruisci la query string se viewAll è true
+  const queryParam = viewAll ? '?view_all=true' : '';
+  
+  return fetchAuthenticated(`/personaggi/api/personaggi/${queryParam}`, { method: 'GET' }, onLogout);
+};
+
+/**
+ * Recupera i dettagli di un personaggio specifico.
+ */
+export const getPersonaggioDetail = (id, onLogout) => {
+  return fetchAuthenticated(`/personaggi/api/personaggi/${id}/`, { method: 'GET' }, onLogout);
+};
+
+export const getQrCodeData = (qrId, onLogout) => {
+  return fetchAuthenticated(`/personaggi/api/qrcode/${qrId}/`, { method: 'GET' }, onLogout);
+};
+
+/**
+ * Richiede un oggetto da un inventario (azione "Prendi").
+ */
+export const richiediTransazione = (oggettoId, mittenteInventarioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/transazioni/richiedi/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        oggetto_id: oggettoId,
+        mittente_id: mittenteInventarioId,
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Tenta di rubare un oggetto da un personaggio (azione "Ruba").
+ */
+export const rubaOggetto = (oggettoId, targetPersonaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/transazioni/ruba/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        oggetto_id: oggettoId,
+        target_personaggio_id: targetPersonaggioId,
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Acquisisce un oggetto/attivata da un QR code.
+ */
+export const acquisisciItem = (qrCodeId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/transazioni/acquisisci/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        qrcode_id: qrCodeId,
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Recupera la lista master di tutte le abilità.
+ * @deprecated Non più usata, sostituita da getAcquirableSkills e dati da getPersonaggioDetail
+ */
+export const getAbilitaMasterList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/abilita/master_list/', { method: 'GET' }, onLogout);
+};
+
+/**
+ * Tenta di acquisire un'abilità per il personaggio loggato.
+ */
+export const acquireAbilita = (abilitaId, characterId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/acquisisci_abilita/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        abilita_id: abilitaId,
+        personaggio_id: characterId, // <-- NUOVO: Passa l'ID al backend
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Recupera la lista di tutti i punteggi (Caratteristiche, Statistiche, ecc).
+ */
+export const getPunteggiList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/punteggi/all/', { method: 'GET' }, onLogout);
+};
+
+
+// --- MODIFICA CHIAVE ---
+// Questa è la versione corretta della funzione che usa il tuo
+// helper 'fetchAuthenticated' e l'URL corretto.
+// Sostituisce la versione errata che ti avevo dato.
+
+/**
+ * Recupera la lista *filtrata* di abilità acquistabili per il personaggio.
+ * GET /personaggi/api/personaggio/me/abilita_acquistabili/
+ */
+export const getAcquirableSkills = (onLogout, selectedCharacterId) => {
+  // Aggiunge l'ID del personaggio come query parameter. Il backend dovrà leggere 'char_id'.
+  const queryParam = selectedCharacterId ? `?char_id=${selectedCharacterId}` : '';
+  
+  return fetchAuthenticated(
+    `/personaggi/api/personaggio/me/abilita_acquistabili/${queryParam}`, // <--- AGGIUNTO queryParam
+    { method: 'GET' }, 
+    onLogout
+  );
+};
+
+/**
+ * GET /personaggi/api/messaggi/ - Ottiene la lista dei messaggi per il PG loggato.
+ */
+export const getMessages = (personaggioId, onLogout) => {
+  if (!personaggioId) {
+    return Promise.resolve([]); // Ritorna un array vuoto se l'ID non è fornito
+  }
+  const url = `/personaggi/api/messaggi/?personaggio_id=${personaggioId}`;
+
+  return fetchAuthenticated(url, { method: 'GET' }, onLogout);
+};
+
+/**
+ * POST /personaggi/api/messaggi/broadcast/send/ - Invia un messaggio Broadcast.
+ */
+export const postBroadcastMessage = (messageData, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/messaggi/broadcast/send/',
+    {
+      method: 'POST',
+      body: JSON.stringify(messageData)
+    },
+    onLogout
+  );
+};
+
+/**
+ * GET /personaggi/api/messaggi/admin/sent/ - Ottiene i messaggi inviati dall'admin.
+ */
+export const getAdminSentMessages = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/messaggi/admin/sent/', { method: 'GET' }, onLogout);
+};
+
+export const saveWebPushSubscription = async (subscription, onLogout) => {
+    const token = localStorage.getItem('kor35_token'); // O il nome chiave che usi tu
+    
+    if (!token) return;
+
+    const response = await fetch('https://www.kor35.it/personaggi/api/webpush/subscribe/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${token}` // FONDAMENTALE: Invia l'identità dell'utente
+        },
+        body: JSON.stringify(subscription)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Errore server (${response.status}): ${errorText}`);
+    }
+
+    return await response.json();
+};
+
+// --- NUOVE FUNZIONI PER INFUSIONI E TESSITURE ---
+
+/**
+ * Recupera la lista delle infusioni acquistabili.
+ */
+export const getAcquirableInfusioni = (characterId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/personaggio/me/infusioni_acquistabili/?char_id=${characterId}`, 
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Acquisisce un'infusione.
+ */
+export const acquireInfusione = (infusioneId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/acquisisci_infusione/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        infusione_id: infusioneId, 
+        personaggio_id: personaggioId 
+      }),
+    }, 
+    onLogout
+  );
+};
+
+/**
+ * Recupera la lista delle tessiture acquistabili.
+ */
+export const getAcquirableTessiture = (characterId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/personaggio/me/tessiture_acquistabili/?char_id=${characterId}`, 
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Acquisisce una tessitura.
+ */
+export const acquireTessitura = (tessituraId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/acquisisci_tessitura/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        tessitura_id: tessituraId, 
+        personaggio_id: personaggioId 
+      }),
+    }, 
+    onLogout
+  );
+};
+
+export const getModelliAura = (auraId) => {
+  return fetchAuthenticated(`/personaggi/api/punteggio/${auraId}/modelli/`, { method: 'GET' });
+};
+
+export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/seleziona_modello_aura/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ personaggio_id: personaggioId, modello_id: modelloId })
+    }, 
+    onLogout
+  );
+};
+
+export const getProposte = async (charId) => {
+    // fetchAuthenticated restituisce già i dati, non la response raw.
+    // L'errore viene gestito internamente a fetchAuthenticated.
+    return await fetchAuthenticated(`/personaggi/api/proposte/?char_id=${charId}`, {
+        method: 'GET'
+    });
+};
+
+export const createProposta = async (data) => {
+    return await fetchAuthenticated(`/personaggi/api/proposte/`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+};
+
+export const updateProposta = async (id, data) => {
+    return await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+    });
+};
+
+export const deleteProposta = async (id) => {
+    // Qui fetchAuthenticated potrebbe tornare null (204 No Content), va bene così.
+    await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
+        method: 'DELETE'
+    });
+    return true;
+};
+
+export const sendProposta = async (id) => {
+    return await fetchAuthenticated(`/personaggi/api/proposte/${id}/invia_proposta/`, {
+        method: 'POST'
+    });
+};
+
+// --- UTILITIES PUNTEGGI ---
+
+export const getAllPunteggi = async () => {
+    // Assicurati che l'URL finisca con /all/ come definito in urls.py
+    return await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
+        method: 'GET'
+    });
+};
+
+export const getMattoniAura = async (auraId) => {
+    return await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
+        method: 'GET'
+    });
+};
+
+export const getAdminPendingProposalsCount = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/admin/pending_proposals_count/', { method: 'GET' }, onLogout);
+};
+
+export const markMessageAsRead = (messageId, characterId, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/messaggi/${messageId}/leggi/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ personaggio_id: characterId })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Cancella un messaggio (soft delete per l'utente).
+ * POST /personaggi/api/messaggi/<id>/cancella/
+ */
+export const deleteMessage = (messageId, characterId, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/messaggi/${messageId}/cancella/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ personaggio_id: characterId })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Recupera i log paginati.
+ * @param {number} page - Numero di pagina (default 1)
+ */
+export const getPersonaggioLogs = (page = 1) => {
+  return fetchAuthenticated(`/personaggi/api/personaggio/me/logs/?page=${page}`, { method: 'GET' });
+};
+
+/**
+ * Recupera le transazioni paginate.
+ * @param {number} page - Numero di pagina
+ * @param {string} tipo - 'entrata' o 'uscita'
+ * @param {string} charId - ID del personaggio (opzionale)
+ */
+export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata', charId = null) => {
+  let url = `/personaggi/api/personaggio/me/transazioni/?page=${page}&tipo=${tipo}`;
+  if (charId) {
+    url += `&char_id=${charId}`;
+  }
+  return fetchAuthenticated(url, { method: 'GET' });
+}
+/**
+ * Cerca personaggi per nome (Autocomplete)
+ * Opzionalmente filtra per compatibilità con un'infusione (Innesto).
+ */
+export const searchPersonaggi = (query, currentCharacterId, infusioneId = null) => {
+  let url = `/personaggi/api/personaggi/search/?q=${encodeURIComponent(query)}&current_char_id=${currentCharacterId}`;
+  if (infusioneId) {
+      url += `&infusione_id=${infusioneId}`;
+  }
+  return fetchAuthenticated(url, { method: 'GET' });
+};
+
+/**
+ * Invia un messaggio privato
+ */
+export const sendPrivateMessage = (messageData, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/messaggi/send/',
+    {
+      method: 'POST',
+      body: JSON.stringify(messageData)
+    },
+    onLogout
+  );
+};
+
+// Crea un oggetto fisico a partire da un'infusione
+export const craftOggetto = (infusioneId) => {
+  return fetchAuthenticated('/api/oggetti/craft/', {
+    method: 'POST',
+    body: JSON.stringify({ infusione_id: infusioneId })
+  });
+};
+
+// // Monta un potenziamento (Mod/Materia) su un oggetto ospite
+// export const montaPotenziamento = (ospiteId, potenziamentoId) => {
+//   return fetchAuthenticated(`/api/oggetti/${ospiteId}/monta/`, {
+//     method: 'POST',
+//     body: JSON.stringify({ potenziamento_id: potenziamentoId })
+//   });
+// };
+
+// Smonta un potenziamento
+export const smontaPotenziamento = (ospiteId, potenziamentoId) => {
+  return fetchAuthenticated(`/api/oggetti/${ospiteId}/smonta/`, {
+    method: 'POST',
+    body: JSON.stringify({ potenziamento_id: potenziamentoId })
+  });
+};
+
+// Usa una carica (Mod, Innesti, Oggetti)
+export const usaCarica = (oggettoId) => {
+  return fetchAuthenticated(`/api/oggetti/${oggettoId}/usa_carica/`, {
+    method: 'POST'
+  });
+};
+
+// Ricarica oggetto (pagando crediti)
+export const ricaricaOggetto = (oggettoId) => {
+  return fetchAuthenticated(`/api/oggetti/${oggettoId}/ricarica/`, {
+    method: 'POST'
+  });
+};
+
+// --- API INVENTARIO & OGGETTI ---
+
+/**
+ * Equipaggia o disequipaggia un oggetto fisico.
+ * POST /personaggi/api/oggetti/equipaggia/
+ */
+export const equipaggiaOggetto = (itemId, characterId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/equipaggia/', 
+    {
+      method: 'POST',
+      // Invia anche char_id nel JSON
+      body: JSON.stringify({ 
+          item_id: itemId,
+          char_id: characterId 
+      })
+    },
+    onLogout
+  );
+};
+
+export const assemblaOggetto = (hostId, modId, characterId, useAcademy = false, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/assembla/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        host_id: hostId, 
+        mod_id: modId,
+        char_id: characterId,
+        use_academy: useAcademy // Parametro nuovo
+      })
+    },
+    onLogout
+  );
+};
+
+export const smontaOggetto = (hostId, modId, characterId, useAcademy = false, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/smonta/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        host_id: hostId, 
+        mod_id: modId,
+        char_id: characterId,
+        use_academy: useAcademy
+      })
+    },
+    onLogout
+  );
+};
+
+// Se hai bisogno del crafting nel frontend in futuro:
+export const craftOggettoFromInfusione = (infusioneId, targetId, qrCode, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/oggetti/craft/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        infusione_id: infusioneId,
+        target_id: targetId,
+        qr_code: qrCode
+      })
+    },
+    onLogout
+  );
+};
+
+export const startForging = (infusioneId, charId, slotTarget = null) => {
+  return fetchAuthenticated(
+    '/personaggi/api/crafting/avvia_forgiatura/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        infusione_id: infusioneId, 
+        char_id: charId,
+        slot_target: slotTarget
+      })
+    }
+  );
+};
+
+export const completeForging = (forgiaturaId, charId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/crafting/completa_forgiatura/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        forgiatura_id: forgiaturaId, 
+        char_id: charId 
+      })
+    }
+  );
+};
+
+export const getForgingQueue = (charId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/crafting/coda_forgiatura/?char_id=${charId}`,
+    { method: 'GET' }
+  );
+};
+
+// --- API NEGOZIO (SHOP) ---
+
+export const getShopItems = () => {
+  return fetchAuthenticated(
+    '/personaggi/api/negozio/listino/',
+    { method: 'GET' }
+  );
+};
+
+export const buyShopItem = (oggettoId, charId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/negozio/acquista/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        oggetto_id: oggettoId, 
+        char_id: charId 
+      })
+    }
+  );
+};
+
+/**
+ * Valida la compatibilità e le competenze per un assemblaggio.
+ */
+export const validateAssembly = (charId, hostId, modId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/assembly/validate/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        char_id: charId,
+        host_id: hostId,
+        mod_id: modId
+      })
+    }
+  );
+};
+
+/**
+ * Crea una richiesta di lavoro (Installazione o Rimozione).
+ * @param {string} operationType - 'INST' (Default) o 'RIMO'
+ */
+export const createAssemblyRequest = (charId, hostId, modId, artisanName, offer, operationType = 'INST') => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/crea/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        committente_id: charId,
+        host_id: hostId,
+        comp_id: modId,
+        artigiano_nome: artisanName,
+        offerta: offer,
+        tipo_operazione: operationType // <--- Passa il tipo al backend
+      })
+    }
+  );
+};
+
+/**
+ * Accetta una richiesta di assemblaggio (Lato Artigiano).
+ */
+export const acceptAssemblyRequest = (requestId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/richieste-assemblaggio/${requestId}/accetta/`, 
+    { method: 'POST' }
+  );
+};
+
+/**
+ * Rifiuta una richiesta di assemblaggio (Lato Artigiano).
+ */
+export const rejectAssemblyRequest = (requestId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
+    { method: 'POST' }
+  );
+};
+
+/**
+ * Recupera le richieste di assemblaggio (inviate o ricevute).
+ */
+export const getAssemblyRequests = () => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/', 
+    { method: 'GET' }
+  );
+};
+
+// Aggiungi questa funzione per recuperare gli artigiani capaci
+// Questa va bene per entrambi (Assemblaggio e Forgiatura)
+export const getCapableArtisans = (charId, hostId, modId, infusioneId) => {
+  return fetchAuthenticated('/personaggi/api/assembly/artisans/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        char_id: charId, 
+        host_id: hostId, 
+        mod_id: modId, 
+        infusione_id: infusioneId 
+      })
+  });
+};
+
+export const forgiaOggetto = (infusioneId, charId, useAcademy = false) => {
+  return fetchAuthenticated('/personaggi/api/oggetti/forgia/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        infusione_id: infusioneId, 
+        char_id: charId, 
+        use_academy: useAcademy 
+      })
+  });
+};
+
+export const createForgingRequest = (charId, infusioneId, artisanName, offer) => {
+  return fetchAuthenticated('/personaggi/api/richieste-assemblaggio/crea/', {
+      method: 'POST',
+      body: JSON.stringify({
+        committente_id: charId,
+        infusione_id: infusioneId,
+        artigiano_nome: artisanName,
+        offerta: offer,
+        tipo_operazione: 'FORG'
+      })
+  });
+};
+
+export const validateForging = (charId, infusioneId) => {
+  return fetchAuthenticated('/personaggi/api/forging/validate/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        char_id: charId, 
+        infusione_id: infusioneId 
+      })
+  });
+};
+
+export const getClassiOggetto = () => {
+  return fetchAuthenticated('/personaggi/api/classi_oggetto/', { method: 'GET' });
+};
+
+/**
+ * Esegue l'installazione di un innesto da una forgiatura completata.
+ * (Operazione "Fai da te" o "Accettazione diretta")
+ */
+export const installaInnesto = (forgiaturaId, slot, characterId, targetId = null) => {
+  return fetchAuthenticated(
+    '/personaggi/api/crafting/completa_forgiatura/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        forgiatura_id: forgiaturaId, 
+        char_id: characterId, // Chi esegue l'azione (Forgiatore)
+        slot_scelto: slot,
+        target_id: targetId   // NUOVO: Chi riceve l'innesto (Destinatario)
+      })
+    }
   );
 }
+
+/**
+ * Crea una richiesta di operazione chirurgica a un altro giocatore.
+ */
+export const richiediOperazioneChirurgica = (forgiaturaId, slot, medicoNome, offerta, characterId) => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/crea/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        committente_id: characterId,
+        forgiatura_id: forgiaturaId,
+        slot_destinazione: slot,
+        artigiano_nome: medicoNome,
+        offerta: offerta,
+        tipo_operazione: 'GRAF' // Codice per Graft/Innesto
+      })
+    }
+  );
+};
+
+export const richiediAssemblaggio = (data) => {
+  return fetchAuthenticated(
+    '/personaggi/api/richieste-assemblaggio/crea/', 
+    {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }
+  );
+};
+
+/**
+ * Rifiuta una richiesta (Wrapper per coerenza di naming).
+ */
+export const rifiutaRichiestaAssemblaggio = (requestId) => {
+  return fetchAuthenticated(
+    `/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
+    { method: 'POST' }
+  );
+};
