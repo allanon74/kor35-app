@@ -198,7 +198,6 @@ const GameTab = ({ onNavigate }) => {
     } = useCharacter();
     
     const [favorites, setFavorites] = useState([]);
-    
     const statMutation = useOptimisticStatChange();
 
     useEffect(() => {
@@ -206,62 +205,47 @@ const GameTab = ({ onNavigate }) => {
         setFavorites(savedFavs);
     }, []);
 
-    // --- LOGICA ACTIVE ITEMS IBRIDA E ROBUSTA ---
-    // 1. Filtra rigorosamente (solo equipaggiati o innesti).
-    // 2. Usa un Map per prendere la versione "completa" dell'oggetto (con data_fine_attivazione).
-    //    Questo risolve il bug dei timer che sparivano.
+    // --- LOGICA ACTIVE ITEMS DEFINITIVA ---
+    // 1. Identifica gli ID degli oggetti che hanno diritto di apparire (equipaggiati, innesti, o mod su equipaggiati).
+    // 2. Filtra la lista principale (char.oggetti) usando questi ID.
+    // Questo garantisce che usiamo sempre l'oggetto "fresco" con il timer aggiornato dalla lista root.
     const activeItems = useMemo(() => {
         if (!char?.oggetti) return [];
         
-        // Mappa per accesso veloce ai dati completi (timer/cariche)
-        // Usiamo sia ID numerici che stringa per sicurezza
-        const itemMap = new Map();
-        char.oggetti.forEach(i => {
-            itemMap.set(i.id, i);
-            itemMap.set(String(i.id), i);
-        });
-
-        const results = [];
-        const addedIds = new Set(); // Per evitare duplicati (es. se un oggetto è sia equipaggiato che trovato nella map)
+        // Step 1: Costruisci un Set degli ID validi da mostrare
+        const idsToDisplay = new Set();
 
         char.oggetti.forEach(item => {
-            // A. AUMENTI (Innesti/Mutazioni) - Sempre attivi se hanno cariche
+            // A. AUMENTI (Innesti/Mutazioni) - Sempre validi se hanno cariche
             if (['INN', 'MUT', 'AUM'].includes(item.tipo_oggetto)) {
-                if (item.cariche_massime > 0 && !addedIds.has(item.id)) {
-                    results.push(item);
-                    addedIds.add(item.id);
+                if (item.cariche_massime > 0) {
+                    idsToDisplay.add(item.id);
                 }
             }
             
             // B. OGGETTI EQUIPAGGIATI (Host)
             if (item.is_equipaggiato) {
                 // L'oggetto stesso ha cariche?
-                if (item.cariche_massime > 0 && !addedIds.has(item.id)) {
-                    results.push(item);
-                    addedIds.add(item.id);
+                if (item.cariche_massime > 0) {
+                    idsToDisplay.add(item.id);
                 }
                 
-                // C. POTENZIAMENTI MONTATI
+                // C. POTENZIAMENTI MONTATI SULL'OGGETTO EQUIPAGGIATO
                 if (item.potenziamenti_installati && item.potenziamenti_installati.length > 0) {
                     item.potenziamenti_installati.forEach(mod => {
-                        // CRUCIALE: Recupera la versione "fresca" della Mod dalla mappa root
-                        // Le mod montate sono presenti anche nella lista root 'char.oggetti'.
-                        // Se non le troviamo, usiamo 'mod' (fallback), ma 'mod' annidato spesso non ha data_fine_attivazione.
-                        // Grazie a itemMap, recuperiamo quello con il timer.
-                        const freshMod = itemMap.get(mod.id) || itemMap.get(String(mod.id));
-                        
-                        const targetMod = freshMod || mod;
-
-                        if (targetMod.cariche_massime > 0 && !addedIds.has(targetMod.id)) {
-                            results.push(targetMod);
-                            addedIds.add(targetMod.id);
+                        if (mod.cariche_massime > 0) {
+                            idsToDisplay.add(mod.id);
                         }
                     });
                 }
             }
         });
 
-        return results;
+        // Step 2: Filtra la lista ROOT (char.oggetti) mantenendo solo quelli nel Set.
+        // Questo è il trucco: HomeTab usa char.oggetti e i timer vanno. 
+        // Noi usiamo char.oggetti ma filtriamo via la roba inutile (mod nello zaino).
+        return char.oggetti.filter(item => idsToDisplay.has(item.id));
+
     }, [char?.oggetti]);
 
     const handleStatChange = (key, mode, maxOverride) => {
