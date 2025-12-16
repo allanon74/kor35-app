@@ -83,7 +83,7 @@ export default function AuraTraitsModal({ aura, personaggio, onClose, onUpdateCh
                                         <h4 className={`font-bold ${isSelected ? 'text-amber-400' : 'text-slate-200'}`}>{trait.nome}</h4>
                                         {isSelected && <Check size={18} className="text-amber-500" />}
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-3 mb-2">{trait.descrizione_breve || "Nessuna descrizione."}</p>
+                                    <p className="text-xs text-slate-400 line-clamp-3 mb-2">{trait.descrizione || "Nessuna descrizione."}</p>
                                     
                                     {trait.statistica_modificata && (
                                         <span className="inline-flex items-center px-2 py-1 bg-slate-900 rounded text-[10px] text-cyan-400 border border-slate-700">
