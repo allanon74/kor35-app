@@ -131,9 +131,12 @@ const MainPage = ({ token, onLogout }) => {
       setUserShortcuts(newShortcuts);
 
       try {
-          // Nota: Assicurati che l'API supporti PATCH su impostazioni_ui come discusso
+          // CORREZIONE APPLICATA QUI: header Content-Type aggiunto
           await fetchAuthenticated(`/personaggi/api/personaggi/${selectedCharacterId}/`, onLogout, {
               method: 'PATCH',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
               body: JSON.stringify({
                   impostazioni_ui: { 
                       ...(selectedCharacterData.impostazioni_ui || {}),
@@ -234,7 +237,7 @@ const MainPage = ({ token, onLogout }) => {
                 {/* DRAWER CONTENT SCROLLABLE */}
                 <div className="flex-1 overflow-y-auto p-3 space-y-4">
                     
-                    {/* 1. SELETTORE PERSONAGGIO (RIPRISTINATO) */}
+                    {/* 1. SELETTORE PERSONAGGIO */}
                     <div className="bg-gray-700/30 p-3 rounded-lg border border-gray-700">
                         <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Cambia Personaggio</label>
                         <select 
@@ -252,7 +255,7 @@ const MainPage = ({ token, onLogout }) => {
                             ))}
                         </select>
 
-                        {/* 2. ADMIN VIEW ALL TOGGLE (RIPRISTINATO) */}
+                        {/* 2. ADMIN VIEW ALL TOGGLE */}
                         {isAdmin && (
                             <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-700">
                                 <span className="text-sm text-gray-300 flex items-center gap-2">
@@ -327,7 +330,7 @@ const MainPage = ({ token, onLogout }) => {
                     </div>
                 </div>
 
-                {/* DRAWER FOOTER (VERSIONE & UPDATE - RIPRISTINATO) */}
+                {/* DRAWER FOOTER (VERSIONE & UPDATE) */}
                 <div className="p-4 border-t border-gray-700 bg-gray-900/80 shrink-0">
                     <div className="flex justify-between items-center mb-3">
                         <span className="text-xs text-gray-500 font-mono">v{APP_VERSION}</span>
