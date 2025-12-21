@@ -816,3 +816,27 @@ export const rifiutaRichiestaAssemblaggio = (requestId) => {
     { method: 'POST' }
   );
 };
+
+/**
+ * Aggiorna parzialmente i dati del personaggio (es. impostazioni UI).
+ */
+export const updatePersonaggioSettings = (charId, settingsData, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/personaggi/${charId}/`, 
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ impostazioni_ui: settingsData })
+    }, 
+    onLogout
+  );
+};
+
+// --- FUNZIONI CERIMONIALI ---
+
+export const getAcquirableCerimoniali = (charId, onLogout) => {
+    return fetchAuthenticated(
+        `/personaggi/api/personaggio/me/cerimoniali_acquistabili/?char_id=${charId}`, 
+        { method: 'GET' }, 
+        onLogout
+    );
+}
