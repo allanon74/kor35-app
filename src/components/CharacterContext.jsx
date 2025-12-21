@@ -15,7 +15,8 @@ import {
   usePersonaggioDetail, 
   useAcquirableSkills, 
   useAcquirableInfusioni, 
-  useAcquirableTessiture 
+  useAcquirableTessiture,
+  useAcquirableCerimoniali
 } from '../hooks/useGameData';
 
 const CharacterContext = createContext(null);
@@ -86,6 +87,11 @@ export const CharacterProvider = ({ children, onLogout }) => {
       refetch: refetchTessiture 
   } = useAcquirableTessiture(selectedCharacterId);
 
+  const { 
+      data: acquirableCerimoniali = [], 
+      refetch: refetchCerimoniali 
+  } = useAcquirableCerimoniali(selectedCharacterId);
+
   // --- LOGICA SELEZIONE AUTOMATICA PG ---
   useEffect(() => {
     if (!selectedCharacterId && personaggiList.length > 0) {
@@ -111,9 +117,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
         refetchCharacterDetail(),
         refetchSkills(),
         refetchInfusioni(),
-        refetchTessiture()
+        refetchTessiture(),
+        refetchCerimoniali()
     ]);
-  }, [refetchCharacterDetail, refetchSkills, refetchInfusioni, refetchTessiture]);
+  }, [refetchCharacterDetail, refetchSkills, refetchInfusioni, refetchTessiture, refetchCerimoniali]);
 
   const fetchPersonaggi = useCallback(() => {
     return refetchPersonaggiList();
@@ -226,6 +233,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     acquirableSkills,
     acquirableInfusioni,
     acquirableTessiture,
+    acquirableCerimoniali,
     
     isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi || mutatingCount > 0,
     isLoadingList,

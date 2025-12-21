@@ -15,7 +15,8 @@ import {
   equipaggiaOggetto,
   assemblaOggetto,
   smontaOggetto,
-  completeForging
+  completeForging,
+  getAcquirableCerimoniali,
 } from '../api';
 
 // --- HOOKS DI LETTURA (QUERY) ---
@@ -67,6 +68,15 @@ export const useAcquirableTessiture = (id) => {
   return useQuery({
     queryKey: ['tessiture_acquistabili', id],
     queryFn: () => getAcquirableTessiture(id),
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useAcquirableCerimoniali = (id) => {
+  return useQuery({
+    queryKey: ['cerimoniali_acquistabili', id],
+    queryFn: () => getAcquirableCerimoniali(id), // <--- Chiamata API
     enabled: !!id,
     staleTime: 1000 * 60 * 5,
   });
