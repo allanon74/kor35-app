@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader, Scan, Eye, Grab, Sparkles, User, FileText, Bot, Timer } from 'lucide-react';
 import { richiediTransazione, rubaOggetto, acquisisciItem } from '../api'; 
 import { useCharacter } from './CharacterContext';
+import { useTimers } from '../hooks/useTimers';
 
 //##################################################################
 // ## COMPONENTE HELPER 1: MODALE "VEDI OGGETTO" ##
@@ -388,6 +389,31 @@ const AcquisizioneView = ({ qrId, data, tipo, onLogout, onClose }) => {
 //##################################################################
 const QrResultModal = ({ data, onClose, onLogout, onStealSuccess }) => {
   
+  const { addTimer } = useTimers(); // <--- Accediamo alla logica dei timer
+  const lastProcessedQr = useRef(null); // Per evitare che il timer scatti multipli in caso di re-render
+
+  useEffect(() => {
+    // VERIFICA BACKEND: Il tuo backend invia i dettagli del timer in 'data.timer' 
+    // o 'data.dati.timer_config' a seconda della view specifica.
+    const timerData = data?.timer || data?.dati?.timer_config;
+    const qrId = data?.qrcode_id || data?.dati?.qr_code_id;
+
+    if (timerData && qrId && lastProcessedQr.current !== qrId) {
+      // Inneschiamo il timer nel CharacterContext tramite l'hook useTimers
+      // Usiamo i nomi dei campi esatti del tuo database (Django models)
+      addTimer({
+nome: t.nome, // Il tuo overlay vuole 'nome'
+      duration: t.durata_secondi, 
+      alert_suono: t.alert_suono,
+      notifica_push: t.notifica_push,
+      messaggio_in_app: t.messaggio_in_app
+      });
+
+      lastProcessedQr.current = qrId;
+      console.log(`✅ Timer "${timerData.nome}" avviato tramite QrResultModal`);
+    }
+  }, [data, addTimer]);
+
   const renderContent = () => {
     if (!data) {
       return (
