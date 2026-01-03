@@ -6,6 +6,7 @@ import HomeTab from './HomeTab.jsx';
 import QrTab from './QrTab.jsx';
 import QrResultModal from './QrResultModal.jsx';
 import { useCharacter } from './CharacterContext';
+import { TimerOverlay } from './TimerOverlay';
 import { fetchAuthenticated } from '../api'; 
 
 import { 
@@ -90,7 +91,9 @@ const MainPage = ({ token, onLogout }) => {
   const {
     personaggiList,
     selectedCharacterId,
-    selectedCharacterData, 
+    selectedCharacterData,
+    activeTimers,      // <--- Aggiunto
+    removeTimerState,  // <--- Aggiunto 
     selectCharacter,
     fetchPersonaggi,
     isLoading,
@@ -184,6 +187,9 @@ const MainPage = ({ token, onLogout }) => {
 
   return (
     <div className="flex flex-col h-dvh bg-gray-900 text-white relative overflow-hidden">
+        {/* --- TIMER OVERLAY --- */}
+      {/* Lo mettiamo qui per garantire che sia sopra il contenuto ma sotto i menu/header se necessario */}
+      <TimerOverlay activeTimers={activeTimers} onRemove={removeTimerState} />
       
       {/* --- HEADER --- */}
       <header className="relative flex justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 border-b border-gray-700 z-10 h-16">

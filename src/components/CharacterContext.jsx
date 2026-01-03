@@ -5,7 +5,8 @@ import {
   markMessageAsRead, 
   deleteMessage, 
   getAdminPendingProposalsCount, 
-  saveWebPushSubscription 
+  saveWebPushSubscription, 
+  fetchAuthenticated 
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
@@ -52,6 +53,43 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [isAdmin] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
   const [viewAll, setViewAll] = useState(false);
   
+  // --- NUOVO STATO PER I TIMER (GESTIONE GLOBALE) ---
+  const [activeTimers, setActiveTimers] = useState({});
+
+  const updateTimerState = useCallback((timerData) => {
+    setActiveTimers(prev => ({
+        ...prev,
+        [timerData.nome]: {
+            ...timerData,
+            endTime: new Date(timerData.data_fine).getTime()
+        }
+    }));
+  }, []);
+
+  const removeTimerState = useCallback((nomeTimer) => {
+    setActiveTimers(prev => {
+        const newState = { ...prev };
+        delete newState[nomeTimer];
+        return newState;
+    });
+  }, []);
+
+  // --- FETCH INIZIALE TIMER ATTIVI ---
+  useEffect(() => {
+    const loadInitialTimers = async () => {
+      try {
+        const data = await fetchAuthenticated('/personaggi/api/timers/active/', onLogout);
+        if (Array.isArray(data)) {
+          data.forEach(t => updateTimerState(t));
+        }
+      } catch (err) {
+        console.error("Errore caricamento timer iniziali", err);
+      }
+    };
+    loadInitialTimers();
+  }, [onLogout, updateTimerState]);
+
+
   // --- REACT QUERY HOOKS ---
   
   // 1. Punteggi
@@ -205,6 +243,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
     ws.current.onmessage = (e) => {
       try {
         const d = JSON.parse(e.data);
+        if (d.action === 'TIMER_SYNC') {
+            updateTimerState(d.payload);
+        }
+
         if (d.type === 'notification') {
            const msg = d.payload;
            const myId = parseInt(selectedCharacterId);
@@ -234,6 +276,9 @@ export const CharacterProvider = ({ children, onLogout }) => {
     acquirableInfusioni,
     acquirableTessiture,
     acquirableCerimoniali,
+
+    activeTimers,
+    removeTimerState,
     
     isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi || mutatingCount > 0,
     isLoadingList,

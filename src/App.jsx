@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
 import LoginPage from './components/LoginPage';
 import MainPage from './components/MainPage';
 import { CharacterProvider } from './components/CharacterContext';
