@@ -1,7 +1,47 @@
-import React, { createContext, useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import MainPage from './components/MainPage';
-import { CharacterProvider } from './components/CharacterContext';
+import StaffDashboard from './components/StaffDashboard'; 
+import { CharacterProvider, useCharacter } from './components/CharacterContext';
+
+// Sottocomponente per gestire il "bivio" di navigazione
+const AppContent = ({ token, handleLogout }) => {
+  const { isStaff, staffWorkMode } = useCharacter();
+
+  // Se l'utente NON è staff, va direttamente alla MainPage
+  if (!isStaff) {
+    return <MainPage token={token} onLogout={handleLogout} />;
+  }
+
+  // Se è staff, mostriamo la sezione basata sulla scelta nella Dashboard
+  switch (staffWorkMode) {
+    case 'char':
+      return <MainPage token={token} onLogout={handleLogout} />;
+    case 'plot':
+      return (
+        <div className="min-h-screen bg-gray-900 text-white p-8">
+          <h2 className="text-2xl font-bold text-emerald-400 mb-4">Gestione Plot</h2>
+          <p>Sezione in fase di sviluppo...</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-6 bg-gray-700 px-4 py-2 rounded hover:bg-gray-600"
+          >
+            Torna alla Dashboard
+          </button>
+        </div>
+      );
+    case 'tools':
+      return (
+        <div className="min-h-screen bg-gray-900 text-white p-8">
+          <h2 className="text-2xl font-bold text-amber-400 mb-4">Strumenti Master</h2>
+          <p>Sezione in fase di sviluppo...</p>
+        </div>
+      );
+    default:
+      // Per impostazione predefinita, lo staff atterra sulla Dashboard
+      return <StaffDashboard onLogout={handleLogout} />;
+  }
+};
 
 export default function App() {
   const [token, setToken] = useState(null);
@@ -16,27 +56,20 @@ export default function App() {
     setIsLoading(false);
   }, []);
 
-  // Salva il token quando cambia
   const handleLoginSuccess = (newToken) => {
     localStorage.setItem('kor35_token', newToken);
     setToken(newToken);
   };
 
-  // Cancella il token e i dati di sessione
   const handleLogout = () => {
-    // 1. Rimuove il token
+    // Pulizia totale della sessione
     localStorage.removeItem('kor35_token');
-    
-    // 2. Rimuove lo stato admin (FONDAMENTALE per la modifica checkbox)
     localStorage.removeItem('kor35_is_staff');
-    
-    // 3. Rimuove l'ultimo personaggio selezionato (privacy)
+    localStorage.removeItem('kor35_is_master');
     localStorage.removeItem('kor35_last_char_id');
-    
     setToken(null);
   };
 
-  // Mostra un caricamento iniziale
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
@@ -45,15 +78,13 @@ export default function App() {
     );
   }
 
-  // Mostra la pagina di login o la pagina principale
   if (!token) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // AVVOLGIAMO MainPage con CharacterProvider
   return (
     <CharacterProvider onLogout={handleLogout}>
-      <MainPage token={token} onLogout={handleLogout} />
+      <AppContent token={token} handleLogout={handleLogout} />
     </CharacterProvider>
   );
 }

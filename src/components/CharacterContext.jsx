@@ -50,7 +50,12 @@ export const CharacterProvider = ({ children, onLogout }) => {
   
   // --- STATI GLOBALI UI ---
   const [selectedCharacterId, setSelectedCharacterId] = useState(() => localStorage.getItem('kor35_last_char_id') || '');
+  const [isStaff] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
+// Riconosciamo se è un Master (Admin di Django) o uno Staffer semplice
+  const [isMaster] = useState(() => localStorage.getItem('kor35_is_master') === 'true');
   const [isAdmin] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
+  const [staffWorkMode, setStaffWorkMode] = useState('dashboard');
+
   const [viewAll, setViewAll] = useState(false);
   
   // --- NUOVO STATO PER I TIMER (GESTIONE GLOBALE) ---
@@ -295,6 +300,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
     loadInfusioniOnDemand: () => {},
     loadTessitureOnDemand: () => {},
 
+    isStaff,
+    isMaster,
+    staffWorkMode,
+    setStaffWorkMode,
     isAdmin,
     viewAll,
     toggleViewAll,

@@ -106,6 +106,8 @@ const MainPage = ({ token, onLogout }) => {
     toggleViewAll,
     adminPendingCount,
     unreadCount, 
+    isStaff,
+    setStaffWorkMode,
   } = useCharacter();
 
   // CARICAMENTO INIZIALE
@@ -365,7 +367,15 @@ const MainPage = ({ token, onLogout }) => {
                             {needRefresh ? "AGGIORNA ORA" : "Verifica Agg."}
                         </button>
                     </div>
-                    
+                    {isStaff && (
+                        <button
+                            onClick={() => setStaffWorkMode('dashboard')}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-emerald-400 hover:bg-gray-700 transition-colors border-b border-gray-700"
+                        >
+                            <span className="text-xl">🔙</span>
+                            <span className="font-bold">DASHBOARD STAFF</span>
+                        </button>
+                    )}
                     <button 
                         onClick={onLogout} 
                         className="w-full flex items-center justify-center gap-2 p-2 rounded bg-red-900/20 text-red-400 hover:bg-red-900/40 border border-red-900/50 transition-colors text-sm font-bold"
