@@ -29,7 +29,7 @@ import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; // Se lo usi come tab o widget
 
 // VERSIONE APP
-const APP_VERSION = "0.2.1"; 
+const APP_VERSION = "0.2.3"; 
 
 // CONFIGURAZIONE TAB DISPONIBILI
 const AVAILABLE_TABS = [
@@ -92,6 +92,7 @@ const MainPage = ({ token, onLogout }) => {
     personaggiList,
     selectedCharacterId,
     selectedCharacterData,
+    refreshCharacterData,
     activeTimers,      // <--- Aggiunto
     removeTimerState,  // <--- Aggiunto 
     selectCharacter,
@@ -120,7 +121,9 @@ const MainPage = ({ token, onLogout }) => {
   const toggleShortcut = async (tabId) => {
       if (!selectedCharacterId) return;
 
+      const oldShortcuts = [...userShortcuts];
       let newShortcuts;
+
       if (userShortcuts.includes(tabId)) {
           newShortcuts = userShortcuts.filter(id => id !== tabId);
       } else {
@@ -135,7 +138,8 @@ const MainPage = ({ token, onLogout }) => {
 
       try {
           // CORREZIONE APPLICATA QUI: header Content-Type aggiunto
-          await fetchAuthenticated(`/personaggi/api/personaggi/${selectedCharacterId}/`, onLogout, {
+          await fetchAuthenticated(`/personaggi/api/personaggi/${selectedCharacterId}/`, 
+            {
               method: 'PATCH',
               headers: {
                   'Content-Type': 'application/json'
@@ -146,9 +150,13 @@ const MainPage = ({ token, onLogout }) => {
                       shortcuts: newShortcuts 
                   }
               })
-          });
+            }, 
+            onLogout
+          );
       } catch (error) {
           console.error("Errore salvataggio shortcuts", error);
+          setUserShortcuts(oldShortcuts);
+          alert("Impossibile salvare le preferenze sul server.");
       }
   };
 
