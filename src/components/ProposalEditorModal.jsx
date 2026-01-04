@@ -71,7 +71,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const [availableAuras, setAvailableAuras] = useState([]);        
     const [availableInfusionAuras, setAvailableInfusionAuras] = useState([]); 
     const [availableCharacteristics, setAvailableCharacteristics] = useState([]);
-    const [availableBricks, setAvailableBricks] = useState([]); // Mattoni reali caricati dal DB
+    const [availableBricks, setAvailableBricks] = useState([]); 
     const [availableClassi, setAvailableClassi] = useState([]);   
     
     const [isLoadingData, setIsLoadingData] = useState(true);
@@ -116,6 +116,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     });
                     setAvailableAuras(validAuras);
 
+                    // Filtriamo rigorosamente per tipo 'CA' (Caratteristiche)
                     const validChars = allData.filter(p => p.tipo === 'CA');
                     setAvailableCharacteristics(validChars);
                 }
@@ -125,8 +126,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     setAvailableClassi(classiData || []);
                 }
             } catch (e) {
-                console.error("Errore init:", e);
-                setError("Impossibile caricare i dati dal server.");
+                console.error(e);
+                setError("Errore caricamento dati dal server.");
             } finally {
                 setIsLoadingData(false);
             }
@@ -163,7 +164,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     }, [selectedAuraId, allPunteggiCache, isInfusion, selectedItemType]);
 
-    // --- CALCOLI E LIMITI ---
+    // --- CALCOLI LIMITI ---
     const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
 
     const auraLimit = useMemo(() => {
@@ -187,11 +188,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const currentVal = componentsMap[charId] || 0;
 
         if (!isCerimoniale) {
-            // Vincolo 1: Ogni mattone non può superare il valore del personaggio nella caratteristica
+            // Vincolo 1: Non superare il punteggio del PG nella Caratteristica
             const pgCharScore = char.punteggi_base[charName] || 0;
             if (currentVal + 1 > pgCharScore) return;
 
-            // Vincolo 2: Il totale dei mattoni (livello) non può superare il punteggio di aura_richiesta
+            // Vincolo 2: Non superare il totale permesso dall'Aura
             if (currentTotalCount + 1 > auraLimit) return;
         }
 
@@ -227,8 +228,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const classeObj = availableClassi.find(c => c.id == selectedClasseId);
         if (!classeObj) return true;
         return selectedItemType === 'MOD' 
-            ? classeObj.mod_allowed_ids.includes(parseInt(charId)) 
-            : classeObj.materia_allowed_ids.includes(parseInt(charId));
+            ? (classeObj.mod_allowed_ids || []).includes(parseInt(charId)) 
+            : (classeObj.materia_allowed_ids || []).includes(parseInt(charId));
     };
 
     const getPayload = () => {
@@ -303,9 +304,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     if (!char) return null;
 
-    // Determina la lista di componenti da mostrare
-    // Se l'aura ha mattoni specifici caricati dall'API, usiamo quelli.
-    // Altrimenti usiamo le caratteristiche base (filtrando se non è cerimoniale).
+    // DETERMINA COSA MOSTRARE NELLA GRIGLIA
     const displayItems = availableBricks.length > 0 
         ? availableBricks 
         : availableCharacteristics.filter(c => isCerimoniale || (char.punteggi_base[c.nome] > 0));
@@ -331,14 +330,14 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white p-2">✕</button>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white p-2 hover:bg-gray-700 rounded-full transition-colors">✕</button>
                 </div>
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin scrollbar-thumb-gray-700">
                     {error && <div className="p-3 bg-red-900/30 text-red-200 rounded-lg border border-red-800 flex items-center gap-2 animate-pulse"><AlertTriangle size={16}/> {error}</div>}
 
-                    {/* Riga 1: Identità */}
+                    {/* Identità e Aura */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="md:col-span-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Nome della Tecnica</label>
@@ -348,7 +347,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 onChange={e => setName(e.target.value)} 
                                 disabled={!isDraft} 
                                 className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-all shadow-inner" 
-                                placeholder={`Inserisci nome ${type.toLowerCase()}...`} 
+                                placeholder="Esempio: Dardo del Crepuscolo, Scudo di Naniti..." 
                             />
                         </div>
                         <div>
@@ -357,31 +356,35 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 value={selectedAuraId} 
                                 onChange={e => {setComponentsMap({}); setSelectedAuraId(e.target.value); setLivelloCerimoniale(1);}} 
                                 disabled={!isDraft} 
-                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-all"
+                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-all cursor-pointer"
                             >
                                 <option value="">-- Seleziona Aura --</option>
-                                {availableAuras.map(a => <option key={a.id} value={a.id}>{a.nome} (Grado {char.punteggi_base[a.nome] || 0})</option>)}
+                                {availableAuras.map(a => (
+                                    <option key={a.id} value={a.id}>
+                                        {a.nome} (Grado {char.punteggi_base[a.nome] || 0})
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
 
-                    {/* BLOCCO SPECIFICO: CERIMONIALI */}
+                    {/* LOGICA CERIMONIALE */}
                     {isCerimoniale && selectedAuraId && (
-                        <div className="space-y-6 animate-in slide-in-from-top-4 duration-500 bg-purple-900/5 p-5 rounded-2xl border border-purple-500/10">
+                        <div className="space-y-6 animate-in slide-in-from-top-4 duration-500 bg-purple-900/5 p-6 rounded-2xl border border-purple-500/10">
                             <div className="bg-purple-900/10 p-4 rounded-xl border border-purple-500/20">
                                 <label className="text-[10px] font-black text-purple-400 uppercase flex justify-between items-center mb-2">
                                     Livello del Rituale
-                                    <span className="text-gray-500 italic lowercase tracking-tight font-normal">Requisito Min(Aura, Coralità): {maxLivelloCerimoniale}</span>
+                                    <span className="text-gray-500 italic lowercase tracking-tight font-normal">Limite Min(Aura, CCO): {maxLivelloCerimoniale}</span>
                                 </label>
                                 <select 
                                     value={livelloCerimoniale} 
                                     onChange={e => setLivelloCerimoniale(parseInt(e.target.value))}
-                                    className="w-full bg-gray-800 border border-purple-500/40 rounded-lg p-2 text-white font-bold outline-none"
+                                    className="w-full bg-gray-800 border border-purple-500/40 rounded-lg p-3 text-white font-bold outline-none shadow-lg shadow-purple-900/10"
                                 >
                                     {[...Array(maxLivelloCerimoniale + 1).keys()].slice(1).map(n => (
                                         <option key={n} value={n}>Livello {n}</option>
                                     ))}
-                                    {maxLivelloCerimoniale === 0 && <option value="0">Bloccato (Richiede coralità &gt; 0)</option>}
+                                    {maxLivelloCerimoniale === 0 && <option value="0">Coralità Insufficiente</option>}
                                 </select>
                             </div>
 
@@ -392,7 +395,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                         value={prerequisiti} 
                                         onChange={e => setPrerequisiti(e.target.value)} 
                                         className="w-full bg-gray-800 border border-gray-600 rounded-xl p-3 text-white text-sm h-24 focus:border-purple-500 outline-none transition-all placeholder:text-gray-600" 
-                                        placeholder="Cosa occorre per iniziare il rito? (es: partecipanti, fase lunare, incenso raro...)" 
+                                        placeholder="Cosa occorre? (es: partecipanti, fase lunare, incenso raro...)" 
                                         disabled={!isDraft} 
                                     />
                                 </div>
@@ -412,7 +415,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                         value={effetto} 
                                         onChange={e => setEffetto(e.target.value)} 
                                         className="w-full bg-gray-800 border border-gray-600 rounded-xl p-3 text-white text-sm h-24 focus:border-purple-500 outline-none transition-all placeholder:text-gray-600" 
-                                        placeholder="Qual è il risultato meccanico o narrativo al termine del rito?" 
+                                        placeholder="Qual è il risultato meccanico o narrativo?" 
                                         disabled={!isDraft} 
                                     />
                                 </div>
@@ -420,7 +423,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </div>
                     )}
 
-                    {/* BLOCCO SPECIFICO: INFUSIONI/TESSITURE */}
+                    {/* LOGICA INFUSIONI/TESSITURE */}
                     {!isCerimoniale && (
                         <div className="space-y-6">
                             <div>
@@ -436,62 +439,45 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             </div>
 
                             {isInfusion && selectedAuraId && (
-                                <div className="p-6 bg-gray-800/40 rounded-2xl border border-gray-700/50 space-y-6">
+                                <div className="p-6 bg-gray-800/40 rounded-2xl border border-gray-700/50 space-y-6 shadow-xl">
                                     <h3 className="text-sm font-bold text-amber-500 flex items-center gap-2 mb-2"><Settings size={18}/> Configurazione Tecnica Oggetto</h3>
-                                    
                                     <div className="flex flex-wrap gap-2">
-                                        {availableItemOptions.map(optKey => {
-                                            const info = ITEM_TYPES[optKey];
-                                            return (
-                                                <button 
-                                                    key={optKey} 
-                                                    onClick={() => handleTypeChange(optKey)} 
-                                                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all transform active:scale-95 ${selectedItemType === optKey ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/20' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                >
-                                                    <info.icon size={15}/> {info.label}
-                                                </button>
-                                            )
-                                        })}
+                                        {availableItemOptions.map(optKey => (
+                                            <button 
+                                                key={optKey} 
+                                                onClick={() => handleTypeChange(optKey)} 
+                                                className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all transform active:scale-95 ${selectedItemType === optKey ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/20' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                            >
+                                                {ITEM_TYPES[optKey].label}
+                                            </button>
+                                        ))}
                                     </div>
-
                                     {selectedItemType && (
                                         <div className="animate-in fade-in duration-300">
                                             {ITEM_TYPES[selectedItemType].isBound ? (
-                                                <div>
+                                                <div className="bg-gray-900/50 p-4 rounded-xl border border-pink-500/20">
                                                     <label className="text-[10px] font-black text-pink-400 uppercase block mb-3 ml-1 tracking-widest">Slot Corporei Necessari</label>
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                                         {BODY_SLOTS.map(slot => (
-                                                            <button 
-                                                                key={slot.id} 
-                                                                onClick={() => toggleSlot(slot.id)} 
-                                                                className={`p-2.5 text-[10px] uppercase font-black rounded-lg border transition-all ${selectedSlots.includes(slot.id) ? 'bg-pink-900/40 border-pink-500 text-pink-200' : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-500'}`}
-                                                            >
-                                                                {slot.label}
-                                                            </button>
+                                                            <button key={slot.id} onClick={() => toggleSlot(slot.id)} className={`p-2.5 text-[10px] uppercase font-black rounded-lg border transition-all ${selectedSlots.includes(slot.id) ? 'bg-pink-900/40 border-pink-500 text-pink-200' : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-500'}`}>{slot.label}</button>
                                                         ))}
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-4">
-                                                    <div>
+                                                    <div className="bg-gray-900/50 p-4 rounded-xl border border-indigo-500/20">
                                                         <label className="text-[10px] font-black text-amber-500 uppercase block mb-2 tracking-widest">Aura Sorgente Mattoni (Infusione)</label>
-                                                        <select 
-                                                            value={selectedInfusionAuraId} 
-                                                            onChange={e => {setComponentsMap({}); setSelectedInfusionAuraId(e.target.value);}} 
-                                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white text-sm"
-                                                        >
+                                                        <select value={selectedInfusionAuraId} onChange={e => {setComponentsMap({}); setSelectedInfusionAuraId(e.target.value);}} className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white text-sm">
                                                             {availableInfusionAuras.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
                                                         </select>
                                                     </div>
-                                                    <label className="text-[10px] font-black text-indigo-300 uppercase flex items-center gap-2 mb-2 ml-1 tracking-widest"><Box size={14}/> Compatibilità Classe Oggetto</label>
-                                                    <select 
-                                                        className="w-full bg-gray-900 border border-indigo-500/30 rounded-xl p-2.5 text-white text-sm" 
-                                                        value={selectedClasseId} 
-                                                        onChange={e => setSelectedClasseId(e.target.value)}
-                                                    >
-                                                        <option value="">-- Mostra Tutte le Caratteristiche --</option>
-                                                        {availableClassi.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                                    </select>
+                                                    <div className="bg-gray-900/50 p-4 rounded-xl border border-indigo-500/20">
+                                                        <label className="text-[10px] font-black text-indigo-300 uppercase flex items-center gap-2 mb-2 ml-1 tracking-widest"><Box size={14}/> Compatibilità Classe Oggetto</label>
+                                                        <select className="w-full bg-gray-900 border border-indigo-500/30 rounded-xl p-2.5 text-white text-sm" value={selectedClasseId} onChange={e => setSelectedClasseId(e.target.value)}>
+                                                            <option value="">-- Mostra Tutte le Caratteristiche --</option>
+                                                            {availableClassi.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -524,12 +510,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             <div className="bg-gray-800/20 p-4 rounded-2xl border border-gray-700/50 max-h-[500px] overflow-y-auto shadow-inner grid grid-cols-1 md:grid-cols-3 gap-3">
                                 {displayItems.map(item => {
                                     // Gestione polimorfica: Mattone vs Caratteristica
-                                    // Se l'API restituisce un mattone, recuperiamo i dati della caratteristica associata.
                                     const characteristic = item.caratteristica_associata || item;
                                     const charId = characteristic.id;
-                                    const charSigla = characteristic.sigla; // Sigla della caratteristica (es: MIR, FOR, COM)
+                                    const charSigla = characteristic.sigla; // Sigla Caratteristica (es: MIR, FOR)
                                     const charName = characteristic.nome;
-                                    const brickName = item.nome; // Nome proprio del mattone (es: "Dardo") o della caratteristica
+                                    const brickName = item.nome; // Nome Mattone (es: "Dardo")
 
                                     const count = componentsMap[charId] || 0;
                                     const isCompatible = isCharCompatible(charId);
@@ -582,38 +567,19 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 <div className="p-4 border-t border-gray-700 bg-gray-800 rounded-b-xl flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-4">
                         {isDraft && isEditing ? (
-                            <button 
-                                onClick={handleDelete} 
-                                className="text-red-400 text-xs font-bold flex items-center gap-1.5 hover:text-red-300 transition-colors px-3 py-2 rounded-lg hover:bg-red-900/10"
-                            >
-                                <Trash2 size={15}/> Elimina Bozza
-                            </button>
+                            <button onClick={handleDelete} className="text-red-400 text-xs font-bold flex items-center gap-1.5 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-red-900/10"><Trash2 size={15}/> Elimina Bozza</button>
                         ) : <div/>}
                     </div>
 
                     <div className="flex gap-3">
                         {isDraft && (
                             <>
-                                <button 
-                                    onClick={() => handleSaveAction(false)} 
-                                    disabled={isSaving} 
-                                    className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-xs font-black uppercase flex gap-2 items-center transition-all disabled:opacity-50"
-                                >
-                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={15}/>} 
-                                    Salva Bozza
-                                </button>
-                                <button 
-                                    onClick={() => handleSaveAction(true)} 
-                                    disabled={isSaving || (currentTotalCount === 0 && !isCerimoniale)} 
-                                    className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-black uppercase flex gap-2 items-center shadow-lg shadow-green-900/30 transition-all disabled:opacity-50 transform hover:scale-105"
-                                >
-                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Send size={15}/>} 
-                                    Invia allo Staff
-                                </button>
+                                <button onClick={() => handleSaveAction(false)} disabled={isSaving} className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-xs font-black uppercase flex gap-2 items-center transition-all disabled:opacity-50">{isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={15}/>} Salva Bozza</button>
+                                <button onClick={() => handleSaveAction(true)} disabled={isSaving || (currentTotalCount === 0 && !isCerimoniale)} className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-black uppercase flex gap-2 items-center shadow-lg shadow-green-900/30 transform hover:scale-105">{isSaving ? <Loader2 className="animate-spin" size={14}/> : <Send size={15}/>} Invia allo Staff</button>
                             </>
                         )}
                         {!isDraft && (
-                            <button onClick={onClose} className="px-8 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-xs font-black uppercase transition-all">Chiudi</button>
+                            <button onClick={onClose} className="px-8 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-xs font-black uppercase">Chiudi</button>
                         )}
                     </div>
                 </div>

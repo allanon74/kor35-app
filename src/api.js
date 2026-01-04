@@ -394,7 +394,7 @@ export const getAllPunteggi = async () => {
 
 export const getMattoniAura = async (auraId) => {
     // Puntiamo all'endpoint corretto che restituisce i mattoni di quella specifica aura
-    return await fetchAuthenticated(`/personaggi/api/punteggi/${auraId}/mattoni/`, {
+    return await fetchAuthenticated(`/personaggi/api/punteggio/${auraId}/mattoni/`, {
         method: 'GET'
     });
 };
