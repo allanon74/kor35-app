@@ -8,6 +8,7 @@ import QrResultModal from './QrResultModal.jsx';
 import { useCharacter } from './CharacterContext';
 import { TimerOverlay } from './TimerOverlay';
 import { fetchAuthenticated } from '../api'; 
+import packageInfo from '../../package.json';
 
 import { 
     Home, QrCode, Zap, TestTube2, Scroll, LogOut, Mail, Backpack, 
@@ -29,7 +30,7 @@ import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; // Se lo usi come tab o widget
 
 // VERSIONE APP
-const APP_VERSION = "0.2.3"; 
+const APP_VERSION = packageInfo.version;
 
 // CONFIGURAZIONE TAB DISPONIBILI
 const AVAILABLE_TABS = [
@@ -45,13 +46,15 @@ const AVAILABLE_TABS = [
     // Aggiungi job requests se è una tab separata, altrimenti è gestita diversamente
 ];
 
+const DEFAULT_SHORTCUTS = ['inventario', 'abilita', 'messaggi', 'qr'];
+
 const MainPage = ({ token, onLogout }) => {
   const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // STATO SHORTCUTS (Default salvagente)
-  const [userShortcuts, setUserShortcuts] = useState(['inventario', 'messaggi', 'qr']);
+  const [userShortcuts, setUserShortcuts] = useState(DEFAULT_SHORTCUTS);
 
   // --- LOGICA PWA ---
   const {
@@ -112,8 +115,13 @@ const MainPage = ({ token, onLogout }) => {
 
   // CARICAMENTO PREFERENZE UI DAL DB
   useEffect(() => {
-      if (selectedCharacterData?.impostazioni_ui?.shortcuts) {
-          setUserShortcuts(selectedCharacterData.impostazioni_ui.shortcuts);
+      if (selectedCharacterData) {
+          if (selectedCharacterData.impostazioni_ui?.shortcuts) {
+              setUserShortcuts(selectedCharacterData.impostazioni_ui.shortcuts);
+          } else {
+              // Se il PG non ha shortcuts salvati, resetta ai default
+              setUserShortcuts(DEFAULT_SHORTCUTS);
+          }
       }
   }, [selectedCharacterData]);
 
