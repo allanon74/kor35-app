@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info, Box, Activity, Settings, Zap, Users, Scroll } from 'lucide-react';
+import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info, Box, Activity, Settings, Zap, Users, Scroll } from 'lucide-center';
 import { useCharacter } from './CharacterContext';
 import { 
     createProposta, 
@@ -43,7 +43,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const [prerequisiti, setPrerequisiti] = useState(proposal?.prerequisiti || '');
     const [svolgimento, setSvolgimento] = useState(proposal?.svolgimento || '');
     const [effetto, setEffetto] = useState(proposal?.effetto || '');
-    const [livelloCerimoniale, setLivelloCerimoniale] = useState(proposal?.livello || 1); // Nuovo stato
+    const [livelloCerimoniale, setLivelloCerimoniale] = useState(proposal?.livello || 1);
 
     const [selectedAuraId, setSelectedAuraId] = useState(proposal?.aura || '');
     const [selectedInfusionAuraId, setSelectedInfusionAuraId] = useState(proposal?.aura_infusione || '');
@@ -81,7 +81,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const isDraft = !proposal || proposal.stato === 'BOZZA';
     const isEditing = !!proposal;
     const isInfusion = type === 'Infusione';
-    const isCerimoniale = type === 'Cerimoniale'; // Stringa passata dal parent
+    const isCerimoniale = type === 'Cerimoniale';
 
     // Init Slot se edit
     useEffect(() => {
@@ -106,7 +106,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         
                         if (isInfusion && !p.permette_infusioni) return false;
                         if (!isInfusion && !isCerimoniale && !p.permette_tessiture) return false;
-                        // Nota: Se 'permette_cerimoniali' non è ancora nel DB/Serializer, assumiamo true per testare
+                        // Modifica: Filtro esplicito permette_cerimoniali
                         if (isCerimoniale && p.permette_cerimoniali === false) return false; 
                         
                         return true;
@@ -115,6 +115,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
                     const validChars = allData.filter(p => {
                         if (p.tipo !== 'CA') return false;
+                        // Modifica: Se cerimoniale, scelta libera. Altrimenti check possesso.
+                        if (isCerimoniale) return true;
                         const val = char.punteggi_base[p.nome];
                         return val && val > 0;
                     });
@@ -220,16 +222,10 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     // CALCOLO LIVELLO MAX CERIMONIALE
     const getMaxCerimonialeLevel = () => {
         if (!selectedAuraId || !char) return 0;
-        
-        // 1. Valore Aura
         const auraObj = availableAuras.find(a => a.id == selectedAuraId);
         const auraVal = auraObj ? (char.punteggi_base[auraObj.nome] || 0) : 0;
-        
-        // 2. Valore CCO (Statistica)
-        // Cerca nelle statistiche del personaggio
         const ccoStat = char.statistiche?.find(s => s.sigla === 'CCO');
         const ccoVal = ccoStat ? ccoStat.valore : 0;
-
         return Math.min(auraVal, ccoVal);
     };
 
@@ -251,26 +247,21 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             personaggio_id: selectedCharacterId,
             tipo: dbType,
             nome: name,
-            descrizione: !isCerimoniale ? description : null,
+            descrizione: !isCerimoniale ? description : "Cerimoniale Narrativo",
             aura: selectedAuraId,
             aura_infusione: isInfusion ? selectedInfusionAuraId : null,
-            
             tipo_risultato_atteso: tipoRisultato,
-            
             componenti_data: componentsArray, 
             slot_corpo_permessi: slotsToSave,
-
-            // Campi Cerimoniale
             prerequisiti: isCerimoniale ? prerequisiti : null,
             svolgimento: isCerimoniale ? svolgimento : null,
             effetto: isCerimoniale ? effetto : null,
-            livello: isCerimoniale ? livelloCerimoniale : null, // Invio esplicito livello
+            livello: isCerimoniale ? livelloCerimoniale : null,
         };
     };
 
     const handleSaveAction = async (send = false) => {
         setError(''); 
-        
         if (!name) return setError("Nome obbligatorio.");
         if (!selectedAuraId) return setError("Aura obbligatoria.");
         if (isCerimoniale) {
@@ -312,15 +303,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         } catch (e) { setError(e.message); }
     };
 
-    // Helpers UI
     const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
-    const cost = currentTotalCount * (isCerimoniale ? 100 : 10); 
-    
     const handleIncrement = (charId) => {
         const currentVal = componentsMap[charId] || 0;
         setComponentsMap({ ...componentsMap, [charId]: currentVal + 1 });
     };
-
     const handleDecrement = (charId) => {
         const currentVal = componentsMap[charId] || 0;
         if (currentVal <= 1) {
@@ -333,7 +320,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     };
 
     if (!char) return null;
-
     const maxLivelloCerimoniale = getMaxCerimonialeLevel();
 
     return (
@@ -353,54 +339,29 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                    
                     {error && <div className="p-3 bg-red-900/30 text-red-200 rounded border border-red-800 flex items-center gap-2"><AlertTriangle size={16}/> {error}</div>}
 
-                    {/* Riga 1: Nome e Aura */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className={isInfusion ? "" : "md:col-span-2"}>
                             <label className="text-xs font-bold text-gray-400 uppercase">Nome</label>
-                            <input 
-                                type="text" 
-                                value={name} 
-                                onChange={e => setName(e.target.value)} 
-                                disabled={!isDraft}
-                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mt-1 focus:border-indigo-500 outline-none"
-                                placeholder={`Nome ${type}`}
-                            />
+                            <input type="text" value={name} onChange={e => setName(e.target.value)} disabled={!isDraft} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mt-1 focus:border-indigo-500 outline-none" placeholder={`Nome ${type}`} />
                         </div>
                         
-                        {/* Selettore Aura - VISIBILE ANCHE PER CERIMONIALI ORA */}
                         <div>
                             <label className="text-xs font-bold text-gray-400 uppercase">Aura Richiesta</label>
-                            <select 
-                                value={selectedAuraId} 
-                                onChange={e => {
-                                    setComponentsMap({}); 
-                                    setSelectedAuraId(e.target.value);
-                                    // Reset livello se aura cambia
-                                    setLivelloCerimoniale(1);
-                                }} 
-                                disabled={!isDraft}
-                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mt-1 focus:border-indigo-500 outline-none"
-                            >
+                            <select value={selectedAuraId} onChange={e => {setComponentsMap({}); setSelectedAuraId(e.target.value); setLivelloCerimoniale(1);}} disabled={!isDraft} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mt-1 focus:border-indigo-500 outline-none">
                                 <option value="">-- Seleziona --</option>
                                 {availableAuras.map(a => <option key={a.id} value={a.id}>{a.nome} ({char.punteggi_base[a.nome] || 0})</option>)}
                             </select>
                         </div>
 
-                        {/* Livello Cerimoniale - SOLO SE CERIMONIALE E AURA SELEZIONATA */}
                         {isCerimoniale && selectedAuraId && (
                             <div className="animate-in fade-in slide-in-from-top-2">
                                 <label className="text-xs font-bold text-purple-400 uppercase flex justify-between">
                                     Livello Rituale
-                                    <span className="text-gray-500">Max: {maxLivelloCerimoniale} (Min(Aura, CCO))</span>
+                                    <span className="text-gray-500 italic">Max: {maxLivelloCerimoniale} (Min(Aura, CCO))</span>
                                 </label>
-                                <select 
-                                    value={livelloCerimoniale}
-                                    onChange={e => setLivelloCerimoniale(parseInt(e.target.value))}
-                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mt-1 focus:border-purple-500 outline-none"
-                                >
+                                <select value={livelloCerimoniale} onChange={e => setLivelloCerimoniale(parseInt(e.target.value))} className="w-full bg-gray-800 border border-purple-500/50 rounded p-2 text-white mt-1 focus:border-purple-500 outline-none">
                                     {[...Array(maxLivelloCerimoniale + 1).keys()].slice(1).map(n => (
                                         <option key={n} value={n}>{n}</option>
                                     ))}
@@ -409,7 +370,6 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             </div>
                         )}
 
-                        {/* Aura Infusione (Solo per Infusioni) */}
                         {isInfusion && (
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase">Aura Infusione</label>
@@ -421,42 +381,22 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         )}
                     </div>
 
-                    {/* --- LOGICA SPECIFICA CERIMONIALI --- */}
                     {isCerimoniale ? (
                         <div className="space-y-4 pt-4 border-t border-gray-700">
                             <div>
                                 <label className="block text-xs font-bold text-purple-400 uppercase mb-1">Prerequisiti Narrativi</label>
-                                <textarea 
-                                    value={prerequisiti} 
-                                    onChange={e => setPrerequisiti(e.target.value)}
-                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm h-20 focus:border-purple-500 outline-none"
-                                    placeholder="Cosa serve per iniziare il rito? (es: 3 partecipanti, luogo specifico...)"
-                                    disabled={!isDraft}
-                                />
+                                <textarea value={prerequisiti} onChange={e => setPrerequisiti(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm h-20 focus:border-purple-500 outline-none" placeholder="Cosa serve per iniziare il rito?" disabled={!isDraft} />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-purple-400 uppercase mb-1">Svolgimento</label>
-                                <textarea 
-                                    value={svolgimento} 
-                                    onChange={e => setSvolgimento(e.target.value)}
-                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm h-28 focus:border-purple-500 outline-none"
-                                    placeholder="Descrivi le azioni del rito..."
-                                    disabled={!isDraft}
-                                />
+                                <textarea value={svolgimento} onChange={e => setSvolgimento(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm h-28 focus:border-purple-500 outline-none" placeholder="Descrivi le azioni del rito..." disabled={!isDraft} />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-purple-400 uppercase mb-1">Effetto</label>
-                                <textarea 
-                                    value={effetto} 
-                                    onChange={e => setEffetto(e.target.value)}
-                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm h-20 focus:border-purple-500 outline-none"
-                                    placeholder="Cosa accade al termine?"
-                                    disabled={!isDraft}
-                                />
+                                <textarea value={effetto} onChange={e => setEffetto(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm h-20 focus:border-purple-500 outline-none" placeholder="Cosa accade al termine?" disabled={!isDraft} />
                             </div>
                         </div>
                     ) : (
-                        /* --- LOGICA STANDARD (INFUSIONI/TESSITURE) --- */
                         <>
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase">Descrizione / Meccaniche</label>
@@ -470,11 +410,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                         {availableItemOptions.map(optKey => {
                                             const info = ITEM_TYPES[optKey];
                                             return (
-                                                <button
-                                                    key={optKey}
-                                                    onClick={() => handleTypeChange(optKey)}
-                                                    className={`px-3 py-2 rounded text-xs font-bold flex items-center gap-2 transition-colors ${selectedItemType === optKey ? 'bg-amber-500 text-black' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                >
+                                                <button key={optKey} onClick={() => handleTypeChange(optKey)} className={`px-3 py-2 rounded text-xs font-bold flex items-center gap-2 transition-colors ${selectedItemType === optKey ? 'bg-amber-500 text-black' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
                                                     <info.icon size={14}/> {info.label}
                                                 </button>
                                             )
@@ -487,11 +423,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                     <label className="text-xs font-bold text-pink-400 uppercase block mb-2">Slot Corporei Richiesti</label>
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                                         {BODY_SLOTS.map(slot => (
-                                                            <button
-                                                                key={slot.id}
-                                                                onClick={() => toggleSlot(slot.id)}
-                                                                className={`p-2 text-[10px] uppercase font-bold rounded border transition-all ${selectedSlots.includes(slot.id) ? 'bg-pink-900/50 border-pink-500 text-pink-200' : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-500'}`}
-                                                            >
+                                                            <button key={slot.id} onClick={() => toggleSlot(slot.id)} className={`p-2 text-[10px] uppercase font-bold rounded border transition-all ${selectedSlots.includes(slot.id) ? 'bg-pink-900/50 border-pink-500 text-pink-200' : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-500'}`}>
                                                                 {slot.label}
                                                             </button>
                                                         ))}
@@ -499,7 +431,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                 </div>
                                             ) : (
                                                 <div>
-                                                    <label className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-2 mb-2"><Box size={14}/> Filtra per Classe Oggetto</label>
+                                                    <label className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-2 mb-2"><Box size={14}/> Classe Oggetto</label>
                                                     <select className="w-full bg-gray-900 border border-indigo-500/30 rounded p-2 text-white text-sm" value={selectedClasseId} onChange={e => setSelectedClasseId(e.target.value)}>
                                                         <option value="">-- Mostra Tutto --</option>
                                                         {availableClassi.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -513,12 +445,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </>
                     )}
 
-                    {/* SEZIONE MATTONI (COMUNE) */}
                     {selectedAuraId && (
                         <div>
                             <div className="flex justify-between items-end mb-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase">Mattoni & Costi</label>
-                                <span className="text-xs text-gray-500">Totale Mattoni: {currentTotalCount} | Costo Stimato: {cost} CR</span>
+                                <label className="text-xs font-bold text-gray-400 uppercase">Mattoni & Caratteristiche</label>
+                                <span className="text-xs text-gray-500">Totale: {currentTotalCount} Mattoni</span>
                             </div>
                             <div className="bg-gray-800 p-2 rounded-lg border border-gray-700 max-h-60 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2">
                                 {availableCharacteristics.map(charItem => {
@@ -531,11 +462,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                 <span className="text-xs font-bold truncate text-gray-300">{charItem.nome}</span>
                                             </div>
                                             {isDraft && (
-                                            <div className="flex items-center gap-1">
-                                                {count > 0 && <button onClick={() => handleDecrement(charItem.id)} className="w-6 h-6 flex items-center justify-center bg-gray-800 hover:bg-red-900/50 rounded text-red-400 transition-colors"><Minus size={12}/></button>}
-                                                {count > 0 && <span className="text-xs font-mono w-4 text-center">{count}</span>}
-                                                <button onClick={() => handleIncrement(charItem.id)} className="w-6 h-6 flex items-center justify-center bg-gray-800 hover:bg-green-900/50 rounded text-green-400 transition-colors"><Plus size={12}/></button>
-                                            </div>
+                                                <div className="flex items-center gap-1">
+                                                    {count > 0 && <button onClick={() => handleDecrement(charItem.id)} className="w-6 h-6 flex items-center justify-center bg-gray-800 hover:bg-red-900/50 rounded text-red-400"><Minus size={12}/></button>}
+                                                    {count > 0 && <span className="text-xs font-mono w-4 text-center">{count}</span>}
+                                                    <button onClick={() => handleIncrement(charItem.id)} className="w-6 h-6 flex items-center justify-center bg-gray-800 hover:bg-green-900/50 rounded text-green-400"><Plus size={12}/></button>
+                                                </div>
                                             )}
                                         </div>
                                     );
