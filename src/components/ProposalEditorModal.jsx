@@ -215,13 +215,20 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     // CALCOLO LIVELLO MAX CERIMONIALE
     const getMaxCerimonialeLevel = () => {
-        if (!selectedAuraId || !char) return 0;
-        const auraObj = availableAuras.find(a => a.id == selectedAuraId);
-        const auraVal = auraObj ? (char.punteggi_base[auraObj.nome] || 0) : 0;
-        const ccoStat = char.statistiche?.find(s => s.sigla === 'CCO');
-        const ccoVal = ccoStat ? ccoStat.valore : 0;
-        return Math.min(auraVal, ccoVal);
-    };
+    if (!selectedAuraId || !char) return 0;
+    
+    // 1. Recupero Valore Aura (corretto)
+    const auraObj = availableAuras.find(a => a.id == selectedAuraId);
+    const auraVal = auraObj ? (char.punteggi_base[auraObj.nome] || 0) : 0;
+    
+    // 2. Recupero Valore CCO (CORRETTO: usa statistiche_primarie)
+    const ccoStat = char.statistiche_primarie?.find(s => s.sigla === 'CCO');
+    const ccoVal = ccoStat ? ccoStat.valore_corrente : 0;
+
+    // Se CCO non è tra le primarie, il valore sarà 0 e il livello risulterà bloccato.
+    // Assicurati che CCO sia "Is primaria" nel DB.
+    return Math.min(auraVal, ccoVal);
+};
 
     const getPayload = () => {
         const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
@@ -384,7 +391,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                         {[...Array(maxLivelloCerimoniale + 1).keys()].slice(1).map(n => (
                                             <option key={n} value={n}>Livello {n}</option>
                                         ))}
-                                        {maxLivelloCerimoniale === 0 && <option value="0">Bloccato</option>}
+                                        {maxLivelloCerimoniale === 0 && <option value="0">Bloccato (Richiede coralità &gt; 0)</option>}
                                     </select>
                                     <p className="text-xs text-gray-400">Il livello determina la potenza narrativa e meccanica dell'effetto finale.</p>
                                 </div>
