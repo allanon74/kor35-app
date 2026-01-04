@@ -259,6 +259,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             svolgimento: isCerimoniale ? svolgimento : null,
             effetto: isCerimoniale ? effetto : null,
             livello: isCerimoniale ? livelloCerimoniale : null,
+            livello_proposto: isCerimoniale ? livelloCerimoniale : 1,
         };
     };
 
