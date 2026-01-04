@@ -71,6 +71,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const [availableAuras, setAvailableAuras] = useState([]);        
     const [availableInfusionAuras, setAvailableInfusionAuras] = useState([]); 
     const [availableCharacteristics, setAvailableCharacteristics] = useState([]);
+    const [availableBricks, setAvailableBricks] = useState([]); // Mattoni reali caricati dal DB
     const [availableClassi, setAvailableClassi] = useState([]);   
     
     const [isLoadingData, setIsLoadingData] = useState(true);
@@ -82,17 +83,20 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
     const isInfusion = type === 'Infusione';
     const isCerimoniale = type === 'Cerimoniale';
 
-    // Init Stato in fase di Edit
+    // Determina l'Aura da cui pescare i nomi dei mattoni
+    const auraIdForBricks = useMemo(() => {
+        if (isInfusion) return selectedInfusionAuraId || selectedAuraId;
+        return selectedAuraId;
+    }, [isInfusion, selectedAuraId, selectedInfusionAuraId]);
+
+    // Init Slot se edit
     useEffect(() => {
         if (proposal?.slot_corpo_permessi) {
             setSelectedSlots(proposal.slot_corpo_permessi.split(','));
         }
-        if (isInfusion && proposal?.tipo_risultato_atteso) {
-             // Logica di mapping inversa se necessaria
-        }
-    }, [proposal, isInfusion]);
+    }, [proposal]);
 
-    // 1. CARICAMENTO DATI INIZIALI
+    // 1. CARICAMENTO DATI INIZIALI (Aure, Caratteristiche, Classi)
     useEffect(() => {
         const initData = async () => {
             setIsLoadingData(true);
@@ -101,28 +105,18 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 setAllPunteggiCache(allData);
 
                 if (char && char.punteggi_base) {
-                    // Filtro Aure per personaggio e tipo proposta
                     const validAuras = allData.filter(p => {
                         if (p.tipo !== 'AU') return false;
                         const val = char.punteggi_base[p.nome];
                         if (!val || val < 1) return false;
-                        
                         if (isInfusion && !p.permette_infusioni) return false;
                         if (isCerimoniale && p.permette_cerimoniali === false) return false;
                         if (!isInfusion && !isCerimoniale && !p.permette_tessiture) return false;
-                        
                         return true;
                     });
                     setAvailableAuras(validAuras);
 
-                    // Filtro Caratteristiche
-                    const validChars = allData.filter(p => {
-                        if (p.tipo !== 'CA') return false;
-                        // Cerimoniali: Scelta Libera. Altri: solo se possedute dal PG
-                        if (isCerimoniale) return true;
-                        const val = char.punteggi_base[p.nome];
-                        return val && val > 0;
-                    });
+                    const validChars = allData.filter(p => p.tipo === 'CA');
                     setAvailableCharacteristics(validChars);
                 }
 
@@ -131,8 +125,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                     setAvailableClassi(classiData || []);
                 }
             } catch (e) {
-                console.error(e);
-                setError("Errore caricamento dati server.");
+                console.error("Errore inizializzazione ProposalEditor:", e);
+                setError("Impossibile caricare i dati dal server.");
             } finally {
                 setIsLoadingData(false);
             }
@@ -140,13 +134,20 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         initData();
     }, [char, type, isInfusion, isCerimoniale]);
 
-    // 2. CAMBIO AURA -> CALCOLO TIPI AMMESSI (Infusioni)
+    // 2. CARICAMENTO MATTONI SPECIFICI DELL'AURA
     useEffect(() => {
-        if (!selectedAuraId || !isInfusion) {
-            setAvailableItemOptions([]);
+        if (!auraIdForBricks) {
+            setAvailableBricks([]);
             return;
         }
+        getMattoniAura(auraIdForBricks)
+            .then(data => setAvailableBricks(data || []))
+            .catch(err => console.error("Errore recupero mattoni:", err));
+    }, [auraIdForBricks]);
 
+    // 3. LOGICA INFUSIONI (Tipi Ammessi e Aure Secondarie)
+    useEffect(() => {
+        if (!selectedAuraId || !isInfusion) return;
         const auraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
         if (auraObj) {
             const options = [];
@@ -154,38 +155,61 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             if (auraObj.produce_materia) options.push('MAT');
             if (auraObj.produce_innesti) options.push('INNESTO');
             if (auraObj.produce_mutazioni) options.push('MUTAZIONE');
-            
             setAvailableItemOptions(options);
+            if (options.length > 0 && !options.includes(selectedItemType)) setSelectedItemType(options[0]);
 
-            // Selezione automatica del primo tipo disponibile se non coerente
-            if (options.length > 0 && !options.includes(selectedItemType)) {
-                setSelectedItemType(options[0]);
-            } else if (options.length === 0) {
-                setSelectedItemType('');
-            }
+            const allowedIds = auraObj.aure_infusione_consentite || [auraObj.id];
+            setAvailableInfusionAuras(allPunteggiCache.filter(p => allowedIds.includes(p.id)));
         }
     }, [selectedAuraId, allPunteggiCache, isInfusion, selectedItemType]);
 
-    // 3. LOGICA AURE INFUSIONE SECONDARIE
-    useEffect(() => {
-        if (!isInfusion || !selectedAuraId || allPunteggiCache.length === 0) {
-            setAvailableInfusionAuras([]);
-            return;
-        }
-        const mainAuraObj = allPunteggiCache.find(p => p.id === parseInt(selectedAuraId));
-        if (!mainAuraObj) return;
+    // --- CALCOLI E LIMITI ---
+    const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
 
-        const allowedIds = mainAuraObj.aure_infusione_consentite || [mainAuraObj.id];
-        const validInfusionObjs = allPunteggiCache.filter(p => allowedIds.includes(p.id));
-        setAvailableInfusionAuras(validInfusionObjs);
-        
-        if (validInfusionObjs.length > 0 && !allowedIds.includes(parseInt(selectedInfusionAuraId))) {
-             setSelectedInfusionAuraId(validInfusionObjs[0].id);
-        }
-    }, [selectedAuraId, allPunteggiCache, isInfusion, selectedInfusionAuraId]);
+    const auraLimit = useMemo(() => {
+        if (!selectedAuraId || !char) return 0;
+        const auraObj = availableAuras.find(a => a.id == selectedAuraId);
+        return auraObj ? (char.punteggi_base[auraObj.nome] || 0) : 0;
+    }, [selectedAuraId, char, availableAuras]);
 
+    const maxLivelloCerimoniale = useMemo(() => {
+        if (!isCerimoniale || !char) return 0;
+        const ccoStat = char.statistiche_primarie?.find(s => s.sigla === 'CCO');
+        const ccoVal = ccoStat ? ccoStat.valore_corrente : 0;
+        return Math.min(auraLimit, ccoVal);
+    }, [isCerimoniale, auraLimit, char]);
+
+    const estimatedCost = currentTotalCount * (isCerimoniale ? 100 : 10);
 
     // --- HANDLERS ---
+    const handleIncrement = (charId, charName) => {
+        if (!isDraft) return;
+        const currentVal = componentsMap[charId] || 0;
+
+        if (!isCerimoniale) {
+            // Limite 1: Non posso superare il mio punteggio nella Caratteristica
+            const pgCharScore = char.punteggi_base[charName] || 0;
+            if (currentVal + 1 > pgCharScore) return;
+
+            // Limite 2: Il totale dei mattoni non può superare il valore dell'Aura
+            if (currentTotalCount + 1 > auraLimit) return;
+        }
+
+        setComponentsMap(prev => ({ ...prev, [charId]: currentVal + 1 }));
+    };
+
+    const handleDecrement = (charId) => {
+        if (!isDraft) return;
+        const currentVal = componentsMap[charId] || 0;
+        if (currentVal <= 1) {
+            const newMap = { ...componentsMap };
+            delete newMap[charId];
+            setComponentsMap(newMap);
+        } else {
+            setComponentsMap({ ...componentsMap, [charId]: currentVal - 1 });
+        }
+    };
+
     const handleTypeChange = (newType) => {
         setSelectedItemType(newType);
         const typeInfo = ITEM_TYPES[newType];
@@ -193,42 +217,19 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         else setSelectedSlots([]);
     };
 
-    const isCharCompatible = (charId) => {
-        if (!isInfusion || isCerimoniale) return true;
-        const typeInfo = ITEM_TYPES[selectedItemType];
-        if (!typeInfo || typeInfo.isBound) return true;
-        
-        if (selectedClasseId) {
-            const classeObj = availableClassi.find(c => c.id == selectedClasseId);
-            if (!classeObj) return true;
-            if (selectedItemType === 'MOD') return classeObj.mod_allowed_ids.includes(parseInt(charId));
-            if (selectedItemType === 'MAT') return classeObj.materia_allowed_ids.includes(parseInt(charId));
-        }
-        return true;
-    };
-
     const toggleSlot = (slotCode) => {
-        setSelectedSlots(prev => 
-            prev.includes(slotCode) ? prev.filter(s => s !== slotCode) : [...prev, slotCode]
-        );
+        if (!isDraft) return;
+        setSelectedSlots(prev => prev.includes(slotCode) ? prev.filter(s => s !== slotCode) : [...prev, slotCode]);
     };
 
-    // CALCOLO LIVELLO MAX CERIMONIALE
-    const getMaxCerimonialeLevel = () => {
-    if (!selectedAuraId || !char) return 0;
-    
-    // 1. Recupero Valore Aura (corretto)
-    const auraObj = availableAuras.find(a => a.id == selectedAuraId);
-    const auraVal = auraObj ? (char.punteggi_base[auraObj.nome] || 0) : 0;
-    
-    // 2. Recupero Valore CCO (CORRETTO: usa statistiche_primarie)
-    const ccoStat = char.statistiche_primarie?.find(s => s.sigla === 'CCO');
-    const ccoVal = ccoStat ? ccoStat.valore_corrente : 0;
-
-    // Se CCO non è tra le primarie, il valore sarà 0 e il livello risulterà bloccato.
-    // Assicurati che CCO sia "Is primaria" nel DB.
-    return Math.min(auraVal, ccoVal);
-};
+    const isCharCompatible = (charId) => {
+        if (!isInfusion || isCerimoniale || !selectedClasseId) return true;
+        const classeObj = availableClassi.find(c => c.id == selectedClasseId);
+        if (!classeObj) return true;
+        return selectedItemType === 'MOD' 
+            ? classeObj.mod_allowed_ids.includes(parseInt(charId)) 
+            : classeObj.materia_allowed_ids.includes(parseInt(charId));
+    };
 
     const getPayload = () => {
         const componentsArray = Object.entries(componentsMap).map(([id, val]) => ({
@@ -236,29 +237,22 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             valore: val
         }));
         
-        let dbType = 'TES';
-        if (isInfusion) dbType = 'INF';
-        if (isCerimoniale) dbType = 'CER';
-
-        const typeInfo = isInfusion ? ITEM_TYPES[selectedItemType] : null;
-        const slotsToSave = (typeInfo?.isBound) ? selectedSlots.join(',') : '';
+        let dbType = isInfusion ? 'INF' : isCerimoniale ? 'CER' : 'TES';
         const tipoRisultato = isInfusion ? (['INNESTO', 'MUTAZIONE'].includes(selectedItemType) ? 'AUM' : 'POT') : null;
 
         return {
             personaggio_id: selectedCharacterId,
             tipo: dbType,
             nome: name,
-            descrizione: isCerimoniale ? "Cerimoniale Narrativo" : description,
+            descrizione: isCerimoniale ? "Rito Narrativo" : description,
             aura: selectedAuraId,
             aura_infusione: isInfusion ? selectedInfusionAuraId : null,
             tipo_risultato_atteso: tipoRisultato,
             componenti_data: componentsArray, 
-            slot_corpo_permessi: slotsToSave,
-            // Campi specifici Cerimoniale
+            slot_corpo_permessi: isInfusion && ITEM_TYPES[selectedItemType]?.isBound ? selectedSlots.join(',') : '',
             prerequisiti: isCerimoniale ? prerequisiti : null,
             svolgimento: isCerimoniale ? svolgimento : null,
             effetto: isCerimoniale ? effetto : null,
-            livello: isCerimoniale ? livelloCerimoniale : null,
             livello_proposto: isCerimoniale ? livelloCerimoniale : 1,
         };
     };
@@ -272,7 +266,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             if (!prerequisiti || !svolgimento || !effetto) {
                 return setError("Per i cerimoniali, tutti i campi descrittivi sono obbligatori.");
             }
-            if (livelloCerimoniale < 1) return setError("Il livello deve essere almeno 1.");
+            if (livelloCerimoniale < 1) return setError("Il rito deve avere almeno livello 1.");
         }
 
         setIsSaving(true);
@@ -307,125 +301,125 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         } catch (e) { setError(e.message); }
     };
 
-    const handleIncrement = (charId) => {
-        const currentVal = componentsMap[charId] || 0;
-        setComponentsMap({ ...componentsMap, [charId]: currentVal + 1 });
-    };
-
-    const handleDecrement = (charId) => {
-        const currentVal = componentsMap[charId] || 0;
-        if (currentVal <= 1) {
-            const newMap = { ...componentsMap };
-            delete newMap[charId];
-            setComponentsMap(newMap);
-        } else {
-            setComponentsMap({ ...componentsMap, [charId]: currentVal - 1 });
-        }
-    };
-
     if (!char) return null;
-    const maxLivelloCerimoniale = getMaxCerimonialeLevel();
-    const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
-    const estimatedCost = currentTotalCount * (isCerimoniale ? 100 : 10);
+
+    // Logica di rendering dinamico Mattoni vs Caratteristiche
+    const displayItems = availableBricks.length > 0 
+        ? availableBricks 
+        : availableCharacteristics.filter(c => isCerimoniale || (char.punteggi_base[c.nome] > 0));
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl animate-fadeIn">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl animate-fadeIn overflow-hidden">
                 
                 {/* Header */}
                 <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800 rounded-t-xl shrink-0">
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                        {isInfusion ? <Box className="text-amber-500" size={20}/> : 
-                         isCerimoniale ? <Users className="text-purple-400" size={20}/> :
-                         <Scroll className="text-indigo-400" size={20}/>}
-                        {isEditing ? `Modifica ${type}` : `Crea Nuova Proposta ${type}`}
-                    </h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white p-1">✕</button>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-900 rounded-lg border border-gray-700">
+                            {isInfusion ? <Box className="text-amber-500" size={20}/> : 
+                             isCerimoniale ? <Users className="text-purple-400" size={20}/> :
+                             <Scroll className="text-indigo-400" size={20}/>}
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-white">
+                                {isEditing ? `Modifica ${type}` : `Nuova Proposta ${type}`}
+                            </h2>
+                            <p className="text-[10px] text-gray-500 uppercase font-black tracking-tighter">
+                                {isEditing ? `ID: ${proposal.id} • Stato: ${proposal.stato}` : 'Creazione Bozza Personale'}
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white p-2 hover:bg-gray-700 rounded-full transition-colors">✕</button>
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {error && <div className="p-3 bg-red-900/30 text-red-200 rounded border border-red-800 flex items-center gap-2 animate-pulse"><AlertTriangle size={16}/> {error}</div>}
+                <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin scrollbar-thumb-gray-700">
+                    {error && <div className="p-3 bg-red-900/30 text-red-200 rounded-lg border border-red-800 flex items-center gap-2 animate-pulse"><AlertTriangle size={16}/> {error}</div>}
 
-                    {/* RIGA 1: Identità */}
+                    {/* Riga Identità */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="md:col-span-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Nome della Tecnica</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Nome della Tecnica</label>
                             <input 
                                 type="text" 
                                 value={name} 
                                 onChange={e => setName(e.target.value)} 
                                 disabled={!isDraft} 
-                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white mt-1.5 focus:border-indigo-500 outline-none transition-all" 
-                                placeholder={`Inserisci nome ${type.toLowerCase()}...`} 
+                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-all placeholder:text-gray-600 shadow-inner" 
+                                placeholder="Esempio: Dardo del Crepuscolo, Scudo di Naniti..." 
                             />
                         </div>
-                        
                         <div>
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Aura di Riferimento</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Aura Principale</label>
                             <select 
                                 value={selectedAuraId} 
                                 onChange={e => {setComponentsMap({}); setSelectedAuraId(e.target.value); setLivelloCerimoniale(1);}} 
                                 disabled={!isDraft} 
-                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white mt-1.5 focus:border-indigo-500 outline-none transition-all"
+                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-all cursor-pointer"
                             >
                                 <option value="">-- Seleziona Aura --</option>
-                                {availableAuras.map(a => <option key={a.id} value={a.id}>{a.nome} (Lv. {char.punteggi_base[a.nome] || 0})</option>)}
+                                {availableAuras.map(a => (
+                                    <option key={a.id} value={a.id}>
+                                        {a.nome} (Grado {char.punteggi_base[a.nome] || 0})
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
 
-                    {/* LOGICA CERIMONIALE: Livello e Testi */}
+                    {/* BLOCCO SPECIFICO: CERIMONIALI */}
                     {isCerimoniale && selectedAuraId && (
-                        <div className="space-y-6 animate-in slide-in-from-top-4 duration-500">
-                            <div className="bg-purple-900/10 p-4 rounded-xl border border-purple-500/20">
-                                <label className="text-[10px] font-black text-purple-400 uppercase flex justify-between items-center mb-2">
-                                    Livello del Rituale
-                                    <span className="text-gray-500 italic lowercase tracking-tight font-normal">Requisito Min(Aura, Coralità): {maxLivelloCerimoniale}</span>
-                                </label>
-                                <div className="flex items-center gap-4">
+                        <div className="space-y-6 animate-in slide-in-from-top-4 duration-500 bg-purple-900/5 p-6 rounded-2xl border border-purple-500/10">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                                <div>
+                                    <label className="text-[10px] font-black text-purple-400 uppercase flex justify-between items-center mb-2">
+                                        Livello del Rituale
+                                        <span className="text-gray-500 italic lowercase tracking-tight font-normal">Limite Min(Aura, CCO): {maxLivelloCerimoniale}</span>
+                                    </label>
                                     <select 
                                         value={livelloCerimoniale} 
                                         onChange={e => setLivelloCerimoniale(parseInt(e.target.value))}
-                                        className="w-32 bg-gray-800 border border-purple-500/40 rounded-lg p-2 text-white font-bold outline-none"
+                                        className="w-full bg-gray-800 border border-purple-500/40 rounded-lg p-3 text-white font-bold outline-none shadow-lg shadow-purple-900/10"
                                     >
                                         {[...Array(maxLivelloCerimoniale + 1).keys()].slice(1).map(n => (
                                             <option key={n} value={n}>Livello {n}</option>
                                         ))}
-                                        {maxLivelloCerimoniale === 0 && <option value="0">Bloccato (Richiede coralità &gt; 0)</option>}
+                                        {maxLivelloCerimoniale === 0 && <option value="0">Coralità Insufficiente</option>}
                                     </select>
-                                    <p className="text-xs text-gray-400">Il livello determina la potenza narrativa e meccanica dell'effetto finale.</p>
+                                </div>
+                                <div className="text-xs text-gray-500 italic">
+                                    I cerimoniali non hanno vincoli sulle caratteristiche. La coralità (CCO) e il grado nell'Aura determinano il livello massimo di potere che puoi orchestrare.
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 gap-5">
                                 <div>
-                                    <label className="text-[10px] font-black text-purple-400 uppercase block mb-1.5">Prerequisiti Narrativi</label>
+                                    <label className="text-[10px] font-black text-purple-400 uppercase block mb-1.5 ml-1">Prerequisiti Narrativi</label>
                                     <textarea 
                                         value={prerequisiti} 
                                         onChange={e => setPrerequisiti(e.target.value)} 
                                         className="w-full bg-gray-800 border border-gray-600 rounded-xl p-3 text-white text-sm h-24 focus:border-purple-500 outline-none transition-all placeholder:text-gray-600" 
-                                        placeholder="Cosa occorre per iniziare il rito? (es: numero partecipanti, oggetti rari, luoghi o tempi specifici...)" 
+                                        placeholder="Cosa occorre? (es: 3 partecipanti, fase lunare, incenso raro...)" 
                                         disabled={!isDraft} 
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase block mb-1.5">Svolgimento del Rito</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase block mb-1.5 ml-1">Svolgimento del Rito</label>
                                     <textarea 
                                         value={svolgimento} 
                                         onChange={e => setSvolgimento(e.target.value)} 
                                         className="w-full bg-gray-800 border border-gray-600 rounded-xl p-3 text-white text-sm h-40 focus:border-purple-500 outline-none transition-all placeholder:text-gray-600" 
-                                        placeholder="Descrivi dettagliatamente le fasi del cerimoniale e la narrazione corale richiesta..." 
+                                        placeholder="Descrivi le azioni, i canti e la coreografia del rito..." 
                                         disabled={!isDraft} 
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black text-purple-400 uppercase block mb-1.5">Effetto Finale</label>
+                                    <label className="text-[10px] font-black text-purple-400 uppercase block mb-1.5 ml-1">Effetto Finale</label>
                                     <textarea 
                                         value={effetto} 
                                         onChange={e => setEffetto(e.target.value)} 
                                         className="w-full bg-gray-800 border border-gray-600 rounded-xl p-3 text-white text-sm h-24 focus:border-purple-500 outline-none transition-all placeholder:text-gray-600" 
-                                        placeholder="Qual è il risultato meccanico o narrativo al termine del successo del cerimoniale?" 
+                                        placeholder="Qual è il risultato? (Bonus alle prove, visioni, mutamenti ambientali...)" 
                                         disabled={!isDraft} 
                                     />
                                 </div>
@@ -433,25 +427,26 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         </div>
                     )}
 
-                    {/* LOGICA INFUSIONI/TESSITURE: Meccaniche e Tipo Oggetto */}
+                    {/* BLOCCO SPECIFICO: INFUSIONI/TESSITURE */}
                     {!isCerimoniale && (
                         <div className="space-y-6">
                             <div>
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Descrizione e Meccaniche</label>
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Descrizione e Meccaniche</label>
                                 <textarea 
                                     value={description} 
                                     onChange={e => setDescription(e.target.value)} 
                                     disabled={!isDraft} 
-                                    className="w-full bg-gray-800 border border-gray-600 rounded-xl p-3 text-white mt-1.5 focus:border-indigo-500 outline-none transition-all min-h-[100px]" 
+                                    className="w-full bg-gray-800 border border-gray-600 rounded-xl p-4 text-white focus:border-indigo-500 outline-none transition-all min-h-[120px] shadow-inner" 
                                     rows={4}
-                                    placeholder="Definisci gli effetti, i bonus e le regole speciali..."
+                                    placeholder="Dettaglia gli effetti meccanici, i bonus numerici e le condizioni di attivazione..."
                                 />
                             </div>
 
                             {isInfusion && selectedAuraId && (
-                                <div className="p-5 bg-gray-800/40 rounded-2xl border border-gray-700/50 space-y-5">
+                                <div className="p-6 bg-gray-800/40 rounded-2xl border border-gray-700/50 space-y-6 shadow-xl">
                                     <h3 className="text-sm font-bold text-amber-500 flex items-center gap-2 mb-2"><Settings size={18}/> Configurazione Tecnica Oggetto</h3>
                                     
+                                    {/* Selettore Tipo Oggetto */}
                                     <div className="flex flex-wrap gap-2">
                                         {availableItemOptions.map(optKey => {
                                             const info = ITEM_TYPES[optKey];
@@ -467,11 +462,12 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                         })}
                                     </div>
 
+                                    {/* Opzioni Condizionali per Innesti o Mod */}
                                     {selectedItemType && (
                                         <div className="animate-in fade-in zoom-in-95 duration-300">
                                             {ITEM_TYPES[selectedItemType].isBound ? (
-                                                <div>
-                                                    <label className="text-[10px] font-black text-pink-400 uppercase block mb-3 ml-1">Slot Corporei Necessari all'Installazione</label>
+                                                <div className="bg-gray-900/50 p-4 rounded-xl border border-pink-500/20">
+                                                    <label className="text-[10px] font-black text-pink-400 uppercase block mb-3 ml-1 tracking-widest">Slot Corporei Necessari</label>
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                                         {BODY_SLOTS.map(slot => (
                                                             <button 
@@ -485,16 +481,28 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div>
-                                                    <label className="text-[10px] font-black text-indigo-300 uppercase flex items-center gap-2 mb-2.5 ml-1"><Box size={14}/> Compatibilità Classe Oggetto</label>
-                                                    <select 
-                                                        className="w-full bg-gray-900 border border-indigo-500/30 rounded-xl p-2.5 text-white text-sm" 
-                                                        value={selectedClasseId} 
-                                                        onChange={e => setSelectedClasseId(e.target.value)}
-                                                    >
-                                                        <option value="">-- Mostra Tutte le Caratteristiche --</option>
-                                                        {availableClassi.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                                    </select>
+                                                <div className="space-y-4">
+                                                    <div className="bg-gray-900/50 p-4 rounded-xl border border-indigo-500/20">
+                                                        <label className="text-[10px] font-black text-amber-500 uppercase block mb-2 tracking-widest">Aura Sorgente Mattoni</label>
+                                                        <select 
+                                                            value={selectedInfusionAuraId} 
+                                                            onChange={e => {setComponentsMap({}); setSelectedInfusionAuraId(e.target.value);}} 
+                                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white text-sm"
+                                                        >
+                                                            {availableInfusionAuras.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="bg-gray-900/50 p-4 rounded-xl border border-indigo-500/20">
+                                                        <label className="text-[10px] font-black text-indigo-300 uppercase flex items-center gap-2 mb-2 ml-1 tracking-widest"><Box size={14}/> Compatibilità Classe Oggetto</label>
+                                                        <select 
+                                                            className="w-full bg-gray-900 border border-indigo-500/30 rounded-xl p-2.5 text-white text-sm" 
+                                                            value={selectedClasseId} 
+                                                            onChange={e => setSelectedClasseId(e.target.value)}
+                                                        >
+                                                            <option value="">-- Filtra Mattoni per Classe (Opzionale) --</option>
+                                                            {availableClassi.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -506,50 +514,69 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
                     {/* SEZIONE MATTONI (COMUNE A TUTTI) */}
                     {selectedAuraId && (
-                        <div className="space-y-4 pt-2 border-t border-gray-800">
-                            <div className="flex justify-between items-end">
+                        <div className="space-y-4 pt-4 border-t border-gray-800">
+                            <div className="flex justify-between items-end px-1">
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Mattoni e Caratteristiche</label>
-                                    <p className="text-[10px] text-gray-600 mt-0.5">Seleziona i mattoni per comporre il potere della tecnica.</p>
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">
+                                        {availableBricks.length > 0 ? `Mattoni di ${allPunteggiCache.find(p => p.id == auraIdForBricks)?.nome}` : 'Caratteristiche Base'}
+                                    </label>
+                                    <p className="text-[10px] text-gray-600 mt-0.5">Componi la tecnica selezionando i componenti desiderati.</p>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-[10px] font-bold text-gray-400 block uppercase">Totale Mattoni: {currentTotalCount}</span>
+                                    {!isCerimoniale && (
+                                        <span className={`text-[10px] font-bold block uppercase mb-1 ${currentTotalCount >= auraLimit ? 'text-red-500' : 'text-gray-400'}`}>
+                                            Somma Gradi: {currentTotalCount} / {auraLimit}
+                                        </span>
+                                    )}
                                     <span className="text-sm font-black text-yellow-500 font-mono tracking-tighter italic">Costo Invio: {estimatedCost} CR</span>
                                 </div>
                             </div>
 
-                            <div className="bg-gray-800/40 p-3 rounded-2xl border border-gray-700/50 max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                                    {availableCharacteristics.map(charItem => {
-                                        const count = componentsMap[charItem.id] || 0;
-                                        const isCompatible = isCharCompatible(charItem.id);
-                                        
+                            <div className="bg-gray-800/20 p-4 rounded-2xl border border-gray-700/50 max-h-[500px] overflow-y-auto shadow-inner">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {displayItems.map(item => {
+                                        // Gestione polimorfica: Se è un mattone, recupera i dati della caratteristica associata
+                                        const characteristic = item.caratteristica_associata || item;
+                                        const charId = characteristic.id;
+                                        const charSigla = characteristic.sigla;
+                                        const charName = characteristic.nome;
+                                        const brickName = item.nome; // Se è un mattone ha un nome proprio (es: 'Dardo')
+
+                                        const count = componentsMap[charId] || 0;
+                                        const isCompatible = isCharCompatible(charId);
+                                        const pgMaxScore = char.punteggi_base[charName] || 0;
+
                                         return (
                                             <div 
-                                                key={charItem.id} 
-                                                className={`flex items-center justify-between bg-gray-900 p-2.5 rounded-xl border transition-all ${count > 0 ? 'border-indigo-500/60 bg-indigo-500/5' : 'border-gray-700'} ${!isCompatible ? 'opacity-20 pointer-events-none grayscale' : ''}`}
+                                                key={item.id} 
+                                                className={`flex items-center justify-between bg-gray-900 p-3 rounded-xl border transition-all duration-300 ${count > 0 ? 'border-indigo-500/60 bg-indigo-500/5 shadow-lg shadow-indigo-900/10' : 'border-gray-700'} ${!isCompatible ? 'opacity-20 pointer-events-none grayscale' : ''}`}
                                             >
-                                                <div className="flex items-center gap-2.5 overflow-hidden">
-                                                    <IconaPunteggio punteggio={charItem} size="28px" />
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <IconaPunteggio punteggio={characteristic} size="32px" />
                                                     <div className="flex flex-col overflow-hidden">
-                                                        <span className="text-[11px] font-bold truncate text-gray-200">{charItem.nome}</span>
-                                                        <span className="text-[8px] uppercase text-gray-500 font-black">{charItem.sigla}</span>
+                                                        <span className="text-[11px] font-bold truncate text-gray-200" title={brickName}>{brickName}</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-[8px] uppercase text-gray-500 font-black tracking-tighter">{charSigla}</span>
+                                                            {!isCerimoniale && <span className="text-[8px] text-gray-600 font-bold">• Max {pgMaxScore}</span>}
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                
                                                 {isDraft && (
-                                                    <div className="flex items-center gap-1.5 bg-gray-800 p-1 rounded-lg border border-gray-700">
+                                                    <div className="flex items-center gap-1.5 bg-gray-800 p-1 rounded-lg border border-gray-700 shadow-inner">
                                                         {count > 0 && (
                                                             <button 
-                                                                onClick={() => handleDecrement(charItem.id)} 
+                                                                onClick={() => handleDecrement(charId)} 
                                                                 className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-red-900/40 rounded-md text-red-400 transition-colors"
                                                             >
                                                                 <Minus size={14}/>
                                                             </button>
                                                         )}
-                                                        {count > 0 && <span className="text-xs font-mono w-5 text-center text-white">{count}</span>}
+                                                        {count > 0 && <span className="text-xs font-mono w-5 text-center text-white font-bold">{count}</span>}
                                                         <button 
-                                                            onClick={() => handleIncrement(charItem.id)} 
-                                                            className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-green-900/40 rounded-md text-green-400 transition-colors"
+                                                            onClick={() => handleIncrement(charId, charName)} 
+                                                            disabled={!isCerimoniale && (count >= pgMaxScore || currentTotalCount >= auraLimit)}
+                                                            className="w-7 h-7 flex items-center justify-center bg-gray-700 hover:bg-green-900/40 disabled:bg-gray-800 disabled:text-gray-600 rounded-md text-green-400 transition-colors"
                                                         >
                                                             <Plus size={14}/>
                                                         </button>
@@ -570,7 +597,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         {isDraft && isEditing ? (
                             <button 
                                 onClick={handleDelete} 
-                                className="text-red-400 text-xs font-bold flex items-center gap-1.5 hover:text-red-300 transition-colors"
+                                className="text-red-400 text-xs font-bold flex items-center gap-1.5 hover:text-red-300 transition-colors px-3 py-2 rounded-lg hover:bg-red-900/10"
                             >
                                 <Trash2 size={15}/> Elimina Bozza
                             </button>
@@ -590,8 +617,8 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 </button>
                                 <button 
                                     onClick={() => handleSaveAction(true)} 
-                                    disabled={isSaving || currentTotalCount === 0} 
-                                    className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-black uppercase flex gap-2 items-center shadow-lg shadow-green-900/30 transition-all disabled:opacity-50"
+                                    disabled={isSaving || (currentTotalCount === 0 && !isCerimoniale)} 
+                                    className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-black uppercase flex gap-2 items-center shadow-lg shadow-green-900/30 transition-all disabled:opacity-50 transform hover:scale-105"
                                 >
                                     {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Send size={15}/>} 
                                     Invia allo Staff
@@ -599,7 +626,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             </>
                         )}
                         {!isDraft && (
-                            <button onClick={onClose} className="px-6 py-2.5 bg-gray-700 text-white rounded-xl text-xs font-black uppercase">Chiudi</button>
+                            <button onClick={onClose} className="px-8 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-xs font-black uppercase transition-all">Chiudi</button>
                         )}
                     </div>
                 </div>
