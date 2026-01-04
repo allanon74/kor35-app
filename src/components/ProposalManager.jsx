@@ -11,7 +11,7 @@ const ProposalManager = ({ type, onClose }) => { // type = 'Infusione' | 'Tessit
     const [editorOpen, setEditorOpen] = useState(false);
     const [selectedProposal, setSelectedProposal] = useState(null);
 
-    const filterType = type === 'Infusione' ? 'INF' : 'TES';
+    const filterType = type === 'Infusione' ? 'INF' : type === 'Cerimoniale' ? 'CER' : 'TES';
 
     const fetchProposals = async () => {
         setIsLoading(true);
