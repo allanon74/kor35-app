@@ -109,11 +109,9 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         if (p.tipo !== 'AU') return false;
                         const val = char.punteggi_base[p.nome];
                         if (!val || val < 1) return false;
-                        
                         if (isInfusion && !p.permette_infusioni) return false;
                         if (isCerimoniale && p.permette_cerimoniali === false) return false;
                         if (!isInfusion && !isCerimoniale && !p.permette_tessiture) return false;
-                        
                         return true;
                     });
                     setAvailableAuras(validAuras);
@@ -165,7 +163,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         }
     }, [selectedAuraId, allPunteggiCache, isInfusion, selectedItemType]);
 
-    // --- LOGICA LIMITI ---
+    // --- CALCOLI E LIMITI ---
     const currentTotalCount = Object.values(componentsMap).reduce((a, b) => a + b, 0);
 
     const auraLimit = useMemo(() => {
@@ -189,11 +187,11 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
         const currentVal = componentsMap[charId] || 0;
 
         if (!isCerimoniale) {
-            // Controllo 1: Non superare il punteggio del PG nella caratteristica
+            // Vincolo 1: Ogni mattone non può superare il valore del personaggio nella caratteristica
             const pgCharScore = char.punteggi_base[charName] || 0;
             if (currentVal + 1 > pgCharScore) return;
 
-            // Controllo 2: Non superare il totale permesso dall'Aura
+            // Vincolo 2: Il totale dei mattoni (livello) non può superare il punteggio di aura_richiesta
             if (currentTotalCount + 1 > auraLimit) return;
         }
 
@@ -246,7 +244,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             personaggio_id: selectedCharacterId,
             tipo: dbType,
             nome: name,
-            descrizione: isCerimoniale ? "Cerimoniale Narrativo" : description,
+            descrizione: isCerimoniale ? "Rito Narrativo" : description,
             aura: selectedAuraId,
             aura_infusione: isInfusion ? selectedInfusionAuraId : null,
             tipo_risultato_atteso: tipoRisultato,
@@ -268,7 +266,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             if (!prerequisiti || !svolgimento || !effetto) {
                 return setError("Per i cerimoniali, tutti i campi descrittivi sono obbligatori.");
             }
-            if (livelloCerimoniale < 1) return setError("Il livello del rito deve essere almeno 1.");
+            if (livelloCerimoniale < 1) return setError("Il rito deve avere almeno livello 1.");
         }
 
         setIsSaving(true);
@@ -305,7 +303,9 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
     if (!char) return null;
 
-    // Determina la lista di componenti da mostrare (Mattoni specifici o caratteristiche se vuoto)
+    // Determina la lista di componenti da mostrare
+    // Se l'aura ha mattoni specifici caricati dall'API, usiamo quelli.
+    // Altrimenti usiamo le caratteristiche base (filtrando se non è cerimoniale).
     const displayItems = availableBricks.length > 0 
         ? availableBricks 
         : availableCharacteristics.filter(c => isCerimoniale || (char.punteggi_base[c.nome] > 0));
@@ -327,7 +327,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 {isEditing ? `Modifica ${type}` : `Crea Nuova Proposta ${type}`}
                             </h2>
                             <p className="text-[10px] text-gray-500 uppercase font-black">
-                                {isEditing ? `ID: ${proposal.id} • ${proposal.stato}` : 'Nuova Bozza'}
+                                {isEditing ? `ID: ${proposal.id} • ${proposal.stato}` : 'Creazione Bozza Personale'}
                             </p>
                         </div>
                     </div>
@@ -338,7 +338,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                 <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin scrollbar-thumb-gray-700">
                     {error && <div className="p-3 bg-red-900/30 text-red-200 rounded-lg border border-red-800 flex items-center gap-2 animate-pulse"><AlertTriangle size={16}/> {error}</div>}
 
-                    {/* Riga 1: Nome e Aura */}
+                    {/* Riga 1: Identità */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="md:col-span-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Nome della Tecnica</label>
@@ -360,7 +360,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                 className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-all"
                             >
                                 <option value="">-- Seleziona Aura --</option>
-                                {availableAuras.map(a => <option key={a.id} value={a.id}>{a.nome} (Lv. {char.punteggi_base[a.nome] || 0})</option>)}
+                                {availableAuras.map(a => <option key={a.id} value={a.id}>{a.nome} (Grado {char.punteggi_base[a.nome] || 0})</option>)}
                             </select>
                         </div>
                     </div>
@@ -392,7 +392,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                         value={prerequisiti} 
                                         onChange={e => setPrerequisiti(e.target.value)} 
                                         className="w-full bg-gray-800 border border-gray-600 rounded-xl p-3 text-white text-sm h-24 focus:border-purple-500 outline-none transition-all placeholder:text-gray-600" 
-                                        placeholder="Cosa occorre per iniziare il rito? (es: partecipanti, fase lunare, oggetti rari...)" 
+                                        placeholder="Cosa occorre per iniziare il rito? (es: partecipanti, fase lunare, incenso raro...)" 
                                         disabled={!isDraft} 
                                     />
                                 </div>
@@ -431,7 +431,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                     disabled={!isDraft} 
                                     className="w-full bg-gray-800 border border-gray-600 rounded-xl p-4 text-white focus:border-indigo-500 outline-none transition-all min-h-[120px] shadow-inner" 
                                     rows={4}
-                                    placeholder="Definisci gli effetti, i bonus e le regole speciali..."
+                                    placeholder="Dettaglia gli effetti meccanici, i bonus numerici e le condizioni di attivazione..."
                                 />
                             </div>
 
@@ -524,11 +524,12 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             <div className="bg-gray-800/20 p-4 rounded-2xl border border-gray-700/50 max-h-[500px] overflow-y-auto shadow-inner grid grid-cols-1 md:grid-cols-3 gap-3">
                                 {displayItems.map(item => {
                                     // Gestione polimorfica: Mattone vs Caratteristica
+                                    // Se l'API restituisce un mattone, recuperiamo i dati della caratteristica associata.
                                     const characteristic = item.caratteristica_associata || item;
                                     const charId = characteristic.id;
-                                    const charSigla = characteristic.sigla; // Sigla caratteristica (FOR, MIR, etc)
+                                    const charSigla = characteristic.sigla; // Sigla della caratteristica (es: MIR, FOR, COM)
                                     const charName = characteristic.nome;
-                                    const brickName = item.nome; // Nome del mattone (es: "Dardo") o nome caratteristica
+                                    const brickName = item.nome; // Nome proprio del mattone (es: "Dardo") o della caratteristica
 
                                     const count = componentsMap[charId] || 0;
                                     const isCompatible = isCharCompatible(charId);
@@ -539,7 +540,9 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                                             <div className="flex items-center gap-3 overflow-hidden">
                                                 <IconaPunteggio punteggio={characteristic} size="32px" />
                                                 <div className="flex flex-col overflow-hidden">
-                                                    <span className="text-[11px] font-bold truncate text-gray-200">{brickName}</span>
+                                                    {/* NOME MATTONE IN EVIDENZA */}
+                                                    <span className="text-[11px] font-bold truncate text-gray-200" title={brickName}>{brickName}</span>
+                                                    {/* SIGLA CARATTERISTICA ASSOCIATA SOTTO */}
                                                     <div className="flex items-center gap-1">
                                                         <span className="text-[8px] uppercase text-gray-500 font-black tracking-tighter">{charSigla}</span>
                                                         {!isCerimoniale && <span className="text-[8px] text-gray-600 font-bold">• Max {pgMaxScore}</span>}
