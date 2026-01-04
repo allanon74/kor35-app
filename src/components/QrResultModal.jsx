@@ -393,24 +393,39 @@ const QrResultModal = ({ data, onClose, onLogout, onStealSuccess }) => {
   const lastProcessedQr = useRef(null); // Per evitare che il timer scatti multipli in caso di re-render
 
   useEffect(() => {
-    // VERIFICA BACKEND: Il tuo backend invia i dettagli del timer in 'data.timer' 
-    // o 'data.dati.timer_config' a seconda della view specifica.
-    const timerData = data?.timer || data?.dati?.timer_config;
-    const qrId = data?.qrcode_id || data?.dati?.qr_code_id;
+    if (!data) return;
 
-    if (timerData && qrId && lastProcessedQr.current !== qrId) {
-      // Inneschiamo il timer nel CharacterContext tramite l'hook useTimers
-      // Usiamo i nomi dei campi esatti del tuo database (Django models)
-      addTimer({
-        nome: timerData.nome, // Il tuo overlay vuole 'nome'
-        duration: timerData.durata_secondi, 
-        alert_suono: timerData.alert_suono,
-        notifica_push: timerData.notifica_push,
-        messaggio_in_app: timerData.messaggio_in_app
-      });
+    // Identifichiamo i dati del timer in base alla struttura del backend
+    let timerToActivate = null;
 
+    // CASO A: Il QR è di tipo timer puro (tipo_modello: "timer_attivato")
+    if (data.tipo_modello === 'timer_attivato' && data.dati) {
+      timerToActivate = {
+        nome: data.dati.nome,
+        endsAt: data.dati.scadenza, // Backend manda "scadenza" ISO
+        alert_suono: true, // Fallback se non definiti
+        notifica_push: true,
+        messaggio_in_app: true
+      };
+    } 
+    // CASO B: Il QR ha un timer associato come extra (es. Manifesto + Timer)
+    else if (data.timer || data.dati?.timer_config) {
+      const config = data.timer || data.dati.timer_config;
+      timerToActivate = {
+        nome: config.nome,
+        duration: config.durata_secondi, // Qui il backend usa durata_secondi
+        alert_suono: config.alert_suono,
+        notifica_push: config.notifica_push,
+        messaggio_in_app: config.messaggio_in_app
+      };
+    }
+
+    const qrId = data.qrcode_id || data.dati?.qr_code_id || (data.tipo_modello === 'timer_attivato' ? data.dati?.nome : null);
+
+    if (timerToActivate && qrId && lastProcessedQr.current !== qrId) {
+      addTimer(timerToActivate);
       lastProcessedQr.current = qrId;
-      console.log(`✅ Timer "${timerData.nome}" avviato tramite QrResultModal`);
+      console.log(`✅ Timer "${timerToActivate.nome}" innescato.`);
     }
   }, [data, addTimer]);
 
@@ -447,6 +462,19 @@ const QrResultModal = ({ data, onClose, onLogout, onStealSuccess }) => {
             return <p className="text-red-400">Errore: Manca l'ID del QrCode per l'acquisizione.</p>
         }
         return <AcquisizioneView qrId={qrId} data={data.dati} tipo="attivata" onLogout={onLogout} onClose={onClose} />;
+
+      // AGGIUNTO IL CASO MANCANTE PER IL TIMER PURO
+      case 'timer_attivato':
+        return (
+          <div className="text-center py-10">
+            <Timer size={80} className="mx-auto text-amber-500 mb-6 animate-pulse" />
+            <h3 className="text-3xl font-black text-amber-400 uppercase tracking-tighter mb-4">{data.dati?.nome}</h3>
+            <p className="text-gray-300 text-lg italic">{data.messaggio}</p>
+            <div className="mt-8 pt-6 border-t border-white/10 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                Sincronizzazione Cronometro Eseguita
+            </div>
+          </div>
+        );
 
       case 'qrcode_scollegato':
         return (
