@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info, Box, Activity, Settings, Zap, Users, Scroll } from 'lucide-center';
+import { Loader2, Save, Send, Trash2, AlertTriangle, Plus, Minus, Info, Box, Activity, Settings, Zap, Users, Scroll } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import { 
     createProposta, 
@@ -106,7 +106,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                         
                         if (isInfusion && !p.permette_infusioni) return false;
                         if (!isInfusion && !isCerimoniale && !p.permette_tessiture) return false;
-                        // Modifica: Filtro esplicito permette_cerimoniali
+                        // Logica Cerimoniali
                         if (isCerimoniale && p.permette_cerimoniali === false) return false; 
                         
                         return true;
@@ -115,7 +115,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
 
                     const validChars = allData.filter(p => {
                         if (p.tipo !== 'CA') return false;
-                        // Modifica: Se cerimoniale, scelta libera. Altrimenti check possesso.
+                        // Cerimoniali: Scelta Libera
                         if (isCerimoniale) return true;
                         const val = char.punteggi_base[p.nome];
                         return val && val > 0;
@@ -253,6 +253,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
             tipo_risultato_atteso: tipoRisultato,
             componenti_data: componentsArray, 
             slot_corpo_permessi: slotsToSave,
+            // Campi Cerimoniale
             prerequisiti: isCerimoniale ? prerequisiti : null,
             svolgimento: isCerimoniale ? svolgimento : null,
             effetto: isCerimoniale ? effetto : null,
@@ -359,7 +360,7 @@ const ProposalEditorModal = ({ proposal, type, onClose, onRefresh }) => {
                             <div className="animate-in fade-in slide-in-from-top-2">
                                 <label className="text-xs font-bold text-purple-400 uppercase flex justify-between">
                                     Livello Rituale
-                                    <span className="text-gray-500 italic">Max: {maxLivelloCerimoniale} (Min(Aura, CCO))</span>
+                                    <span className="text-gray-500 italic text-[10px]">Max: {maxLivelloCerimoniale} (Min(Aura, CCO))</span>
                                 </label>
                                 <select value={livelloCerimoniale} onChange={e => setLivelloCerimoniale(parseInt(e.target.value))} className="w-full bg-gray-800 border border-purple-500/50 rounded p-2 text-white mt-1 focus:border-purple-500 outline-none">
                                     {[...Array(maxLivelloCerimoniale + 1).keys()].slice(1).map(n => (
