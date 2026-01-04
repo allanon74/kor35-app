@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader, Scan, Eye, Grab, Sparkles, User, FileText, Bot, Timer } from 'lucide-react';
 import { richiediTransazione, rubaOggetto, acquisisciItem } from '../api'; 
 import { useCharacter } from './CharacterContext';
@@ -402,11 +402,11 @@ const QrResultModal = ({ data, onClose, onLogout, onStealSuccess }) => {
       // Inneschiamo il timer nel CharacterContext tramite l'hook useTimers
       // Usiamo i nomi dei campi esatti del tuo database (Django models)
       addTimer({
-nome: t.nome, // Il tuo overlay vuole 'nome'
-      duration: t.durata_secondi, 
-      alert_suono: t.alert_suono,
-      notifica_push: t.notifica_push,
-      messaggio_in_app: t.messaggio_in_app
+        nome: timerData.nome, // Il tuo overlay vuole 'nome'
+        duration: timerData.durata_secondi, 
+        alert_suono: timerData.alert_suono,
+        notifica_push: timerData.notifica_push,
+        messaggio_in_app: timerData.messaggio_in_app
       });
 
       lastProcessedQr.current = qrId;
