@@ -841,3 +841,32 @@ export const getAcquirableCerimoniali = (charId, onLogout) => {
         onLogout
     );
 }
+
+// Recupera la lista eventi (filtrata dal backend per ruolo)
+export const getEventi = (onLogout) => {
+  return fetchAuthenticated('/plot/eventi/', { method: 'GET' }, onLogout);
+};
+
+// Modifica HP di un mostro in tempo reale
+export const updateMostroHp = (mostroId, delta, onLogout) => {
+  return fetchAuthenticated(
+    `/plot/mostri-istanza/${mostroId}/modifica_hp/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ delta })
+    },
+    onLogout
+  );
+};
+
+// Associa un QR code scansionato a un oggetto "Vista" della quest
+export const associaQrAVista = (vistaId, qrId, onLogout) => {
+  return fetchAuthenticated(
+    `/plot/viste-setup/${vistaId}/associa_qr/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ qr_id: qrId })
+    },
+    onLogout
+  );
+};

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import MainPage from './components/MainPage';
+import PlotTab from './components/PlotTab';
 import StaffDashboard from './components/StaffDashboard'; 
 import { CharacterProvider, useCharacter } from './components/CharacterContext';
 
@@ -18,18 +19,7 @@ const AppContent = ({ token, handleLogout }) => {
     case 'char':
       return <MainPage token={token} onLogout={handleLogout} />;
     case 'plot':
-      return (
-        <div className="min-h-screen bg-gray-900 text-white p-8">
-          <h2 className="text-2xl font-bold text-emerald-400 mb-4">Gestione Plot</h2>
-          <p>Sezione in fase di sviluppo...</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-6 bg-gray-700 px-4 py-2 rounded hover:bg-gray-600"
-          >
-            Torna alla Dashboard
-          </button>
-        </div>
-      );
+      return <PlotTab onLogout={handleLogout} />;
     case 'tools':
       return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
