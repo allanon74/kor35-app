@@ -56,7 +56,7 @@ const CerimonialiTab = ({ onLogout }) => {
       <div className="p-4 border-b border-gray-700 bg-gray-800 shadow-md shrink-0">
         <div className="flex justify-between items-center">
             <div>
-                <h2 className="text-xl font-bold text-purple-400 flex items-center gap-2"><Users size={22}/> Cerimoniali</h2>
+                <h2 className="text-xl font-bold text-purple-400 flex items-center gap-2"><Users size={22}/> Cerimoniali V2</h2>
                 <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Gestione riti e narrazione corale</p>
             </div>
             <div className="text-right">
