@@ -278,6 +278,8 @@ export const CharacterProvider = ({ children, onLogout }) => {
     acquirableCerimoniali,
 
     activeTimers,
+    setActiveTimers,
+    updateTimerState,
     removeTimerState,
     
     isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi || mutatingCount > 0,

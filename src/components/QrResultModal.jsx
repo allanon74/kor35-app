@@ -423,9 +423,13 @@ const QrResultModal = ({ data, onClose, onLogout, onStealSuccess }) => {
     const qrId = data.qrcode_id || data.dati?.qr_code_id || (data.tipo_modello === 'timer_attivato' ? data.dati?.nome : null);
 
     if (timerToActivate && qrId && lastProcessedQr.current !== qrId) {
-      addTimer(timerToActivate);
-      lastProcessedQr.current = qrId;
-      console.log(`✅ Timer "${timerToActivate.nome}" innescato.`);
+      try {
+        addTimer(timerToActivate);
+        lastProcessedQr.current = qrId;
+        console.log("⏱️ Timer innescato con successo");
+      } catch (e) {
+        console.error("Errore nell'innesco del timer:", e);
+      }
     }
   }, [data, addTimer]);
 
