@@ -27,7 +27,7 @@ const BODY_SLOTS = [
 // Mappa Tipi Oggetto per UI
 const ITEM_TYPES = {
     'MOD': { label: 'Mod (Tecnologico)', icon: Settings, isBound: false },
-    'MAT': { label: 'Materia (Arcano)', icon: Zap, isBound: false },
+    'MAT': { label: 'Materia (Soprannaturale)', icon: Zap, isBound: false },
     'INNESTO': { label: 'Innesto (Chirurgico)', icon: Activity, isBound: true },
     'MUTAZIONE': { label: 'Mutazione (Biologico)', icon: Activity, isBound: true }
 };
