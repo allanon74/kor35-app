@@ -844,13 +844,13 @@ export const getAcquirableCerimoniali = (charId, onLogout) => {
 
 // Recupera la lista eventi (filtrata dal backend per ruolo)
 export const getEventi = (onLogout) => {
-  return fetchAuthenticated('/gestione_plot/api/eventi/', { method: 'GET' }, onLogout);
+  return fetchAuthenticated('/plot/api/eventi/', { method: 'GET' }, onLogout);
 };
 
 // Modifica HP di un mostro in tempo reale
 export const updateMostroHp = (mostroId, delta, onLogout) => {
   return fetchAuthenticated(
-    `/gestione-plot/api/mostri-istanza/${mostroId}/modifica_hp/`,
+    `/plot/api/mostri-istanza/${mostroId}/modifica_hp/`,
     {
       method: 'POST',
       body: JSON.stringify({ delta })
@@ -862,7 +862,7 @@ export const updateMostroHp = (mostroId, delta, onLogout) => {
 // Associa un QR code scansionato a un oggetto "Vista" della quest
 export const associaQrAVista = (vistaId, qrId, onLogout) => {
   return fetchAuthenticated(
-    `/gestione-plot/api/viste-setup/${vistaId}/associa_qr/`,
+    `/plot/api/viste-setup/${vistaId}/associa_qr/`,
     {
       method: 'POST',
       body: JSON.stringify({ qr_id: qrId })
