@@ -1,176 +1,188 @@
 import React, { useState, useEffect } from 'react';
-import { getEventi, updateMostroHp, associaQrAVista } from '../api';
+import { 
+    getEventi, updateMostroHp, associaQrAVista,
+    createEvento, updateEvento, deleteEvento,
+    createGiorno, updateGiorno, deleteGiorno,
+    createQuest, updateQuest, deleteQuest
+} from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
-    ChevronRight, ChevronDown, Swords, Users, 
-    Eye, QrCode, Clock, Info, Heart, Shield 
+    Plus, Edit2, Trash2, Save, X, Clock, 
+    Calendar, MapPin, Users, Swords, Eye, QrCode
 } from 'lucide-react';
-import QrTab from './QrTab'; // Riutilizziamo lo scanner esistente
 
 const PlotTab = ({ onLogout }) => {
     const { isMaster } = useCharacter();
     const [eventi, setEventi] = useState([]);
     const [selectedEvento, setSelectedEvento] = useState(null);
     const [loading, setLoading] = useState(true);
-    
-    // Stato per lo scanner QR dedicato all'associazione
-    const [scanningForVista, setScanningForVista] = useState(null); // ID della vista
+    const [editMode, setEditMode] = useState(null); // 'evento', 'giorno', 'quest' o null
+    const [formData, setFormData] = useState({});
 
-    useEffect(() => {
-        loadEventi();
-    }, []);
+    useEffect(() => { loadEventi(); }, []);
 
     const loadEventi = async () => {
         try {
             const data = await getEventi(onLogout);
             setEventi(data);
-            if (data.length > 0) setSelectedEvento(data[0]);
+            if (data.length > 0) {
+                // Mantieni selezionato l'evento corrente dopo il refresh se possibile
+                const current = selectedEvento ? data.find(e => e.id === selectedEvento.id) : data[0];
+                setSelectedEvento(current || data[0]);
+            }
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     };
 
-    const handleHpChange = async (mostroId, delta) => {
-        try {
-            await updateMostroHp(mostroId, delta, onLogout);
-            loadEventi(); // Refresh per aggiornare i PV a tutti
-        } catch (e) { alert("Errore aggiornamento HP"); }
+    // --- LOGICA EDITING ---
+    const startEdit = (tipo, oggetto = {}) => {
+        setEditMode(tipo);
+        setFormData(oggetto);
     };
 
-    const handleQrAssocSuccess = async (qrData) => {
-        if (!scanningForVista) return;
+    const handleSave = async () => {
         try {
-            await associaQrAVista(scanningForVista, qrData.id, onLogout);
-            alert("QR Associato correttamente!");
-            setScanningForVista(null);
+            if (editMode === 'evento') {
+                if (formData.id) await updateEvento(formData.id, formData, onLogout);
+                else await createEvento(formData, onLogout);
+            } else if (editMode === 'giorno') {
+                const data = { ...formData, evento: selectedEvento.id };
+                if (formData.id) await updateGiorno(formData.id, data, onLogout);
+                else await createGiorno(data, onLogout);
+            } else if (editMode === 'quest') {
+                // Assicurati cheformData.giorno contenga l'ID corretto
+                if (formData.id) await updateQuest(formData.id, formData, onLogout);
+                else await createQuest(formData, onLogout);
+            }
+            setEditMode(null);
             loadEventi();
-        } catch (e) { alert("Errore associazione QR"); }
+        } catch (e) { alert("Errore durante il salvataggio"); }
+    };
+
+    const handleDelete = async (tipo, id) => {
+        if (!window.confirm("Sei sicuro di voler eliminare questo elemento?")) return;
+        try {
+            if (tipo === 'evento') await deleteEvento(id, onLogout);
+            if (tipo === 'giorno') await deleteGiorno(id, onLogout);
+            if (tipo === 'quest') await deleteQuest(id, onLogout);
+            loadEventi();
+        } catch (e) { alert("Errore durante l'eliminazione"); }
     };
 
     if (loading) return <div className="p-8 text-center text-gray-500">Caricamento Plot...</div>;
 
     return (
-        <div className="flex flex-col h-full bg-gray-900 pb-20">
-            {/* Se siamo in modalità scanner, copriamo la vista */}
-            {scanningForVista && (
-                <div className="fixed inset-0 z-60 bg-black">
-                    <div className="p-4 flex justify-between items-center bg-gray-800">
-                        <span className="text-white font-bold">Scansiona QR per Oggetto</span>
-                        <button onClick={() => setScanningForVista(null)} className="text-red-400">Annulla</button>
-                    </div>
-                    <QrTab onScanSuccess={handleQrAssocSuccess} onLogout={onLogout} />
-                </div>
-            )}
-
-            {/* Header Evento */}
+        <div className="flex flex-col h-full bg-gray-900 pb-20 text-white">
+            {/* Header con Selettore Evento e Comandi Master */}
             <div className="p-4 bg-gray-800 border-b border-gray-700">
-                <select 
-                    className="w-full bg-gray-900 text-white p-2 rounded"
-                    onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id == e.target.value))}
-                >
-                    {eventi.map(ev => <option key={ev.id} value={ev.id}>{ev.titolo}</option>)}
-                </select>
-                {selectedEvento && (
-                    <p className="text-xs text-gray-400 mt-2 italic">{selectedEvento.sinossi}</p>
+                <div className="flex gap-2 items-center mb-2">
+                    <select 
+                        className="flex-1 bg-gray-900 text-white p-2 rounded border border-gray-600"
+                        value={selectedEvento?.id || ''}
+                        onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id == e.target.value))}
+                    >
+                        {eventi.map(ev => <option key={ev.id} value={ev.id}>{ev.titolo}</option>)}
+                    </select>
+                    {isMaster && (
+                        <>
+                            <button onClick={() => startEdit('evento')} className="p-2 bg-emerald-600 rounded"><Plus size={18}/></button>
+                            <button onClick={() => startEdit('evento', selectedEvento)} className="p-2 bg-indigo-600 rounded"><Edit2 size={18}/></button>
+                        </>
+                    )}
+                </div>
+                
+                {selectedEvento && !editMode && (
+                    <div className="text-xs text-gray-400 space-y-1">
+                        <p className="italic">{selectedEvento.sinossi}</p>
+                        <div className="flex gap-3 mt-2">
+                            <span className="flex items-center gap-1"><MapPin size={12}/> {selectedEvento.luogo}</span>
+                            <span className="flex items-center gap-1 font-bold text-amber-500">PC: {selectedEvento.pc_guadagnati}</span>
+                        </div>
+                    </div>
                 )}
             </div>
 
-            {/* Timeline Giorni e Quest */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {selectedEvento?.giorni.map(giorno => (
-                    <div key={giorno.id} className="space-y-4">
-                        <div className="sticky top-0 bg-gray-900/95 py-2 border-b border-emerald-900/50 flex items-center gap-2">
-                            <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">GIORNO</span>
-                            <span className="text-emerald-400 font-bold">{new Date(giorno.data_ora_inizio).toLocaleDateString()}</span>
+            {/* FORM DI EDITING (Renderizzato al posto della lista se attivo) */}
+            {isMaster && editMode && (
+                <div className="p-4 bg-gray-800 border-b border-indigo-500 animate-in fade-in slide-in-from-top-4">
+                    <h3 className="text-sm font-bold uppercase mb-4 text-indigo-400">
+                        {formData.id ? 'Modifica' : 'Nuovo'} {editMode}
+                    </h3>
+                    <div className="space-y-3">
+                        <input 
+                            className="w-full bg-gray-900 p-2 rounded border border-gray-700"
+                            placeholder="Titolo / Nome"
+                            value={formData.titolo || formData.nome || ''}
+                            onChange={e => setFormData({...formData, titolo: e.target.value, nome: e.target.value})}
+                        />
+                        <textarea 
+                            className="w-full bg-gray-900 p-2 rounded border border-gray-700 h-24 text-sm"
+                            placeholder="Descrizione / Sinossi"
+                            value={formData.sinossi || formData.sinossi_breve || formData.descrizione_ampia || ''}
+                            onChange={e => setFormData({...formData, sinossi: e.target.value, sinossi_breve: e.target.value, descrizione_ampia: e.target.value})}
+                        />
+                        <div className="flex gap-2">
+                            <button onClick={handleSave} className="flex-1 bg-emerald-600 py-2 rounded font-bold flex items-center justify-center gap-2">
+                                <Save size={18}/> Salva
+                            </button>
+                            <button onClick={() => setEditMode(null)} className="flex-1 bg-gray-700 py-2 rounded font-bold flex items-center justify-center gap-2">
+                                <X size={18}/> Annulla
+                            </button>
                         </div>
-                        
-                        {giorno.quests.map(quest => (
-                            <div key={quest.id} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-                                {/* Header Quest */}
-                                <div className="p-3 bg-gray-700/50 flex justify-between items-center">
-                                    <h3 className="font-bold text-indigo-300 flex items-center gap-2">
-                                        <Clock size={16} /> {quest.orario_indicativo.slice(0,5)} - {quest.titolo}
-                                    </h3>
-                                </div>
+                    </div>
+                </div>
+            )}
 
-                                <div className="p-4 space-y-4">
-                                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{quest.descrizione_ampia}</p>
-
-                                    {/* Sezione PnG */}
-                                    <div className="space-y-2">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                                            <Users size={14}/> PnG Necessari
-                                        </h4>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {quest.png_richiesti.map(png => (
-                                                <div key={png.id} className="flex items-center justify-between bg-gray-900 p-2 rounded border-l-2 border-indigo-500">
-                                                    <span className="text-sm font-bold text-white">{png.personaggio_details.nome}</span>
-                                                    <span className="text-[10px] text-gray-400">{png.staffer_details?.username || 'Da Assegnare'}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Sezione Mostri (Interattiva) */}
-                                    <div className="space-y-2">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                                            <Swords size={14}/> Mostri Generici
-                                        </h4>
-                                        {quest.mostri_presenti.map(m => (
-                                            <div key={m.id} className="bg-gray-900 p-3 rounded-lg border border-gray-700">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className="block font-bold text-red-400">{m.template_details.nome}</span>
-                                                        <span className="text-[10px] text-gray-500">Assegnato a: {m.staffer_details?.username || '-'}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <button onClick={() => handleHpChange(m.id, -1)} className="w-8 h-8 bg-red-900/40 text-red-400 rounded-full font-bold border border-red-900/50">-</button>
-                                                        <div className="flex flex-col items-center min-w-10">
-                                                            <span className="text-xl font-black text-white">{m.punti_vita}</span>
-                                                            <span className="text-[8px] uppercase text-gray-500">HP</span>
-                                                        </div>
-                                                        <button onClick={() => handleHpChange(m.id, 1)} className="w-8 h-8 bg-emerald-900/40 text-emerald-400 rounded-full font-bold border border-emerald-900/50">+</button>
-                                                    </div>
-                                                </div>
-                                                {/* Statistiche Difensive */}
-                                                <div className="flex gap-4 text-[10px] border-t border-gray-800 pt-2">
-                                                    <span className="flex items-center gap-1"><Shield size={10} className="text-blue-400"/> ARM: {m.armatura}</span>
-                                                    <span className="flex items-center gap-1"><Heart size={10} className="text-purple-400"/> GUS: {m.guscio}</span>
-                                                </div>
-                                                {/* Lista Attacchi dal Template */}
-                                                <div className="mt-2 space-y-1">
-                                                    {m.template_details.attacchi.map(att => (
-                                                        <div key={att.id} className="text-[10px] text-gray-400 bg-gray-800 px-2 py-1 rounded">
-                                                            <b className="text-gray-200">{att.nome_attacco}:</b> {att.descrizione_danno}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Sezione Oggetti Vista e QR Setup */}
-                                    <div className="space-y-2">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                                            <Eye size={14}/> Oggetti da Trovare / Setup
-                                        </h4>
-                                        {quest.viste_previste.map(vista => (
-                                            <div key={vista.id} className="flex items-center justify-between bg-gray-900 p-2 rounded">
-                                                <div className="text-sm">
-                                                    <span className="text-emerald-400 font-mono text-[10px] block uppercase">{vista.tipo}</span>
-                                                    <span className="text-white">{vista.manifesto_details?.titolo || vista.inventario_details?.nome || "Oggetto senza nome"}</span>
-                                                </div>
-                                                <button 
-                                                    onClick={() => setScanningForVista(vista.id)}
-                                                    className={`p-2 rounded-lg ${vista.qr_code ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-400'}`}
-                                                >
-                                                    <QrCode size={18} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+            {/* Timeline Giorni e Quest */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-8">
+                {selectedEvento?.giorni.map(giorno => (
+                    <div key={giorno.id} className="relative pl-4 border-l-2 border-emerald-500/30">
+                        {/* Giorno Header */}
+                        <div className="mb-4 flex justify-between items-start">
+                            <div>
+                                <h2 className="text-emerald-400 font-black text-lg">
+                                    {new Date(giorno.data_ora_inizio).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' })}
+                                </h2>
+                                <p className="text-xs text-gray-500">{giorno.sinossi_breve}</p>
                             </div>
-                        ))}
+                            {isMaster && (
+                                <div className="flex gap-1">
+                                    <button onClick={() => startEdit('quest', { giorno: giorno.id })} className="p-1.5 bg-emerald-900/50 text-emerald-400 rounded"><Plus size={14}/></button>
+                                    <button onClick={() => startEdit('giorno', giorno)} className="p-1.5 bg-gray-800 text-gray-400 rounded"><Edit2 size={14}/></button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Quests */}
+                        <div className="space-y-4">
+                            {giorno.quests.map(quest => (
+                                <div key={quest.id} className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 relative group">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-2 text-indigo-400 font-bold">
+                                            <Clock size={14}/> {quest.orario_indicativo.slice(0,5)}
+                                            <span className="text-white">— {quest.titolo}</span>
+                                        </div>
+                                        {isMaster && (
+                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => startEdit('quest', quest)} className="text-indigo-400"><Edit2 size={16}/></button>
+                                                <button onClick={() => handleDelete('quest', quest.id)} className="text-red-400"><Trash2 size={16}/></button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-gray-400 mb-4 whitespace-pre-wrap">{quest.descrizione_ampia}</p>
+                                    
+                                    {/* Componenti Quest (PnG, Mostri) - Visualizzazione Compatta */}
+                                    <div className="flex gap-2 flex-wrap">
+                                        <span className="text-[10px] bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded border border-indigo-800">
+                                            {quest.png_richiesti.length} PnG
+                                        </span>
+                                        <span className="text-[10px] bg-red-900/50 text-red-300 px-2 py-1 rounded border border-red-800">
+                                            {quest.mostri_presenti.length} Mostri
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ))}
             </div>
