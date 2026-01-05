@@ -12,7 +12,7 @@ import { useCharacter } from './CharacterContext';
 import { 
     Plus, Edit2, Trash2, Save, X, Clock, 
     Calendar, MapPin, Users, Swords, Eye, QrCode as QrIcon,
-    Info, Heart, Shield, ChevronDown, Trash, UserCheck, Layout
+    Info, Heart, Shield, ChevronDown, Trash, UserCheck, Layout, Zap
 } from 'lucide-react';
 import QrTab from './QrTab';
 
@@ -100,7 +100,6 @@ const PlotTab = ({ onLogout }) => {
             if (tipo === 'mostro') {
                 const tId = parseInt(payload.template);
                 if (!tId) return alert("Seleziona un template mostro");
-                // I mostri richiedono un'assegnazione staff manuale (perché sono generici)
                 await addMostroToQuest(
                     parseInt(payload.quest), 
                     tId, 
@@ -122,7 +121,7 @@ const PlotTab = ({ onLogout }) => {
             refreshData();
         } catch (e) { 
             console.error(e);
-            alert("Errore nell'aggiunta."); 
+            alert("Errore nell'aggiunta. Assicurati di aver aggiornato il Serializer lato Backend."); 
         }
     };
 
@@ -147,6 +146,8 @@ const PlotTab = ({ onLogout }) => {
         setEditMode(tipo);
         setFormData(oggetto);
     };
+
+    // --- RENDERERS ---
 
     const renderEditor = () => {
         if (!editMode) return null;
@@ -253,7 +254,7 @@ const PlotTab = ({ onLogout }) => {
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
             <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40">
                 <select 
-                    className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none appearance-none"
+                    className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none appearance-none cursor-pointer"
                     value={selectedEvento?.id || ''}
                     onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id === parseInt(e.target.value)))}
                 >
@@ -307,7 +308,7 @@ const PlotTab = ({ onLogout }) => {
                                                                 <span className="font-bold">{p.personaggio_details?.nome || '???'}</span>
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-indigo-400 italic"><UserCheck size={10}/> {p.staffer_details?.username || '---'}</span>
-                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="text-red-500"><X size={12}/></button>}
+                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="text-red-500 hover:text-red-400"><X size={12}/></button>}
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -331,21 +332,42 @@ const PlotTab = ({ onLogout }) => {
                                                     <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1"><Swords size={12}/> Combat Table</span>
                                                     <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
                                                         {quest.mostri_presenti.map(m => (
-                                                            <div key={m.id} className="bg-gray-950 p-2 rounded-lg border border-gray-800 flex justify-between items-center group">
-                                                                <div className="flex flex-col">
+                                                            <div key={m.id} className="bg-gray-950 p-2 rounded-lg border border-gray-800 flex justify-between items-start group">
+                                                                <div className="flex flex-col flex-1">
                                                                     <div className="text-[11px] font-black uppercase text-red-400">
                                                                         {m.template_details?.nome || '???'}
                                                                     </div>
-                                                                    {m.staffer_details && <span className="text-[8px] text-gray-500 italic">Interprete: {m.staffer_details.username}</span>}
+                                                                    {/* Dettagli Interprete e Stats */}
+                                                                    <div className="flex flex-wrap gap-2 mt-0.5">
+                                                                        {m.staffer_details && (
+                                                                            <span className="text-[9px] text-indigo-400 font-bold italic flex items-center gap-0.5">
+                                                                                <UserCheck size={8}/> {m.staffer_details.username}
+                                                                            </span>
+                                                                        )}
+                                                                        <span className="text-[9px] text-gray-500 font-bold flex items-center gap-0.5">
+                                                                            <Shield size={8}/> AR: {m.armatura}
+                                                                        </span>
+                                                                        <span className="text-[9px] text-gray-500 font-bold flex items-center gap-0.5">
+                                                                            <Layout size={8}/> SH: {m.guscio}
+                                                                        </span>
+                                                                    </div>
+                                                                    {/* Formula Attacco */}
+                                                                    {m.template_details?.attacco_base && (
+                                                                        <div className="text-[9px] text-amber-500 font-mono mt-1 border-t border-gray-800 pt-1 leading-tight">
+                                                                            <span className="font-bold">{m.template_details.nome}:</span> {m.template_details.attacco_base}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('mostro', m.id)} className="text-red-900 mr-1"><Trash size={12}/></button>}
+                                                                <div className="flex items-center gap-1 ml-2">
+                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('mostro', m.id)} className="text-red-900 hover:text-red-500 mr-1"><Trash size={12}/></button>}
                                                                     <div className="flex items-center gap-1 px-2 bg-gray-900 rounded border border-gray-800">
                                                                         <Heart size={10} className="text-red-500 fill-red-500"/>
                                                                         <span className="text-sm font-black w-4 text-center">{m.punti_vita}</span>
                                                                     </div>
-                                                                    <button onClick={() => handleHpChange(m.id, -1)} className="w-6 h-6 bg-red-900/40 text-red-500 rounded-full font-black">-</button>
-                                                                    <button onClick={() => handleHpChange(m.id, 1)} className="w-6 h-6 bg-emerald-900/40 text-emerald-500 rounded-full font-black">+</button>
+                                                                    <div className="flex flex-col gap-0.5">
+                                                                        <button onClick={() => handleHpChange(m.id, 1)} className="w-5 h-5 bg-emerald-900/40 text-emerald-500 rounded text-[10px] font-black">+</button>
+                                                                        <button onClick={() => handleHpChange(m.id, -1)} className="w-5 h-5 bg-red-900/40 text-red-500 rounded text-[10px] font-black">-</button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -356,7 +378,6 @@ const PlotTab = ({ onLogout }) => {
                                                                         <option value="">Evoca Mostro...</option>
                                                                         {risorse.templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                                                                     </select>
-                                                                    {/* Selezione Staffer per Mostri */}
                                                                     <select id={`ms-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
                                                                         <option value="">Staffer...</option>
                                                                         {risorse.staff.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
@@ -365,7 +386,7 @@ const PlotTab = ({ onLogout }) => {
                                                                         quest: quest.id, 
                                                                         template: document.getElementById(`m-${quest.id}`).value,
                                                                         staffer: document.getElementById(`ms-${quest.id}`).value
-                                                                    })} className="bg-red-600 p-1.5 rounded"><Plus size={14}/></button>
+                                                                    })} className="bg-red-600 p-1.5 rounded hover:bg-red-500"><Plus size={14}/></button>
                                                                 </div>
                                                             </div>
                                                         )}
@@ -381,7 +402,8 @@ const PlotTab = ({ onLogout }) => {
                                                         <div>
                                                             <span className="text-[8px] font-black text-emerald-500 uppercase block leading-none mb-1">{v.tipo}</span>
                                                             <span className="text-[11px] font-bold text-gray-200">
-                                                                {v.manifesto_details?.nome || v.inventario_details?.nome || 'OGGETTO'}
+                                                                {/* Migliorato il recupero del nome per Manifesti e Inventari */}
+                                                                {v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'Nessun Nome'}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
