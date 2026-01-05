@@ -881,3 +881,15 @@ export const deleteGiorno = (id, onLogout) => fetchAuthenticated(`/plot/api/gior
 export const createQuest = (data, onLogout) => fetchAuthenticated('/plot/api/quests/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 export const updateQuest = (id, data, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'DELETE' }, onLogout);
+
+// Recupera tutte le liste per i dropdown dell'editor
+export const getRisorseEditor = (onLogout) => fetchAuthenticated('/plot/api/eventi/risorse_editor/', { method: 'GET' }, onLogout);
+
+// Operazioni su PnG, Mostri e Viste
+export const addPngToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const addMostroToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const addVistaToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+
+export const removePngFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/png-assegnati/${id}/`, { method: 'DELETE' }, onLogout);
+export const removeMostroFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'DELETE' }, onLogout);
+export const removeVistaFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/viste-setup/${id}/`, { method: 'DELETE' }, onLogout);
