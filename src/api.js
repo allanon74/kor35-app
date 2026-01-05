@@ -872,16 +872,16 @@ export const associaQrAVista = (vistaId, qrId, onLogout) => {
 };
 
 // EVENTI
-export const createEvento = (data, onLogout) => fetchAuthenticated('/plot/eventi/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const updateEvento = (id, data, onLogout) => fetchAuthenticated(`/plot/eventi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
-export const deleteEvento = (id, onLogout) => fetchAuthenticated(`/plot/eventi/${id}/`, { method: 'DELETE' }, onLogout);
+export const createEvento = (data, onLogout) => fetchAuthenticated('/plot/api/eventi/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const updateEvento = (id, data, onLogout) => fetchAuthenticated(`/plot/api/eventi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+export const deleteEvento = (id, onLogout) => fetchAuthenticated(`/plot/api/eventi/${id}/`, { method: 'DELETE' }, onLogout);
 
 // GIORNI (Assumendo di aver creato i ViewSet relativi nel backend)
-export const createGiorno = (data, onLogout) => fetchAuthenticated('/plot/giorni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const updateGiorno = (id, data, onLogout) => fetchAuthenticated(`/plot/giorni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
-export const deleteGiorno = (id, onLogout) => fetchAuthenticated(`/plot/giorni/${id}/`, { method: 'DELETE' }, onLogout);
+export const createGiorno = (data, onLogout) => fetchAuthenticated('/plot/api/giorni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const updateGiorno = (id, data, onLogout) => fetchAuthenticated(`/plot/api/giorni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+export const deleteGiorno = (id, onLogout) => fetchAuthenticated(`/plot/api/giorni/${id}/`, { method: 'DELETE' }, onLogout);
 
 // QUEST
-export const createQuest = (data, onLogout) => fetchAuthenticated('/plot/quests/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const updateQuest = (id, data, onLogout) => fetchAuthenticated(`/plot/quests/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
-export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/plot/quests/${id}/`, { method: 'DELETE' }, onLogout);
+export const createQuest = (data, onLogout) => fetchAuthenticated('/plot/api/quests/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const updateQuest = (id, data, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'DELETE' }, onLogout);
