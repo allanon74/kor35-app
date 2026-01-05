@@ -104,10 +104,16 @@ const PlotTab = ({ onLogout }) => {
             if (tipo === 'png') {
                 const pId = parseInt(payload.personaggio);
                 if (!pId) return alert("Seleziona un PnG");
+                
+                // RECUPERO AUTOMATICO DELLO STAFF:
+                // Troviamo il personaggio nelle risorse caricate per estrarre il proprietario (User ID)
+                const selectedPng = risorse.png.find(p => p.id === pId);
+                const stafferId = selectedPng ? selectedPng.proprietario : null;
+
                 await addPngToQuest(
                     parseInt(payload.quest), 
                     pId, 
-                    payload.staffer ? parseInt(payload.staffer) : null, 
+                    stafferId, // Inviato automaticamente al backend
                     onLogout
                 );
             }
@@ -130,7 +136,7 @@ const PlotTab = ({ onLogout }) => {
             refreshData();
         } catch (e) { 
             console.error(e);
-            alert("Errore nell'aggiunta. Controlla i permessi o la definizione di fetchAuthenticated in api.js"); 
+            alert("Errore nell'aggiunta. Assicurati che le rotte API siano registrate correttamente nel backend."); 
         }
     };
 
@@ -354,14 +360,10 @@ const PlotTab = ({ onLogout }) => {
                                                                     <option value="">Scegli PnG...</option>
                                                                     {risorse.png.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                                                                 </select>
-                                                                <select id={`s-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
-                                                                    <option value="">Staffer...</option>
-                                                                    {risorse.staff.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
-                                                                </select>
+                                                                {/* Rimosso selettore staffer: il backend riceve l'ID basandosi sul PnG selezionato */}
                                                                 <button onClick={() => handleAddSubItem('png', { 
                                                                     quest: quest.id, 
-                                                                    personaggio: document.getElementById(`p-${quest.id}`).value,
-                                                                    staffer: document.getElementById(`s-${quest.id}`).value 
+                                                                    personaggio: document.getElementById(`p-${quest.id}`).value
                                                                 })} className="bg-indigo-600 p-1.5 rounded hover:bg-indigo-500"><Plus size={14}/></button>
                                                             </div>
                                                         )}
