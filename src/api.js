@@ -894,27 +894,29 @@ export const removePngFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/ap
 export const removeMostroFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'DELETE' }, onLogout);
 export const removeVistaFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/viste-setup/${id}/`, { method: 'DELETE' }, onLogout);
 
-export const addVistaToQuest = (questId, data, onLogout) => {
-    const payload = {
-        quest: parseInt(questId),
-        tipo: data.tipo,
-        manifesto: data.manifesto ? parseInt(data.manifesto) : null,
-        inventario: data.inventario ? parseInt(data.inventario) : null
-    };
-    return apiCall('POST', '/plot/api/viste-setup/', payload, onLogout);
-};
-
 export const addPngToQuest = (questId, personaggioId, stafferId, onLogout) => {
-    return apiCall('POST', '/plot/api/png-assegnati/', {
-        quest: parseInt(questId),
-        personaggio: parseInt(personaggioId),
-        staffer: stafferId ? parseInt(stafferId) : null
-    }, onLogout);
+  const payload = {
+    quest: parseInt(questId),
+    personaggio: parseInt(personaggioId),
+    staffer: stafferId ? parseInt(stafferId) : null
+  };
+  return fetchAuthenticated('/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };
 
 export const addMostroToQuest = (questId, templateId, onLogout) => {
-    return apiCall('POST', '/plot/api/quest-mostri/', {
-        quest: parseInt(questId),
-        template: parseInt(templateId)
-    }, onLogout);
+  const payload = {
+    quest: parseInt(questId),
+    template: parseInt(templateId)
+  };
+  return fetchAuthenticated('/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
+};
+
+export const addVistaToQuest = (questId, data, onLogout) => {
+  const payload = {
+    quest: parseInt(questId),
+    tipo: data.tipo,
+    manifesto: data.manifesto ? parseInt(data.manifesto) : null,
+    inventario: data.inventario ? parseInt(data.inventario) : null
+  };
+  return fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };
