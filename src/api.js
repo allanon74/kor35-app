@@ -904,10 +904,11 @@ export const addPngToQuest = (questId, personaggioId, stafferId, onLogout) => {
 };
 
 // Correzione Mostri
-export const addMostroToQuest = (questId, templateId, onLogout) => {
+export const addMostroToQuest = (questId, templateId, stafferId, onLogout) => {
     const payload = {
         quest: parseInt(questId),
-        template: parseInt(templateId)
+        template: parseInt(templateId),
+        staff: stafferId ? parseInt(stafferId) : null
     };
     return fetchAuthenticated('/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };

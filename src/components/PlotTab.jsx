@@ -22,17 +22,10 @@ const PlotTab = ({ onLogout }) => {
     const [selectedEvento, setSelectedEvento] = useState(null);
     const [loading, setLoading] = useState(true);
     
-    // Risorse caricate all'avvio (filtrate lato backend per escludere PnG da Inventari)
     const [risorse, setRisorse] = useState({ png: [], templates: [], manifesti: [], inventari: [], staff: [] });
-
-    // Stati per Editor Modali
-    const [editMode, setEditMode] = useState(null); // 'evento', 'giorno', 'quest'
+    const [editMode, setEditMode] = useState(null); 
     const [formData, setFormData] = useState({});
-    
-    // Stato per la creazione rapida di una Vista (QR)
     const [newVistaData, setNewVistaData] = useState({ tipo: 'MAN', contentId: '' });
-
-    // Scanner QR
     const [scanningForVista, setScanningForVista] = useState(null);
 
     useEffect(() => {
@@ -63,8 +56,6 @@ const PlotTab = ({ onLogout }) => {
             setSelectedEvento(updated || (data.length > 0 ? data[0] : null));
         }
     };
-
-    // --- HANDLERS PRINCIPALI (CRUD) ---
 
     const handleSaveMain = async () => {
         try {
@@ -97,30 +88,25 @@ const PlotTab = ({ onLogout }) => {
         } catch (e) { alert("Errore eliminazione."); }
     };
 
-    // --- HANDLERS SOTTO-ELEMENTI (PnG, Mostri, Viste) ---
-
     const handleAddSubItem = async (tipo, payload) => {
         try {
             if (tipo === 'png') {
                 const pId = parseInt(payload.personaggio);
                 if (!pId) return alert("Seleziona un PnG");
-                
-                // RECUPERO AUTOMATICO DELLO STAFF:
-                // Troviamo il personaggio nelle risorse caricate per estrarre il proprietario (User ID)
                 const selectedPng = risorse.png.find(p => p.id === pId);
                 const stafferId = selectedPng ? selectedPng.proprietario : null;
-
-                await addPngToQuest(
-                    parseInt(payload.quest), 
-                    pId, 
-                    stafferId, // Inviato automaticamente al backend
-                    onLogout
-                );
+                await addPngToQuest(parseInt(payload.quest), pId, stafferId, onLogout);
             }
             if (tipo === 'mostro') {
                 const tId = parseInt(payload.template);
                 if (!tId) return alert("Seleziona un template mostro");
-                await addMostroToQuest(parseInt(payload.quest), tId, onLogout);
+                // I mostri richiedono un'assegnazione staff manuale (perché sono generici)
+                await addMostroToQuest(
+                    parseInt(payload.quest), 
+                    tId, 
+                    payload.staffer ? parseInt(payload.staffer) : null, 
+                    onLogout
+                );
             }
             if (tipo === 'vista') {
                 const cId = parseInt(payload.contentId);
@@ -136,7 +122,7 @@ const PlotTab = ({ onLogout }) => {
             refreshData();
         } catch (e) { 
             console.error(e);
-            alert("Errore nell'aggiunta. Assicurati che le rotte API siano registrate correttamente nel backend."); 
+            alert("Errore nell'aggiunta."); 
         }
     };
 
@@ -162,8 +148,6 @@ const PlotTab = ({ onLogout }) => {
         setFormData(oggetto);
     };
 
-    // --- RENDERERS ---
-
     const renderEditor = () => {
         if (!editMode) return null;
         return (
@@ -173,7 +157,6 @@ const PlotTab = ({ onLogout }) => {
                         <h3 className="text-xl font-black text-indigo-400 uppercase italic">Editor {editMode}</h3>
                         <button onClick={() => setEditMode(null)} className="p-2 bg-gray-700 rounded-full hover:bg-gray-600"><X /></button>
                     </div>
-                    
                     <div className="space-y-4">
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase">Titolo / Identificativo</label>
@@ -181,7 +164,6 @@ const PlotTab = ({ onLogout }) => {
                                 value={formData.titolo || formData.nome || ''}
                                 onChange={e => setFormData({...formData, titolo: e.target.value, nome: e.target.value})} />
                         </div>
-
                         {editMode === 'evento' && (
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -204,14 +186,12 @@ const PlotTab = ({ onLogout }) => {
                                 </div>
                             </div>
                         )}
-
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase block">Sinossi / Descrizione</label>
                             <textarea className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 h-32 text-sm"
                                 value={formData.sinossi || formData.sinossi_breve || formData.descrizione_ampia || ''}
                                 onChange={e => setFormData({...formData, sinossi: e.target.value, sinossi_breve: e.target.value, descrizione_ampia: e.target.value})} />
                         </div>
-
                         {editMode === 'quest' && (
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -228,7 +208,6 @@ const PlotTab = ({ onLogout }) => {
                                 </div>
                             </div>
                         )}
-
                         <button onClick={handleSaveMain} className="w-full bg-indigo-600 py-4 rounded-xl font-black text-lg uppercase tracking-widest shadow-lg hover:bg-indigo-500 transition-colors">
                             <Save className="inline mr-2" /> Salva Modifiche
                         </button>
@@ -250,20 +229,20 @@ const PlotTab = ({ onLogout }) => {
                         </div>
                         <div className="flex flex-wrap gap-4 text-[10px] font-bold uppercase text-gray-400 italic">
                             <span className="flex items-center gap-1"><MapPin size={12}/> {selectedEvento.luogo || 'Luogo non definito'}</span>
-                            <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(selectedEvento.data_inizio).toLocaleDateString()} - {new Date(selectedEvento.data_fine).toLocaleDateString()}</span>
+                            <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(selectedEvento.data_inizio).toLocaleDateString()}</span>
                             <span className="text-indigo-400 flex items-center gap-1"><Info size={12}/> {selectedEvento.pc_guadagnati} PC</span>
                         </div>
                     </div>
                     <div className="flex gap-2">
                         {isMaster && (
                             <>
-                                <button onClick={() => startEdit('giorno', { evento: selectedEvento.id })} className="px-4 py-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-black uppercase italic tracking-widest hover:bg-emerald-600/40 transition-colors">+ Giorno</button>
-                                <button onClick={() => handleDeleteMain('evento', selectedEvento.id)} className="p-2 bg-red-900/20 text-red-500 border border-red-900/30 rounded-lg hover:bg-red-900/40 transition-colors"><Trash2 size={18}/></button>
+                                <button onClick={() => startEdit('giorno', { evento: selectedEvento.id })} className="px-4 py-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-black uppercase italic tracking-widest">+ Giorno</button>
+                                <button onClick={() => handleDeleteMain('evento', selectedEvento.id)} className="p-2 bg-red-900/20 text-red-500 border border-red-900/30 rounded-lg"><Trash2 size={18}/></button>
                             </>
                         )}
                     </div>
                 </div>
-                <p className="text-gray-300 text-sm leading-relaxed border-l-2 border-indigo-500 pl-4 py-1">{selectedEvento.sinossi}</p>
+                <p className="text-gray-300 text-sm italic">{selectedEvento.sinossi}</p>
             </div>
         );
     };
@@ -272,85 +251,63 @@ const PlotTab = ({ onLogout }) => {
 
     return (
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
-            {/* Top Bar Selezione */}
-            <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 shadow-2xl z-40">
+            <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40">
                 <select 
-                    className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none appearance-none cursor-pointer"
+                    className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none appearance-none"
                     value={selectedEvento?.id || ''}
                     onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id === parseInt(e.target.value)))}
                 >
                     {eventi.map(ev => <option key={ev.id} value={ev.id}>{ev.titolo.toUpperCase()}</option>)}
                 </select>
-                {isMaster && <button onClick={() => startEdit('evento')} className="p-3 bg-indigo-600 rounded-xl shadow-lg hover:rotate-90 transition-transform"><Plus size={24}/></button>}
+                {isMaster && <button onClick={() => startEdit('evento')} className="p-3 bg-indigo-600 rounded-xl"><Plus size={24}/></button>}
             </div>
 
             {renderEditor()}
 
-            {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {renderEventHeaderInfo()}
 
                 <div className="p-4 space-y-12">
                     {selectedEvento?.giorni.map((giorno, gIdx) => (
                         <div key={giorno.id} className="space-y-6">
-                            {/* Header Giorno */}
                             <div className="flex justify-between items-end border-b border-emerald-500/20 pb-2">
                                 <div>
-                                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Giorno {gIdx + 1}</span>
+                                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Giorno {gIdx + 1}</span>
                                     <h2 className="text-xl font-black italic text-white uppercase">{giorno.sinossi_breve}</h2>
-                                    <span className="text-[9px] text-gray-500 font-bold">{new Date(giorno.data_ora_inizio).toLocaleString()}</span>
                                 </div>
                                 {isMaster && (
                                     <div className="flex gap-3">
-                                        <button onClick={() => startEdit('giorno', giorno)} className="text-gray-500 hover:text-white"><Edit2 size={16}/></button>
-                                        <button onClick={() => handleDeleteMain('giorno', giorno.id)} className="text-gray-500 hover:text-red-500"><Trash size={16}/></button>
-                                        <button onClick={() => startEdit('quest', { giorno: giorno.id })} className="flex items-center gap-1 bg-emerald-600 px-3 py-1 rounded text-[10px] font-bold uppercase italic"><Plus size={14}/> Quest</button>
+                                        <button onClick={() => startEdit('giorno', giorno)} className="text-gray-500"><Edit2 size={16}/></button>
+                                        <button onClick={() => startEdit('quest', { giorno: giorno.id })} className="bg-emerald-600 px-3 py-1 rounded text-[10px] font-bold uppercase">+ Quest</button>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Timeline Quests */}
                             <div className="grid gap-6">
                                 {giorno.quests.map(quest => (
                                     <div key={quest.id} className="bg-gray-800/40 border border-gray-700/50 rounded-2xl overflow-hidden shadow-xl">
-                                        {/* Quest Header */}
                                         <div className="bg-gray-800/80 px-4 py-3 flex justify-between items-center border-b border-gray-700">
                                             <div className="flex items-center gap-3">
                                                 <div className="bg-indigo-600/20 text-indigo-400 p-2 rounded-lg font-black text-xs">{quest.orario_indicativo?.slice(0,5)}</div>
                                                 <h3 className="font-black text-white uppercase tracking-tight">{quest.titolo}</h3>
                                             </div>
-                                            {isMaster && (
-                                                <div className="flex gap-3">
-                                                    <button onClick={() => startEdit('quest', quest)} className="text-gray-500 hover:text-white"><Edit2 size={16}/></button>
-                                                    <button onClick={() => handleDeleteMain('quest', quest.id)} className="text-red-900 hover:text-red-500 transition-colors"><Trash size={16}/></button>
-                                                </div>
-                                            )}
+                                            {isMaster && <button onClick={() => startEdit('quest', quest)} className="text-gray-500"><Edit2 size={16}/></button>}
                                         </div>
 
                                         <div className="p-5 space-y-5">
-                                            <p className="text-sm text-gray-400 italic leading-relaxed">{quest.descrizione_ampia}</p>
+                                            <p className="text-sm text-gray-400 italic">{quest.descrizione_ampia}</p>
                                             
-                                            {quest.props && (
-                                                <div className="p-3 bg-amber-900/10 border border-amber-900/20 rounded-xl flex gap-3 items-start">
-                                                    <Layout className="text-amber-500 shrink-0" size={16} />
-                                                    <div>
-                                                        <span className="text-[9px] font-black text-amber-500 uppercase block">Materiale di Scena</span>
-                                                        <span className="text-xs text-amber-200/80">{quest.props}</span>
-                                                    </div>
-                                                </div>
-                                            )}
-
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {/* PnG Block */}
                                                 <div className="space-y-2">
-                                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1 px-1"><Users size={12}/> PnG Necessari</span>
+                                                    <span className="text-[10px] font-black text-indigo-400 uppercase flex items-center gap-1"><Users size={12}/> PnG Necessari</span>
                                                     <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
                                                         {quest.png_richiesti.map(p => (
                                                             <div key={p.id} className="flex justify-between items-center p-2 bg-gray-950 border border-gray-800 rounded-lg text-[11px] group">
-                                                                <span className="font-bold">{p.ordine_uscita}. {p.personaggio_details?.nome || '???'}</span>
+                                                                <span className="font-bold">{p.personaggio_details?.nome || '???'}</span>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-indigo-400 flex items-center gap-1 italic"><UserCheck size={10}/> {p.staffer_details?.username || 'DA ASSEGNARE'}</span>
-                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="opacity-0 group-hover:opacity-100 text-red-500"><X size={12}/></button>}
+                                                                    <span className="text-indigo-400 italic"><UserCheck size={10}/> {p.staffer_details?.username || '---'}</span>
+                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="text-red-500"><X size={12}/></button>}
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -360,11 +317,10 @@ const PlotTab = ({ onLogout }) => {
                                                                     <option value="">Scegli PnG...</option>
                                                                     {risorse.png.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                                                                 </select>
-                                                                {/* Rimosso selettore staffer: il backend riceve l'ID basandosi sul PnG selezionato */}
                                                                 <button onClick={() => handleAddSubItem('png', { 
                                                                     quest: quest.id, 
                                                                     personaggio: document.getElementById(`p-${quest.id}`).value
-                                                                })} className="bg-indigo-600 p-1.5 rounded hover:bg-indigo-500"><Plus size={14}/></button>
+                                                                })} className="bg-indigo-600 p-1.5 rounded"><Plus size={14}/></button>
                                                             </div>
                                                         )}
                                                     </div>
@@ -372,35 +328,45 @@ const PlotTab = ({ onLogout }) => {
 
                                                 {/* Mostri Block */}
                                                 <div className="space-y-2">
-                                                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1 px-1"><Swords size={12}/> Combat Table</span>
+                                                    <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1"><Swords size={12}/> Combat Table</span>
                                                     <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
                                                         {quest.mostri_presenti.map(m => (
                                                             <div key={m.id} className="bg-gray-950 p-2 rounded-lg border border-gray-800 flex justify-between items-center group">
-                                                                <div>
-                                                                    <div className="text-[11px] font-black uppercase text-red-400">{m.template_details?.nome || '???'}</div>
-                                                                    <div className="flex gap-2 text-[9px] text-gray-500 font-bold uppercase">
-                                                                        <span className="flex items-center gap-0.5"><Shield size={8}/> {m.armatura}</span>
-                                                                        <span className="flex items-center gap-0.5"><Layout size={8}/> {m.guscio}</span>
+                                                                <div className="flex flex-col">
+                                                                    <div className="text-[11px] font-black uppercase text-red-400">
+                                                                        {m.template_details?.nome || '???'}
                                                                     </div>
+                                                                    {m.staffer_details && <span className="text-[8px] text-gray-500 italic">Interprete: {m.staffer_details.username}</span>}
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
-                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('mostro', m.id)} className="opacity-0 group-hover:opacity-100 text-red-900 hover:text-red-500 mr-1"><Trash size={12}/></button>}
-                                                                    <button onClick={() => handleHpChange(m.id, -1)} className="w-6 h-6 bg-red-900/40 text-red-500 rounded-full font-black hover:bg-red-900">-</button>
+                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('mostro', m.id)} className="text-red-900 mr-1"><Trash size={12}/></button>}
                                                                     <div className="flex items-center gap-1 px-2 bg-gray-900 rounded border border-gray-800">
                                                                         <Heart size={10} className="text-red-500 fill-red-500"/>
                                                                         <span className="text-sm font-black w-4 text-center">{m.punti_vita}</span>
                                                                     </div>
-                                                                    <button onClick={() => handleHpChange(m.id, 1)} className="w-6 h-6 bg-emerald-900/40 text-emerald-500 rounded-full font-black hover:bg-emerald-900">+</button>
+                                                                    <button onClick={() => handleHpChange(m.id, -1)} className="w-6 h-6 bg-red-900/40 text-red-500 rounded-full font-black">-</button>
+                                                                    <button onClick={() => handleHpChange(m.id, 1)} className="w-6 h-6 bg-emerald-900/40 text-emerald-500 rounded-full font-black">+</button>
                                                                 </div>
                                                             </div>
                                                         ))}
                                                         {isMaster && (
-                                                            <div className="flex gap-1 pt-2">
-                                                                <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
-                                                                    <option value="">Evoca Mostro...</option>
-                                                                    {risorse.templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                                                                </select>
-                                                                <button onClick={() => handleAddSubItem('mostro', { quest: quest.id, template: document.getElementById(`m-${quest.id}`).value })} className="bg-red-600 p-1.5 rounded hover:bg-red-500"><Plus size={14}/></button>
+                                                            <div className="flex flex-col gap-1 pt-2">
+                                                                <div className="flex gap-1">
+                                                                    <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
+                                                                        <option value="">Evoca Mostro...</option>
+                                                                        {risorse.templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                                                    </select>
+                                                                    {/* Selezione Staffer per Mostri */}
+                                                                    <select id={`ms-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
+                                                                        <option value="">Staffer...</option>
+                                                                        {risorse.staff.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
+                                                                    </select>
+                                                                    <button onClick={() => handleAddSubItem('mostro', { 
+                                                                        quest: quest.id, 
+                                                                        template: document.getElementById(`m-${quest.id}`).value,
+                                                                        staffer: document.getElementById(`ms-${quest.id}`).value
+                                                                    })} className="bg-red-600 p-1.5 rounded"><Plus size={14}/></button>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
@@ -411,13 +377,11 @@ const PlotTab = ({ onLogout }) => {
                                             <div className="pt-4 border-t border-gray-800 flex flex-wrap gap-3">
                                                 {quest.viste_previste.map(v => (
                                                     <div key={v.id} className="flex items-center gap-3 bg-black/40 border border-gray-800 p-2 rounded-xl group relative">
-                                                        <div className="shrink-0 p-2 bg-emerald-500/10 rounded-lg">
-                                                            <QrIcon size={16} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
-                                                        </div>
+                                                        <QrIcon size={16} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
                                                         <div>
                                                             <span className="text-[8px] font-black text-emerald-500 uppercase block leading-none mb-1">{v.tipo}</span>
                                                             <span className="text-[11px] font-bold text-gray-200">
-                                                                {v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO SENZA NOME'}
+                                                                {v.manifesto_details?.nome || v.inventario_details?.nome || 'OGGETTO'}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
@@ -428,34 +392,15 @@ const PlotTab = ({ onLogout }) => {
                                                 ))}
                                                 {isMaster && (
                                                     <div className="flex items-center gap-2 bg-emerald-500/5 border border-dashed border-emerald-500/20 p-2 rounded-xl">
-                                                        <select 
-                                                            className="bg-transparent text-[10px] font-bold text-emerald-500 outline-none"
-                                                            value={newVistaData.tipo}
-                                                            onChange={(e) => setNewVistaData({...newVistaData, tipo: e.target.value, contentId: ''})}
-                                                        >
+                                                        <select className="bg-transparent text-[10px] font-bold text-emerald-500 outline-none" value={newVistaData.tipo} onChange={(e) => setNewVistaData({...newVistaData, tipo: e.target.value, contentId: ''})}>
                                                             <option value="MAN">MAN</option>
                                                             <option value="INV">INV</option>
                                                         </select>
-                                                        <select 
-                                                            className="bg-transparent text-[10px] text-gray-400 outline-none max-w-[120px]"
-                                                            value={newVistaData.contentId}
-                                                            onChange={(e) => setNewVistaData({...newVistaData, contentId: e.target.value})}
-                                                        >
+                                                        <select className="bg-transparent text-[10px] text-gray-400 outline-none max-w-[120px]" value={newVistaData.contentId} onChange={(e) => setNewVistaData({...newVistaData, contentId: e.target.value})}>
                                                             <option value="">Seleziona...</option>
-                                                            {newVistaData.tipo === 'INV' 
-                                                                ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)
-                                                                : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || m.titolo || `Manifesto #${m.id}`}</option>)
-                                                            }
+                                                            {newVistaData.tipo === 'INV' ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>) : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || m.titolo}</option>)}
                                                         </select>
-                                                        <button 
-                                                            onClick={() => {
-                                                                handleAddSubItem('vista', { quest: quest.id, ...newVistaData });
-                                                                setNewVistaData({...newVistaData, contentId: ''});
-                                                            }} 
-                                                            className="text-emerald-500 hover:text-emerald-400"
-                                                        >
-                                                            <Plus size={16}/>
-                                                        </button>
+                                                        <button onClick={() => { handleAddSubItem('vista', { quest: quest.id, ...newVistaData }); setNewVistaData({...newVistaData, contentId: ''}); }} className="text-emerald-500 hover:text-emerald-400"><Plus size={16}/></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -468,7 +413,6 @@ const PlotTab = ({ onLogout }) => {
                 </div>
             </div>
 
-            {/* Modal Scanner QR (Sovrapposto) */}
             {scanningForVista && (
                 <div className="fixed inset-0 z-100 bg-black flex flex-col">
                     <div className="p-4 flex justify-between items-center bg-gray-900 border-b border-gray-800">
