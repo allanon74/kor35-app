@@ -35,12 +35,19 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
 
   const handleSave = async () => {
     try {
-      if (formData.id) await staffUpdateInfusione(formData.id, formData, onLogout);
-      else await staffCreateInfusione(formData, onLogout);
-      alert("Salvato con successo!");
-      onBack();
-    } catch (err) { alert(err.message); }
-  };
+        // Se initialData conteneva un ID, stiamo facendo un aggiornamento
+        if (formData.id) {
+            await staffUpdateInfusione(formData.id, formData, onLogout);
+        } else {
+            await staffCreateInfusione(formData, onLogout);
+        }
+        alert("Infusione salvata con successo!");
+        onBack();
+    } catch (err) {
+        console.error("Errore salvataggio:", err);
+        alert("Errore durante il salvataggio: " + err.message);
+    }
+};
 
   return (
     <div className="bg-gray-800 p-6 rounded-xl space-y-8 max-w-4xl mx-auto">
