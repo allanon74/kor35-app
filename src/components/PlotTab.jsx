@@ -329,8 +329,8 @@ const PlotTab = ({ onLogout }) => {
                                                         <div>
                                                             <span className="text-[8px] font-black text-emerald-500 uppercase block leading-none mb-1">{v.tipo}</span>
                                                             {/* Fix: Mostra Titolo o Nome garantendo visibilità */}
-                                                            <span className="text-[11px] font-bold text-gray-200">
-                                                                {v.manifesto_details?.titolo || v.manifesto_details?.nome || v.inventario_details?.nome || 'CONTENUTO NON SETTATO'}
+                                                            <span className="text-[11px] font-bold text-gray-200">NON
+                                                                {v.manifesto_details?.nome || v.inventario_details?.nome || 'CONTENUTO SENZA NOME'}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
@@ -350,7 +350,7 @@ const PlotTab = ({ onLogout }) => {
                                                             {/* Fix: Filtro dinamico risorse */}
                                                             {document.getElementById(`vt-${quest.id}`)?.value === 'INV' 
                                                                 ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)
-                                                                : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.titolo || m.nome}</option>)
+                                                                : risorse.manifesti.map(m => <option key={m.id} value={m.id}> {m.nome || `Manifesto #${m.id}`}</option>)
                                                             }
                                                         </select>
                                                         <button onClick={() => {
