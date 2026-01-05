@@ -12,6 +12,7 @@ import { useCharacter } from './CharacterContext';
 import { Plus, X, Save } from 'lucide-react';
 import EventoSection from './EventoSection';
 import GiornoSection from './GiornoSection';
+import QrTab from './QrTab';
 
 const PlotTab = ({ onLogout }) => {
     const { isMaster } = useCharacter();

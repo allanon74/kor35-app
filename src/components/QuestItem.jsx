@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import { Users, Swords, QrCode as QrIcon, Heart, Shield, Layout, Trash, X, Plus, ChevronDown, ChevronUp, Zap, Package, Edit2, UserCheck } from 'lucide-react';
+import { Users, Swords, QrCode as QrIcon, Heart, Shield, Layout, Trash, X, Plus, ChevronDown, ChevronUp, Package, Edit2, UserCheck } from 'lucide-react';
 
 const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChange, onSaveNotes, onEdit, onScanQr }) => {
-    const [expanded, setExpanded] = useState(false);
+    // Stato per tracciare quali mostri sono espansi (usa l'ID come chiave)
+    const [expandedMostri, setExpandedMostri] = useState({});
+    
+    // Stato locale per il form di aggiunta Vista
+    const [newVista, setNewVista] = useState({ tipo: 'MAN', contentId: '' });
+
+    const toggleMonster = (id) => {
+        setExpandedMostri(prev => ({ ...prev, [id]: !prev[id] }));
+    };
 
     return (
         <div className="bg-gray-800/40 border border-gray-700/50 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-indigo-500/50">
@@ -81,14 +89,12 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                         {isMaster && <button onClick={() => onRemoveSub('mostro', m.id)} className="text-red-900"><Trash size={12}/></button>}
                                     </div>
 
-                                    {/* PV PA PS */}
                                     <div className="flex gap-2 items-center bg-black/20 p-2 rounded-lg border border-gray-800/50">
                                         <StatCounter label={<Heart size={10} className="text-red-500 fill-red-500"/>} value={m.punti_vita} onUp={() => onStatChange(m.id, 'punti_vita', 1)} onDown={() => onStatChange(m.id, 'punti_vita', -1)} />
                                         <StatCounter label={<Shield size={10} className="text-gray-400"/>} value={m.armatura} onUp={() => onStatChange(m.id, 'armatura', 1)} onDown={() => onStatChange(m.id, 'armatura', -1)} />
                                         <StatCounter label={<Layout size={10} className="text-indigo-400"/>} value={m.guscio} onUp={() => onStatChange(m.id, 'guscio', 1)} onDown={() => onStatChange(m.id, 'guscio', -1)} />
                                     </div>
 
-                                    {/* Attacchi */}
                                     <div className="mt-2 space-y-1">
                                         {m.template_details?.attacchi?.map((att, idx) => (
                                             <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20">
@@ -97,16 +103,16 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                         ))}
                                     </div>
 
-                                    {/* Costume e Note Toggle */}
-                                    <button onClick={() => setExpanded(!expanded)} className="w-full mt-2 text-[8px] font-black uppercase text-gray-500 hover:text-indigo-400 py-1 border-t border-gray-800/50">
-                                        {expanded ? "Chiudi Info Staff" : "Mostra Costume / Note"}
+                                    {/* CORREZIONE: Toggle basato sull'ID del mostro */}
+                                    <button onClick={() => toggleMonster(m.id)} className="w-full mt-2 text-[8px] font-black uppercase text-gray-500 hover:text-indigo-400 py-1 border-t border-gray-800/50">
+                                        {expandedMostri[m.id] ? "Chiudi Info Staff" : "Mostra Costume / Note"}
                                     </button>
-                                    {expanded && (
+                                    {expandedMostri[m.id] && (
                                         <div className="mt-2 space-y-2">
                                             <div className="p-2 bg-indigo-950/20 border border-indigo-500/20 rounded text-[10px] italic">
                                                 <span className="font-bold text-indigo-400 block uppercase">Costume:</span> {m.template_details?.costume || "Nessuna nota costume."}
                                             </div>
-                                            <textarea id={`note-${m.id}`} defaultValue={m.note_per_staffer} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-[10px] h-16" placeholder="Note specifiche per questa quest..."/>
+                                            <textarea id={`note-${m.id}`} defaultValue={m.note_per_staffer} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-[10px] h-16" placeholder="Note specifiche..."/>
                                             <button onClick={() => onSaveNotes(m.id, document.getElementById(`note-${m.id}`).value)} className="w-full bg-emerald-600/20 text-emerald-400 py-1 rounded text-[8px] font-black uppercase">Salva Note</button>
                                         </div>
                                     )}
@@ -114,7 +120,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                             ))}
                             {isMaster && (
                                 <div className="flex gap-1 pt-2">
-                                    <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
+                                    <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-gray-700">
                                         <option value="">Mostro...</option>
                                         {risorse.templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                                     </select>
@@ -129,27 +135,67 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                     </div>
                 </div>
 
-                {/* Sezione QR */}
-                <div className="pt-4 border-t border-gray-800 flex flex-wrap gap-2">
-                    {quest.viste_previste.map(v => (
-                        <div key={v.id} className="flex items-center gap-2 bg-black/40 border border-gray-800 p-1.5 rounded-xl group">
-                            <div className={`p-1.5 rounded-lg ${v.qr_code ? 'bg-emerald-500/10' : 'bg-gray-800'}`}>
-                                <QrIcon size={14} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
+                {/* Sezione QR e Viste */}
+                <div className="pt-4 border-t border-gray-800">
+                    <span className="text-[10px] font-black text-emerald-500 uppercase block mb-2 px-1">Viste e Documenti QR</span>
+                    <div className="flex flex-wrap gap-2">
+                        {quest.viste_previste.map(v => (
+                            <div key={v.id} className="flex items-center gap-2 bg-black/40 border border-gray-800 p-1.5 rounded-xl group shadow-sm">
+                                <div className={`p-1.5 rounded-lg ${v.qr_code ? 'bg-emerald-500/10' : 'bg-gray-800'}`}>
+                                    <QrIcon size={14} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-gray-200">{v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}</span>
+                                    <span className="text-[7px] text-gray-500 uppercase font-black">{v.tipo}</span>
+                                </div>
+                                <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => onScanQr(v.id)} className="text-indigo-400 p-1"><QrIcon size={12}/></button>
+                                    {isMaster && <button onClick={() => onRemoveSub('vista', v.id)} className="text-red-900 p-1"><X size={12}/></button>}
+                                </div>
                             </div>
-                            <span className="text-[10px] font-bold text-gray-200">{v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}</span>
-                            <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => onScanQr(v.id)} className="text-indigo-400 p-1"><QrIcon size={12}/></button>
-                                {isMaster && <button onClick={() => onRemoveSub('vista', v.id)} className="text-red-900 p-1"><X size={12}/></button>}
+                        ))}
+                        
+                        {/* AGGIUNTA COMBOBOX VISTA */}
+                        {isMaster && (
+                            <div className="flex items-center gap-1.5 bg-emerald-500/5 border border-dashed border-emerald-500/20 p-1.5 rounded-xl">
+                                <select 
+                                    className="bg-transparent text-[9px] font-bold text-emerald-500 outline-none" 
+                                    value={newVista.tipo} 
+                                    onChange={(e) => setNewVista({tipo: e.target.value, contentId: ''})}
+                                >
+                                    <option value="MAN">MAN</option>
+                                    <option value="INV">INV</option>
+                                </select>
+                                <select 
+                                    className="bg-transparent text-[9px] text-gray-400 outline-none max-w-[100px]" 
+                                    value={newVista.contentId} 
+                                    onChange={(e) => setNewVista({...newVista, contentId: e.target.value})}
+                                >
+                                    <option value="">Seleziona...</option>
+                                    {newVista.tipo === 'INV' 
+                                        ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)
+                                        : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || m.titolo}</option>)
+                                    }
+                                </select>
+                                <button 
+                                    onClick={() => {
+                                        if(!newVista.contentId) return alert("Seleziona un contenuto");
+                                        onAddSub('vista', { quest: quest.id, ...newVista });
+                                        setNewVista({...newVista, contentId: ''});
+                                    }} 
+                                    className="text-emerald-500 hover:scale-110 transition-transform"
+                                >
+                                    <Plus size={16}/>
+                                </button>
                             </div>
-                        </div>
-                    ))}
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-// Sub-component per i contatori
 const StatCounter = ({ label, value, onUp, onDown }) => (
     <div className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-900 rounded border border-gray-800">
         {label}
