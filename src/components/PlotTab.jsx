@@ -7,13 +7,13 @@ import {
     addPngToQuest, removePngFromQuest,
     addMostroToQuest, removeMostroFromQuest,
     addVistaToQuest, removeVistaFromQuest,
-    fetchAuthenticated // Usato per salvataggio generico statistiche e note
+    fetchAuthenticated 
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
     Plus, Edit2, Trash2, Save, X, 
     Calendar, MapPin, Users, Swords, QrCode as QrIcon,
-    Info, Heart, Shield, Trash, UserCheck, Layout, Zap, ChevronDown, ChevronUp
+    Info, Heart, Shield, Trash, UserCheck, Layout, Zap, ChevronDown, ChevronUp, Clock, Package
 } from 'lucide-react';
 import QrTab from './QrTab';
 
@@ -28,8 +28,6 @@ const PlotTab = ({ onLogout }) => {
     const [formData, setFormData] = useState({});
     const [newVistaData, setNewVistaData] = useState({ tipo: 'MAN', contentId: '' });
     const [scanningForVista, setScanningForVista] = useState(null);
-
-    // Stato per gestire quali mostri mostrano i dettagli (costume/note)
     const [expandedMostri, setExpandedMostri] = useState({});
 
     useEffect(() => {
@@ -74,12 +72,7 @@ const PlotTab = ({ onLogout }) => {
             }
             if (tipo === 'mostro') {
                 if (!payload.template || !payload.staffer) return alert("Seleziona Mostro e Staffer");
-                await addMostroToQuest(
-                    parseInt(payload.quest), 
-                    parseInt(payload.template), 
-                    parseInt(payload.staffer), 
-                    onLogout
-                );
+                await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), parseInt(payload.staffer), onLogout);
             }
             if (tipo === 'vista') {
                 const cId = parseInt(payload.contentId);
@@ -98,11 +91,8 @@ const PlotTab = ({ onLogout }) => {
 
     const handleUpdateMostroStat = async (id, field, delta) => {
         try {
-            // Utilizziamo un endpoint generico o PATCH se il backend lo supporta
-            // Qui assumiamo che updateMostroHp possa essere esteso o usiamo fetchAuthenticated direttamente
             const mostro = selectedEvento.giorni.flatMap(g => g.quests).flatMap(q => q.mostri_presenti).find(m => m.id === id);
-            const newValue = mostro[field] + delta;
-            
+            const newValue = (mostro[field] || 0) + delta;
             await fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, {
                 method: 'PATCH',
                 body: JSON.stringify({ [field]: newValue })
@@ -128,12 +118,23 @@ const PlotTab = ({ onLogout }) => {
             if (tipo === 'png') await removePngFromQuest(id, onLogout);
             if (tipo === 'mostro') await removeMostroFromQuest(id, onLogout);
             if (tipo === 'vista') await removeVistaFromQuest(id, onLogout);
+            if (tipo === 'quest') await deleteQuest(id, onLogout);
             refreshData();
         } catch (e) { alert("Errore durante la rimozione."); }
     };
 
     const toggleExpandMostro = (id) => {
         setExpandedMostri(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const formatTime = (isoString) => {
+        if (!isoString) return "--:--";
+        return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatDate = (isoString) => {
+        if (!isoString) return "";
+        return new Date(isoString).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' });
     };
 
     // --- RENDERERS ---
@@ -144,19 +145,14 @@ const PlotTab = ({ onLogout }) => {
             <div className="bg-indigo-900/10 border-b border-gray-800 p-4 space-y-2">
                 <div className="flex justify-between items-start">
                     <div>
-                        <h1 className="text-2xl font-black uppercase text-white">{selectedEvento.titolo}</h1>
-                        <div className="flex gap-4 text-[10px] font-bold text-gray-400 uppercase">
-                            <span className="flex items-center gap-1"><MapPin size={12}/> {selectedEvento.luogo}</span>
-                            <span className="flex items-center gap-1"><Info size={12}/> {selectedEvento.pc_guadagnati} PC</span>
+                        <h1 className="text-2xl font-black uppercase text-white tracking-tighter">{selectedEvento.titolo}</h1>
+                        <div className="flex flex-wrap gap-4 text-[10px] font-bold text-gray-400 uppercase">
+                            <span className="flex items-center gap-1"><MapPin size={12} className="text-indigo-400"/> {selectedEvento.luogo}</span>
+                            <span className="flex items-center gap-1"><Info size={12} className="text-indigo-400"/> {selectedEvento.pc_guadagnati} PC PROPOSTI</span>
                         </div>
                     </div>
-                    {isMaster && (
-                        <div className="flex gap-2">
-                            <button onClick={() => setEditMode('giorno')} className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[10px] font-bold">+ GIORNO</button>
-                        </div>
-                    )}
                 </div>
-                <p className="text-gray-400 text-xs italic">{selectedEvento.sinossi}</p>
+                <p className="text-gray-400 text-xs italic leading-relaxed">{selectedEvento.sinossi}</p>
             </div>
         );
     };
@@ -180,65 +176,97 @@ const PlotTab = ({ onLogout }) => {
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {renderEventHeaderInfo()}
 
-                <div className="p-4 space-y-10">
+                <div className="p-4 space-y-12">
                     {selectedEvento?.giorni.map((giorno, gIdx) => (
-                        <div key={giorno.id} className="space-y-4">
-                            <div className="flex justify-between items-end border-b border-emerald-500/20 pb-2">
+                        <div key={giorno.id} className="space-y-6">
+                            {/* Header Giorno Esteso */}
+                            <div className="flex justify-between items-start border-b border-emerald-500/30 pb-3">
                                 <div>
-                                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Giorno {gIdx + 1}</span>
-                                    <h2 className="text-lg font-black italic text-white uppercase">{giorno.sinossi_breve}</h2>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">Giorno {gIdx + 1}</span>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
+                                            <Calendar size={12}/> {formatDate(giorno.data_ora_inizio)}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-xl font-black italic text-white uppercase leading-tight mb-1">{giorno.sinossi_breve || "Senza Titolo"}</h2>
+                                    <div className="flex items-center gap-3 text-[10px] text-emerald-400 font-bold uppercase italic">
+                                        <span className="flex items-center gap-1"><Clock size={12}/> {formatTime(giorno.data_ora_inizio)} - {formatTime(giorno.data_ora_fine)}</span>
+                                    </div>
                                 </div>
                                 {isMaster && (
-                                    <button onClick={() => setEditMode('quest')} className="bg-emerald-600 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-tighter">+ Quest</button>
+                                    <button onClick={() => setEditMode('quest')} className="bg-emerald-600 px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-tighter shadow-lg shadow-emerald-900/40 hover:bg-emerald-500">+ Quest</button>
                                 )}
                             </div>
 
-                            <div className="grid gap-6">
+                            <div className="grid gap-8">
                                 {giorno.quests.map(quest => (
-                                    <div key={quest.id} className="bg-gray-800/40 border border-gray-700/50 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-indigo-500/30">
+                                    <div key={quest.id} className="bg-gray-800/40 border border-gray-700/50 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-indigo-500/50">
                                         {/* Quest Header */}
-                                        <div className="bg-gray-800/80 px-4 py-2.5 flex justify-between items-center border-b border-gray-700">
+                                        <div className="bg-gray-800/80 px-4 py-3 flex justify-between items-center border-b border-gray-700">
                                             <div className="flex items-center gap-3">
-                                                <div className="bg-indigo-600 text-white px-2 py-0.5 rounded font-black text-[10px]">{quest.orario_indicativo?.slice(0,5)}</div>
-                                                <h3 className="font-black text-sm text-white uppercase tracking-tight">{quest.titolo}</h3>
+                                                <div className="bg-indigo-600 text-white px-2.5 py-1 rounded-lg font-black text-xs shadow-inner">{quest.orario_indicativo?.slice(0,5)}</div>
+                                                <h3 className="font-black text-base text-white uppercase tracking-tight">{quest.titolo}</h3>
                                             </div>
-                                            {isMaster && <button onClick={() => handleRemoveSubItem('quest', quest.id)} className="text-red-900 hover:text-red-500"><Trash size={14}/></button>}
+                                            {isMaster && (
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleRemoveSubItem('quest', quest.id)} className="text-red-900 hover:text-red-500 transition-colors p-1"><Trash size={16}/></button>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <div className="p-4 space-y-5">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="p-5 space-y-6">
+                                            {/* SEZIONE DETTAGLI QUEST (SOPRA TABELLE) */}
+                                            <div className="space-y-4">
+                                                {quest.descrizione_ampia && (
+                                                    <div className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800">
+                                                        {quest.descrizione_ampia}
+                                                    </div>
+                                                )}
+                                                
+                                                {quest.props && (
+                                                    <div className="flex items-start gap-3 bg-amber-900/10 border border-amber-900/20 p-3 rounded-xl">
+                                                        <Package size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                                                        <div>
+                                                            <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
+                                                            <p className="text-xs text-amber-100/80">{quest.props}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Grid PnG e Mostri */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                                                 {/* PnG Block */}
                                                 <div className="space-y-2">
-                                                    <span className="text-[10px] font-black text-indigo-400 uppercase flex items-center gap-1"><Users size={12}/> PnG Necessari</span>
+                                                    <span className="text-[10px] font-black text-indigo-400 uppercase flex items-center gap-1 px-1"><Users size={12}/> PnG Richiesti</span>
                                                     <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
                                                         {quest.png_richiesti.map(p => (
-                                                            <div key={p.id} className="flex justify-between items-center p-2 bg-gray-950 border border-gray-800 rounded-lg text-[11px]">
+                                                            <div key={p.id} className="flex justify-between items-center p-2.5 bg-gray-950 border border-gray-800 rounded-lg text-[11px] group">
                                                                 <span className="font-bold">{p.personaggio_details?.nome}</span>
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-indigo-400 italic font-bold flex items-center gap-1"><UserCheck size={10}/> {p.staffer_details?.username || '---'}</span>
-                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="text-red-500"><X size={12}/></button>}
+                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="text-red-500 opacity-50 hover:opacity-100 transition-opacity"><X size={14}/></button>}
                                                                 </div>
                                                             </div>
                                                         ))}
                                                         {isMaster && (
                                                             <div className="flex gap-1 pt-2">
-                                                                <select id={`p-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
+                                                                <select id={`p-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-gray-700">
                                                                     <option value="">Scegli PnG...</option>
                                                                     {risorse.png.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                                                                 </select>
-                                                                <button onClick={() => handleAddSubItem('png', { quest: quest.id, personaggio: document.getElementById(`p-${quest.id}`).value })} className="bg-indigo-600 p-1.5 rounded"><Plus size={14}/></button>
+                                                                <button onClick={() => handleAddSubItem('png', { quest: quest.id, personaggio: document.getElementById(`p-${quest.id}`).value })} className="bg-indigo-600 p-1.5 rounded hover:bg-indigo-500 transition-colors"><Plus size={14}/></button>
                                                             </div>
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                {/* Mostri Block - COMPLETO DI PV/PA/PS E DETTAGLI NASCOSTI */}
+                                                {/* Mostri Block */}
                                                 <div className="space-y-2">
-                                                    <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1"><Swords size={12}/> Combat Table</span>
+                                                    <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1 px-1"><Swords size={12}/> Combat Table</span>
                                                     <div className="bg-gray-900/50 rounded-xl p-2 space-y-2">
                                                         {quest.mostri_presenti.map(m => (
-                                                            <div key={m.id} className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 shadow-sm">
-                                                                {/* Riga Superiore: Nome e Staffer */}
+                                                            <div key={m.id} className="bg-gray-950 p-3 rounded-lg border border-gray-800 shadow-sm relative">
                                                                 <div className="flex justify-between items-start mb-2">
                                                                     <div className="flex-1">
                                                                         <div className="text-[11px] font-black uppercase text-red-400 leading-tight">{m.template_details?.nome}</div>
@@ -249,9 +277,8 @@ const PlotTab = ({ onLogout }) => {
                                                                     {isMaster && <button onClick={() => handleRemoveSubItem('mostro', m.id)} className="text-red-900 hover:text-red-500 ml-2"><Trash size={12}/></button>}
                                                                 </div>
 
-                                                                {/* Riga Centrale: Contatori PV, PA, PS */}
-                                                                <div className="flex flex-wrap gap-2 items-center bg-black/20 p-2 rounded-lg border border-gray-800/50">
-                                                                    {/* Contatore PV */}
+                                                                {/* Contatori PV, PA, PS */}
+                                                                <div className="flex flex-wrap gap-2 items-center bg-black/20 p-2 rounded-lg border border-gray-800/50 mb-2">
                                                                     <div className="flex items-center gap-1.5">
                                                                         <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-900 rounded border border-red-900/30">
                                                                             <Heart size={10} className="text-red-500 fill-red-500"/>
@@ -262,7 +289,6 @@ const PlotTab = ({ onLogout }) => {
                                                                             <button onClick={() => handleUpdateMostroStat(m.id, 'punti_vita', -1)} className="w-4 h-4 bg-red-900/40 text-red-500 rounded text-[9px] font-black">-</button>
                                                                         </div>
                                                                     </div>
-                                                                    {/* Contatore PA (Armatura) */}
                                                                     <div className="flex items-center gap-1.5 border-l border-gray-800 pl-2">
                                                                         <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-700">
                                                                             <Shield size={10} className="text-gray-400"/>
@@ -273,7 +299,6 @@ const PlotTab = ({ onLogout }) => {
                                                                             <button onClick={() => handleUpdateMostroStat(m.id, 'armatura', -1)} className="w-4 h-4 bg-gray-800 text-white rounded text-[9px] font-black">-</button>
                                                                         </div>
                                                                     </div>
-                                                                    {/* Contatore PS (Guscio) */}
                                                                     <div className="flex items-center gap-1.5 border-l border-gray-800 pl-2">
                                                                         <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-900 rounded border border-indigo-900/30">
                                                                             <Layout size={10} className="text-indigo-400"/>
@@ -286,72 +311,57 @@ const PlotTab = ({ onLogout }) => {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Attacchi Rapidi */}
-                                                                <div className="mt-2 space-y-1">
+                                                                {/* Attacchi */}
+                                                                <div className="space-y-1">
                                                                     {m.template_details?.attacchi?.map((att, idx) => (
-                                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-1.5 py-0.5 rounded border border-amber-900/20">
-                                                                            <span className="font-black">{att.nome_attacco}:</span> {att.descrizione_danno}
+                                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20">
+                                                                            <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
                                                                         </div>
                                                                     ))}
                                                                 </div>
 
-                                                                {/* Pulsante Toggle Dettagli (Costume e Note) */}
-                                                                <button 
-                                                                    onClick={() => toggleExpandMostro(m.id)}
-                                                                    className="w-full mt-2 flex items-center justify-center gap-1 text-[8px] font-black uppercase text-gray-500 hover:text-indigo-400 transition-colors py-1 border-t border-gray-800/50"
-                                                                >
+                                                                <button onClick={() => toggleExpandMostro(m.id)} className="w-full mt-3 flex items-center justify-center gap-1 text-[8px] font-black uppercase text-gray-500 hover:text-indigo-400 py-1.5 border-t border-gray-800/50 transition-colors">
                                                                     {expandedMostri[m.id] ? <><ChevronUp size={10}/> Nascondi Info Staff</> : <><ChevronDown size={10}/> Mostra Costume e Note</>}
                                                                 </button>
 
-                                                                {/* Sezione Espandibile */}
                                                                 {expandedMostri[m.id] && (
-                                                                    <div className="mt-2 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                                        {/* Costume (Sola Lettura dal Template) */}
-                                                                        <div className="p-2 bg-indigo-950/20 border border-indigo-500/20 rounded">
-                                                                            <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Costume / Tratti:</span>
-                                                                            <p className="text-[10px] text-indigo-200 italic leading-tight">
-                                                                                {m.template_details?.costume || "Nessun dettaglio costume definito."}
-                                                                            </p>
+                                                                    <div className="mt-3 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                        <div className="p-2.5 bg-indigo-950/20 border border-indigo-500/20 rounded-lg">
+                                                                            <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Dettagli Costume / Tratti:</span>
+                                                                            <p className="text-[10px] text-indigo-200 italic leading-tight">{m.template_details?.costume || "Nessun dettaglio costume definito."}</p>
                                                                         </div>
-
-                                                                        {/* Note per Staffer (Editabili) */}
-                                                                        <div className="space-y-1">
-                                                                            <span className="text-[8px] font-black text-emerald-500 uppercase block">Note per lo Staffer:</span>
+                                                                        <div className="space-y-1.5">
+                                                                            <span className="text-[8px] font-black text-emerald-500 uppercase block">Note Specifiche Quest:</span>
                                                                             <textarea 
                                                                                 id={`note-${m.id}`}
                                                                                 defaultValue={m.note_per_staffer}
-                                                                                placeholder="Inserisci istruzioni specifiche per chi interpreta..."
-                                                                                className="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-[10px] outline-none focus:border-emerald-500 h-16 resize-none"
+                                                                                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-[10px] outline-none focus:border-emerald-500 h-20 resize-none text-gray-300"
                                                                             />
                                                                             <button 
                                                                                 onClick={() => handleSaveMostroNotes(m.id, document.getElementById(`note-${m.id}`).value)}
-                                                                                className="w-full bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 py-1 rounded text-[8px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-colors"
-                                                                            >
-                                                                                Salva Note Staff
-                                                                            </button>
+                                                                                className="w-full bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 py-1.5 rounded text-[8px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-colors"
+                                                                            >Salva Note Interprete</button>
                                                                         </div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         ))}
-                                                        
-                                                        {/* Form Aggiunta Mostro */}
                                                         {isMaster && (
-                                                            <div className="flex flex-col gap-1 pt-2 border-t border-gray-800">
+                                                            <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-800">
                                                                 <div className="flex gap-1">
-                                                                    <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none">
+                                                                    <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-gray-700">
                                                                         <option value="">Mostro...</option>
                                                                         {risorse.templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                                                                     </select>
-                                                                    <select id={`ms-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-indigo-500/30">
-                                                                        <option value="">Staffer...</option>
+                                                                    <select id={`ms-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-indigo-900/50">
+                                                                        <option value="">Staff...</option>
                                                                         {risorse.staff.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
                                                                     </select>
                                                                     <button onClick={() => {
                                                                         const t = document.getElementById(`m-${quest.id}`).value;
                                                                         const s = document.getElementById(`ms-${quest.id}`).value;
                                                                         handleAddSubItem('mostro', { quest: quest.id, template: t, staffer: s });
-                                                                    }} className="bg-red-600 p-1.5 rounded hover:bg-red-500"><Plus size={14}/></button>
+                                                                    }} className="bg-red-600 p-1.5 rounded hover:bg-red-500 shadow-lg shadow-red-900/20"><Plus size={14}/></button>
                                                                 </div>
                                                             </div>
                                                         )}
@@ -359,35 +369,36 @@ const PlotTab = ({ onLogout }) => {
                                                 </div>
                                             </div>
 
-                                            {/* QR Section - FIX NOMI MANIFESTI/INVENTARI */}
+                                            {/* QR Section */}
                                             <div className="pt-4 border-t border-gray-800 flex flex-wrap gap-2">
                                                 {quest.viste_previste.map(v => (
-                                                    <div key={v.id} className="flex items-center gap-2 bg-black/40 border border-gray-800 p-1.5 rounded-xl group pr-3 shadow-sm">
+                                                    <div key={v.id} className="flex items-center gap-2 bg-black/40 border border-gray-800 p-2 rounded-xl group pr-3 shadow-sm hover:border-emerald-500/30 transition-colors">
                                                         <div className={`p-1.5 rounded-lg ${v.qr_code ? 'bg-emerald-500/10' : 'bg-gray-800'}`}>
                                                             <QrIcon size={14} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
                                                         </div>
-                                                        <div className="max-w-[120px] overflow-hidden">
+                                                        <div className="max-w-[140px] overflow-hidden">
                                                             <span className="text-[10px] font-bold text-gray-200 truncate block">
                                                                 {v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}
                                                             </span>
+                                                            <span className="text-[7px] text-gray-500 font-black uppercase tracking-tighter">{v.tipo}</span>
                                                         </div>
-                                                        <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => setScanningForVista(v.id)} className="text-indigo-400"><QrIcon size={12}/></button>
-                                                            {isMaster && <button onClick={() => handleRemoveSubItem('vista', v.id)} className="text-red-900"><X size={12}/></button>}
+                                                        <div className="flex items-center gap-1.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button onClick={() => setScanningForVista(v.id)} className="text-indigo-400 hover:text-white" title="Associa QR Fisico"><QrIcon size={12}/></button>
+                                                            {isMaster && <button onClick={() => handleRemoveSubItem('vista', v.id)} className="text-red-900 hover:text-red-500"><X size={12}/></button>}
                                                         </div>
                                                     </div>
                                                 ))}
                                                 {isMaster && (
-                                                    <div className="flex items-center gap-1 bg-emerald-500/5 border border-dashed border-emerald-500/20 p-1.5 rounded-xl">
+                                                    <div className="flex items-center gap-1.5 bg-emerald-500/5 border border-dashed border-emerald-500/20 p-2 rounded-xl">
                                                         <select className="bg-transparent text-[9px] font-bold text-emerald-500 outline-none" value={newVistaData.tipo} onChange={(e) => setNewVistaData({...newVistaData, tipo: e.target.value, contentId: ''})}>
                                                             <option value="MAN">MAN</option>
                                                             <option value="INV">INV</option>
                                                         </select>
                                                         <select className="bg-transparent text-[9px] text-gray-400 outline-none max-w-[100px]" value={newVistaData.contentId} onChange={(e) => setNewVistaData({...newVistaData, contentId: e.target.value})}>
-                                                            <option value="">...</option>
+                                                            <option value="">Contenuto...</option>
                                                             {newVistaData.tipo === 'INV' ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>) : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || m.titolo}</option>)}
                                                         </select>
-                                                        <button onClick={() => { handleAddSubItem('vista', { quest: quest.id, ...newVistaData }); setNewVistaData({...newVistaData, contentId: ''}); }} className="text-emerald-500"><Plus size={14}/></button>
+                                                        <button onClick={() => { handleAddSubItem('vista', { quest: quest.id, ...newVistaData }); setNewVistaData({...newVistaData, contentId: ''}); }} className="text-emerald-500 p-0.5 hover:scale-110 transition-transform"><Plus size={16}/></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -404,8 +415,11 @@ const PlotTab = ({ onLogout }) => {
             {scanningForVista && (
                 <div className="fixed inset-0 z-100 bg-black flex flex-col">
                     <div className="p-4 flex justify-between items-center bg-gray-900 border-b border-gray-800">
-                        <span className="font-black text-white uppercase italic">Associa QR Fisico</span>
-                        <button onClick={() => setScanningForVista(null)} className="px-4 py-1 bg-red-600 rounded-lg text-xs font-black">X ANNULLA</button>
+                        <div className="flex items-center gap-2">
+                            <QrIcon className="text-emerald-400" />
+                            <span className="font-black text-white uppercase italic tracking-tighter">Associa QR Fisico</span>
+                        </div>
+                        <button onClick={() => setScanningForVista(null)} className="px-4 py-1.5 bg-red-600 rounded-lg text-xs font-black shadow-lg">X ANNULLA</button>
                     </div>
                     <div className="flex-1">
                         <QrTab onScanSuccess={async (qr_id) => {
