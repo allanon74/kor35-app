@@ -61,6 +61,11 @@ const PlotTab = ({ onLogout }) => {
         return timeString.slice(0, 5); // Restituisce HH:mm
     };
 
+    const handleUpdateEventoList = async (id, data) => {
+    await updateEvento(id, data, onLogout);
+    refreshData();
+}
+
     const startEdit = (tipo, oggetto = {}) => {
         setEditMode(tipo);
         setFormData({ ...oggetto });
@@ -236,8 +241,10 @@ const PlotTab = ({ onLogout }) => {
                     <EventoSection 
                         evento={selectedEvento} 
                         isMaster={isMaster} 
+                        risorse={risorse}
                         onEdit={startEdit} 
                         onDelete={deleteEvento}
+                        onUpdateEvento={handleUpdateEventoList}
                         onAddGiorno={() => startEdit('giorno')}
                     />
                 )}
