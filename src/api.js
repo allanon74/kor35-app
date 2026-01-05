@@ -932,8 +932,11 @@ export const getStatisticheList = (onLogout) => {
 };
 
 // --- INFUSIONI ---
-export const staffGetInfusioni = (onLogout) => 
-  fetchAuthenticated('/personaggi/api/staff/infusioni/', { method: 'GET' }, onLogout);
+export const staffGetInfusioni = (onLogout, params = {}) => {
+  // Costruiamo la query string (es: ?page=1&search=pippo)
+  const queryString = new URLSearchParams(params).toString();
+  return fetchAuthenticated(`/personaggi/api/staff/infusioni/?${queryString}`, { method: 'GET' }, onLogout);
+};
 
 export const staffCreateInfusione = (data, onLogout) => 
   fetchAuthenticated('/personaggi/api/staff/infusioni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
@@ -948,3 +951,4 @@ export const staffCreateTessitura = (data, onLogout) =>
 // --- CERIMONIALI ---
 export const staffCreateCerimoniale = (data, onLogout) => 
   fetchAuthenticated('/personaggi/api/staff/cerimoniali/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+

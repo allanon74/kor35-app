@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCharacter } from './CharacterContext';
 import InfusioneEditor from './editors/InfusioneEditor';
+import InfusioneManager from './editors/InfusioneManager';
 // Gli altri verranno creati nei passi successivi
 // import TessituraEditor from './editors/TessituraEditor';
 // import CerimonialeEditor from './editors/CerimonialeEditor';
@@ -11,7 +12,7 @@ const ToolsTab = () => {
 
   const handleBack = () => setActiveTool('menu');
 
-  if (activeTool === 'infusione') return <InfusioneEditor onBack={handleBack} />;
+  if (activeTool === 'infusione') return <InfusioneManager onBack={() => setActiveTool('menu')} onLogout={onLogout} />;
   // if (activeTool === 'tessitura') return <TessituraEditor onBack={handleBack} />;
   // if (activeTool === 'cerimoniale') return <CerimonialeEditor onBack={handleBack} />;
 
