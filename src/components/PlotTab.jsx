@@ -22,14 +22,14 @@ const PlotTab = ({ onLogout }) => {
     const [selectedEvento, setSelectedEvento] = useState(null);
     const [loading, setLoading] = useState(true);
     
-    // Risorse caricate una tantum all'avvio
+    // Risorse caricate all'avvio (filtrate lato backend per escludere PnG da Inventari)
     const [risorse, setRisorse] = useState({ png: [], templates: [], manifesti: [], inventari: [], staff: [] });
 
-    // Stato per gli editor modali (Evento, Giorno, Quest)
-    const [editMode, setEditMode] = useState(null); 
+    // Stati per Editor Modali
+    const [editMode, setEditMode] = useState(null); // 'evento', 'giorno', 'quest'
     const [formData, setFormData] = useState({});
     
-    // Stato temporaneo per l'aggiunta rapida di una Vista in una Quest
+    // Stato per la creazione rapida di una Vista (QR)
     const [newVistaData, setNewVistaData] = useState({ tipo: 'MAN', contentId: '' });
 
     // Scanner QR
@@ -84,7 +84,7 @@ const PlotTab = ({ onLogout }) => {
         } catch (e) { alert("Errore durante il salvataggio."); }
     };
 
-    const handleDelete = async (tipo, id) => {
+    const handleDeleteMain = async (tipo, id) => {
         if (!window.confirm(`Eliminare definitivamente questo ${tipo}?`)) return;
         try {
             if (tipo === 'evento') await deleteEvento(id, onLogout);
@@ -100,27 +100,36 @@ const PlotTab = ({ onLogout }) => {
         try {
             if (tipo === 'png') {
                 if (!payload.personaggio) return alert("Seleziona un PnG");
-                await addPngToQuest(payload.quest, payload.personaggio, payload.staffer || null, onLogout);
+                await addPngToQuest(
+                    parseInt(payload.quest), 
+                    parseInt(payload.personaggio), 
+                    payload.staffer ? parseInt(payload.staffer) : null, 
+                    onLogout
+                );
             }
             if (tipo === 'mostro') {
                 if (!payload.template) return alert("Seleziona un template mostro");
-                await addMostroToQuest(payload.quest, payload.template, onLogout);
+                await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), onLogout);
             }
             if (tipo === 'vista') {
                 if (!payload.contentId) return alert("Seleziona un contenuto");
                 const vistaPayload = {
+                    quest: parseInt(payload.quest),
                     tipo: payload.tipo,
-                    manifesto: payload.tipo === 'MAN' ? payload.contentId : null,
-                    inventario: payload.tipo === 'INV' ? payload.contentId : null
+                    manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null,
+                    inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null
                 };
                 await addVistaToQuest(payload.quest, vistaPayload, onLogout);
             }
             refreshData();
-        } catch (e) { alert("Errore durante l'aggiunta dell'elemento."); }
+        } catch (e) { 
+            console.error(e);
+            alert("Errore durante l'aggiunta dell'elemento. Controlla i permessi."); 
+        }
     };
 
     const handleRemoveSubItem = async (tipo, id) => {
-        if (!window.confirm("Rimuovere questo elemento dalla quest?")) return;
+        if (!window.confirm("Rimuovere questo elemento?")) return;
         try {
             if (tipo === 'png') await removePngFromQuest(id, onLogout);
             if (tipo === 'mostro') await removeMostroFromQuest(id, onLogout);
@@ -174,6 +183,12 @@ const PlotTab = ({ onLogout }) => {
                                     <input type="number" className="w-full bg-gray-900 p-2 rounded border border-gray-700" 
                                         value={formData.pc_guadagnati || 0} 
                                         onChange={e => setFormData({...formData, pc_guadagnati: e.target.value})}/>
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase block">Luogo</label>
+                                    <input className="w-full bg-gray-900 p-2 rounded border border-gray-700" 
+                                        value={formData.luogo || ''} 
+                                        onChange={e => setFormData({...formData, luogo: e.target.value})}/>
                                 </div>
                             </div>
                         )}
@@ -231,7 +246,7 @@ const PlotTab = ({ onLogout }) => {
                         {isMaster && (
                             <>
                                 <button onClick={() => startEdit('giorno', { evento: selectedEvento.id })} className="px-4 py-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-black uppercase italic tracking-widest hover:bg-emerald-600/40 transition-colors">+ Giorno</button>
-                                <button onClick={() => handleDelete('evento', selectedEvento.id)} className="p-2 bg-red-900/20 text-red-500 border border-red-900/30 rounded-lg hover:bg-red-900/40 transition-colors"><Trash2 size={18}/></button>
+                                <button onClick={() => handleDeleteMain('evento', selectedEvento.id)} className="p-2 bg-red-900/20 text-red-500 border border-red-900/30 rounded-lg hover:bg-red-900/40 transition-colors"><Trash2 size={18}/></button>
                             </>
                         )}
                     </div>
@@ -276,7 +291,7 @@ const PlotTab = ({ onLogout }) => {
                                 {isMaster && (
                                     <div className="flex gap-3">
                                         <button onClick={() => startEdit('giorno', giorno)} className="text-gray-500 hover:text-white"><Edit2 size={16}/></button>
-                                        <button onClick={() => handleDelete('giorno', giorno.id)} className="text-gray-500 hover:text-red-500"><Trash size={16}/></button>
+                                        <button onClick={() => handleDeleteMain('giorno', giorno.id)} className="text-gray-500 hover:text-red-500"><Trash size={16}/></button>
                                         <button onClick={() => startEdit('quest', { giorno: giorno.id })} className="flex items-center gap-1 bg-emerald-600 px-3 py-1 rounded text-[10px] font-bold uppercase italic"><Plus size={14}/> Quest</button>
                                     </div>
                                 )}
@@ -295,7 +310,7 @@ const PlotTab = ({ onLogout }) => {
                                             {isMaster && (
                                                 <div className="flex gap-3">
                                                     <button onClick={() => startEdit('quest', quest)} className="text-gray-500 hover:text-white"><Edit2 size={16}/></button>
-                                                    <button onClick={() => handleDelete('quest', quest.id)} className="text-red-900 hover:text-red-500 transition-colors"><Trash size={16}/></button>
+                                                    <button onClick={() => handleDeleteMain('quest', quest.id)} className="text-red-900 hover:text-red-500 transition-colors"><Trash size={16}/></button>
                                                 </div>
                                             )}
                                         </div>
@@ -394,7 +409,7 @@ const PlotTab = ({ onLogout }) => {
                                                         <div>
                                                             <span className="text-[8px] font-black text-emerald-500 uppercase block leading-none mb-1">{v.tipo}</span>
                                                             <span className="text-[11px] font-bold text-gray-200">
-                                                                {v.manifesto_details?.nome || v.inventario_details?.nome || 'OGGETTO SENZA NOME'}
+                                                                {v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO SENZA NOME'}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
@@ -421,7 +436,7 @@ const PlotTab = ({ onLogout }) => {
                                                             <option value="">Seleziona...</option>
                                                             {newVistaData.tipo === 'INV' 
                                                                 ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)
-                                                                : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || `Manifesto #${m.id}`}</option>)
+                                                                : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || m.titolo || `Manifesto #${m.id}`}</option>)
                                                             }
                                                         </select>
                                                         <button 

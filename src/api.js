@@ -886,10 +886,35 @@ export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/quest
 export const getRisorseEditor = (onLogout) => fetchAuthenticated('/plot/api/eventi/risorse_editor/', { method: 'GET' }, onLogout);
 
 // Operazioni su PnG, Mostri e Viste
-export const addPngToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const addMostroToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const addVistaToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+// export const addPngToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+// export const addMostroToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+// export const addVistaToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
 export const removePngFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/png-assegnati/${id}/`, { method: 'DELETE' }, onLogout);
 export const removeMostroFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'DELETE' }, onLogout);
 export const removeVistaFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/viste-setup/${id}/`, { method: 'DELETE' }, onLogout);
+
+export const addVistaToQuest = (questId, data, onLogout) => {
+    const payload = {
+        quest: parseInt(questId),
+        tipo: data.tipo,
+        manifesto: data.manifesto ? parseInt(data.manifesto) : null,
+        inventario: data.inventario ? parseInt(data.inventario) : null
+    };
+    return apiCall('POST', '/plot/api/viste-setup/', payload, onLogout);
+};
+
+export const addPngToQuest = (questId, personaggioId, stafferId, onLogout) => {
+    return apiCall('POST', '/plot/api/png-assegnati/', {
+        quest: parseInt(questId),
+        personaggio: parseInt(personaggioId),
+        staffer: stafferId ? parseInt(stafferId) : null
+    }, onLogout);
+};
+
+export const addMostroToQuest = (questId, templateId, onLogout) => {
+    return apiCall('POST', '/plot/api/quest-mostri/', {
+        quest: parseInt(questId),
+        template: parseInt(templateId)
+    }, onLogout);
+};
