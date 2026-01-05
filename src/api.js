@@ -923,3 +923,28 @@ export const addVistaToQuest = (questId, data, onLogout) => {
     };
     return fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };
+
+/** --- STRUMENTI MASTER --- **/
+
+// Recupera la lista di tutte le statistiche definite nel sistema
+export const getStatisticheList = (onLogout) => {
+  return fetchAuthenticated('/personaggi/api/statistiche/', { method: 'GET' }, onLogout);
+};
+
+// --- INFUSIONI ---
+export const staffGetInfusioni = (onLogout) => 
+  fetchAuthenticated('/personaggi/api/staff/infusioni/', { method: 'GET' }, onLogout);
+
+export const staffCreateInfusione = (data, onLogout) => 
+  fetchAuthenticated('/personaggi/api/staff/infusioni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+
+export const staffUpdateInfusione = (id, data, onLogout) => 
+  fetchAuthenticated(`/personaggi/api/staff/infusioni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+
+// --- TESSITURE ---
+export const staffCreateTessitura = (data, onLogout) => 
+  fetchAuthenticated('/personaggi/api/staff/tessiture/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+
+// --- CERIMONIALI ---
+export const staffCreateCerimoniale = (data, onLogout) => 
+  fetchAuthenticated('/personaggi/api/staff/cerimoniali/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
