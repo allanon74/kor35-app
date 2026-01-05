@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    getEventi, updateMostroHp, associaQrAVista, getRisorseEditor,
+    getEventi, associaQrAVista, getRisorseEditor,
     createEvento, updateEvento, deleteEvento,
     createGiorno, updateGiorno, deleteGiorno,
     createQuest, updateQuest, deleteQuest,
@@ -10,11 +10,8 @@ import {
     fetchAuthenticated 
 } from '../api';
 import { useCharacter } from './CharacterContext';
-import { 
-    Plus, Edit2, Trash2, Save, X, 
-    Calendar, MapPin, Users, Swords, QrCode as QrIcon,
-    Info, Heart, Shield, Trash, UserCheck, Layout, Zap, ChevronDown, ChevronUp, Clock, Package
-} from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, MapPin, Info, QrCode as QrIcon } from 'lucide-react';
+import GiornoSection from './GiornoSection';
 import QrTab from './QrTab';
 
 const PlotTab = ({ onLogout }) => {
@@ -22,391 +19,163 @@ const PlotTab = ({ onLogout }) => {
     const [eventi, setEventi] = useState([]);
     const [selectedEvento, setSelectedEvento] = useState(null);
     const [loading, setLoading] = useState(true);
-    
     const [risorse, setRisorse] = useState({ png: [], templates: [], manifesti: [], inventari: [], staff: [] });
+    
     const [editMode, setEditMode] = useState(null); 
     const [formData, setFormData] = useState({});
-    const [newVistaData, setNewVistaData] = useState({ tipo: 'MAN', contentId: '' });
     const [scanningForVista, setScanningForVista] = useState(null);
-    const [expandedMostri, setExpandedMostri] = useState({});
 
-    useEffect(() => {
-        loadInitialData();
-    }, []);
+    useEffect(() => { loadInitialData(); }, []);
 
     const loadInitialData = async () => {
         try {
-            const [evData, risData] = await Promise.all([
-                getEventi(onLogout),
-                getRisorseEditor(onLogout)
-            ]);
+            const [evData, risData] = await Promise.all([getEventi(onLogout), getRisorseEditor(onLogout)]);
             setEventi(evData);
             setRisorse(risData);
             if (evData.length > 0) setSelectedEvento(evData[0]);
-        } catch (e) {
-            console.error("Errore caricamento plot:", e);
-        } finally {
-            setLoading(false);
-        }
+        } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
     const refreshData = async () => {
         const data = await getEventi(onLogout);
         setEventi(data);
-        if (selectedEvento) {
-            const updated = data.find(e => e.id === selectedEvento.id);
-            setSelectedEvento(updated || (data.length > 0 ? data[0] : null));
-        }
+        if (selectedEvento) setSelectedEvento(data.find(e => e.id === selectedEvento.id) || data[0]);
     };
 
-    // --- HANDLERS ---
+    const startEdit = (tipo, oggetto = {}) => {
+        setEditMode(tipo);
+        setFormData(oggetto);
+    };
 
-    const handleAddSubItem = async (tipo, payload) => {
+    const handleSaveMain = async () => {
         try {
+            if (editMode === 'evento') {
+                if (formData.id) await updateEvento(formData.id, formData, onLogout);
+                else await createEvento(formData, onLogout);
+            } else if (editMode === 'giorno') {
+                const data = { ...formData, evento: selectedEvento.id };
+                if (formData.id) await updateGiorno(formData.id, data, onLogout);
+                else await createGiorno(data, onLogout);
+            } else if (editMode === 'quest') {
+                const data = { ...formData }; // giorno_evento viene già dal form se stiamo creando
+                if (formData.id) await updateQuest(formData.id, data, onLogout);
+                else await createQuest(data, onLogout);
+            }
+            setEditMode(null);
+            refreshData();
+        } catch (e) { alert("Errore salvataggio."); }
+    };
+
+    const handleDeleteMain = async (tipo, id) => {
+        if (!window.confirm(`Eliminare questo ${tipo}?`)) return;
+        try {
+            if (tipo === 'evento') { await deleteEvento(id, onLogout); setSelectedEvento(null); }
+            if (tipo === 'giorno') await deleteGiorno(id, onLogout);
+            if (tipo === 'quest') await deleteQuest(id, onLogout);
+            refreshData();
+        } catch (e) { alert("Errore eliminazione."); }
+    };
+
+    // Handlers per le Quest passati ai figli
+    const questHandlers = {
+        onAddSub: async (tipo, payload) => {
             if (tipo === 'png') {
                 const pId = parseInt(payload.personaggio);
-                if (!pId) return alert("Seleziona un PnG");
-                const selectedPng = risorse.png.find(p => p.id === pId);
-                const stafferId = selectedPng ? selectedPng.proprietario : null;
+                const stafferId = risorse.png.find(p => p.id === pId)?.proprietario;
                 await addPngToQuest(parseInt(payload.quest), pId, stafferId, onLogout);
             }
-            if (tipo === 'mostro') {
-                if (!payload.template || !payload.staffer) return alert("Seleziona Mostro e Staffer");
-                await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), parseInt(payload.staffer), onLogout);
-            }
+            if (tipo === 'mostro') await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), parseInt(payload.staffer), onLogout);
             if (tipo === 'vista') {
-                const cId = parseInt(payload.contentId);
-                if (!cId) return alert("Seleziona un contenuto");
-                const vistaPayload = {
-                    quest: parseInt(payload.quest),
-                    tipo: payload.tipo,
-                    manifesto: payload.tipo === 'MAN' ? cId : null,
-                    inventario: payload.tipo === 'INV' ? cId : null
-                };
+                const vistaPayload = { quest: parseInt(payload.quest), tipo: payload.tipo, manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null, inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null };
                 await addVistaToQuest(payload.quest, vistaPayload, onLogout);
             }
             refreshData();
-        } catch (e) { console.error(e); alert("Errore nell'aggiunta."); }
-    };
-
-    const handleUpdateMostroStat = async (id, field, delta) => {
-        try {
-            const mostro = selectedEvento.giorni.flatMap(g => g.quests).flatMap(q => q.mostri_presenti).find(m => m.id === id);
-            const newValue = (mostro[field] || 0) + delta;
-            await fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, {
-                method: 'PATCH',
-                body: JSON.stringify({ [field]: newValue })
-            }, onLogout);
-            refreshData();
-        } catch (e) { console.error(e); }
-    };
-
-    const handleSaveMostroNotes = async (id, note) => {
-        try {
-            await fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, {
-                method: 'PATCH',
-                body: JSON.stringify({ note_per_staffer: note })
-            }, onLogout);
-            alert("Note salvate");
-            refreshData();
-        } catch (e) { console.error(e); }
-    };
-
-    const handleRemoveSubItem = async (tipo, id) => {
-        if (!window.confirm("Rimuovere questo elemento?")) return;
-        try {
+        },
+        onRemoveSub: async (tipo, id) => {
             if (tipo === 'png') await removePngFromQuest(id, onLogout);
             if (tipo === 'mostro') await removeMostroFromQuest(id, onLogout);
             if (tipo === 'vista') await removeVistaFromQuest(id, onLogout);
-            if (tipo === 'quest') await deleteQuest(id, onLogout);
+            if (tipo === 'quest') await handleDeleteMain('quest', id);
             refreshData();
-        } catch (e) { alert("Errore durante la rimozione."); }
-    };
-
-    const toggleExpandMostro = (id) => {
-        setExpandedMostri(prev => ({ ...prev, [id]: !prev[id] }));
-    };
-
-    const formatTime = (isoString) => {
-        if (!isoString) return "--:--";
-        return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const formatDate = (isoString) => {
-        if (!isoString) return "";
-        return new Date(isoString).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' });
-    };
-
-    // --- RENDERERS ---
-
-    const renderEventHeaderInfo = () => {
-        if (!selectedEvento) return null;
-        return (
-            <div className="bg-indigo-900/10 border-b border-gray-800 p-4 space-y-2">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-2xl font-black uppercase text-white tracking-tighter">{selectedEvento.titolo}</h1>
-                        <div className="flex flex-wrap gap-4 text-[10px] font-bold text-gray-400 uppercase">
-                            <span className="flex items-center gap-1"><MapPin size={12} className="text-indigo-400"/> {selectedEvento.luogo}</span>
-                            <span className="flex items-center gap-1"><Info size={12} className="text-indigo-400"/> {selectedEvento.pc_guadagnati} PC PROPOSTI</span>
-                        </div>
-                    </div>
-                </div>
-                <p className="text-gray-400 text-xs italic leading-relaxed">{selectedEvento.sinossi}</p>
-            </div>
-        );
+        },
+        onStatChange: async (id, field, delta) => {
+            const m = selectedEvento.giorni.flatMap(g => g.quests).flatMap(q => q.mostri_presenti).find(mo => mo.id === id);
+            await fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'PATCH', body: JSON.stringify({ [field]: (m[field] || 0) + delta }) }, onLogout);
+            refreshData();
+        },
+        onSaveNotes: async (id, note) => {
+            await fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'PATCH', body: JSON.stringify({ note_per_staffer: note }) }, onLogout);
+            alert("Note salvate"); refreshData();
+        },
+        onScanQr: (id) => setScanningForVista(id)
     };
 
     if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
 
     return (
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
-            {/* Top Bar Selezione */}
+            {/* Header Selezione Evento */}
             <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40 shadow-xl">
-                <select 
-                    className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none appearance-none cursor-pointer"
-                    value={selectedEvento?.id || ''}
-                    onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id === parseInt(e.target.value)))}
-                >
+                <select className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none appearance-none cursor-pointer"
+                    value={selectedEvento?.id || ''} onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id === parseInt(e.target.value)))}>
                     {eventi.map(ev => <option key={ev.id} value={ev.id}>{ev.titolo.toUpperCase()}</option>)}
                 </select>
-                {isMaster && <button onClick={() => setEditMode('evento')} className="p-3 bg-indigo-600 rounded-xl"><Plus size={24}/></button>}
+                {isMaster && (
+                    <div className="flex gap-2">
+                        <button onClick={() => startEdit('evento', selectedEvento)} className="p-3 bg-gray-800 rounded-xl text-indigo-400"><Edit2 size={24}/></button>
+                        <button onClick={() => startEdit('evento')} className="p-3 bg-indigo-600 rounded-xl"><Plus size={24}/></button>
+                    </div>
+                )}
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {renderEventHeaderInfo()}
-
-                <div className="p-4 space-y-12">
-                    {selectedEvento?.giorni.map((giorno, gIdx) => (
-                        <div key={giorno.id} className="space-y-6">
-                            {/* Header Giorno Esteso */}
-                            <div className="flex justify-between items-start border-b border-emerald-500/30 pb-3">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">Giorno {gIdx + 1}</span>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
-                                            <Calendar size={12}/> {formatDate(giorno.data_ora_inizio)}
-                                        </span>
-                                    </div>
-                                    <h2 className="text-xl font-black italic text-white uppercase leading-tight mb-1">{giorno.sinossi_breve || "Senza Titolo"}</h2>
-                                    <div className="flex items-center gap-3 text-[10px] text-emerald-400 font-bold uppercase italic">
-                                        <span className="flex items-center gap-1"><Clock size={12}/> {formatTime(giorno.data_ora_inizio)} - {formatTime(giorno.data_ora_fine)}</span>
-                                    </div>
-                                </div>
-                                {isMaster && (
-                                    <button onClick={() => setEditMode('quest')} className="bg-emerald-600 px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-tighter shadow-lg shadow-emerald-900/40 hover:bg-emerald-500">+ Quest</button>
-                                )}
-                            </div>
-
-                            <div className="grid gap-8">
-                                {giorno.quests.map(quest => (
-                                    <div key={quest.id} className="bg-gray-800/40 border border-gray-700/50 rounded-2xl overflow-hidden shadow-xl border-l-4 border-l-indigo-500/50">
-                                        {/* Quest Header */}
-                                        <div className="bg-gray-800/80 px-4 py-3 flex justify-between items-center border-b border-gray-700">
-                                            <div className="flex items-center gap-3">
-                                                <div className="bg-indigo-600 text-white px-2.5 py-1 rounded-lg font-black text-xs shadow-inner">{quest.orario_indicativo?.slice(0,5)}</div>
-                                                <h3 className="font-black text-base text-white uppercase tracking-tight">{quest.titolo}</h3>
-                                            </div>
-                                            {isMaster && (
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => handleRemoveSubItem('quest', quest.id)} className="text-red-900 hover:text-red-500 transition-colors p-1"><Trash size={16}/></button>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="p-5 space-y-6">
-                                            {/* SEZIONE DETTAGLI QUEST (SOPRA TABELLE) */}
-                                            <div className="space-y-4">
-                                                {quest.descrizione_ampia && (
-                                                    <div className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800">
-                                                        {quest.descrizione_ampia}
-                                                    </div>
-                                                )}
-                                                
-                                                {quest.props && (
-                                                    <div className="flex items-start gap-3 bg-amber-900/10 border border-amber-900/20 p-3 rounded-xl">
-                                                        <Package size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
-                                                            <p className="text-xs text-amber-100/80">{quest.props}</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Grid PnG e Mostri */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                                                {/* PnG Block */}
-                                                <div className="space-y-2">
-                                                    <span className="text-[10px] font-black text-indigo-400 uppercase flex items-center gap-1 px-1"><Users size={12}/> PnG Richiesti</span>
-                                                    <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
-                                                        {quest.png_richiesti.map(p => (
-                                                            <div key={p.id} className="flex justify-between items-center p-2.5 bg-gray-950 border border-gray-800 rounded-lg text-[11px] group">
-                                                                <span className="font-bold">{p.personaggio_details?.nome}</span>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-indigo-400 italic font-bold flex items-center gap-1"><UserCheck size={10}/> {p.staffer_details?.username || '---'}</span>
-                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="text-red-500 opacity-50 hover:opacity-100 transition-opacity"><X size={14}/></button>}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                        {isMaster && (
-                                                            <div className="flex gap-1 pt-2">
-                                                                <select id={`p-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-gray-700">
-                                                                    <option value="">Scegli PnG...</option>
-                                                                    {risorse.png.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
-                                                                </select>
-                                                                <button onClick={() => handleAddSubItem('png', { quest: quest.id, personaggio: document.getElementById(`p-${quest.id}`).value })} className="bg-indigo-600 p-1.5 rounded hover:bg-indigo-500 transition-colors"><Plus size={14}/></button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Mostri Block */}
-                                                <div className="space-y-2">
-                                                    <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1 px-1"><Swords size={12}/> Combat Table</span>
-                                                    <div className="bg-gray-900/50 rounded-xl p-2 space-y-2">
-                                                        {quest.mostri_presenti.map(m => (
-                                                            <div key={m.id} className="bg-gray-950 p-3 rounded-lg border border-gray-800 shadow-sm relative">
-                                                                <div className="flex justify-between items-start mb-2">
-                                                                    <div className="flex-1">
-                                                                        <div className="text-[11px] font-black uppercase text-red-400 leading-tight">{m.template_details?.nome}</div>
-                                                                        <div className="text-[10px] text-indigo-400 font-bold italic flex items-center gap-1">
-                                                                            <UserCheck size={10}/> {m.staffer_details?.username || 'DA ASSEGNARE'}
-                                                                        </div>
-                                                                    </div>
-                                                                    {isMaster && <button onClick={() => handleRemoveSubItem('mostro', m.id)} className="text-red-900 hover:text-red-500 ml-2"><Trash size={12}/></button>}
-                                                                </div>
-
-                                                                {/* Contatori PV, PA, PS */}
-                                                                <div className="flex flex-wrap gap-2 items-center bg-black/20 p-2 rounded-lg border border-gray-800/50 mb-2">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-900 rounded border border-red-900/30">
-                                                                            <Heart size={10} className="text-red-500 fill-red-500"/>
-                                                                            <span className="text-xs font-black w-4 text-center">{m.punti_vita}</span>
-                                                                        </div>
-                                                                        <div className="flex flex-col gap-0.5">
-                                                                            <button onClick={() => handleUpdateMostroStat(m.id, 'punti_vita', 1)} className="w-4 h-4 bg-emerald-900/40 text-emerald-500 rounded text-[9px] font-black">+</button>
-                                                                            <button onClick={() => handleUpdateMostroStat(m.id, 'punti_vita', -1)} className="w-4 h-4 bg-red-900/40 text-red-500 rounded text-[9px] font-black">-</button>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1.5 border-l border-gray-800 pl-2">
-                                                                        <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-700">
-                                                                            <Shield size={10} className="text-gray-400"/>
-                                                                            <span className="text-xs font-black w-4 text-center">{m.armatura}</span>
-                                                                        </div>
-                                                                        <div className="flex flex-col gap-0.5">
-                                                                            <button onClick={() => handleUpdateMostroStat(m.id, 'armatura', 1)} className="w-4 h-4 bg-gray-800 text-white rounded text-[9px] font-black">+</button>
-                                                                            <button onClick={() => handleUpdateMostroStat(m.id, 'armatura', -1)} className="w-4 h-4 bg-gray-800 text-white rounded text-[9px] font-black">-</button>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1.5 border-l border-gray-800 pl-2">
-                                                                        <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-900 rounded border border-indigo-900/30">
-                                                                            <Layout size={10} className="text-indigo-400"/>
-                                                                            <span className="text-xs font-black w-4 text-center">{m.guscio}</span>
-                                                                        </div>
-                                                                        <div className="flex flex-col gap-0.5">
-                                                                            <button onClick={() => handleUpdateMostroStat(m.id, 'guscio', 1)} className="w-4 h-4 bg-indigo-900/40 text-indigo-400 rounded text-[9px] font-black">+</button>
-                                                                            <button onClick={() => handleUpdateMostroStat(m.id, 'guscio', -1)} className="w-4 h-4 bg-indigo-900/40 text-indigo-400 rounded text-[9px] font-black">-</button>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Attacchi */}
-                                                                <div className="space-y-1">
-                                                                    {m.template_details?.attacchi?.map((att, idx) => (
-                                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20">
-                                                                            <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-
-                                                                <button onClick={() => toggleExpandMostro(m.id)} className="w-full mt-3 flex items-center justify-center gap-1 text-[8px] font-black uppercase text-gray-500 hover:text-indigo-400 py-1.5 border-t border-gray-800/50 transition-colors">
-                                                                    {expandedMostri[m.id] ? <><ChevronUp size={10}/> Nascondi Info Staff</> : <><ChevronDown size={10}/> Mostra Costume e Note</>}
-                                                                </button>
-
-                                                                {expandedMostri[m.id] && (
-                                                                    <div className="mt-3 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                                        <div className="p-2.5 bg-indigo-950/20 border border-indigo-500/20 rounded-lg">
-                                                                            <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Dettagli Costume / Tratti:</span>
-                                                                            <p className="text-[10px] text-indigo-200 italic leading-tight">{m.template_details?.costume || "Nessun dettaglio costume definito."}</p>
-                                                                        </div>
-                                                                        <div className="space-y-1.5">
-                                                                            <span className="text-[8px] font-black text-emerald-500 uppercase block">Note Specifiche Quest:</span>
-                                                                            <textarea 
-                                                                                id={`note-${m.id}`}
-                                                                                defaultValue={m.note_per_staffer}
-                                                                                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-[10px] outline-none focus:border-emerald-500 h-20 resize-none text-gray-300"
-                                                                            />
-                                                                            <button 
-                                                                                onClick={() => handleSaveMostroNotes(m.id, document.getElementById(`note-${m.id}`).value)}
-                                                                                className="w-full bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 py-1.5 rounded text-[8px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-colors"
-                                                                            >Salva Note Interprete</button>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                        {isMaster && (
-                                                            <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-800">
-                                                                <div className="flex gap-1">
-                                                                    <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-gray-700">
-                                                                        <option value="">Mostro...</option>
-                                                                        {risorse.templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                                                                    </select>
-                                                                    <select id={`ms-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-indigo-900/50">
-                                                                        <option value="">Staff...</option>
-                                                                        {risorse.staff.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
-                                                                    </select>
-                                                                    <button onClick={() => {
-                                                                        const t = document.getElementById(`m-${quest.id}`).value;
-                                                                        const s = document.getElementById(`ms-${quest.id}`).value;
-                                                                        handleAddSubItem('mostro', { quest: quest.id, template: t, staffer: s });
-                                                                    }} className="bg-red-600 p-1.5 rounded hover:bg-red-500 shadow-lg shadow-red-900/20"><Plus size={14}/></button>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* QR Section */}
-                                            <div className="pt-4 border-t border-gray-800 flex flex-wrap gap-2">
-                                                {quest.viste_previste.map(v => (
-                                                    <div key={v.id} className="flex items-center gap-2 bg-black/40 border border-gray-800 p-2 rounded-xl group pr-3 shadow-sm hover:border-emerald-500/30 transition-colors">
-                                                        <div className={`p-1.5 rounded-lg ${v.qr_code ? 'bg-emerald-500/10' : 'bg-gray-800'}`}>
-                                                            <QrIcon size={14} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
-                                                        </div>
-                                                        <div className="max-w-[140px] overflow-hidden">
-                                                            <span className="text-[10px] font-bold text-gray-200 truncate block">
-                                                                {v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}
-                                                            </span>
-                                                            <span className="text-[7px] text-gray-500 font-black uppercase tracking-tighter">{v.tipo}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => setScanningForVista(v.id)} className="text-indigo-400 hover:text-white" title="Associa QR Fisico"><QrIcon size={12}/></button>
-                                                            {isMaster && <button onClick={() => handleRemoveSubItem('vista', v.id)} className="text-red-900 hover:text-red-500"><X size={12}/></button>}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {isMaster && (
-                                                    <div className="flex items-center gap-1.5 bg-emerald-500/5 border border-dashed border-emerald-500/20 p-2 rounded-xl">
-                                                        <select className="bg-transparent text-[9px] font-bold text-emerald-500 outline-none" value={newVistaData.tipo} onChange={(e) => setNewVistaData({...newVistaData, tipo: e.target.value, contentId: ''})}>
-                                                            <option value="MAN">MAN</option>
-                                                            <option value="INV">INV</option>
-                                                        </select>
-                                                        <select className="bg-transparent text-[9px] text-gray-400 outline-none max-w-[100px]" value={newVistaData.contentId} onChange={(e) => setNewVistaData({...newVistaData, contentId: e.target.value})}>
-                                                            <option value="">Contenuto...</option>
-                                                            {newVistaData.tipo === 'INV' ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>) : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || m.titolo}</option>)}
-                                                        </select>
-                                                        <button onClick={() => { handleAddSubItem('vista', { quest: quest.id, ...newVistaData }); setNewVistaData({...newVistaData, contentId: ''}); }} className="text-emerald-500 p-0.5 hover:scale-110 transition-transform"><Plus size={16}/></button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+            {/* Editor Modale */}
+            {editMode && (
+                <div className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4">
+                    <div className="bg-gray-800 p-6 rounded-2xl w-full max-w-xl border-t-4 border-indigo-500 shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black uppercase text-indigo-400 italic">Editor {editMode}</h3>
+                            <button onClick={() => setEditMode(null)}><X/></button>
                         </div>
+                        <div className="space-y-4">
+                            <input className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" placeholder="Titolo / Nome" value={formData.titolo || formData.sinossi_breve || ''} onChange={e => setFormData({...formData, titolo: e.target.value, sinossi_breve: e.target.value})} />
+                            {editMode === 'quest' && (
+                                <input type="time" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" value={formData.orario_indicativo || ''} onChange={e => setFormData({...formData, orario_indicativo: e.target.value})} />
+                            )}
+                            <textarea className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 h-32" placeholder="Sinossi / Descrizione" value={formData.sinossi || formData.descrizione_ampia || ''} onChange={e => setFormData({...formData, sinossi: e.target.value, descrizione_ampia: e.target.value})} />
+                            {editMode === 'quest' && (
+                                <textarea className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 h-20" placeholder="Props (Materiale)" value={formData.props || ''} onChange={e => setFormData({...formData, props: e.target.value})} />
+                            )}
+                            <button onClick={handleSaveMain} className="w-full bg-indigo-600 py-4 rounded-xl font-black uppercase tracking-widest"><Save className="inline mr-2" /> Salva Modifiche</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Area Contenuto */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {selectedEvento && (
+                    <div className="bg-indigo-900/10 border-b border-gray-800 p-4">
+                        <div className="flex justify-between">
+                            <h1 className="text-2xl font-black uppercase">{selectedEvento.titolo}</h1>
+                            {isMaster && <button onClick={() => handleDeleteMain('evento', selectedEvento.id)} className="text-red-900 hover:text-red-500"><Trash2/></button>}
+                        </div>
+                        <div className="flex gap-4 text-[10px] font-bold text-gray-400 mt-1 uppercase">
+                            <span className="flex items-center gap-1"><MapPin size={12}/> {selectedEvento.luogo}</span>
+                            <span className="text-indigo-400 flex items-center gap-1"><Info size={12}/> {selectedEvento.pc_guadagnati} PC</span>
+                        </div>
+                        <p className="text-gray-400 text-xs italic mt-2 leading-relaxed">{selectedEvento.sinossi}</p>
+                        {isMaster && (
+                            <button onClick={() => startEdit('giorno')} className="mt-4 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-4 py-2 rounded-lg text-xs font-black">+ AGGIUNGI GIORNO</button>
+                        )}
+                    </div>
+                )}
+
+                <div className="p-4 space-y-16">
+                    {selectedEvento?.giorni.map((giorno, gIdx) => (
+                        <GiornoSection key={giorno.id} giorno={giorno} gIdx={gIdx} isMaster={isMaster} risorse={risorse}
+                            onEdit={startEdit} onDelete={handleDeleteMain} 
+                            onAddQuest={(gid) => startEdit('quest', { giorno_evento: gid })}
+                            questHandlers={questHandlers} />
                     ))}
                 </div>
             </div>
@@ -414,20 +183,14 @@ const PlotTab = ({ onLogout }) => {
             {/* Modal Scanner QR */}
             {scanningForVista && (
                 <div className="fixed inset-0 z-100 bg-black flex flex-col">
-                    <div className="p-4 flex justify-between items-center bg-gray-900 border-b border-gray-800">
-                        <div className="flex items-center gap-2">
-                            <QrIcon className="text-emerald-400" />
-                            <span className="font-black text-white uppercase italic tracking-tighter">Associa QR Fisico</span>
-                        </div>
-                        <button onClick={() => setScanningForVista(null)} className="px-4 py-1.5 bg-red-600 rounded-lg text-xs font-black shadow-lg">X ANNULLA</button>
+                    <div className="p-4 flex justify-between items-center bg-gray-900">
+                        <span className="font-black text-white uppercase italic">Associa QR Fisico</span>
+                        <button onClick={() => setScanningForVista(null)} className="px-4 py-1.5 bg-red-600 rounded-lg text-xs font-black">X ANNULLA</button>
                     </div>
                     <div className="flex-1">
                         <QrTab onScanSuccess={async (qr_id) => {
-                            try {
-                                await associaQrAVista(scanningForVista, qr_id, onLogout);
-                                setScanningForVista(null);
-                                refreshData();
-                            } catch (e) { alert("Errore associazione QR."); }
+                            await associaQrAVista(scanningForVista, qr_id, onLogout);
+                            setScanningForVista(null); refreshData();
                         }} onLogout={onLogout} />
                     </div>
                 </div>
