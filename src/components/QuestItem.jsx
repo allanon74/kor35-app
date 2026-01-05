@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { Users, Swords, QrCode as QrIcon, Heart, Shield, Layout, Trash, X, Plus, ChevronDown, ChevronUp, Package, Edit2, UserCheck } from 'lucide-react';
 
 const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChange, onSaveNotes, onEdit, onScanQr }) => {
-    // Stato per tracciare quali mostri sono espansi (usa l'ID come chiave)
+    // Stato per tracciare quali mostri sono espansi (usa l'ID come chiave per evitare aperture multiple)
     const [expandedMostri, setExpandedMostri] = useState({});
     
-    // Stato locale per il form di aggiunta Vista
+    // Stato locale per il form di aggiunta Vista (MAN/INV)
     const [newVista, setNewVista] = useState({ tipo: 'MAN', contentId: '' });
+
+    // Filtriamo i personaggi per mostrare solo i NON GIOCANTI (flag giocante: false) per i PnG della quest
+    const pngDisponibili = risorse.png?.filter(p => p.giocante === false) || [];
 
     const toggleMonster = (id) => {
         setExpandedMostri(prev => ({ ...prev, [id]: !prev[id] }));
@@ -50,7 +53,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Colonna PnG */}
+                    {/* Colonna PnG (Filtrati per Non Giocanti) */}
                     <div className="space-y-2">
                         <span className="text-[10px] font-black text-indigo-400 uppercase flex items-center gap-1 px-1"><Users size={12}/> PnG Richiesti</span>
                         <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
@@ -67,7 +70,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                 <div className="flex gap-1 pt-2">
                                     <select id={`p-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-gray-700">
                                         <option value="">PnG...</option>
-                                        {risorse.png.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                                        {pngDisponibili.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                                     </select>
                                     <button onClick={() => onAddSub('png', { quest: quest.id, personaggio: document.getElementById(`p-${quest.id}`).value })} className="bg-indigo-600 p-1.5 rounded hover:bg-indigo-500"><Plus size={14}/></button>
                                 </div>
@@ -89,37 +92,54 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                         {isMaster && <button onClick={() => onRemoveSub('mostro', m.id)} className="text-red-900"><Trash size={12}/></button>}
                                     </div>
 
+                                    {/* Contatori Statistiche */}
                                     <div className="flex gap-2 items-center bg-black/20 p-2 rounded-lg border border-gray-800/50">
                                         <StatCounter label={<Heart size={10} className="text-red-500 fill-red-500"/>} value={m.punti_vita} onUp={() => onStatChange(m.id, 'punti_vita', 1)} onDown={() => onStatChange(m.id, 'punti_vita', -1)} />
                                         <StatCounter label={<Shield size={10} className="text-gray-400"/>} value={m.armatura} onUp={() => onStatChange(m.id, 'armatura', 1)} onDown={() => onStatChange(m.id, 'armatura', -1)} />
                                         <StatCounter label={<Layout size={10} className="text-indigo-400"/>} value={m.guscio} onUp={() => onStatChange(m.id, 'guscio', 1)} onDown={() => onStatChange(m.id, 'guscio', -1)} />
                                     </div>
 
+                                    {/* Lista Attacchi */}
                                     <div className="mt-2 space-y-1">
                                         {m.template_details?.attacchi?.map((att, idx) => (
                                             <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20">
-                                                <span className="font-black uppercase">{att.nome_attacco}:</span> {att.descrizione_danno}
+                                                <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
                                             </div>
                                         ))}
                                     </div>
 
-                                    {/* CORREZIONE: Toggle basato sull'ID del mostro */}
+                                    {/* Pulsante Toggle Dettagli Individuale */}
                                     <button onClick={() => toggleMonster(m.id)} className="w-full mt-2 text-[8px] font-black uppercase text-gray-500 hover:text-indigo-400 py-1 border-t border-gray-800/50">
                                         {expandedMostri[m.id] ? "Chiudi Info Staff" : "Mostra Costume / Note"}
                                     </button>
+                                    
                                     {expandedMostri[m.id] && (
-                                        <div className="mt-2 space-y-2">
+                                        <div className="mt-2 space-y-2 animate-in fade-in duration-200">
                                             <div className="p-2 bg-indigo-950/20 border border-indigo-500/20 rounded text-[10px] italic">
-                                                <span className="font-bold text-indigo-400 block uppercase">Costume:</span> {m.template_details?.costume || "Nessuna nota costume."}
+                                                <span className="font-bold text-indigo-400 block uppercase not-italic mb-1">Costume / Tratti:</span> 
+                                                {m.template_details?.costume || "Nessuna nota costume."}
                                             </div>
-                                            <textarea id={`note-${m.id}`} defaultValue={m.note_per_staffer} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-[10px] h-16" placeholder="Note specifiche..."/>
-                                            <button onClick={() => onSaveNotes(m.id, document.getElementById(`note-${m.id}`).value)} className="w-full bg-emerald-600/20 text-emerald-400 py-1 rounded text-[8px] font-black uppercase">Salva Note</button>
+                                            <div className="space-y-1">
+                                                <span className="text-[8px] font-black text-emerald-500 uppercase block">Note per lo Staffer:</span>
+                                                <textarea 
+                                                    id={`note-${m.id}`} 
+                                                    defaultValue={m.note_per_staffer} 
+                                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-[10px] h-16 outline-none focus:border-emerald-500" 
+                                                    placeholder="Istruzioni per chi interpreta..."
+                                                />
+                                                <button 
+                                                    onClick={() => onSaveNotes(m.id, document.getElementById(`note-${m.id}`).value)} 
+                                                    className="w-full bg-emerald-600/20 text-emerald-400 py-1 rounded text-[8px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all"
+                                                >
+                                                    Salva Note
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                             ))}
                             {isMaster && (
-                                <div className="flex gap-1 pt-2">
+                                <div className="flex gap-1 pt-2 border-t border-gray-800">
                                     <select id={`m-${quest.id}`} className="flex-1 bg-gray-800 p-1.5 rounded text-[10px] outline-none border border-gray-700">
                                         <option value="">Mostro...</option>
                                         {risorse.templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -128,14 +148,24 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                         <option value="">Staff...</option>
                                         {risorse.staff.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
                                     </select>
-                                    <button onClick={() => onAddSub('mostro', { quest: quest.id, template: document.getElementById(`m-${quest.id}`).value, staffer: document.getElementById(`ms-${quest.id}`).value })} className="bg-red-600 p-1.5 rounded hover:bg-red-500"><Plus size={14}/></button>
+                                    <button 
+                                        onClick={() => {
+                                            const tId = document.getElementById(`m-${quest.id}`).value;
+                                            const sId = document.getElementById(`ms-${quest.id}`).value;
+                                            if(!tId || !sId) return alert("Scegli mostro e staffer");
+                                            onAddSub('mostro', { quest: quest.id, template: tId, staffer: sId });
+                                        }} 
+                                        className="bg-red-600 p-1.5 rounded hover:bg-red-500 shadow-lg"
+                                    >
+                                        <Plus size={14}/>
+                                    </button>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* Sezione QR e Viste */}
+                {/* Sezione Viste e QR */}
                 <div className="pt-4 border-t border-gray-800">
                     <span className="text-[10px] font-black text-emerald-500 uppercase block mb-2 px-1">Viste e Documenti QR</span>
                     <div className="flex flex-wrap gap-2">
@@ -145,17 +175,19 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     <QrIcon size={14} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-gray-200">{v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}</span>
+                                    <span className="text-[10px] font-bold text-gray-200 truncate max-w-[150px]">
+                                        {v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}
+                                    </span>
                                     <span className="text-[7px] text-gray-500 uppercase font-black">{v.tipo}</span>
                                 </div>
                                 <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => onScanQr(v.id)} className="text-indigo-400 p-1"><QrIcon size={12}/></button>
-                                    {isMaster && <button onClick={() => onRemoveSub('vista', v.id)} className="text-red-900 p-1"><X size={12}/></button>}
+                                    <button onClick={() => onScanQr(v.id)} className="text-indigo-400 p-1 hover:text-white" title="Associa QR"><QrIcon size={12}/></button>
+                                    {isMaster && <button onClick={() => onRemoveSub('vista', v.id)} className="text-red-900 p-1 hover:text-red-500"><X size={12}/></button>}
                                 </div>
                             </div>
                         ))}
                         
-                        {/* AGGIUNTA COMBOBOX VISTA */}
+                        {/* Aggiunta Nuova Vista (MAN/INV) */}
                         {isMaster && (
                             <div className="flex items-center gap-1.5 bg-emerald-500/5 border border-dashed border-emerald-500/20 p-1.5 rounded-xl">
                                 <select 
@@ -167,7 +199,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     <option value="INV">INV</option>
                                 </select>
                                 <select 
-                                    className="bg-transparent text-[9px] text-gray-400 outline-none max-w-[100px]" 
+                                    className="bg-transparent text-[9px] text-gray-400 outline-none max-w-[120px]" 
                                     value={newVista.contentId} 
                                     onChange={(e) => setNewVista({...newVista, contentId: e.target.value})}
                                 >
