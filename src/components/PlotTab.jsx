@@ -44,9 +44,25 @@ const PlotTab = ({ onLogout }) => {
         }
     };
 
+    // FUNZIONI DI FORMATTAZIONE PER INPUT HTML5
+    const formatDateForInput = (isoString) => {
+        if (!isoString) return '';
+        return isoString.split('T')[0]; // Restituisce YYYY-MM-DD
+    };
+
+    const formatDateTimeForInput = (isoString) => {
+        if (!isoString) return '';
+        return isoString.slice(0, 16); // Restituisce YYYY-MM-DDTHH:mm
+    };
+
+    const formatTimeForInput = (timeString) => {
+        if (!timeString) return '';
+        return timeString.slice(0, 5); // Restituisce HH:mm
+    };
+
     const startEdit = (tipo, oggetto = {}) => {
         setEditMode(tipo);
-        setFormData({ ...oggetto }); // Crea una copia per non mutare lo stato originale durante l'editing
+        setFormData({ ...oggetto });
     };
 
     const handleSaveMain = async () => {
@@ -64,7 +80,7 @@ const PlotTab = ({ onLogout }) => {
             }
             setEditMode(null);
             refreshData();
-        } catch (e) { alert("Errore salvataggio: controlla la console"); console.error(e); }
+        } catch (e) { alert("Errore salvataggio."); console.error(e); }
     };
 
     const questHandlers = {
@@ -125,7 +141,6 @@ const PlotTab = ({ onLogout }) => {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* CAMPI EVENTO */}
                             {editMode === 'evento' && (
                                 <>
                                     <div className="md:col-span-2">
@@ -136,19 +151,19 @@ const PlotTab = ({ onLogout }) => {
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Data Inizio</label>
                                         <input type="date" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
-                                            value={formData.data_inizio || ''} onChange={e => setFormData({...formData, data_inizio: e.target.value})} />
+                                            value={formatDateForInput(formData.data_inizio)} onChange={e => setFormData({...formData, data_inizio: e.target.value})} />
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Data Fine</label>
                                         <input type="date" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
-                                            value={formData.data_fine || ''} onChange={e => setFormData({...formData, data_fine: e.target.value})} />
+                                            value={formatDateForInput(formData.data_fine)} onChange={e => setFormData({...formData, data_fine: e.target.value})} />
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div>
                                         <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Luogo</label>
                                         <input className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
                                             value={formData.luogo || ''} onChange={e => setFormData({...formData, luogo: e.target.value})} />
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div>
                                         <label className="text-[10px] font-bold text-gray-500 uppercase px-1">PC Guadagnati</label>
                                         <input type="number" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
                                             value={formData.pc_guadagnati || 0} onChange={e => setFormData({...formData, pc_guadagnati: e.target.value})} />
@@ -161,28 +176,26 @@ const PlotTab = ({ onLogout }) => {
                                 </>
                             )}
 
-                            {/* CAMPI GIORNO */}
                             {editMode === 'giorno' && (
                                 <>
                                     <div className="md:col-span-2">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Titolo / Sinossi Breve Giorno</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Sinossi Breve Giorno</label>
                                         <input className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
                                             value={formData.sinossi_breve || ''} onChange={e => setFormData({...formData, sinossi_breve: e.target.value})} />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Data e Ora Inizio</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Inizio (Data e Ora)</label>
                                         <input type="datetime-local" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
-                                            value={formData.data_ora_inizio?.slice(0, 16) || ''} onChange={e => setFormData({...formData, data_ora_inizio: e.target.value})} />
+                                            value={formatDateTimeForInput(formData.data_ora_inizio)} onChange={e => setFormData({...formData, data_ora_inizio: e.target.value})} />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Data e Ora Fine</label>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Fine (Data e Ora)</label>
                                         <input type="datetime-local" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
-                                            value={formData.data_ora_fine?.slice(0, 16) || ''} onChange={e => setFormData({...formData, data_ora_fine: e.target.value})} />
+                                            value={formatDateTimeForInput(formData.data_ora_fine)} onChange={e => setFormData({...formData, data_ora_fine: e.target.value})} />
                                     </div>
                                 </>
                             )}
 
-                            {/* CAMPI QUEST */}
                             {editMode === 'quest' && (
                                 <>
                                     <div className="md:col-span-2">
@@ -193,7 +206,7 @@ const PlotTab = ({ onLogout }) => {
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Orario Indicativo</label>
                                         <input type="time" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
-                                            value={formData.orario_indicativo || ''} onChange={e => setFormData({...formData, orario_indicativo: e.target.value})} />
+                                            value={formatTimeForInput(formData.orario_indicativo)} onChange={e => setFormData({...formData, orario_indicativo: e.target.value})} />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Descrizione Ampia</label>
