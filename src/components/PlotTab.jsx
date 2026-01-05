@@ -87,7 +87,10 @@ const PlotTab = ({ onLogout }) => {
     const handleDeleteMain = async (tipo, id) => {
         if (!window.confirm(`Eliminare definitivamente questo ${tipo}?`)) return;
         try {
-            if (tipo === 'evento') await deleteEvento(id, onLogout);
+            if (tipo === 'evento') {
+                await deleteEvento(id, onLogout);
+                setSelectedEvento(null);
+            }
             if (tipo === 'giorno') await deleteGiorno(id, onLogout);
             if (tipo === 'quest') await deleteQuest(id, onLogout);
             refreshData();
@@ -99,32 +102,35 @@ const PlotTab = ({ onLogout }) => {
     const handleAddSubItem = async (tipo, payload) => {
         try {
             if (tipo === 'png') {
-                if (!payload.personaggio) return alert("Seleziona un PnG");
+                const pId = parseInt(payload.personaggio);
+                if (!pId) return alert("Seleziona un PnG");
                 await addPngToQuest(
                     parseInt(payload.quest), 
-                    parseInt(payload.personaggio), 
+                    pId, 
                     payload.staffer ? parseInt(payload.staffer) : null, 
                     onLogout
                 );
             }
             if (tipo === 'mostro') {
-                if (!payload.template) return alert("Seleziona un template mostro");
-                await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), onLogout);
+                const tId = parseInt(payload.template);
+                if (!tId) return alert("Seleziona un template mostro");
+                await addMostroToQuest(parseInt(payload.quest), tId, onLogout);
             }
             if (tipo === 'vista') {
-                if (!payload.contentId) return alert("Seleziona un contenuto");
+                const cId = parseInt(payload.contentId);
+                if (!cId) return alert("Seleziona un contenuto");
                 const vistaPayload = {
                     quest: parseInt(payload.quest),
                     tipo: payload.tipo,
-                    manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null,
-                    inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null
+                    manifesto: payload.tipo === 'MAN' ? cId : null,
+                    inventario: payload.tipo === 'INV' ? cId : null
                 };
                 await addVistaToQuest(payload.quest, vistaPayload, onLogout);
             }
             refreshData();
         } catch (e) { 
             console.error(e);
-            alert("Errore durante l'aggiunta dell'elemento. Controlla i permessi."); 
+            alert("Errore nell'aggiunta. Controlla i permessi o la definizione di fetchAuthenticated in api.js"); 
         }
     };
 
@@ -304,7 +310,7 @@ const PlotTab = ({ onLogout }) => {
                                         {/* Quest Header */}
                                         <div className="bg-gray-800/80 px-4 py-3 flex justify-between items-center border-b border-gray-700">
                                             <div className="flex items-center gap-3">
-                                                <div className="bg-indigo-600/20 text-indigo-400 p-2 rounded-lg font-black text-xs">{quest.orario_indicativo.slice(0,5)}</div>
+                                                <div className="bg-indigo-600/20 text-indigo-400 p-2 rounded-lg font-black text-xs">{quest.orario_indicativo?.slice(0,5)}</div>
                                                 <h3 className="font-black text-white uppercase tracking-tight">{quest.titolo}</h3>
                                             </div>
                                             {isMaster && (
@@ -335,7 +341,7 @@ const PlotTab = ({ onLogout }) => {
                                                     <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
                                                         {quest.png_richiesti.map(p => (
                                                             <div key={p.id} className="flex justify-between items-center p-2 bg-gray-950 border border-gray-800 rounded-lg text-[11px] group">
-                                                                <span className="font-bold">{p.ordine_uscita}. {p.personaggio_details.nome}</span>
+                                                                <span className="font-bold">{p.ordine_uscita}. {p.personaggio_details?.nome || '???'}</span>
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-indigo-400 flex items-center gap-1 italic"><UserCheck size={10}/> {p.staffer_details?.username || 'DA ASSEGNARE'}</span>
                                                                     {isMaster && <button onClick={() => handleRemoveSubItem('png', p.id)} className="opacity-0 group-hover:opacity-100 text-red-500"><X size={12}/></button>}
@@ -369,7 +375,7 @@ const PlotTab = ({ onLogout }) => {
                                                         {quest.mostri_presenti.map(m => (
                                                             <div key={m.id} className="bg-gray-950 p-2 rounded-lg border border-gray-800 flex justify-between items-center group">
                                                                 <div>
-                                                                    <div className="text-[11px] font-black uppercase text-red-400">{m.template_details.nome}</div>
+                                                                    <div className="text-[11px] font-black uppercase text-red-400">{m.template_details?.nome || '???'}</div>
                                                                     <div className="flex gap-2 text-[9px] text-gray-500 font-bold uppercase">
                                                                         <span className="flex items-center gap-0.5"><Shield size={8}/> {m.armatura}</span>
                                                                         <span className="flex items-center gap-0.5"><Layout size={8}/> {m.guscio}</span>
