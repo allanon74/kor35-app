@@ -53,7 +53,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [isStaff] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
 // Riconosciamo se è un Master (Admin di Django) o uno Staffer semplice
   const [isMaster] = useState(() => localStorage.getItem('kor35_is_master') === 'true');
-  const [isAdmin] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
+  const [isAdmin] = useState(() => localStorage.getItem('kor35_is_master') === 'true');
   const [staffWorkMode, setStaffWorkMode] = useState('dashboard');
 
   const [viewAll, setViewAll] = useState(false);

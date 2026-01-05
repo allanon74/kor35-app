@@ -12,7 +12,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://www.k-o-r-35.it/auth/', {
+      const response = await fetch('https://www.kor35.it/auth/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -30,7 +30,9 @@ const LoginPage = ({ onLoginSuccess }) => {
         // --- MODIFICA IMPORTANTE ---
         // Salviamo lo stato admin nel localStorage così il Context può leggerlo
         // data.is_staff arriva dal tuo backend Django modificato (MyAuthToken)
+        localStorage.setItem('kor35_token', data.token);
         localStorage.setItem('kor35_is_staff', data.is_staff);
+        localStorage.setItem('kor35_is_master', data.is_superuser);
         
         // Passiamo il token al componente padre (App.jsx)
         onLoginSuccess(data.token);
