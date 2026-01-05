@@ -4,6 +4,7 @@ import MainPage from './components/MainPage';
 import PlotTab from './components/PlotTab';
 import StaffDashboard from './components/StaffDashboard'; 
 import { CharacterProvider, useCharacter } from './components/CharacterContext';
+import ToolsTab from './components/ToolsTab';
 
 // Sottocomponente per gestire il "bivio" di navigazione
 const AppContent = ({ token, handleLogout }) => {
@@ -21,12 +22,7 @@ const AppContent = ({ token, handleLogout }) => {
     case 'plot':
       return <PlotTab onLogout={handleLogout} />;
     case 'tools':
-      return (
-        <div className="min-h-screen bg-gray-900 text-white p-8">
-          <h2 className="text-2xl font-bold text-amber-400 mb-4">Strumenti Master</h2>
-          <p>Sezione in fase di sviluppo...</p>
-        </div>
-      );
+      return  <ToolsTab onLogout={handleLogout} />;
     default:
       // Per impostazione predefinita, lo staff atterra sulla Dashboard
       return <StaffDashboard onLogout={handleLogout} />;
