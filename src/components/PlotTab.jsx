@@ -160,9 +160,54 @@ const PlotTab = ({ onLogout }) => {
                             {/* CAMPI SPECIFICI GIORNO */}
                             {editMode === 'giorno' && (
                                 <>
-                                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-gray-500 uppercase px-1">Sinossi Breve</label><input className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" value={formData.sinossi_breve || ''} onChange={e => setFormData({...formData, sinossi_breve: e.target.value})} /></div>
-                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase px-1">Inizio (Data/Ora)</label><input type="datetime-local" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" value={formatDateTimeForInput(formData.data_ora_inizio)} onChange={e => setFormData({...formData, data_ora_inizio: e.target.value})} /></div>
-                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase px-1">Fine (Data/Ora)</label><input type="datetime-local" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" value={formatDateTimeForInput(formData.data_ora_fine)} onChange={e => setFormData({...formData, data_ora_fine: e.target.value})} /></div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Titolo Giorno</label>
+                                        <input 
+                                            className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 focus:border-indigo-500 outline-none" 
+                                            placeholder="Es: L'Arrivo dei Mercenari"
+                                            value={formData.titolo || ''} 
+                                            onChange={e => setFormData({...formData, titolo: e.target.value})} 
+                                        />
+                                    </div>
+                                    
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Sinossi Breve (Sottotitolo)</label>
+                                        <input 
+                                            className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
+                                            value={formData.sinossi_breve || ''} 
+                                            onChange={e => setFormData({...formData, sinossi_breve: e.target.value})} 
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Inizio (Data/Ora)</label>
+                                        <input 
+                                            type="datetime-local" 
+                                            className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
+                                            value={formatDateTimeForInput(formData.data_ora_inizio)} 
+                                            onChange={e => setFormData({...formData, data_ora_inizio: e.target.value})} 
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Fine (Data/Ora)</label>
+                                        <input 
+                                            type="datetime-local" 
+                                            className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
+                                            value={formatDateTimeForInput(formData.data_ora_fine)} 
+                                            onChange={e => setFormData({...formData, data_ora_fine: e.target.value})} 
+                                        />
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Descrizione Plot Completa (Info Master)</label>
+                                        <textarea 
+                                            className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 h-40 resize-none focus:border-indigo-500 outline-none" 
+                                            placeholder="Inserisci qui tutti i dettagli segreti del plot per lo staff..."
+                                            value={formData.descrizione_completa || ''} 
+                                            onChange={e => setFormData({...formData, descrizione_completa: e.target.value})} 
+                                        />
+                                    </div>
                                 </>
                             )}
                             
