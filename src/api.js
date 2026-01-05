@@ -842,11 +842,6 @@ export const getAcquirableCerimoniali = (charId, onLogout) => {
     );
 }
 
-// Recupera la lista eventi (filtrata dal backend per ruolo)
-export const getEventi = (onLogout) => {
-  return fetchAuthenticated('/plot/api/eventi/', { method: 'GET' }, onLogout);
-};
-
 // Modifica HP di un mostro in tempo reale
 export const updateMostroHp = (mostroId, delta, onLogout) => {
   return fetchAuthenticated(
@@ -871,17 +866,18 @@ export const associaQrAVista = (vistaId, qrId, onLogout) => {
   );
 };
 
-// EVENTI
+// --- EVENTI ---
+export const getEventi = (onLogout) => fetchAuthenticated('/plot/api/eventi/', { method: 'GET' }, onLogout);
 export const createEvento = (data, onLogout) => fetchAuthenticated('/plot/api/eventi/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 export const updateEvento = (id, data, onLogout) => fetchAuthenticated(`/plot/api/eventi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 export const deleteEvento = (id, onLogout) => fetchAuthenticated(`/plot/api/eventi/${id}/`, { method: 'DELETE' }, onLogout);
 
-// GIORNI (Assumendo di aver creato i ViewSet relativi nel backend)
+// --- GIORNI ---
 export const createGiorno = (data, onLogout) => fetchAuthenticated('/plot/api/giorni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 export const updateGiorno = (id, data, onLogout) => fetchAuthenticated(`/plot/api/giorni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 export const deleteGiorno = (id, onLogout) => fetchAuthenticated(`/plot/api/giorni/${id}/`, { method: 'DELETE' }, onLogout);
 
-// QUEST
+// --- QUESTS ---
 export const createQuest = (data, onLogout) => fetchAuthenticated('/plot/api/quests/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 export const updateQuest = (id, data, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'DELETE' }, onLogout);
