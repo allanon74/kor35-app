@@ -40,53 +40,67 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
   };
 
   const handleSave = async () => {
-    try {
-      // --- LOGICA DI PULIZIA E DEDUPLICAZIONE (FIX ERRORE 400) ---
-      const cleanModificatori = [];
-      const usedModStats = new Set();
-      
-      // Elaboriamo i modificatori partendo dagli ultimi inseriti (o quelli con ID)
-      formData.modificatori.forEach(mod => {
-        const sId = mod.statistica?.id || mod.statistica;
-        if (sId && !usedModStats.has(sId)) {
-          cleanModificatori.push({ ...mod, statistica: sId });
-          usedModStats.add(sId);
-        }
-      });
+  try {
+    // 1. DEDUPLICAZIONE MODIFICATORI (RISOLVE ERRORE 400)
+    // Usiamo una mappa basata sull'ID della statistica per essere sicuri 
+    // che ogni statistica compaia una sola volta nell'invio.
+    const modsMap = new Map();
+    
+    formData.modificatori.forEach(mod => {
+      const sId = mod.statistica?.id || mod.statistica;
+      if (sId) {
+        modsMap.set(sId, { 
+          ...mod, 
+          statistica: sId,
+          // IMPORTANTE: se il record ha un ID (chiave primaria del database), 
+          // dobbiamo inviarlo, altrimenti Django proverà a fare una INSERT invece di un UPDATE
+          id: mod.id || undefined 
+        });
+      }
+    });
 
-      const cleanStatBase = [];
-      const usedBaseStats = new Set();
-      formData.statistiche_base.forEach(sb => {
-        const sId = sb.statistica?.id || sb.statistica;
-        if (sId && !usedBaseStats.has(sId)) {
-          cleanStatBase.push({ ...sb, statistica: sId });
-          usedBaseStats.add(sId);
-        }
-      });
+    // 2. DEDUPLICAZIONE STATISTICHE BASE (Logica Pivot)
+    const baseMap = new Map();
+    formData.statistiche_base.forEach(sb => {
+      const sId = sb.statistica?.id || sb.statistica;
+      if (sId) {
+        baseMap.set(sId, { 
+          ...sb, 
+          statistica: sId,
+          id: sb.id || undefined 
+        });
+      }
+    });
 
-      const dataToSend = { 
-        ...formData,
-        statistica_cariche: formData.statistica_cariche?.id || formData.statistica_cariche,
-        aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta,
-        aura_infusione: formData.aura_infusione?.id || formData.aura_infusione,
-        modificatori: cleanModificatori,
-        statistiche_base: cleanStatBase
-      };
-      
-      console.log("PAYLOAD CHE STIAMO PER INVIARE:", JSON.stringify(dataToSend, null, 2));
+    // Costruiamo l'oggetto finale da inviare
+    const dataToSend = { 
+      ...formData,
+      // Puliamo i campi che potrebbero essere oggetti mandando solo l'ID
+      statistica_cariche: formData.statistica_cariche?.id || formData.statistica_cariche || null,
+      aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta || null,
+      aura_infusione: formData.aura_infusione?.id || formData.aura_infusione || null,
+      // Convertiamo le mappe in array
+      modificatori: Array.from(modsMap.values()),
+      statistiche_base: Array.from(baseMap.values())
+    };
 
-
-      if (formData.id) await staffUpdateInfusione(formData.id, dataToSend, onLogout);
-      else await staffCreateInfusione(dataToSend, onLogout);
-      
-      alert("Infusione salvata con successo!");
-      onBack();
-    } catch (e) {
-      console.error("Errore salvataggio:", e);
-      alert("Errore salvataggio: " + (e.message || "Verifica duplicati nei modificatori"));
+    console.log("INVIO DATI AL SERVER:", dataToSend);
+    
+    if (formData.id) {
+      await staffUpdateInfusione(formData.id, dataToSend, onLogout);
+    } else {
+      await staffCreateInfusione(dataToSend, onLogout);
     }
-  };
-
+    
+    alert("Infusione salvata correttamente!");
+    onBack();
+  } catch (e) {
+    console.error("ERRORE API DETTAGLIATO:", e);
+    // Se l'errore è un oggetto (tipico di DRF), proviamo a estrarre il messaggio
+    const msg = e.message || "Errore sconosciuto";
+    alert("Errore durante il salvataggio: " + msg);
+  }
+};
   const currentCaricheId = formData.statistica_cariche?.id || formData.statistica_cariche;
 
   return (
