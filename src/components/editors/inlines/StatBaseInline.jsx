@@ -11,18 +11,17 @@ const StatBaseInline = ({ items, options, onChange, onAdd, onRemove }) => (
         <div key={i} className="flex gap-2">
           <select 
             className="flex-1 bg-gray-900 p-2 rounded text-sm border border-gray-700 text-white"
-            /* Forziamo il valore a stringa per garantire il match con le opzioni del browser */
+            /* Confrontiamo usando l'ID convertito in stringa */
             value={item.statistica ? String(item.statistica) : ""} 
             onChange={e => {
                 const val = e.target.value;
-                // Passiamo il valore convertito in numero al padre, 
-                // così il backend riceve l'ID numerico corretto
+                // Salviamo l'ID come numero nel padre
                 onChange(i, 'statistica', val ? parseInt(val, 10) : null);
             }}
           >
             <option value="">Seleziona Statistica...</option>
             {options.map(o => (
-              /* Usiamo String(o.id) per coerenza */
+              /* Usiamo l'ID come valore tecnico */
               <option key={o.id} value={String(o.id)}>
                 {o.nome} ({o.sigla})
               </option>

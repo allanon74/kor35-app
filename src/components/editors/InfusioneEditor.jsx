@@ -85,16 +85,18 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-900/20 p-4 rounded-lg">
         <Select label="Statistica Cariche" value={formData.statistica_cariche} options={statsOptions} propName="parametro"
                 onChange={v => setFormData({...formData, statistica_cariche: v})} />
-        <Select label="Metodo Ricarica" value={formData.metodo_ricarica} 
-                options={[{id:'MANU', nome:'Manuale'}, {id:'CRED', nome:'Crediti'}, {id:'AUTO', nome:'Automatica'}]} 
-                onChange={v => setFormData({...formData, metodo_ricarica: v})} />
+        <Input 
+          label="Metodo Ricarica" 
+          value={formData.metodo_ricarica} 
+          onChange={v => setFormData({...formData, metodo_ricarica: v})} 
+        />
         <Input label="Costo Crediti" type="number" value={formData.costo_ricarica_crediti} onChange={v => setFormData({...formData, costo_ricarica_crediti: v})} />
         <Input label="Durata Attiv. (sec)" type="number" value={formData.durata_attivazione} onChange={v => setFormData({...formData, durata_attivazione: v})} />
       </div>
 
       {/* SLOT CORPO MULTISELECT */}
       <MultiSelectBodySlots 
-        selectedSlots={formData.slot_corpo_permessi} 
+        value={formData.slot_corpo_permessi} // Cambiato da selectedSlots a value
         allSlots={allBodySlots} 
         onChange={v => setFormData({...formData, slot_corpo_permessi: v})} 
       />
