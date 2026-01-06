@@ -2,43 +2,41 @@ import React from 'react';
 
 const StatBaseInline = ({ items, options, onChange }) => {
   return (
-    <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
+    <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 w-full">
       <div className="mb-4 border-b border-gray-800 pb-2">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-indigo-400">Statistiche Base</h3>
-        <p className="text-[9px] text-gray-500 italic uppercase">Parametri fissi della tecnica</p>
+        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-widest text-indigo-400">Statistiche Base (Valori Fissi)</h3>
+        <p className="text-[9px] text-gray-500 italic uppercase font-medium">Parametri tecnici rilevati dal sistema</p>
       </div>
       
-      <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+      {/* GRIGLIA RESPONSIVE: 1 colonna su mobile, 2 su tablet, 3 su desktop ampio */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {options.map((stat) => {
-          // Trova il record (gestisce sia ID che oggetto)
           const existingRecord = items.find(it => (it.statistica?.id || it.statistica) === stat.id);
           
-          // Fallback al valore di default della statistica se il record non esiste o è nullo
-          const displayValue = (existingRecord?.valore_base !== null && existingRecord?.valore_base !== undefined && existingRecord?.valore_base !== "") 
-                                ? existingRecord.valore_base 
-                                : (stat.valore_base_predefinito ?? 0);
+          let displayValue = existingRecord?.valore_base;
+          if (displayValue === null || displayValue === undefined || displayValue === "") {
+            displayValue = stat.valore_base_predefinito;
+          }
 
           return (
-            <div key={stat.id} className="flex items-center gap-3 bg-gray-800/30 p-2 rounded hover:bg-gray-800/60 transition-colors border border-transparent hover:border-gray-700">
-              <div className="flex-1 flex items-baseline gap-2">
-                <span className="text-xs font-bold text-gray-300">{stat.nome}</span>
-                {/* Visualizziamo PARAMETRO tra parentesi */}
-                <span className="text-[9px] text-gray-500 font-mono italic">({stat.parametro})</span>
+            <div key={stat.id} className="flex items-center gap-3 bg-gray-800/20 p-2 rounded hover:bg-gray-800/50 transition-all border border-transparent hover:border-gray-700/50 group">
+              <div className="flex-1 flex items-baseline gap-2 overflow-hidden">
+                <span className="text-[11px] font-bold text-gray-300 truncate">{stat.nome}</span>
+                <span className="text-[9px] text-gray-600 font-mono group-hover:text-indigo-400 transition-colors">({stat.parametro})</span>
               </div>
               
-              <div className="w-24">
+              <div className="w-20 shrink-0">
                 <input 
                   type="number" 
                   step="any"
-                  className="w-full bg-gray-900 p-1.5 rounded text-xs text-center border border-gray-700 text-amber-500 focus:border-indigo-500 outline-none font-bold"
-                  value={displayValue} 
+                  className="w-full bg-gray-950 p-1.5 rounded text-xs text-center border border-gray-800 text-amber-500 focus:border-indigo-500 outline-none font-bold"
+                  value={displayValue ?? ""} 
                   onChange={e => {
                     const newVal = e.target.value;
                     const recordIndex = items.findIndex(it => (it.statistica?.id || it.statistica) === stat.id);
                     if (recordIndex !== -1) {
                       onChange(recordIndex, 'valore_base', newVal);
                     } else {
-                      // Creazione pivot se il record non esisteva ancora
                       onChange(-1, 'statistica', { statId: stat.id, value: newVal });
                     }
                   }} 
