@@ -4,7 +4,7 @@ const StatBaseInline = ({ items, options, onChange }) => {
   return (
     <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 w-full">
       <div className="mb-4 border-b border-gray-800 pb-2">
-        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-widest text-indigo-400">Statistiche Base (Valori Fissi)</h3>
+        <h3 className="text-sm font-bold uppercase tracking-widest text-indigo-400">Statistiche Base (Valori Fissi)</h3>
         <p className="text-[9px] text-gray-500 italic uppercase font-medium">Parametri tecnici rilevati dal sistema</p>
       </div>
       
