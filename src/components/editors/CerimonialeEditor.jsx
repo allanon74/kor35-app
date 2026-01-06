@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useCharacter } from '../CharacterContext';
-import { staffCreateCerimoniale, staffUpdateCerimoniale } from '../../api';
+import { staffUpdateCerimoniale, staffCreateCerimoniale } from '../../api';
 import CharacteristicInline from './inlines/CharacteristicInline';
 import RichTextEditor from '../RichTextEditor';
 
@@ -8,9 +8,11 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
   const { punteggiList } = useCharacter();
   
   const [formData, setFormData] = useState(initialData || {
-    nome: '', testo: '', formula_attacco: '',
+    nome: '', testo: '', formula_attacco: '', // Campo "Effetto" del rito
     aura_richiesta: null,
-    materiali: '',
+    prerequisiti: '',
+    svolgimento: '',
+    effetto: '',
     liv: 1,
     componenti: []
   });
@@ -41,30 +43,25 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
           {formData.id ? `Edit Cerimoniale: ${formData.nome}` : 'Nuovo Cerimoniale'}
         </h2>
         <div className="flex gap-3">
-           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white transition-all">SALVA</button>
-           <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm text-white transition-all">ANNULLA</button>
+           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white">SALVA</button>
+           <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm text-white">ANNULLA</button>
         </div>
       </div>
 
-      <div className="bg-gray-900/40 p-5 rounded-xl border border-gray-700/50 space-y-5 shadow-inner">
+      <div className="bg-gray-900/40 p-5 rounded-xl border border-gray-700/50 space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-1">
-                <Select 
-                    label="Aura Richiesta" 
-                    value={formData.aura_richiesta?.id || formData.aura_richiesta} 
+            <Select label="Aura" value={formData.aura_richiesta?.id || formData.aura_richiesta} 
                     options={punteggiList.filter(p => p.tipo === 'AU')} 
-                    onChange={v => setFormData({...formData, aura_richiesta: v ? parseInt(v, 10) : null})} 
-                />
-            </div>
+                    onChange={v => setFormData({...formData, aura_richiesta: v ? parseInt(v, 10) : null})} />
             <div className="md:col-span-2">
-                <Input label="Nome del Cerimoniale" value={formData.nome} onChange={v => setFormData({...formData, nome: v})} />
+                <Input label="Nome Cerimoniale" value={formData.nome} onChange={v => setFormData({...formData, nome: v})} />
             </div>
-            <Input label="Livello" type="number" value={formData.liv} onChange={v => setFormData({...formData, liv: v})} />
+            <Input label="Livello (liv)" type="number" value={formData.liv} onChange={v => setFormData({...formData, liv: v})} />
         </div>
       </div>
 
-      <RichTextEditor label="Formula / Effetto del Rito (HTML)" value={formData.formula_attacco} onChange={v => setFormData({...formData, formula_attacco: v})} />
-      <RichTextEditor label="Materiali Necessari e Requisiti" value={formData.materiali} onChange={v => setFormData({...formData, materiali: v})} />
+      <RichTextEditor label="Effetto Tecnico / Formula (HTML)" value={formData.effetto} onChange={v => setFormData({...formData, effetto: v})} />
+      <RichTextEditor label="Prerequisiti e Materiali" value={formData.prerequisiti} onChange={v => setFormData({...formData, prerequisiti: v})} />
       <RichTextEditor label="Svolgimento e Testo Narrativo" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
 
       <CharacteristicInline 

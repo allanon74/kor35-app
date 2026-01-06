@@ -30,19 +30,19 @@ const CerimonialeList = ({ onAdd, onEdit, onLogout }) => {
       <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-xl">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-gray-900/50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b border-gray-700">
-              <th className="px-6 py-3">Nome</th>
-              <th className="px-6 py-3">Livello</th>
-              <th className="px-6 py-3">Aura</th>
-              <th className="px-6 py-3 text-right">Azioni</th>
+            <tr className="bg-gray-900/50 text-gray-400 text-[10px] uppercase font-black border-b border-gray-700">
+                <th className="px-6 py-3">Nome</th>
+                <th className="px-6 py-3">Livello</th>
+                <th className="px-6 py-3">Aura Richiesta</th>
+                <th className="px-6 py-3 text-right">Azioni</th>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700/50 text-sm">
+            </thead>
+            <tbody>
             {filteredItems.map(item => (
-              <tr key={item.id} className="hover:bg-gray-700/30 transition-colors group text-left">
+                <tr key={item.id} className="hover:bg-gray-700/30 text-sm border-b border-gray-800">
                 <td className="px-6 py-4 font-bold text-amber-100">{item.nome}</td>
-                <td className="px-6 py-4 text-gray-300 font-bold">Lvl {item.liv}</td>
-                <td className="px-6 py-4 text-xs font-bold uppercase text-indigo-400">{item.aura_richiesta?.nome || '---'}</td>
+                <td className="px-6 py-4 text-amber-400 font-bold">Lvl {item.liv}</td>
+                <td className="px-6 py-4 text-indigo-400 font-bold">{item.aura_richiesta?.nome || '---'}</td>
                 <td className="px-6 py-4 text-right space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => onEdit(item)} className="text-amber-500 hover:bg-amber-500/10 px-3 py-1 rounded border border-amber-500/20">Edit</button>
                   <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded border border-red-500/20">Delete</button>
