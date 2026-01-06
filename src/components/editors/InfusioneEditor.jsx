@@ -73,6 +73,9 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
         statistiche_base: cleanStatBase
       };
       
+      console.log("PAYLOAD CHE STIAMO PER INVIARE:", JSON.stringify(dataToSend, null, 2));
+
+
       if (formData.id) await staffUpdateInfusione(formData.id, dataToSend, onLogout);
       else await staffCreateInfusione(dataToSend, onLogout);
       
