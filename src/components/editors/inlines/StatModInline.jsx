@@ -13,8 +13,8 @@ const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, 
   return (
     <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">Modificatori Statistici (Dinamici)</h3>
-        <button onClick={onAdd} className="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded font-bold transition-colors">+ AGGIUNGI MODIFICATORE</button>
+        <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">Modificatori Statistici</h3>
+        <button onClick={onAdd} className="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded font-bold">+ AGGIUNGI</button>
       </div>
       
       <div className="space-y-4">
@@ -24,12 +24,13 @@ const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, 
               <div className="flex-1 min-w-[200px]">
                 <label className="text-[9px] uppercase text-gray-500 font-black block mb-1">Statistica</label>
                 <select 
-                  className="w-full bg-gray-900 p-2 rounded text-sm border border-gray-600 text-white outline-none focus:border-emerald-500"
+                  className="w-full bg-gray-900 p-2 rounded text-sm border border-gray-600 text-white outline-none"
+                  /* Gestione robusta ID: Modificatori manda ID numerico */
                   value={item.statistica ? String(item.statistica) : ""} 
                   onChange={e => onChange(i, 'statistica', e.target.value ? parseInt(e.target.value, 10) : null)}
                 >
                   <option value="">Seleziona...</option>
-                  {options.map(o => <option key={o.id} value={String(o.id)}>{o.nome} ({o.sigla})</option>)}
+                  {options.map(o => <option key={o.id} value={String(o.id)}>{o.nome}</option>)}
                 </select>
               </div>
               <div className="w-32">
@@ -45,29 +46,26 @@ const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, 
                 <input type="number" step="any" className="w-full bg-gray-900 p-2 rounded text-sm text-center border border-gray-600 text-white"
                   value={item.valore} onChange={e => onChange(i, 'valore', e.target.value)} />
               </div>
-              <button onClick={() => onRemove(i)} className="self-end mb-1 text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors text-xl">✕</button>
+              <button onClick={() => onRemove(i)} className="self-end mb-1 text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors">✕</button>
             </div>
 
-            {/* SEZIONE CONDIZIONI (RIPRISTINATA) */}
+            {/* SEZIONE CONDIZIONI RIPRISTINATA INTEGRALMENTE */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-black/30 p-3 rounded border border-gray-800">
               
-              {/* LIMITE AURE */}
               <div className="space-y-2">
                 <ConditionToggle label="Usa Limite Aura" checked={item.usa_limitazione_aura} onChange={v => onChange(i, 'usa_limitazione_aura', v)} color="indigo" />
                 {item.usa_limitazione_aura && <M2MSelector options={auraOptions} selected={item.limit_a_aure} onToggle={id => toggleM2M(i, 'limit_a_aure', id)} color="indigo" />}
               </div>
 
-              {/* LIMITE ELEMENTI (RIPRISTINATO) */}
               <div className="space-y-2 border-x border-gray-800/50 px-4">
                 <ConditionToggle label="Usa Limite Elemento" checked={item.usa_limitazione_elemento} onChange={v => onChange(i, 'usa_limitazione_elemento', v)} color="emerald" />
                 {item.usa_limitazione_elemento && <M2MSelector options={elementOptions} selected={item.limit_a_elementi} onToggle={id => toggleM2M(i, 'limit_a_elementi', id)} color="emerald" />}
               </div>
 
-              {/* CONDIZIONE TESTO (RIPRISTINATO) */}
               <div className="space-y-2">
                 <ConditionToggle label="Usa Condizione Testo" checked={item.usa_condizione_text} onChange={v => onChange(i, 'usa_condizione_text', v)} color="amber" />
                 {item.usa_condizione_text && (
-                  <input placeholder="es. 'forza > 5' o 'equipaggiato'" className="w-full bg-gray-900 p-2 rounded text-[10px] border border-gray-700 text-amber-500 font-mono"
+                  <input placeholder="Formula o condizione..." className="w-full bg-gray-900 p-2 rounded text-[10px] border border-gray-700 text-amber-500 font-mono"
                     value={item.condizione_text || ''} onChange={e => onChange(i, 'condizione_text', e.target.value)} />
                 )}
               </div>
@@ -82,7 +80,7 @@ const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, 
 const ConditionToggle = ({ label, checked, onChange, color }) => (
     <label className="flex items-center gap-2 cursor-pointer group">
       <input type="checkbox" className={`accent-${color}-500`} checked={checked} onChange={e => onChange(e.target.checked)} />
-      <span className="text-[10px] font-black text-gray-500 group-hover:text-gray-300 uppercase transition-colors">{label}</span>
+      <span className="text-[10px] font-black text-gray-500 group-hover:text-gray-300 uppercase">{label}</span>
     </label>
 );
 
@@ -91,7 +89,7 @@ const M2MSelector = ({ options, selected = [], onToggle, color }) => (
       {options.map(o => (
         <button key={o.id} onClick={() => onToggle(o.id)}
           className={`text-[9px] px-2 py-0.5 rounded border transition-all ${selected.includes(o.id) ? `bg-${color}-600 border-${color}-400 text-white` : 'bg-gray-900 border-gray-700 text-gray-600'}`}>
-          {o.sigla || o.nome}
+          {o.nome} {/* Usato nome invece di sigla */}
         </button>
       ))}
     </div>
