@@ -31,11 +31,8 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
     if (index === -1 && key === 'statistiche_base') {
-      // Evita di creare duplicati nello stato se l'utente clicca più volte o triggera più eventi
       const exists = newList.find(it => (it.statistica?.id || it.statistica) === value.statId);
-      if (!exists) {
-        newList.push({ statistica: value.statId, valore_base: value.value });
-      }
+      if (!exists) newList.push({ statistica: value.statId, valore_base: value.value });
     } else {
       newList[index] = { ...newList[index], [field]: value };
     }
@@ -44,44 +41,56 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
 
   const handleSave = async () => {
     try {
-      // 1. DEDUPLICAZIONE MODIFICATORI (RISOLVE ERRORE 400)
-      const modsMap = new Map();
+      // --- LOGICA DI PULIZIA E DEDUPLICAZIONE (FIX ERRORE 400) ---
+      const cleanModificatori = [];
+      const usedModStats = new Set();
+      
+      // Elaboriamo i modificatori partendo dagli ultimi inseriti (o quelli con ID)
       formData.modificatori.forEach(mod => {
         const sId = mod.statistica?.id || mod.statistica;
-        if (sId) modsMap.set(sId, { ...mod, statistica: sId });
+        if (sId && !usedModStats.has(sId)) {
+          cleanModificatori.push({ ...mod, statistica: sId });
+          usedModStats.add(sId);
+        }
       });
 
-      // 2. DEDUPLICAZIONE STATISTICHE BASE
-      const baseMap = new Map();
+      const cleanStatBase = [];
+      const usedBaseStats = new Set();
       formData.statistiche_base.forEach(sb => {
         const sId = sb.statistica?.id || sb.statistica;
-        if (sId) baseMap.set(sId, { ...sb, statistica: sId });
+        if (sId && !usedBaseStats.has(sId)) {
+          cleanStatBase.push({ ...sb, statistica: sId });
+          usedBaseStats.add(sId);
+        }
       });
 
       const dataToSend = { 
         ...formData,
         statistica_cariche: formData.statistica_cariche?.id || formData.statistica_cariche,
-        modificatori: Array.from(modsMap.values()),
-        statistiche_base: Array.from(baseMap.values())
+        aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta,
+        aura_infusione: formData.aura_infusione?.id || formData.aura_infusione,
+        modificatori: cleanModificatori,
+        statistiche_base: cleanStatBase
       };
       
       if (formData.id) await staffUpdateInfusione(formData.id, dataToSend, onLogout);
       else await staffCreateInfusione(dataToSend, onLogout);
       
-      alert("Infusione salvata!");
+      alert("Infusione salvata con successo!");
       onBack();
     } catch (e) {
-      alert("Errore salvataggio: " + (e.message || "Errore sconosciuto"));
+      console.error("Errore salvataggio:", e);
+      alert("Errore salvataggio: " + (e.message || "Verifica duplicati nei modificatori"));
     }
   };
 
   const currentCaricheId = formData.statistica_cariche?.id || formData.statistica_cariche;
 
   return (
-    <div className="bg-gray-800 p-6 rounded-xl space-y-6 max-w-6xl mx-auto overflow-y-auto max-h-[85vh] text-white">
+    <div className="bg-gray-800 p-6 rounded-xl space-y-6 max-w-6xl mx-auto overflow-y-auto max-h-[85vh] text-white border border-gray-700">
       <div className="flex justify-between items-center border-b border-gray-700 pb-4">
         <h2 className="text-xl font-bold text-indigo-400 uppercase tracking-tighter">
-          {formData.id ? `Edit: ${formData.nome}` : 'Nuova Infusione'}
+          {formData.id ? `Editing: ${formData.nome}` : 'Nuova Infusione'}
         </h2>
         <div className="flex gap-3">
            <button onClick={handleSave} className="bg-amber-600 hover:bg-amber-500 px-8 py-2 rounded-lg font-black text-sm text-white">SALVA</button>
@@ -91,9 +100,9 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-900/20 p-4 rounded-xl">
         <div className="md:col-span-2">
-          <Input label="Nome" value={formData.nome} onChange={v => setFormData({...formData, nome: v})} />
+          <Input label="Nome Infusione" value={formData.nome} onChange={v => setFormData({...formData, nome: v})} />
         </div>
-        <Select label="Risultato" value={formData.tipo_risultato} 
+        <Select label="Tipo Risultato" value={formData.tipo_risultato} 
                 options={[{id: 'POT', nome: 'Potenziamento'}, {id: 'AUM', nome: 'Aumento'}]} 
                 onChange={v => setFormData({...formData, tipo_risultato: v})} />
         <div className="flex items-center gap-3 pt-6 justify-center">
@@ -144,21 +153,22 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
   );
 };
 
+// Helper Input / Select / etc...
 const Input = ({ label, value, onChange, type="text" }) => (
-    <div className="w-full">
-      <label className="text-[10px] text-gray-500 uppercase font-black block mb-1">{label}</label>
-      <input type={type} className="w-full bg-gray-900 p-2 rounded border border-gray-700 text-sm text-white focus:border-indigo-500 outline-none" value={value || ""} onChange={e => onChange(e.target.value)} />
-    </div>
+  <div className="w-full">
+    <label className="text-[10px] text-gray-500 uppercase font-black block mb-1">{label}</label>
+    <input type={type} className="w-full bg-gray-900 p-2 rounded border border-gray-700 text-sm text-white focus:border-indigo-500 outline-none" value={value || ""} onChange={e => onChange(e.target.value)} />
+  </div>
 );
 
 const Select = ({ label, value, options, onChange }) => (
-    <div className="w-full">
-      <label className="text-[10px] text-gray-500 uppercase font-black block mb-1">{label}</label>
-      <select className="w-full bg-gray-900 p-2 rounded border border-gray-700 text-sm text-white outline-none" value={value ? String(value) : ""} onChange={e => onChange(e.target.value)}>
-        <option value="">-</option>
-        {options.map(o => <option key={o.id} value={String(o.id)}>{o.nome}</option>)}
-      </select>
-    </div>
+  <div className="w-full">
+    <label className="text-[10px] text-gray-500 uppercase font-black block mb-1">{label}</label>
+    <select className="w-full bg-gray-900 p-2 rounded border border-gray-700 text-sm text-white outline-none" value={value ? String(value) : ""} onChange={e => onChange(e.target.value)}>
+      <option value="">-</option>
+      {options.map(o => <option key={o.id} value={String(o.id)}>{o.nome}</option>)}
+    </select>
+  </div>
 );
 
 export default InfusioneEditor;
