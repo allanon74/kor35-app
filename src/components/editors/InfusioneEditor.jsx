@@ -5,6 +5,7 @@ import CharacteristicInline from './inlines/CharacteristicInline';
 import StatBaseInline from './inlines/StatBaseInline';
 import StatModInline from './inlines/StatModInline';
 import MultiSelectBodySlots from './MultiSelectBodySlots';
+import RichTextEditor from '../RichTextEditor';
 
 const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
   const { punteggiList } = useCharacter();
@@ -93,9 +94,12 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
 
       <div className="flex flex-col bg-gray-900/40 p-4 rounded-xl border border-gray-700/50">
           <label className="text-[10px] text-gray-500 uppercase font-black mb-1">Testo Descrittivo Completo</label>
-          <textarea className="w-full bg-gray-900 p-4 rounded border border-gray-700 text-sm italic font-serif min-h-[120px]" 
-                    placeholder="Inserisci la descrizione narrativa e tecnica..." 
-                    value={formData.testo} onChange={e => setFormData({...formData, testo: e.target.value})} />
+          <RichTextEditor 
+            label="Testo Descrittivo Completo"
+            value={formData.testo}
+            placeholder="Inserisci la descrizione narrativa e tecnica..."
+            onChange={(content) => setFormData({...formData, testo: content})}
+          />
       </div>
 
       {/* INLINES */}
