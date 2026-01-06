@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { staffGetTessitureList, staffDeleteTessitura } from '../../api';
+import { staffGetTessiture, staffDeleteTessitura } from '../../api';
 
 const TessituraList = ({ onAdd, onEdit, onLogout }) => {
   const [items, setItems] = useState([]);

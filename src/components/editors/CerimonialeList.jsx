@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { staffGetCerimonialiList, staffDeleteCerimoniale } from '../../api';
+import { staffGetCerimoniali, staffDeleteCerimoniale } from '../../api';
 
 const CerimonialeList = ({ onAdd, onEdit, onLogout }) => {
   const [items, setItems] = useState([]);
