@@ -15,10 +15,10 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
   const [formData, setFormData] = useState(initialData || {
     nome: '', testo: '', formula_attacco: '',
     aura_richiesta: '', aura_infusione: '',
-    tipo_risultato: 'MOD', is_pesante: false,
+    tipo_risultato: 'POT', is_pesante: false,
     statistica_cariche: '', metodo_ricarica: 'MANU',
     costo_ricarica_crediti: 0, durata_attivazione: 0,
-    slot_corpo_permessi: [], 
+    slot_corpo_permessi: '', 
     componenti: [],          // In Django: InfusioneCaratteristica
     statistiche_base: [],    // In Django: InfusioneStatisticaBase
     modificatori: []         // In Django: InfusioneStatistica (con condizioni)
