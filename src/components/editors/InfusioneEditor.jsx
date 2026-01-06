@@ -31,7 +31,11 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
     if (index === -1 && key === 'statistiche_base') {
-      newList.push({ statistica: value.statId, valore_base: value.value });
+      // Evita di creare duplicati nello stato se l'utente clicca più volte o triggera più eventi
+      const exists = newList.find(it => (it.statistica?.id || it.statistica) === value.statId);
+      if (!exists) {
+        newList.push({ statistica: value.statId, valore_base: value.value });
+      }
     } else {
       newList[index] = { ...newList[index], [field]: value };
     }
@@ -40,48 +44,48 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
 
   const handleSave = async () => {
     try {
-      // DEDUPLICAZIONE E PULIZIA MODIFICATORI (Previene Errore 400)
-      const cleanModificatori = [];
-      const usedStats = new Set();
+      // 1. DEDUPLICAZIONE MODIFICATORI (RISOLVE ERRORE 400)
+      const modsMap = new Map();
       formData.modificatori.forEach(mod => {
-        const statId = mod.statistica?.id || mod.statistica;
-        if (statId && !usedStats.has(statId)) {
-          cleanModificatori.push({ ...mod, statistica: statId });
-          usedStats.add(statId);
-        }
+        const sId = mod.statistica?.id || mod.statistica;
+        if (sId) modsMap.set(sId, { ...mod, statistica: sId });
+      });
+
+      // 2. DEDUPLICAZIONE STATISTICHE BASE
+      const baseMap = new Map();
+      formData.statistiche_base.forEach(sb => {
+        const sId = sb.statistica?.id || sb.statistica;
+        if (sId) baseMap.set(sId, { ...sb, statistica: sId });
       });
 
       const dataToSend = { 
         ...formData,
         statistica_cariche: formData.statistica_cariche?.id || formData.statistica_cariche,
-        modificatori: cleanModificatori,
-        statistiche_base: formData.statistiche_base.map(sb => ({
-          ...sb,
-          statistica: sb.statistica?.id || sb.statistica
-        }))
+        modificatori: Array.from(modsMap.values()),
+        statistiche_base: Array.from(baseMap.values())
       };
       
       if (formData.id) await staffUpdateInfusione(formData.id, dataToSend, onLogout);
       else await staffCreateInfusione(dataToSend, onLogout);
       
-      alert("Infusione salvata con successo!");
+      alert("Infusione salvata!");
       onBack();
     } catch (e) {
-      alert("Errore salvataggio: " + (e.message || "Controlla i duplicati nei modificatori."));
+      alert("Errore salvataggio: " + (e.message || "Errore sconosciuto"));
     }
   };
 
   const currentCaricheId = formData.statistica_cariche?.id || formData.statistica_cariche;
 
   return (
-    <div className="bg-gray-800 p-6 rounded-xl space-y-6 max-w-6xl mx-auto overflow-y-auto max-h-[85vh] text-white shadow-2xl border border-gray-700">
+    <div className="bg-gray-800 p-6 rounded-xl space-y-6 max-w-6xl mx-auto overflow-y-auto max-h-[85vh] text-white">
       <div className="flex justify-between items-center border-b border-gray-700 pb-4">
         <h2 className="text-xl font-bold text-indigo-400 uppercase tracking-tighter">
-          {formData.id ? `Editing: ${formData.nome}` : 'Nuova Infusione'}
+          {formData.id ? `Edit: ${formData.nome}` : 'Nuova Infusione'}
         </h2>
         <div className="flex gap-3">
-           <button onClick={handleSave} className="bg-amber-600 hover:bg-amber-500 px-8 py-2 rounded-lg font-black text-sm transition-all shadow-lg text-white">SALVA</button>
-           <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm transition-all text-white">ANNULLA</button>
+           <button onClick={handleSave} className="bg-amber-600 hover:bg-amber-500 px-8 py-2 rounded-lg font-black text-sm text-white">SALVA</button>
+           <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm text-white">ANNULLA</button>
         </div>
       </div>
 

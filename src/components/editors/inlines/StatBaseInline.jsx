@@ -8,15 +8,16 @@ const StatBaseInline = ({ items, options, onChange }) => {
         <p className="text-[9px] text-gray-500 italic uppercase">Parametri fissi della tecnica</p>
       </div>
       
-      <div className="space-y-1.5 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+      <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
         {options.map((stat) => {
-          // Troviamo il record nel DB (gestendo ID o Oggetto)
+          // Cerchiamo il record corrispondente
           const existingRecord = items.find(it => (it.statistica?.id || it.statistica) === stat.id);
           
-          // Se non esiste o è null, usiamo il valore_base_predefinito della statistica
-          const displayValue = (existingRecord?.valore_base !== null && existingRecord?.valore_base !== undefined) 
-                                ? existingRecord.valore_base 
-                                : stat.valore_base_predefinito;
+          // LOGICA FALLBACK: Se il valore è null, undefined o stringa vuota, usa il valore_base_predefinito
+          let displayValue = existingRecord?.valore_base;
+          if (displayValue === null || displayValue === undefined || displayValue === "") {
+            displayValue = stat.valore_base_predefinito;
+          }
 
           return (
             <div key={stat.id} className="flex items-center gap-3 bg-gray-800/30 p-2 rounded hover:bg-gray-800/60 transition-colors border border-transparent hover:border-gray-700">
@@ -37,7 +38,7 @@ const StatBaseInline = ({ items, options, onChange }) => {
                     if (recordIndex !== -1) {
                       onChange(recordIndex, 'valore_base', newVal);
                     } else {
-                      // Creazione pivot se il record non esisteva ancora nel DB per questa infusione
+                      // Creazione pivot se non esisteva
                       onChange(-1, 'statistica', { statId: stat.id, value: newVal });
                     }
                   }} 
