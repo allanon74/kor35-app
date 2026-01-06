@@ -29,10 +29,21 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
   }, [onLogout]);
 
   const updateInline = (key, index, field, value) => {
-    const newList = [...formData[key]];
+  const newList = [...formData[key]];
+
+  // CASO SPECIALE PIVOT: Se index è -1, stiamo inserendo una statistica che non era nel DB
+  if (index === -1 && key === 'statistiche_base') {
+    newList.push({
+      statistica: value.statId,
+      valore_base: value.value
+    });
+  } else {
+    // Caso normale: aggiornamento record esistente
     newList[index] = { ...newList[index], [field]: value };
-    setFormData({ ...formData, [key]: newList });
-  };
+  }
+  
+  setFormData({ ...formData, [key]: newList });
+};
 
   /* Fix per caricamento statistica_cariche se arriva come oggetto */
   const currentCaricheId = formData.statistica_cariche?.id || formData.statistica_cariche;
@@ -117,7 +128,6 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
           options={statsOptions}
           onAdd={() => setFormData({...formData, statistiche_base: [...formData.statistiche_base, {statistica:null, valore_base:0}]})}
           onChange={(i, f, v) => updateInline('statistiche_base', i, f, v)}
-          onRemove={(i) => setFormData({...formData, statistiche_base: formData.statistiche_base.filter((_, idx) => idx !== i)})}
         />
       </div>
 
