@@ -10,8 +10,6 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
   const [formData, setFormData] = useState(initialData || {
     nome: '', testo: '', formula_attacco: '',
     aura_richiesta: null,
-    durata_cerimoniale: '',
-    num_partecipanti: 1,
     materiali: '',
     liv: 1,
     componenti: []
@@ -29,23 +27,18 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
         ...formData,
         aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta || null
       };
-      
       if (formData.id) await staffUpdateCerimoniale(formData.id, dataToSend, onLogout);
       else await staffCreateCerimoniale(dataToSend, onLogout);
-      
       alert("Cerimoniale salvato!");
       onBack();
-    } catch (e) {
-      alert("Errore salvataggio: " + e.message);
-    }
+    } catch (e) { alert("Errore: " + e.message); }
   };
 
   return (
     <div className="bg-gray-800 p-6 rounded-xl space-y-6 max-w-7xl mx-auto overflow-y-auto max-h-[92vh] text-white border border-gray-700 shadow-2xl">
-      
       <div className="flex justify-between items-center border-b border-gray-700 pb-4">
         <h2 className="text-xl font-bold text-amber-400 uppercase tracking-tighter">
-          {formData.id ? `Edit: ${formData.nome}` : 'Nuovo Cerimoniale'}
+          {formData.id ? `Edit Cerimoniale: ${formData.nome}` : 'Nuovo Cerimoniale'}
         </h2>
         <div className="flex gap-3">
            <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white transition-all">SALVA</button>
@@ -54,30 +47,25 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
       </div>
 
       <div className="bg-gray-900/40 p-5 rounded-xl border border-gray-700/50 space-y-5 shadow-inner">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select 
-                label="Aura di Riferimento" 
-                value={formData.aura_richiesta?.id || formData.aura_richiesta} 
-                options={punteggiList.filter(p => p.tipo === 'AU')} 
-                onChange={v => setFormData({...formData, aura_richiesta: v ? parseInt(v, 10) : null})} 
-            />
-            <Input label="Formula / Effetto del Rito" value={formData.formula_attacco} onChange={v => setFormData({...formData, formula_attacco: v})} />
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-3">
+            <div className="md:col-span-1">
+                <Select 
+                    label="Aura Richiesta" 
+                    value={formData.aura_richiesta?.id || formData.aura_richiesta} 
+                    options={punteggiList.filter(p => p.tipo === 'AU')} 
+                    onChange={v => setFormData({...formData, aura_richiesta: v ? parseInt(v, 10) : null})} 
+                />
+            </div>
+            <div className="md:col-span-2">
                 <Input label="Nome del Cerimoniale" value={formData.nome} onChange={v => setFormData({...formData, nome: v})} />
             </div>
             <Input label="Livello" type="number" value={formData.liv} onChange={v => setFormData({...formData, liv: v})} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-amber-900/10 p-5 rounded-xl border border-amber-500/20">
-        <Input label="Tempo Esecuzione (es. 15 min)" value={formData.durata_cerimoniale} onChange={v => setFormData({...formData, durata_cerimoniale: v})} />
-        <Input label="Partecipanti Minimi" type="number" value={formData.num_partecipanti} onChange={v => setFormData({...formData, num_partecipanti: v})} />
-      </div>
-
-      <RichTextEditor label="Materiali e Requisiti" value={formData.materiali} onChange={v => setFormData({...formData, materiali: v})} />
-      <RichTextEditor label="Svolgimento e Testo" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
+      <RichTextEditor label="Formula / Effetto del Rito (HTML)" value={formData.formula_attacco} onChange={v => setFormData({...formData, formula_attacco: v})} />
+      <RichTextEditor label="Materiali Necessari e Requisiti" value={formData.materiali} onChange={v => setFormData({...formData, materiali: v})} />
+      <RichTextEditor label="Svolgimento e Testo Narrativo" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
 
       <CharacteristicInline 
         items={formData.componenti} 

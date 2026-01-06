@@ -11,7 +11,9 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
   
   const [formData, setFormData] = useState(initialData || {
     nome: '', testo: '', formula_attacco: '',
-    livello: 1,
+    livello: 0,
+    aura_richiesta: null,
+    elemento_principale: null,
     componenti: [],
     statistiche_base: []
   });
@@ -19,6 +21,9 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
   useEffect(() => {
     getStatisticheList(onLogout).then(setStatsOptions);
   }, [onLogout]);
+
+  // Il livello dipende dal numero di componenti caratteristiche
+  const calculatedLevel = formData.componenti.length;
 
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
@@ -28,17 +33,20 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
     } else {
       newList[index] = { ...newList[index], [field]: value };
     }
-    setFormData({ ...formData, [key]: newList });
+    setFormData({ ...formData, [key]: newList, livello: key === 'componenti' ? newList.length : formData.livello });
   };
 
   const handleSave = async () => {
     try {
       const dataToSend = { 
         ...formData,
+        livello: calculatedLevel,
+        aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta || null,
+        elemento_principale: formData.elemento_principale?.id || formData.elemento_principale || null,
         statistiche_base: formData.statistiche_base.map(sb => ({
           ...sb,
           statistica: sb.statistica?.id || sb.statistica,
-          id: undefined // Pulizia per update annidato
+          id: undefined
         }))
       };
       
@@ -47,58 +55,82 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
       
       alert("Tessitura salvata!");
       onBack();
-    } catch (e) {
-      alert("Errore salvataggio: " + e.message);
-    }
+    } catch (e) { alert("Errore: " + e.message); }
   };
 
   return (
     <div className="bg-gray-800 p-6 rounded-xl space-y-6 max-w-7xl mx-auto overflow-y-auto max-h-[92vh] text-white border border-gray-700 shadow-2xl">
       <div className="flex justify-between items-center border-b border-gray-700 pb-4">
         <h2 className="text-xl font-bold text-cyan-400 uppercase tracking-tighter">
-          {formData.id ? `Edit: ${formData.nome}` : 'Nuova Tessitura'}
+          {formData.id ? `Edit Tessitura: ${formData.nome}` : 'Nuova Tessitura'}
         </h2>
         <div className="flex gap-3">
-           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white transition-all">SALVA</button>
+           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white transition-all shadow-lg">SALVA</button>
            <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm text-white transition-all">ANNULLA</button>
         </div>
       </div>
 
       <div className="bg-gray-900/40 p-5 rounded-xl border border-gray-700/50 space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select 
+                label="Aura Richiesta" 
+                value={formData.aura_richiesta?.id || formData.aura_richiesta} 
+                options={punteggiList.filter(p => p.tipo === 'AU')} 
+                onChange={v => setFormData({...formData, aura_richiesta: v ? parseInt(v, 10) : null})} 
+            />
+            <Select 
+                label="Elemento Principale" 
+                value={formData.elemento_principale?.id || formData.elemento_principale} 
+                options={punteggiList.filter(p => p.tipo === 'EL')} 
+                onChange={v => setFormData({...formData, elemento_principale: v ? parseInt(v, 10) : null})} 
+            />
+        </div>
         <div className="bg-cyan-500/5 p-3 rounded-lg border border-cyan-500/20">
-            <Input label="Formula Attacco / Effetto" placeholder="es. @vol + 2d10" value={formData.formula_attacco} onChange={v => setFormData({...formData, formula_attacco: v})} />
+            <Input label="Formula Attacco / Effetto" value={formData.formula_attacco} onChange={v => setFormData({...formData, formula_attacco: v})} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="md:col-span-3">
             <Input label="Nome Tessitura" value={formData.nome} onChange={v => setFormData({...formData, nome: v})} />
           </div>
-          <Input label="Livello" type="number" value={formData.livello} onChange={v => setFormData({...formData, livello: v})} />
+          <div className="bg-black/40 p-2 rounded border border-gray-700 flex flex-col justify-center items-center">
+              <span className="text-[9px] text-gray-500 uppercase font-black">Livello Calcolato</span>
+              <span className="text-xl font-bold text-cyan-400">{calculatedLevel}</span>
+          </div>
         </div>
       </div>
 
-      <RichTextEditor label="Descrizione Tecnica" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
+      <RichTextEditor label="Descrizione Magica e Tecnica" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
 
       <CharacteristicInline 
         items={formData.componenti} 
         options={punteggiList.filter(p => p.tipo === 'CA')}
         onAdd={() => setFormData({...formData, componenti: [...formData.componenti, {caratteristica:'', valore:1}]})}
         onChange={(i, f, v) => updateInline('componenti', i, f, v)}
-        onRemove={(i) => setFormData({...formData, componenti: formData.componenti.filter((_, idx) => idx !== i)})}
+        onRemove={(i) => {
+            const newList = formData.componenti.filter((_, idx) => idx !== i);
+            setFormData({...formData, componenti: newList, livello: newList.length});
+        }}
       />
 
-      <StatBaseInline 
-        items={formData.statistiche_base} 
-        options={statsOptions} 
-        onChange={(i, f, v) => updateInline('statistiche_base', i, f, v)} 
-      />
+      <StatBaseInline items={formData.statistiche_base} options={statsOptions} onChange={(i, f, v) => updateInline('statistiche_base', i, f, v)} />
     </div>
   );
 };
 
-const Input = ({ label, value, onChange, type="text", placeholder="" }) => (
+const Input = ({ label, value, onChange, type="text" }) => (
     <div className="w-full text-left">
       <label className="text-[10px] text-gray-500 uppercase font-black block mb-1 tracking-tighter">{label}</label>
-      <input type={type} placeholder={placeholder} className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm text-white focus:border-cyan-500 outline-none shadow-inner" value={value || ""} onChange={e => onChange(e.target.value)} />
+      <input type={type} className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm text-white focus:border-cyan-500 outline-none" value={value || ""} onChange={e => onChange(e.target.value)} />
+    </div>
+);
+
+const Select = ({ label, value, options, onChange }) => (
+    <div className="w-full text-left">
+      <label className="text-[10px] text-gray-500 uppercase font-black block mb-1 tracking-tighter">{label}</label>
+      <select className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm text-white cursor-pointer focus:border-cyan-500 outline-none" value={value ? String(value) : ""} onChange={e => onChange(e.target.value)}>
+        <option value="">- SELEZIONA -</option>
+        {options.map(o => <option key={o.id} value={String(o.id)}>{o.nome}</option>)}
+      </select>
     </div>
 );
 
