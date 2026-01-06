@@ -104,9 +104,9 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
       )}
 
       <div className="flex flex-col bg-gray-900/40 p-4 rounded-xl border border-gray-700/50">
-          <label className="text-[10px] text-gray-500 uppercase font-black mb-1">Testo Descrittivo Completo</label>
+        <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Descrizione Narrativa e Tecnica</h3>
           <RichTextEditor 
-            label="Testo Descrittivo Completo"
+            
             value={formData.testo}
             placeholder="Inserisci la descrizione narrativa e tecnica..."
             onChange={(content) => setFormData({...formData, testo: content})}
