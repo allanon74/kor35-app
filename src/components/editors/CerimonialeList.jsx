@@ -8,7 +8,7 @@ const CerimonialeList = ({ onAdd, onEdit, onLogout }) => {
 
   const loadData = () => {
     setLoading(true);
-    staffGetCerimonialiList(onLogout)
+    staffGetCerimoniali(onLogout)
       .then(setItems)
       .finally(() => setLoading(false));
   };

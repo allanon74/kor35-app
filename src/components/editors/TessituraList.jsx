@@ -8,7 +8,7 @@ const TessituraList = ({ onAdd, onEdit, onLogout }) => {
 
   const loadData = () => {
     setLoading(true);
-    staffGetTessitureList(onLogout)
+    staffGetTessiture(onLogout)
       .then(setItems)
       .finally(() => setLoading(false));
   };
