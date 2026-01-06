@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { staffGetInfusioni } from '../api';
+import { staffGetInfusioni } from '../../api';
 import { debounce } from 'lodash'; // Se non l'hai, puoi usare un timeout semplice
 
 const InfusioneList = ({ onSelect, onNew, onLogout }) => {

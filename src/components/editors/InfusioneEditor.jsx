@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from '../CharacterContext';
-import { getStatisticheList, staffCreateInfusione, staffUpdateInfusione, getBodySlots } from '../api';
+import { getStatisticheList, staffCreateInfusione, staffUpdateInfusione, getBodySlots } from '../../api';
 // Inlines
 import CharacteristicInline from './inlines/CharacteristicInline';
 import StatBaseInline from './inlines/StatBaseInline';
