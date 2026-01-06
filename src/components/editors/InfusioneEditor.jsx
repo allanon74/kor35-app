@@ -41,20 +41,22 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
 
   const handleSave = async () => {
   try {
-    // 1. DEDUPLICAZIONE MODIFICATORI (RISOLVE ERRORE 400)
-    // Usiamo una mappa basata sull'ID della statistica per essere sicuri 
-    // che ogni statistica compaia una sola volta nell'invio.
+    // 1. DEDUPLICAZIONE MODIFICATORI (MAPPA PER STATISTICA)
     const modsMap = new Map();
-    
     formData.modificatori.forEach(mod => {
       const sId = mod.statistica?.id || mod.statistica;
       if (sId) {
+        // Creiamo l'oggetto SENZA ID (importante!)
         modsMap.set(sId, { 
-          ...mod, 
           statistica: sId,
-          // IMPORTANTE: se il record ha un ID (chiave primaria del database), 
-          // dobbiamo inviarlo, altrimenti Django proverà a fare una INSERT invece di un UPDATE
-          id: mod.id || undefined 
+          valore: mod.valore,
+          tipo_modificatore: mod.tipo_modificatore,
+          usa_limitazione_aura: mod.usa_limitazione_aura,
+          limit_a_aure: mod.limit_a_aure,
+          usa_limitazione_elemento: mod.usa_limitazione_elemento,
+          limit_a_elementi: mod.limit_a_elementi,
+          usa_condizione_text: mod.usa_condizione_text,
+          condizione_text: mod.condizione_text
         });
       }
     });
@@ -64,27 +66,25 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
     formData.statistiche_base.forEach(sb => {
       const sId = sb.statistica?.id || sb.statistica;
       if (sId) {
+        // Inviamo solo statistica e valore_base
         baseMap.set(sId, { 
-          ...sb, 
-          statistica: sId,
-          id: sb.id || undefined 
+          statistica: sId, 
+          valore_base: sb.valore_base 
         });
       }
     });
 
-    // Costruiamo l'oggetto finale da inviare
+    // 3. COSTRUZIONE PAYLOAD FINALE
     const dataToSend = { 
       ...formData,
-      // Puliamo i campi che potrebbero essere oggetti mandando solo l'ID
       statistica_cariche: formData.statistica_cariche?.id || formData.statistica_cariche || null,
       aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta || null,
       aura_infusione: formData.aura_infusione?.id || formData.aura_infusione || null,
-      // Convertiamo le mappe in array
       modificatori: Array.from(modsMap.values()),
       statistiche_base: Array.from(baseMap.values())
     };
 
-    console.log("INVIO DATI AL SERVER:", dataToSend);
+    console.log("INVIO DATI PULITI AL SERVER:", dataToSend);
     
     if (formData.id) {
       await staffUpdateInfusione(formData.id, dataToSend, onLogout);
@@ -95,12 +95,12 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
     alert("Infusione salvata correttamente!");
     onBack();
   } catch (e) {
-    console.error("ERRORE API DETTAGLIATO:", e);
-    // Se l'errore è un oggetto (tipico di DRF), proviamo a estrarre il messaggio
-    const msg = e.message || "Errore sconosciuto";
-    alert("Errore durante il salvataggio: " + msg);
+    console.error("ERRORE SALVATAGGIO:", e);
+    alert("Errore durante il salvataggio: " + (e.message || "Controlla la console per i dettagli."));
   }
 };
+
+
   const currentCaricheId = formData.statistica_cariche?.id || formData.statistica_cariche;
 
   return (
