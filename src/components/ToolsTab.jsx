@@ -6,7 +6,7 @@ import InfusioneManager from './editors/InfusioneManager';
 // import TessituraEditor from './editors/TessituraEditor';
 // import CerimonialeEditor from './editors/CerimonialeEditor';
 
-const ToolsTab = () => {
+const ToolsTab = ({ onLogout }) => {
   const [activeTool, setActiveTool] = useState('menu'); // menu, infusione, tessitura, cerimoniale, proposte
   const { setStaffWorkMode } = useCharacter();
 
