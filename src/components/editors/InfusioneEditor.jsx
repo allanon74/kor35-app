@@ -62,7 +62,7 @@ const InfusioneEditor = ({ onBack, onLogout, initialData = null }) => {
           <Input label="Nome" value={formData.nome} onChange={v => setFormData({...formData, nome: v})} />
         </div>
         <Select label="Tipo Risultato" value={formData.tipo_risultato} 
-                options={[{id:'MAT', nome:'Materia'}, {id:'MOD', nome:'Mod'}, {id:'INN', nome:'Innesto'}]} 
+                options={[{id:'POT', nome:'Potenziamento (materia, mod...)'}, {id:'AUM', nome:'Aumento (mutazione, innesto...)'}]} 
                 onChange={v => setFormData({...formData, tipo_risultato: v})} />
         <div className="flex items-center gap-2 pt-5">
             <input type="checkbox" className="w-5 h-5 rounded accent-indigo-500" checked={formData.is_pesante} onChange={e => setFormData({...formData, is_pesante: e.target.checked})} />

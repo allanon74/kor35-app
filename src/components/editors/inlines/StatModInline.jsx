@@ -27,7 +27,7 @@ const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, 
                 <select className="w-full bg-gray-900 p-2 rounded text-sm border border-gray-600"
                   value={item.statistica} onChange={e => onChange(i, 'statistica', e.target.value)}>
                   <option value="">Seleziona...</option>
-                  {options.map(o => <option key={o.parametro} value={o.parametro}>{o.nome}</option>)}
+                  {options.map(o => <option key={o.id} value={o.id}>{o.nome} ({o.sigla})</option>)}
                 </select>
               </div>
               <div className="w-32">

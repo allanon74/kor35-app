@@ -15,7 +15,7 @@ const StatBaseInline = ({ items, options, onChange, onAdd, onRemove }) => (
             onChange={e => onChange(i, 'statistica', e.target.value)}
           >
             <option value="">Parametro...</option>
-            {options.map(o => <option key={o.parametro} value={o.parametro}>{o.nome}</option>)}
+            {options.map(o => <option key={o.id} value={o.id}>{o.nome} ({o.sigla})</option>)}
           </select>
           <input 
             type="number" className="w-20 bg-gray-800 p-2 rounded text-sm text-center border border-gray-700"
