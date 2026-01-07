@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from '../CharacterContext';
-// Aggiunto getPersonaggiList per il campo inventario
 import { staffUpdateOggetto, staffCreateOggetto, staffGetClassiOggetto, getPersonaggiList } from '../../api';
 import CharacteristicInline from './inlines/CharacteristicInline';
 import StatBaseInline from './inlines/StatBaseInline';
@@ -40,7 +39,7 @@ const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
     loadData();
   }, [onLogout]);
 
-  // LOGICA UNIFICATA UPDATE INLINE
+  // Logica unificata per update inline
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
     if (index === -1) {
@@ -83,7 +82,7 @@ const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
           inventario_corrente: formData.inventario_corrente ? parseInt(formData.inventario_corrente) : null,
           
           statistiche_base: cleanAndDeduplicate(formData.statistiche_base, 'statistica'),
-          statistiche: cleanAndDeduplicate(formData.statistiche, 'statistica'), // Modificatori
+          statistiche: cleanAndDeduplicate(formData.statistiche, 'statistica'),
           componenti: cleanAndDeduplicate(formData.componenti, 'caratteristica')
       };
 
@@ -163,7 +162,7 @@ const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
             auraOptions={punteggiList.filter(p => p.tipo === 'AU')} 
             elementOptions={punteggiList.filter(p => p.tipo === 'EL')} 
             onAdd={() => setFormData({...formData, statistiche: [...formData.statistiche, {statistica:'', valore:0, tipo_modificatore:'ADD'}]})} 
-            onChange={(i,f,v) => updateInline('statistiche', i, f, v)} // Corretto per usare updateInline
+            onChange={(i,f,v) => updateInline('statistiche', i, f, v)} 
             onRemove={i => setFormData({...formData, statistiche: formData.statistiche.filter((_,idx)=>idx!==i)})} 
           />
       </div>

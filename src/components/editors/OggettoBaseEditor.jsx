@@ -22,16 +22,13 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
 
   useEffect(() => { staffGetClassiOggetto(onLogout).then(setClassi); }, []);
 
-  // --- LOGICA UNIFICATA PER GESTIONE INLINE ---
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
-    
-    // Gestione creazione nuovo record (indice -1)
     if (index === -1) {
+        // Logica creazione: usa i valori di default se non specificati
         const exists = newList.find(it => (it.statistica?.id || it.statistica) === value.statId);
         if (!exists) {
             const newRecord = { statistica: value.statId };
-            
             if (key === 'statistiche_base') {
                 newRecord.valore_base = value.value;
             } else {
@@ -41,17 +38,14 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
             newList.push(newRecord);
         }
     } else {
-        // Aggiornamento record esistente
         newList[index] = { ...newList[index], [field]: value };
     }
-    
     setFormData({ ...formData, [key]: newList });
   };
 
   const handleSave = async () => {
     try {
         const getId = (item) => item?.id || item || null;
-
         const cleanAndDeduplicate = (list, keyField) => {
             const seen = new Set();
             return list

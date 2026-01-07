@@ -14,7 +14,7 @@ const StatBaseInline = ({ items, options, onChange }) => {
           
           let displayValue = existingRecord?.valore_base;
           
-          // CORREZIONE: Usa TASSATIVAMENTE valore_base_predefinito
+          // ORA IL BACKEND INVIA SEMPRE 'valore_base_predefinito'
           if (displayValue === null || displayValue === undefined || displayValue === "") {
             displayValue = stat.valore_base_predefinito;
           }
@@ -31,13 +31,11 @@ const StatBaseInline = ({ items, options, onChange }) => {
                   type="number" 
                   step="any"
                   className="w-full bg-gray-950 p-1.5 rounded text-xs text-center border border-gray-800 text-amber-500 focus:border-indigo-500 outline-none font-bold"
-                  // Se displayValue è null/undefined, mostra stringa vuota per evitare warning React
                   value={displayValue ?? ""} 
                   onChange={e => {
                     const newVal = e.target.value;
                     const recordIndex = items.findIndex(it => (it.statistica?.id || it.statistica) === stat.id);
                     
-                    // Logica unificata: se non esiste (-1), il parent creerà il record
                     if (recordIndex !== -1) {
                       onChange(recordIndex, 'valore_base', newVal);
                     } else {
