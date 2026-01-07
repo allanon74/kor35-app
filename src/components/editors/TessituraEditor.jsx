@@ -22,7 +22,7 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
   }, [onLogout]);
 
   // Calcolo livello property (numero componenti)
-  const calculatedLevel = formData.componenti.length;
+  const calculatedLevel = formData.componenti.reduce((acc, curr) => acc + (parseInt(curr.valore) || 0), 0);
 
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
