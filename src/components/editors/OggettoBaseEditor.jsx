@@ -54,24 +54,28 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
             title="Statistiche Base Template" 
             items={formData.statistiche_base} 
             options={punteggiList.filter(p => p.tipo === 'ST')} 
-            onAdd={() => setFormData({...formData, statistiche_base: [...formData.statistiche_base, {statistica:'', valore_base:0}]})} 
             onChange={(i, f, v) => {
+                const newStats = [...formData.statistiche_base];
+                
                 if (i === -1) {
-                // Gestione nuovo record: v contiene { statId: ..., value: ... }
-                const newRecord = { statistica: v.statId, valore_base: v.value };
-                setFormData({
-                    ...formData,
-                    statistiche_base: [...formData.statistiche_base, newRecord]
+                // Se il record non esiste (i === -1), lo aggiungiamo usando i dati passati da StatBaseInline
+                // v in questo caso è l'oggetto { statId, value } inviato dal componente inline
+                newStats.push({
+                    statistica: v.statId,
+                    valore_base: v.value
                 });
                 } else {
-                // Modifica record esistente
-                const n = [...formData.statistiche_base];
-                n[i][f] = v;
-                setFormData({ ...formData, statistiche_base: n });
+                // Modifica di un record esistente
+                newStats[i][f] = v;
                 }
+                
+                setFormData({ ...formData, statistiche_base: newStats });
             }} 
-            onRemove={i => setFormData({...formData, statistiche_base: formData.statistiche_base.filter((_,idx)=>idx!==i)})} 
-            />
+            onRemove={i => {
+                const n = formData.statistiche_base.filter((_, idx) => idx !== i);
+                setFormData({...formData, statistiche_base: n});
+            }}
+          />
           <StatModInline title="Modificatori Template" items={formData.statistiche_modificatori} options={punteggiList.filter(p => p.tipo === 'ST')} onAdd={() => setFormData({...formData, statistiche_modificatori: [...formData.statistiche_modificatori, {statistica:'', valore:0, tipo_modificatore:'ADD'}]})} onChange={(i,f,v) => {const n=[...formData.statistiche_modificatori]; n[i][f]=v; setFormData({...formData, statistiche_modificatori:n});}} onRemove={i => setFormData({...formData, statistiche_modificatori: formData.statistiche_modificatori.filter((_,idx)=>idx!==i)})} />
       </div>
     </div>

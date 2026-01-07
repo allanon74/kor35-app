@@ -30,6 +30,7 @@ const StatBaseInline = ({ items, options, onChange }) => {
                   type="number" 
                   step="any"
                   className="w-full bg-gray-950 p-1.5 rounded text-xs text-center border border-gray-800 text-amber-500 focus:border-indigo-500 outline-none font-bold"
+                  placeholder={stat.valore_base_predefinito}
                   value={displayValue ?? ""} 
                   onChange={e => {
                     const newVal = e.target.value;
