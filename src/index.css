@@ -16,3 +16,9 @@ html, body, #root {
 .kor-35-app, .kor-35-app > div {
   height: 100%;
 }
+
+.ql-editor-view p { margin-bottom: 0.5rem; }
+.ql-editor-view ul { list-style-type: disc; margin-left: 1.5rem; }
+.ql-editor-view ol { list-style-type: decimal; margin-left: 1.5rem; }
+.ql-editor-view h1 { font-size: 1.5rem; font-weight: bold; }
+.ql-editor-view h2 { font-size: 1.25rem; font-weight: bold; }

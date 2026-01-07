@@ -37,16 +37,20 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                 {/* Dettagli Quest */}
                 <div className="space-y-4">
                     {quest.descrizione_ampia && (
-                        <div className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800">
-                            {quest.descrizione_ampia}
-                        </div>
+                        <div 
+                            className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view"
+                            dangerouslySetInnerHTML={{ __html: quest.descrizione_ampia }}
+                        />
                     )}
                     {quest.props && (
                         <div className="flex items-start gap-3 bg-amber-900/10 border border-amber-900/20 p-3 rounded-xl">
                             <Package size={18} className="text-amber-500 shrink-0 mt-0.5" />
                             <div>
                                 <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
-                                <p className="text-xs text-amber-100/80">{quest.props}</p>
+                                <div 
+                                    className="text-xs text-amber-100/80 ql-editor-view"
+                                    dangerouslySetInnerHTML={{ __html: quest.props }}
+                                />
                             </div>
                         </div>
                     )}

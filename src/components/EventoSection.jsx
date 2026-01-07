@@ -57,16 +57,17 @@ const EventoSection = ({ evento, isMaster, risorse, onEdit, onDelete, onUpdateEv
                         <button onClick={onAddGiorno} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-black uppercase shadow-lg hover:bg-emerald-500 transition-all">
                             + Giorno
                         </button>
-                        <button onClick={() => onDelete('evento', evento.id)} className="p-2 bg-red-900/20 text-red-500 border border-red-900/30 rounded-lg hover:bg-red-600 hover:text-white transition-all">
+                        <button onClick={() => onDelete(evento.id)} className="p-2 bg-red-900/20 text-red-500 border border-red-900/30 rounded-lg hover:bg-red-600 hover:text-white transition-all">
                             <Trash2 size={20}/>
                         </button>
                     </div>
                 )}
             </div>
 
-            <p className="text-gray-300 text-sm italic border-l-2 border-indigo-500 pl-4 bg-indigo-500/5 py-2">
-                {evento.sinossi}
-            </p>
+            <div 
+                className="text-gray-300 text-sm italic border-l-2 border-indigo-500 pl-4 bg-indigo-500/5 py-2 ql-editor-view"
+                dangerouslySetInnerHTML={{ __html: evento.sinossi }}
+            />
 
             {/* SEZIONE STAFF (Sempre visibile) */}
             <div className="space-y-3 pt-2">
