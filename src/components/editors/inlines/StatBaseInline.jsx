@@ -8,12 +8,13 @@ const StatBaseInline = ({ items, options, onChange }) => {
         <p className="text-[9px] text-gray-500 italic uppercase font-medium">Parametri tecnici rilevati dal sistema</p>
       </div>
       
-      {/* GRIGLIA RESPONSIVE: 1 colonna su mobile, 2 su tablet, 3 su desktop ampio */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {options.map((stat) => {
           const existingRecord = items.find(it => (it.statistica?.id || it.statistica) === stat.id);
           
           let displayValue = existingRecord?.valore_base;
+          
+          // CORREZIONE: Usa TASSATIVAMENTE valore_base_predefinito
           if (displayValue === null || displayValue === undefined || displayValue === "") {
             displayValue = stat.valore_base_predefinito;
           }
@@ -30,11 +31,13 @@ const StatBaseInline = ({ items, options, onChange }) => {
                   type="number" 
                   step="any"
                   className="w-full bg-gray-950 p-1.5 rounded text-xs text-center border border-gray-800 text-amber-500 focus:border-indigo-500 outline-none font-bold"
-                  placeholder={stat.valore_base_predefinito}
+                  // Se displayValue è null/undefined, mostra stringa vuota per evitare warning React
                   value={displayValue ?? ""} 
                   onChange={e => {
                     const newVal = e.target.value;
                     const recordIndex = items.findIndex(it => (it.statistica?.id || it.statistica) === stat.id);
+                    
+                    // Logica unificata: se non esiste (-1), il parent creerà il record
                     if (recordIndex !== -1) {
                       onChange(recordIndex, 'valore_base', newVal);
                     } else {

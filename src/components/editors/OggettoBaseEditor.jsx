@@ -13,29 +13,53 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
   const { punteggiList } = useCharacter();
   const [classi, setClassi] = useState([]);
   
-  // Correzione: initialData potrebbe avere 'cost' o 'costo' a seconda del backend
-  // Uniformiamo tutto a 'costo' nel frontend
   const [formData, setFormData] = useState(initialData || {
     nome: '', descrizione: '', tipo_oggetto: 'FIS', classe_oggetto: null, 
-    costo: 0, // Assicurati che questo campo corrisponda al modello (es. costo_crediti)
+    costo: 0, 
     is_tecnologico: false, is_pesante: false, attacco_base: '', in_vendita: true,
     statistiche_base: [], statistiche_modificatori: []
   });
 
   useEffect(() => { staffGetClassiOggetto(onLogout).then(setClassi); }, []);
 
+  // --- LOGICA UNIFICATA PER GESTIONE INLINE (Compatibile con StatBaseInline e StatModInline) ---
+  const updateInline = (key, index, field, value) => {
+    const newList = [...formData[key]];
+    
+    // Gestione creazione nuovo record (indice -1)
+    if (index === -1) {
+        // value qui è l'oggetto { statId, value } passato dal componente inline
+        const exists = newList.find(it => (it.statistica?.id || it.statistica) === value.statId);
+        if (!exists) {
+            const newRecord = { statistica: value.statId };
+            
+            // Distinzione fondamentale tra Base (valore_base) e Modificatori (valore)
+            if (key === 'statistiche_base') {
+                newRecord.valore_base = value.value;
+            } else {
+                newRecord.valore = value.value;
+                newRecord.tipo_modificatore = 'ADD'; // Default per modificatori
+            }
+            newList.push(newRecord);
+        }
+    } else {
+        // Aggiornamento record esistente
+        newList[index] = { ...newList[index], [field]: value };
+    }
+    
+    setFormData({ ...formData, [key]: newList });
+  };
+
   const handleSave = async () => {
     try {
         const getId = (item) => item?.id || item || null;
 
-        // Funzione helper per pulire E rimuovere duplicati nelle liste
         const cleanAndDeduplicate = (list, keyField) => {
             const seen = new Set();
             return list
-            .map(item => ({ ...item, [keyField]: getId(item[keyField]) })) // Estrae ID
+            .map(item => ({ ...item, [keyField]: getId(item[keyField]) }))
             .filter(item => {
                 const id = item[keyField];
-                // Rimuove entry senza ID o duplicate
                 if (!id || seen.has(id)) return false; 
                 seen.add(id);
                 return true;
@@ -45,7 +69,6 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
         const data = { 
             ...formData, 
             classe_oggetto: getId(formData.classe_oggetto),
-            // Pulizia delle liste nidificate
             statistiche_base: cleanAndDeduplicate(formData.statistiche_base, 'statistica'),
             statistiche_modificatori: cleanAndDeduplicate(formData.statistiche_modificatori, 'statistica')
         };
@@ -118,24 +141,21 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StatBaseInline 
-            title="Statistiche Base (Fisse)" 
             items={formData.statistiche_base} 
             options={punteggiList.filter(p => p.tipo === 'ST')} 
-            onAdd={() => setFormData({...formData, statistiche_base: [...formData.statistiche_base, {statistica:'', valore_base:0}]})} 
-            onChange={(i,f,v) => {const n=[...formData.statistiche_base]; n[i][f]=v; setFormData({...formData, statistiche_base:n});}} 
-            onRemove={i => setFormData({...formData, statistiche_base: formData.statistiche_base.filter((_,idx)=>idx!==i)})} 
+            // Qui colleghiamo la logica unificata
+            onChange={(i, f, v) => updateInline('statistiche_base', i, f, v)}
           />
           
           <StatModInline 
             title="Modificatori (Bonus/Malus)" 
             items={formData.statistiche_modificatori} 
             options={punteggiList.filter(p => p.tipo === 'ST')} 
-            // CORREZIONE: Nomi props al singolare come richiesto dal componente
             auraOptions={punteggiList.filter(p => p.tipo === 'AU')} 
             elementOptions={punteggiList.filter(p => p.tipo === 'EL')}
-            
             onAdd={() => setFormData({...formData, statistiche_modificatori: [...formData.statistiche_modificatori, {statistica:'', valore:0, tipo_modificatore:'ADD'}]})} 
-            onChange={(i,f,v) => {const n=[...formData.statistiche_modificatori]; n[i][f]=v; setFormData({...formData, statistiche_modificatori:n});}} 
+            // Anche qui
+            onChange={(i,f,v) => updateInline('statistiche_modificatori', i, f, v)}
             onRemove={i => setFormData({...formData, statistiche_modificatori: formData.statistiche_modificatori.filter((_,idx)=>idx!==i)})} 
           />
       </div>
