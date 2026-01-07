@@ -31,18 +31,13 @@ const OggettoBaseList = ({ onAdd, onEdit, onLogout }) => {
 
     useEffect(() => { loadData(); }, []);
 
+    // MODIFICA QUI: Rimossa la configurazione per 'tipo_oggetto'
     const filterConfig = [
         {
             key: 'classe_oggetto',
             label: 'Classe',
             type: 'button',
             options: classi.map(c => ({ id: c.id, label: c.nome }))
-        },
-        {
-            key: 'tipo_oggetto',
-            label: 'Tipo',
-            type: 'button',
-            options: TIPO_OGGETTO_CHOICES.map(c => ({ id: c.id, label: c.nome }))
         }
     ];
 
