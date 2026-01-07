@@ -22,23 +22,21 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
 
   useEffect(() => { staffGetClassiOggetto(onLogout).then(setClassi); }, []);
 
-  // --- LOGICA UNIFICATA PER GESTIONE INLINE (Compatibile con StatBaseInline e StatModInline) ---
+  // --- LOGICA UNIFICATA PER GESTIONE INLINE ---
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
     
     // Gestione creazione nuovo record (indice -1)
     if (index === -1) {
-        // value qui è l'oggetto { statId, value } passato dal componente inline
         const exists = newList.find(it => (it.statistica?.id || it.statistica) === value.statId);
         if (!exists) {
             const newRecord = { statistica: value.statId };
             
-            // Distinzione fondamentale tra Base (valore_base) e Modificatori (valore)
             if (key === 'statistiche_base') {
                 newRecord.valore_base = value.value;
             } else {
                 newRecord.valore = value.value;
-                newRecord.tipo_modificatore = 'ADD'; // Default per modificatori
+                newRecord.tipo_modificatore = 'ADD'; 
             }
             newList.push(newRecord);
         }
@@ -143,7 +141,6 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
           <StatBaseInline 
             items={formData.statistiche_base} 
             options={punteggiList.filter(p => p.tipo === 'ST')} 
-            // Qui colleghiamo la logica unificata
             onChange={(i, f, v) => updateInline('statistiche_base', i, f, v)}
           />
           
@@ -154,7 +151,6 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
             auraOptions={punteggiList.filter(p => p.tipo === 'AU')} 
             elementOptions={punteggiList.filter(p => p.tipo === 'EL')}
             onAdd={() => setFormData({...formData, statistiche_modificatori: [...formData.statistiche_modificatori, {statistica:'', valore:0, tipo_modificatore:'ADD'}]})} 
-            // Anche qui
             onChange={(i,f,v) => updateInline('statistiche_modificatori', i, f, v)}
             onRemove={i => setFormData({...formData, statistiche_modificatori: formData.statistiche_modificatori.filter((_,idx)=>idx!==i)})} 
           />
