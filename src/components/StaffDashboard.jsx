@@ -15,6 +15,7 @@ import CerimonialeManager from './editors/CerimonialeManager';
 import InfusioneManager from './editors/InfusioneManager';
 import TessituraManager from './editors/TessituraManager';
 import OggettoBaseManager from './editors/OggettoBaseManager';
+import OggettoManager from './editors/OggettoManager';
 
 const StaffDashboard = ({ onLogout, onSwitchToPlayer }) => {
     // 'home' è la griglia di icone. Altrimenti è l'id del tool attivo.
