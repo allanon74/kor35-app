@@ -1,8 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { useCharacter } from '../CharacterContext';
 import IconaPunteggio from '../IconaPunteggio';
-import { Search, Pencil, Trash2, Plus, FilterX } from 'lucide-react';
+import MasterGenericList from './MasterGenericList';
 
+/**
+ * MasterTechniqueList
+ * Wrapper di MasterGenericList specializzato per la gestione di 
+ * Infusioni, Tessiture e Cerimoniali.
+ */
 const MasterTechniqueList = ({ 
   items, 
   title, 
@@ -13,188 +18,108 @@ const MasterTechniqueList = ({
   loading = false 
 }) => {
   const { punteggiList } = useCharacter();
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Stati filtri: partono vuoti (tutto spento)
-  const [activeLevels, setActiveLevels] = useState([]);
-  const [activeAuras, setActiveAuras] = useState([]);
 
-  const aurasOptions = useMemo(() => punteggiList.filter(p => p.tipo === 'AU'), [punteggiList]);
-  const levels = [1, 2, 3, 4, 5, 6, 7];
+  // 1. Configurazione Filtri (Livelli e Aure)
+  const filterConfig = [
+    {
+      key: 'livello_virtual', // Chiave virtuale, usiamo match personalizzato
+      label: 'Livelli',
+      type: 'button',
+      options: [1, 2, 3, 4, 5, 6, 7].map(l => ({ id: l, label: l.toString() })),
+      // Logica di matching per coprire sia il campo 'livello' che 'liv'
+      match: (item, values) => values.includes(item.livello || item.liv)
+    },
+    {
+      key: 'aura_richiesta',
+      label: 'Aure',
+      type: 'icon',
+      options: punteggiList.filter(p => p.tipo === 'AU'),
+      renderOption: (opt) => (
+        <IconaPunteggio 
+          url={opt.icona_url || opt.icona} 
+          color={opt.colore} 
+          size="xs" 
+          mode="cerchio_inv" 
+        />
+      ),
+      // Matcher per gestire ID o oggetti nidificati per l'aura
+      match: (item, values) => {
+        const itemAuraId = item.aura_richiesta?.id || item.aura_richiesta;
+        return values.includes(itemAuraId);
+      }
+    }
+  ];
 
-  // Logica di filtraggio
-  const filteredItems = useMemo(() => {
-    // 1. FILTRAGGIO
-    let filtered = items.filter(item => {
-      const matchSearch = item.nome.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Se nessun filtro è attivo, mostriamo nulla (come richiesto)
-      if (activeLevels.length === 0 && activeAuras.length === 0) return false;
+  // 2. Definizione Colonne
+  const columns = [
+    { 
+      header: 'Lvl', 
+      width: '60px', 
+      align: 'center',
+      render: (item) => (
+        <span className="font-mono font-bold text-gray-400">
+          {item.livello || item.liv}
+        </span>
+      )
+    },
+    { 
+      header: 'Au', 
+      width: '50px', 
+      align: 'center',
+      render: (item) => {
+        const aura = item.aura_richiesta;
+        return aura ? (
+          <div className="flex justify-center" title={aura.nome}>
+            <IconaPunteggio 
+              url={aura.icona_url || aura.icona} 
+              color={aura.colore} 
+              size="xs" 
+              mode="cerchio_inv" 
+            />
+          </div>
+        ) : <span className="text-gray-600 text-[10px]">—</span>;
+      }
+    },
+    { 
+      header: 'Nome', 
+      render: (item) => (
+        <div className="font-bold text-cyan-50 truncate max-w-[150px] md:max-w-xs">
+          {item.nome}
+        </div>
+      )
+    }
+  ];
 
-      // Logica: Se una categoria di filtri è vuota, è considerata "sempre vera" 
-      // per permettere l'AND tra le categorie attive.
-      const levelMatch = activeLevels.length === 0 ? true : activeLevels.includes(item.livello || item.liv);
-      
-      const itemAuraId = item.aura_richiesta?.id || item.aura_richiesta;
-      const auraMatch = activeAuras.length === 0 ? true : activeAuras.includes(itemAuraId);
+  // 3. Logica di Ordinamento: Aura -> Livello -> Nome
+  const sortLogic = (a, b) => {
+    // Ordine Aura
+    const auraA = a.aura_richiesta?.ordine ?? 999;
+    const auraB = b.aura_richiesta?.ordine ?? 999;
+    if (auraA !== auraB) return auraA - auraB;
 
-      // AND tra Ricerca, Livello e Aura
-      return matchSearch && levelMatch && auraMatch;
-    });
+    // Ordine Livello
+    const livA = a.livello || a.liv || 0;
+    const livB = b.livello || b.liv || 0;
+    if (livA !== livB) return livA - livB;
 
-    // 2. ORDINAMENTO: Aura (ordine/sigla) -> Livello -> Nome
-    return [...filtered].sort((a, b) => {
-      // Ordine Aura
-      const auraA = a.aura_richiesta?.ordine ?? 999;
-      const auraB = b.aura_richiesta?.ordine ?? 999;
-      if (auraA !== auraB) return auraA - auraB;
-
-      // Ordine Livello
-      const livA = a.livello || a.liv || 0;
-      const livB = b.livello || b.liv || 0;
-      if (livA !== livB) return livA - livB;
-
-      // Ordine Alfabetico Nome
-      return a.nome.localeCompare(b.nome);
-    });
-}, [items, searchTerm, activeLevels, activeAuras]);
-
-  const toggleFilter = (list, setList, val) => {
-    setList(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
-  };
-
-  const resetFilters = () => {
-    setActiveLevels([]);
-    setActiveAuras([]);
-    setSearchTerm('');
+    // Ordine Alfabetico
+    return (a.nome || "").localeCompare(b.nome || "");
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header e Ricerca */}
-      <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-4">
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <h2 className="text-xl font-bold text-white uppercase tracking-tighter">{title}</h2>
-          <button onClick={onAdd} className="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-lg font-black text-xs transition-all flex items-center gap-2 uppercase text-white">
-            <Plus size={16} /> {addLabel}
-          </button>
-        </div>
-
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-          <input 
-            type="text" placeholder="Cerca per nome..." 
-            className="w-full bg-gray-950 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:border-cyan-500 outline-none text-white"
-            value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        {/* Barra Filtri Livelli */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-black text-gray-500 uppercase w-full md:w-auto">Livelli:</span>
-          {levels.map(l => (
-            <button 
-              key={l}
-              onClick={() => toggleFilter(activeLevels, setActiveLevels, l)}
-              className={`px-3 py-1 rounded text-xs font-bold border transition-all ${
-                activeLevels.includes(l) 
-                ? 'bg-cyan-600 border-cyan-400 text-white shadow-[0_0_10px_rgba(8,145,178,0.4)]' 
-                : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-500'
-              }`}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-
-        {/* Barra Filtri Aure */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-black text-gray-500 uppercase w-full md:w-auto">Aure:</span>
-          {aurasOptions.map(aura => (
-            <button 
-              key={aura.id}
-              onClick={() => toggleFilter(activeAuras, setActiveAuras, aura.id)}
-              className={`p-1 rounded-full border transition-all ${
-                activeAuras.includes(aura.id) 
-                ? 'border-white scale-110 shadow-lg' 
-                : 'border-transparent opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
-              }`}
-              style={{ backgroundColor: activeAuras.includes(aura.id) ? aura.colore : 'transparent' }}
-            >
-              <IconaPunteggio url={aura.icona_url || aura.icona} color={aura.colore} size="xs" mode="cerchio_inv" />
-            </button>
-          ))}
-          <button onClick={resetFilters} className="ml-auto text-gray-500 hover:text-white flex items-center gap-1 text-[10px] uppercase font-bold">
-            <FilterX size={14} /> Reset
-          </button>
-        </div>
-      </div>
-
-      {/* Tabella Compatta */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-xl">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-900/50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b border-gray-700">
-              <th className="px-4 py-3 text-center w-16">Lvl</th>
-              <th className="px-2 py-3 text-center w-12">Au</th>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3 text-right w-24">Azioni</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700/50 text-sm">
-            {filteredItems.map(item => {
-              const aura = item.aura_richiesta;
-              return (
-                <tr key={item.id} className="hover:bg-gray-700/30 transition-colors border-b border-gray-800/50">
-                  <td className="px-4 py-3 text-center">
-                    <span className="font-mono font-bold text-gray-400">{item.livello || item.liv}</span>
-                  </td>
-                  <td className="px-2 py-3 text-center">
-                    {aura ? (
-                      <div className="flex justify-center" title={aura.nome}>
-                        <IconaPunteggio url={aura.icona_url || aura.icona} color={aura.colore} size="xs" mode="cerchio_inv" />
-                      </div>
-                    ) : (
-                      <span className="text-gray-600 text-[10px]">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-bold text-cyan-50">
-                    <div className="truncate max-w-[150px] md:max-w-xs">{item.nome}</div>
-                  </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <div className="flex justify-end gap-1">
-                      <button 
-                        onClick={() => onEdit(item)} 
-                        className="p-2 bg-amber-600/20 text-amber-500 hover:bg-amber-600 hover:text-white rounded-lg transition-all"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button 
-                        onClick={() => onDelete(item.id)} 
-                        className="p-2 bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white rounded-lg transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {(activeLevels.length === 0 && activeAuras.length === 0) && (
-          <div className="p-12 text-center space-y-2">
-            <div className="text-cyan-500/50 flex justify-center"><FilterX size={48} /></div>
-            <p className="text-gray-500 italic text-sm">Seleziona un Livello o un'Aura per visualizzare i dati.</p>
-          </div>
-        )}
-
-        {filteredItems.length === 0 && (activeLevels.length > 0 || activeAuras.length > 0) && !loading && (
-          <div className="p-10 text-center text-gray-500 italic">Nessun risultato con i filtri selezionati.</div>
-        )}
-      </div>
-    </div>
+    <MasterGenericList 
+      title={title}
+      items={items}
+      columns={columns}
+      filterConfig={filterConfig}
+      sortLogic={sortLogic}
+      onAdd={onAdd} 
+      onEdit={onEdit} 
+      onDelete={onDelete}
+      loading={loading}
+      addLabel={addLabel}
+      emptyMessage="Seleziona un Livello o un'Aura per visualizzare i dati."
+    />
   );
 };
 
