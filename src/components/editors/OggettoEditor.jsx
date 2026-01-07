@@ -43,21 +43,42 @@ const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
 
   const handleSave = async () => {
     try {
-      // Normalizzazione dei dati prima dell'invio
+      // Funzione helper per estrarre l'ID da oggetti o mantenere il valore se è già un ID
+      const getId = (item) => item?.id || item || null;
+
+      // Funzione per pulire le liste di statistiche (converte oggetto statistica in ID)
+      const cleanStats = (list) => list.map(item => ({
+        ...item,
+        statistica: getId(item.statistica)
+      }));
+
+      // Funzione per pulire i componenti (converte oggetto caratteristica in ID)
+      const cleanComponents = (list) => list.map(item => ({
+        ...item,
+        caratteristica: getId(item.caratteristica)
+      }));
+
+      // Normalizzazione completa dei dati
       const data = { 
           ...formData, 
-          aura: formData.aura?.id || formData.aura || null, 
-          classe_oggetto: formData.classe_oggetto?.id || formData.classe_oggetto || null,
-          inventario_corrente: formData.inventario_corrente ? parseInt(formData.inventario_corrente) : null
+          aura: getId(formData.aura), 
+          classe_oggetto: getId(formData.classe_oggetto),
+          inventario_corrente: formData.inventario_corrente ? parseInt(formData.inventario_corrente) : null,
+          
+          // Pulizia delle liste annidate
+          statistiche_base: cleanStats(formData.statistiche_base),
+          statistiche: cleanStats(formData.statistiche), // Modificatori
+          componenti: cleanComponents(formData.componenti)
       };
       
       if (formData.id) await staffUpdateOggetto(formData.id, data, onLogout);
       else await staffCreateOggetto(data, onLogout);
       
-      alert("Salvato!"); 
+      alert("Salvato correttamente!"); 
       onBack();
     } catch (e) { 
-        alert(e.message); 
+        console.error(e);
+        alert("Errore salvataggio: " + (e.message || "Controlla i dati inseriti.")); 
     }
   };
 
