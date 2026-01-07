@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from '../CharacterContext';
-import { staffUpdateOggetto, staffCreateOggetto, staffGetClassiOggetto } from '../../api';
+import { staffUpdateOggetto, staffCreateOggetto, staffGetClassiOggetto, getStatisticheList } from '../../api';
 import CharacteristicInline from './inlines/CharacteristicInline';
 import StatBaseInline from './inlines/StatBaseInline';
 import StatModInline from './inlines/StatModInline';
@@ -14,13 +14,17 @@ const TIPO_CHOICES = [
 const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
   const { punteggiList } = useCharacter();
   const [classi, setClassi] = useState([]);
+  const [statsOptions, setStatsOptions] = useState([]);
   const [formData, setFormData] = useState(initialData || {
     nome: '', testo: '', tipo_oggetto: 'FIS', aura: null, classe_oggetto: null,
     is_tecnologico: false, is_equipaggiato: false, is_pesante: false,
     attacco_base: '', componenti: [], statistiche_base: [], statistiche: []
   });
 
-  useEffect(() => { staffGetClassiOggetto(onLogout).then(setClassi); }, []);
+  useEffect(() => { 
+    staffGetClassiOggetto(onLogout).then(setClassi);
+    getStatisticheList(onLogout).then(setStatsOptions); 
+  }, [onLogout]);
 
   const handleSave = async () => {
     try {
@@ -64,7 +68,8 @@ const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StatBaseInline 
             items={formData.statistiche_base} 
-            options={punteggiList.filter(p => p.tipo === 'ST')} 
+            // MODIFICA: usa statsOptions invece di punteggiList filtrato
+            options={statsOptions}
             onAdd={() => setFormData({...formData, statistiche_base: [...formData.statistiche_base, {statistica:'', valore_base:0}]})} 
             onChange={(i, f, v) => {
                 if (i === -1) {

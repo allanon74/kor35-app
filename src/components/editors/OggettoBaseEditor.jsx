@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from '../CharacterContext';
-import { staffUpdateOggettoBase, staffCreateOggettoBase, staffGetClassiOggetto } from '../../api';
+import { staffUpdateOggettoBase, staffCreateOggettoBase, staffGetClassiOggetto, getStatisticheList, } from '../../api';
 import StatBaseInline from './inlines/StatBaseInline';
 import StatModInline from './inlines/StatModInline';
 
 const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
   const { punteggiList } = useCharacter();
   const [classi, setClassi] = useState([]);
+  const [statsOptions, setStatsOptions] = useState([]);
   const [formData, setFormData] = useState(initialData || {
     nome: '', descrizione: '', tipo_oggetto: 'FIS', classe_oggetto: null, cost: 0,
     is_tecnologico: false, is_pesante: false, attacco_base: '', in_vendita: true,
     statistiche_base: [], statistiche_modificatori: []
   });
 
-  useEffect(() => { staffGetClassiOggetto(onLogout).then(setClassi); }, []);
+  useEffect(() => { 
+    staffGetClassiOggetto(onLogout).then(setClassi);
+    getStatisticheList(onLogout).then(setStatsOptions);
+  }, [onLogout]);
 
   const handleSave = async () => {
     try {
@@ -53,7 +57,8 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
           <StatBaseInline 
             title="Statistiche Base Template" 
             items={formData.statistiche_base} 
-            options={punteggiList.filter(p => p.tipo === 'ST')} 
+            // MODIFICA: usa statsOptions
+            options={statsOptions}
             onChange={(i, f, v) => {
                 const newStats = [...formData.statistiche_base];
                 
