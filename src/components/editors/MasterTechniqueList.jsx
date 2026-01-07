@@ -24,22 +24,40 @@ const MasterTechniqueList = ({
 
   // Logica di filtraggio
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    // 1. FILTRAGGIO
+    let filtered = items.filter(item => {
       const matchSearch = item.nome.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Se non c'è nulla di selezionato nei filtri, non mostriamo nulla (come richiesto)
-      // tranne se l'utente sta cercando per nome (opzionale, decidiamo di mostrare solo se i filtri passano)
-      const levelMatch = activeLevels.length === 0 ? false : activeLevels.includes(item.livello || item.liv);
+      // Se nessun filtro è attivo, mostriamo nulla (come richiesto)
+      if (activeLevels.length === 0 && activeAuras.length === 0) return false;
+
+      // Logica: Se una categoria di filtri è vuota, è considerata "sempre vera" 
+      // per permettere l'AND tra le categorie attive.
+      const levelMatch = activeLevels.length === 0 ? true : activeLevels.includes(item.livello || item.liv);
       
       const itemAuraId = item.aura_richiesta?.id || item.aura_richiesta;
-      const auraMatch = activeAuras.length === 0 ? false : activeAuras.includes(itemAuraId);
+      const auraMatch = activeAuras.length === 0 ? true : activeAuras.includes(itemAuraId);
 
-      // Mostriamo se: (Livello OK O Aura OK) E Ricerca OK
-      // Nota: se vuoi che debbano corrispondere ENTRAMBI i filtri attivi, usa AND. 
-      // Qui usiamo OR tra i filtri "categoria" per permettere di vedere "tutti i liv 1" o "tutti i Fuoco"
-      return (levelMatch || auraMatch) && matchSearch;
+      // AND tra Ricerca, Livello e Aura
+      return matchSearch && levelMatch && auraMatch;
     });
-  }, [items, searchTerm, activeLevels, activeAuras]);
+
+    // 2. ORDINAMENTO: Aura (ordine/sigla) -> Livello -> Nome
+    return [...filtered].sort((a, b) => {
+      // Ordine Aura
+      const auraA = a.aura_richiesta?.ordine ?? 999;
+      const auraB = b.aura_richiesta?.ordine ?? 999;
+      if (auraA !== auraB) return auraA - auraB;
+
+      // Ordine Livello
+      const livA = a.livello || a.liv || 0;
+      const livB = b.livello || b.liv || 0;
+      if (livA !== livB) return livA - livB;
+
+      // Ordine Alfabetico Nome
+      return a.nome.localeCompare(b.nome);
+    });
+}, [items, searchTerm, activeLevels, activeAuras]);
 
   const toggleFilter = (list, setList, val) => {
     setList(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
