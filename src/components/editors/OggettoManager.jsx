@@ -1,0 +1,52 @@
+import React, { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import OggettoList from './OggettoList';
+import OggettoEditor from './OggettoEditor';
+
+const OggettoManager = ({ onBack, onLogout }) => {
+  const [view, setView] = useState('list'); // 'list' | 'editor'
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const handleAdd = () => {
+    setSelectedItem(null);
+    setView('editor');
+  };
+
+  const handleEdit = (item) => {
+    setSelectedItem(item);
+    setView('editor');
+  };
+
+  const handleBackToList = () => {
+    setView('list');
+    setSelectedItem(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <button 
+        onClick={view === 'list' ? onBack : handleBackToList}
+        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm font-bold uppercase"
+      >
+        <ArrowLeft size={16} /> 
+        {view === 'list' ? 'Torna agli Strumenti' : 'Annulla e Torna alla Lista'}
+      </button>
+
+      {view === 'list' ? (
+        <OggettoList 
+          onAdd={handleAdd} 
+          onEdit={handleEdit} 
+          onLogout={onLogout} 
+        />
+      ) : (
+        <OggettoEditor 
+          initialData={selectedItem} 
+          onBack={handleBackToList} 
+          onLogout={onLogout} 
+        />
+      )}
+    </div>
+  );
+};
+
+export default OggettoManager;

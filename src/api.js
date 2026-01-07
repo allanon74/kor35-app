@@ -978,3 +978,33 @@ export const staffUpdateCerimoniale = (id, data, onLogout) =>
 
 export const staffDeleteCerimoniale = (id, onLogout) => 
   fetchAuthenticated(`/personaggi/api/staff/cerimoniali/${id}/`, { method: 'DELETE' }, onLogout);
+
+// Gestione Oggetti (Istanze)
+export const staffGetOggetti = (onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti/`, 'GET', null, onLogout);
+
+export const staffCreateOggetto = (data, onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti/`, 'POST', data, onLogout);
+
+export const staffUpdateOggetto = (id, data, onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti/${id}/`, 'PUT', data, onLogout);
+
+export const staffDeleteOggetto = (id, onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti/${id}/`, 'DELETE', null, onLogout);
+
+// Gestione Oggetti Base (Listino/Template)
+export const staffGetOggettiBase = (onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti-base/`, 'GET', null, onLogout);
+
+export const staffCreateOggettoBase = (data, onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti-base/`, 'POST', data, onLogout);
+
+export const staffUpdateOggettoBase = (id, data, onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti-base/${id}/`, 'PUT', data, onLogout);
+
+export const staffDeleteOggettoBase = (id, onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/oggetti-base/${id}/`, 'DELETE', null, onLogout);
+
+// Utility
+export const staffGetClassiOggetto = (onLogout) => 
+    apiCall(`${BASE_URL}/api/staff/classi-oggetto/`, 'GET', null, onLogout);

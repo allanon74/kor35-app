@@ -3,6 +3,8 @@ import { useCharacter } from './CharacterContext';
 import InfusioneManager from './editors/InfusioneManager';
 import TessituraManager from './editors/TessituraManager';
 import CerimonialeManager from './editors/CerimonialeManager';
+import OggettoManager from './editors/OggettoManager';
+import OggettoBaseManager from './editors/OggettoBaseManager';
 
 const ToolsTab = ({ onLogout }) => {
   const [activeTool, setActiveTool] = useState('menu'); 
@@ -14,6 +16,8 @@ const ToolsTab = ({ onLogout }) => {
   if (activeTool === 'infusione') return <InfusioneManager onBack={handleBack} onLogout={onLogout} />;
   if (activeTool === 'tessitura') return <TessituraManager onBack={handleBack} onLogout={onLogout} />;
   if (activeTool === 'cerimoniale') return <CerimonialeManager onBack={handleBack} onLogout={onLogout} />;
+  if (activeTool === 'oggetti') return <OggettoManager onBack={handleBack} onLogout={onLogout} />;
+  if (activeTool === 'oggetti_base') return <OggettoBaseManager onBack={handleBack} onLogout={onLogout} />;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 animate-in fade-in duration-500">
@@ -48,6 +52,18 @@ const ToolsTab = ({ onLogout }) => {
           icon="🕯️" 
           color="amber"
           onClick={() => setActiveTool('cerimoniale')} 
+        />
+        <ToolCard 
+          title="Oggetti (Istanze)" 
+          desc="Gestisci i singoli oggetti esistenti nel mondo" 
+          icon="🎒" color="emerald"
+          onClick={() => setActiveTool('oggetti')} 
+        />
+        <ToolCard 
+          title="Oggetti Base" 
+          desc="Configura il listino e i template degli oggetti" 
+          icon="📋" color="blue"
+          onClick={() => setActiveTool('oggetti_base')} 
         />
       </div>
     </div>
