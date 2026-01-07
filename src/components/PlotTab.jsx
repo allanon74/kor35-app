@@ -127,6 +127,7 @@ const PlotTab = ({ onLogout }) => {
 
     return (
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
+            
             <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40 shadow-xl">
                 <select className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none cursor-pointer"
                     value={selectedEvento?.id || ''} onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id === parseInt(e.target.value)))}>

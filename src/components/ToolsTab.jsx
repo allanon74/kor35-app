@@ -6,9 +6,13 @@ import CerimonialeManager from './editors/CerimonialeManager';
 import OggettoManager from './editors/OggettoManager';
 import OggettoBaseManager from './editors/OggettoBaseManager';
 
-const ToolsTab = ({ onLogout }) => {
-  const [activeTool, setActiveTool] = useState('menu'); 
+const ToolsTab = ({ onLogout, initialSection }) => {
+  const [activeTool, setActiveTool] = useState(initialSection || 'generic'); 
   const { setStaffWorkMode } = useCharacter();
+
+  useEffect(() => {
+        if (initialSection) setActiveTool(initialSection);
+    }, [initialSection]);
 
   const handleBack = () => setActiveTool('menu');
 
