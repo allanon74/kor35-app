@@ -62,7 +62,27 @@ const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
       <RichTextEditor label="Descrizione Narrativa" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StatBaseInline items={formData.statistiche_base} options={punteggiList.filter(p => p.tipo === 'ST')} onAdd={() => setFormData({...formData, statistiche_base: [...formData.statistiche_base, {statistica:'', valore_base:0}]})} onChange={(i,f,v) => {const n=[...formData.statistiche_base]; n[i][f]=v; setFormData({...formData, statistiche_base:n});}} onRemove={i => setFormData({...formData, statistiche_base: formData.statistiche_base.filter((_,idx)=>idx!==i)})} />
+          <StatBaseInline 
+            items={formData.statistiche_base} 
+            options={punteggiList.filter(p => p.tipo === 'ST')} 
+            onAdd={() => setFormData({...formData, statistiche_base: [...formData.statistiche_base, {statistica:'', valore_base:0}]})} 
+            onChange={(i, f, v) => {
+                if (i === -1) {
+                // Gestione nuovo record: v contiene { statId: ..., value: ... }
+                const newRecord = { statistica: v.statId, valore_base: v.value };
+                setFormData({
+                    ...formData,
+                    statistiche_base: [...formData.statistiche_base, newRecord]
+                });
+                } else {
+                // Modifica record esistente
+                const n = [...formData.statistiche_base];
+                n[i][f] = v;
+                setFormData({ ...formData, statistiche_base: n });
+                }
+            }} 
+            onRemove={i => setFormData({...formData, statistiche_base: formData.statistiche_base.filter((_,idx)=>idx!==i)})} 
+          />
           <StatModInline items={formData.statistiche} options={punteggiList.filter(p => p.tipo === 'ST')} aurasOptions={punteggiList.filter(p => p.tipo === 'AU')} elementsOptions={punteggiList.filter(p => p.tipo === 'EL')} onAdd={() => setFormData({...formData, statistiche: [...formData.statistiche, {statistica:'', valore:0, tipo_modificatore:'ADD'}]})} onChange={(i,f,v) => {const n=[...formData.statistiche]; n[i][f]=v; setFormData({...formData, statistiche:n});}} onRemove={i => setFormData({...formData, statistiche: formData.statistiche.filter((_,idx)=>idx!==i)})} />
       </div>
 
