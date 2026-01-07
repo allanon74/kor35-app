@@ -29,7 +29,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer }) => {
         { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={48} />, color: 'bg-amber-700', component: <CerimonialeManager onLogout={onLogout} /> },
         { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={48} />, color: 'bg-purple-700', component: <InfusioneManager onLogout={onLogout} /> },
         { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={48} />, color: 'bg-stone-600', component: <OggettoManager onLogout={onLogout} /> },
-        { id: 'oggetti-base', label: 'Templates Oggetti Base', icon: <Gavel size={48} />, color: 'bg-stone-600', component: <OggettoBaseManager onLogout={onLogout} /> },
+        { id: 'oggetti-base', label: 'Templates Oggetti Base', icon: <Gavel size={48} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
         { id: 'tessiture', label: 'Tessiture', icon: <Feather size={48} />, color: 'bg-cyan-700', component: <TessituraManager onLogout={onLogout} /> },
     ];
 
