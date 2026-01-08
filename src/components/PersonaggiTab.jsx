@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query'; // Import necessario per Optimistic UI
+import { useQueryClient } from '@tanstack/react-query';
 import { 
     createPersonaggio, 
     updatePersonaggio, 
@@ -8,11 +8,12 @@ import {
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
-    User, Users, Plus, Edit, Save, X, ShieldAlert, Coins, Zap 
+    User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap 
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 
 const PersonaggiTab = ({ onLogout, onSelectChar }) => {
+    // Rimosso setPersonaggiList dal destructuring perché non esposto dal context
     const { 
         personaggiList, 
         fetchPersonaggi, 
@@ -25,7 +26,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         selectedCharacterId 
     } = useCharacter();
 
-    const queryClient = useQueryClient(); // Hook per accedere alla cache
+    const queryClient = useQueryClient();
 
     // Stati Modale Edit/Create
     const [showModal, setShowModal] = useState(false);
@@ -38,12 +39,14 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const [resourceData, setResourceData] = useState({ charId: null, charName: '', tipo: 'crediti', amount: 0, reason: '' });
 
     useEffect(() => {
-        getTipologiePersonaggio(onLogout).then(data => setTipologie(data));
-        // fetchPersonaggi viene chiamato dal context, ma lo assicuriamo qui
+        // Carica tipologie, gestendo eventuali errori silenziosamente
+        getTipologiePersonaggio(onLogout).then(data => {
+            if (Array.isArray(data)) setTipologie(data);
+        });
         fetchPersonaggi();
     }, []);
 
-    // --- LOGICA MODALE CREATE/EDIT ---
+    // --- GESTIONE MODALE CREATE/EDIT ---
 
     const handleOpenCreate = () => {
         setEditMode(false);
@@ -59,28 +62,21 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const handleOpenEdit = (char, e) => {
         e.stopPropagation(); 
         setEditMode(true);
-        // Estrazione sicura dell'ID tipologia
-        let tipoId = 1; // Fallback default (es. Standard)
-
+        
+        // Logica robusta per estrarre l'ID della tipologia
+        let tipoId = 1;
         if (char.tipologia) {
             if (typeof char.tipologia === 'number') {
-                // Caso perfetto: è già un ID
                 tipoId = char.tipologia;
             } else if (typeof char.tipologia === 'object' && char.tipologia.id) {
-                // Caso oggetto: estraiamo l'ID
                 tipoId = char.tipologia.id;
             } else if (typeof char.tipologia === 'string') {
-                // Caso stringa (es. "Vampiro"): Cerchiamo l'ID nella lista delle tipologie
+                // Tenta di trovare l'ID dal nome o parse
                 const found = tipologie.find(t => t.nome === char.tipologia);
-                if (found) {
-                    tipoId = found.id;
-                } else {
-                    // Estremo tentativo: la stringa è un numero ("2")?
-                    const parsed = parseInt(char.tipologia, 10);
-                    if (!isNaN(parsed)) tipoId = parsed;
-                }
+                tipoId = found ? found.id : (parseInt(char.tipologia) || 1);
             }
         }
+
         setFormData({
             id: char.id,
             nome: char.nome,
@@ -92,42 +88,36 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     };
 
     const handleSaveOptimistic = async () => {
-        // Clona i dati
         const payload = { ...formData };
         
-        // --- PULIZIA TIPOLOGIA ---
-        if (payload.tipologia !== undefined && payload.tipologia !== null) {
-            // Assicuriamoci che sia un intero
-            const parsedTipo = parseInt(payload.tipologia, 10);
-            
-            if (!isNaN(parsedTipo)) {
-                payload.tipologia = parsedTipo;
+        // Pulizia e validazione ID Tipologia per il backend
+        if (payload.tipologia !== undefined) {
+            const parsed = parseInt(payload.tipologia, 10);
+            if (!isNaN(parsed)) {
+                payload.tipologia = parsed;
             } else {
-                // Se non è un numero valido (es. NaN), rimuoviamolo per evitare l'errore 400.
-                // In una modifica (PATCH), se manca il campo, il server tiene il valore vecchio.
-                // In creazione (POST), userà il default del model o darà errore se obbligatorio, 
-                // ma almeno non mandiamo null esplicito.
-                delete payload.tipologia;
+                delete payload.tipologia; // Evita errore 400 se invalido
             }
         }
-        
+
         const queryKey = ['personaggi_list', viewAll];
         const previousData = queryClient.getQueryData(queryKey);
 
-        // Update Ottimistico UI
+        // Update Ottimistico
         queryClient.setQueryData(queryKey, (oldList = []) => {
+            // Assicuriamoci che oldList sia un array (fix per il bug della paginazione)
+            const list = Array.isArray(oldList) ? oldList : []; 
+            
             if (editMode) {
-                return oldList.map(p => p.id === payload.id ? { ...p, ...payload } : p);
+                return list.map(p => p.id === payload.id ? { ...p, ...payload } : p);
             } else {
                 const tempId = 'temp-' + Date.now();
-                // Aggiungiamo campi placeholder per evitare crash nella renderizzazione della lista
-                return [...oldList, { 
+                return [...list, { 
                     ...payload, 
                     id: tempId, 
                     rango_label: '...', 
                     crediti: 0,
-                    // Per la visualizzazione ottimistica immediata, se tipologia è un numero,
-                    // cerchiamo il nome per mostrarlo corretto, altrimenti fallback
+                    punti_caratteristica: 0,
                     tipologia: tipologie.find(t => t.id === payload.tipologia)?.nome || payload.tipologia 
                 }];
             }
@@ -138,6 +128,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         try {
             if (editMode) {
                 await updatePersonaggio(payload.id, payload, onLogout);
+                // Aggiorna dettagli se è il PG selezionato
                 if (String(payload.id) === String(selectedCharacterId)) {
                     refreshCharacterData();
                 }
@@ -149,13 +140,13 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
 
         } catch (error) {
             console.error("Errore salvataggio:", error);
-            alert("Errore nel salvataggio: " + error.message);
+            alert("Errore salvataggio: " + error.message);
             // Rollback
             if (previousData) queryClient.setQueryData(queryKey, previousData);
         }
     };
 
-    // --- LOGICA MODALE STAFF RISORSE ---
+    // --- GESTIONE RISORSE STAFF ---
 
     const handleOpenResourceModal = (char, e) => {
         e.stopPropagation();
@@ -180,21 +171,20 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             );
             alert(resp.msg || "Operazione completata");
             setShowResourceModal(false);
-            fetchPersonaggi(); // Aggiorna i totali nella lista
+            fetchPersonaggi();
         } catch (error) {
             alert("Errore: " + error.message);
         }
     };
 
     const handleSelect = (charId) => {
-        if (String(charId).startsWith('temp-')) return; // Non selezionare elementi temporanei
+        if (String(charId).startsWith('temp-')) return;
         selectCharacter(charId);
         if (onSelectChar) onSelectChar();
     };
 
     return (
         <div className="h-full flex flex-col bg-gray-900 text-white p-4 overflow-hidden">
-            {/* HEADER */}
             <div className="flex justify-between items-center mb-6 shrink-0">
                 <h2 className="text-2xl font-black uppercase italic tracking-wider text-indigo-500">
                     Seleziona Personaggio
@@ -220,9 +210,9 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 </div>
             </div>
 
-            {/* LISTA PERSONAGGI */}
             <div className="flex-1 overflow-y-auto space-y-4 pb-20 custom-scrollbar">
-                {personaggiList.map(char => (
+                {/* Controllo di sicurezza: mappa solo se è un array */}
+                {Array.isArray(personaggiList) && personaggiList.map(char => (
                     <div 
                         key={char.id} 
                         onClick={() => handleSelect(char.id)}
@@ -247,21 +237,18 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                             </div>
                         </div>
 
-                        {/* Pulsanti Azione (Visibili solo a Staff/Admin) */}
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             {(isStaff || isAdmin) && (
                                 <>
                                     <button 
                                         onClick={(e) => handleOpenResourceModal(char, e)}
                                         className="p-2 bg-amber-900/50 border border-amber-700 rounded-full text-amber-400 hover:bg-amber-800 transition-colors"
-                                        title="Gestisci Risorse (Staff)"
                                     >
                                         <Coins size={16}/>
                                     </button>
                                     <button 
                                         onClick={(e) => handleOpenEdit(char, e)}
                                         className="p-2 bg-gray-900 rounded-full text-gray-400 hover:text-white hover:bg-indigo-600 transition-colors"
-                                        title="Modifica Anagrafica"
                                     >
                                         <Edit size={16}/>
                                     </button>
@@ -272,7 +259,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 ))}
             </div>
 
-            {/* MODALE EDIT/CREATE */}
+            {/* MODALE CREATE/EDIT */}
             {showModal && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-gray-800 w-full max-w-3xl rounded-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[95vh]">
@@ -296,7 +283,6 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 onChange={val => setFormData({...formData, testo: val})}
                             />
 
-                            {/* SEZIONE STAFF ONLY (Tipologia e Costume) */}
                             {isStaff && (
                                 <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-700 space-y-4 mt-4">
                                     <div className="flex items-center gap-2 text-amber-500 font-bold text-xs uppercase tracking-widest">
@@ -359,7 +345,6 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                     </div>
                                 </button>
                             </div>
-
                             <div>
                                 <label className="block text-xs uppercase text-gray-500 mb-1">Quantità (+/-)</label>
                                 <input 
@@ -369,7 +354,6 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                     onChange={e => setResourceData({...resourceData, amount: e.target.value})}
                                 />
                             </div>
-
                             <div>
                                 <label className="block text-xs uppercase text-gray-500 mb-1">Motivazione (Log)</label>
                                 <input 
