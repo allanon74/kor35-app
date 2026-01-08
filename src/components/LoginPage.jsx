@@ -35,7 +35,13 @@ const LoginPage = ({ onLoginSuccess }) => {
         localStorage.setItem('kor35_is_master', data.is_superuser);
         
         // Passiamo il token al componente padre (App.jsx)
-        onLoginSuccess(data.token);
+        if (typeof onLoginSuccess === 'function') {
+            onLoginSuccess(data.token);
+        } else {
+            console.error("onLoginSuccess non è una funzione!", onLoginSuccess);
+            // Fallback: ricarica la pagina se la funzione non c'è, per ripristinare lo stato dell'App
+            window.location.reload(); 
+        }
       } else {
         throw new Error('Token non ricevuto dal server.');
       }
