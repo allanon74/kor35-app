@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { staffGetProposteInValutazione, staffRifiutaProposta, staffApprovaProposta } from '../../api';
-import GenericHeader from './GenericHeader';
+import GenericHeader from '../GenericHeader';
 import { Eye, X, Check, ClipboardCheck, AlertCircle } from 'lucide-react';
 import RichTextEditor from '../RichTextEditor';
 
