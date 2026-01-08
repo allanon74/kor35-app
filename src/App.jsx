@@ -4,7 +4,7 @@ import MainPage from './components/MainPage';
 import StaffDashboard from './components/StaffDashboard'; 
 import { CharacterProvider, useCharacter } from './components/CharacterContext';
 
-const AppContent = ({ onLogout }) => {
+const AppContent = ({ token, onLogout }) => {
   const { isStaff } = useCharacter();
   
   // Stato per gestire quale interfaccia mostrare (solo per lo staff)
@@ -22,6 +22,7 @@ const AppContent = ({ onLogout }) => {
   if (isStaff && viewMode === 'staff') {
     return (
       <StaffDashboard 
+        token={token}
         onLogout={onLogout} 
         onSwitchToPlayer={() => setViewMode('player')} 
       />
@@ -32,6 +33,7 @@ const AppContent = ({ onLogout }) => {
   // Passiamo le props per permettere allo staff di tornare indietro
   return (
     <MainPage 
+      token={token}
       onLogout={onLogout}
       isStaff={isStaff} 
       onSwitchToMaster={() => setViewMode('staff')}
@@ -81,7 +83,7 @@ export default function App() {
 
   return (
     <CharacterProvider onLogout={handleLogout}>
-      <AppContent onLogout={handleLogout} />
+      <AppContent token={token} onLogout={handleLogout} />
     </CharacterProvider>
   );
 }

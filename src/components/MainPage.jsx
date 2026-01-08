@@ -109,7 +109,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     toggleViewAll,
     adminPendingCount,
     unreadCount, 
-    isStaff,
+    // isStaff,
     setStaffWorkMode, 
   } = useCharacter();
 

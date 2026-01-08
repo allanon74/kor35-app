@@ -6,10 +6,18 @@ const GenericHeader = ({
     title = "KOR 35", 
     subtitle = "Master Tool", 
     menuItems = [], 
-    rightSlot, 
+    rightSlot,
+    onMenuClick, 
     onLogout 
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const handleMenuClick = () => {
+        if (onMenuClick) {
+            onMenuClick(); // Se passata dal genitore (StaffDashboard), usa questa
+        } else {
+            setIsMenuOpen(true); // Altrimenti usa lo stato locale (MainPage)
+        }
+    };
 
     return (
         <>
@@ -17,7 +25,7 @@ const GenericHeader = ({
                 {/* LEFT: Hamburger + Logo */}
                 <div className="flex items-center gap-3">
                     <button 
-                        onClick={() => setIsMenuOpen(true)}
+                        onClick={handleMenuClick}
                         className="p-2 hover:bg-gray-800 rounded-lg text-indigo-400 transition-colors"
                     >
                         <Menu size={24} />
@@ -46,12 +54,14 @@ const GenericHeader = ({
             </header>
 
             {/* Sidebar Menu */}
-            <Sidebar 
-                isOpen={isMenuOpen} 
-                onClose={() => setIsMenuOpen(false)} 
-                items={menuItems} 
-                onLogout={onLogout} 
-            />
+            {!onMenuClick && (
+                <Sidebar 
+                    isOpen={isMenuOpen} 
+                    onClose={() => setIsMenuOpen(false)} 
+                    items={menuItems} 
+                    onLogout={onLogout} 
+                />
+            )}
         </>
     );
 };
