@@ -79,6 +79,15 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         // 1. Snapshot dati precedenti (per rollback)
         const previousData = queryClient.getQueryData(queryKey);
 
+        if (payload.tipologia) {
+            if (typeof payload.tipologia === 'object' && payload.tipologia.id) {
+                payload.tipologia = payload.tipologia.id;
+            } else {
+                // Parsa come intero per sicurezza
+                payload.tipologia = parseInt(payload.tipologia, 10);
+            }
+        }
+
         // 2. Aggiornamento Ottimistico
         queryClient.setQueryData(queryKey, (oldList = []) => {
             if (editMode) {
