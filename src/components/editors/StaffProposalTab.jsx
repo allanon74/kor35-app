@@ -24,7 +24,6 @@ const StaffProposalTab = () => {
         setLoading(true);
         try {
             const data = await staffGetProposteInValutazione();
-            // Gestisce sia array diretto che paginazione Django REST standard
             setProposals(Array.isArray(data) ? data : data.results || []);
         } catch (error) {
             console.error("Errore caricamento proposte", error);
@@ -33,7 +32,6 @@ const StaffProposalTab = () => {
         }
     };
 
-    // Apre il dettaglio della proposta
     const handleOpenDetail = (prop) => {
         setSelectedProposal(prop);
         setStaffNotes(prop.note_staff || "");
@@ -45,7 +43,6 @@ const StaffProposalTab = () => {
         setViewMode('list');
     };
 
-    // Rifiuta la proposta (torna in BOZZA al giocatore)
     const handleRifiuta = async () => {
         if (!confirm("Confermi il rifiuto? La proposta tornerà in Bozza al giocatore con le tue note.")) return;
         try {
@@ -58,43 +55,32 @@ const StaffProposalTab = () => {
         }
     };
 
-    // Passa alla modalità Editor per creare l'oggetto finale
     const handleStartApproval = () => {
         setViewMode('approve_edit');
     };
 
-    // Prepara i dati iniziali per l'editor basandosi sulla proposta del giocatore
     const getInitialEditorData = () => {
         if (!selectedProposal) return {};
         const p = selectedProposal;
         
-        // Mappatura dei campi generici
         return {
             nome: p.nome,
-            descrizione: p.descrizione, // Gli editor usano 'descrizione'
-            testo: p.descrizione,       // Fallback per vecchi editor
-            aura_richiesta: p.aura,     // ID dell'aura
-            livello: p.livello,         // Livello calcolato/proposto
-            liv: p.livello_proposto,    // Specifico per Cerimoniali
-            
-            // Componenti (trasformiamo la struttura se necessario, dipende da come i tuoi editor leggono 'componenti')
-            // Qui assumiamo che l'editor sappia leggere l'array o lo gestiamo nel backend
+            descrizione: p.descrizione,
+            testo: p.descrizione,
+            aura_richiesta: p.aura,
+            livello: p.livello,
+            liv: p.livello_proposto,
             componenti_override: p.componenti, 
-
             prerequisiti: p.prerequisiti,
             svolgimento: p.svolgimento,
             effetto: p.effetto,
-            
-            note_staff: staffNotes // Passiamo le note editate finora
+            note_staff: staffNotes
         };
     };
 
-    // Callback chiamata quando lo Staff salva dal form di creazione (Approvazione finale)
     const handleFinalizeApproval = async (finalData) => {
         try {
-            // Assicuriamoci che le note staff siano incluse
             finalData.note_staff = staffNotes;
-            
             await staffApprovaProposta(selectedProposal.id, finalData);
             alert("Tecnica creata, assegnata e costo pagato con successo!");
             handleBack();
@@ -103,6 +89,22 @@ const StaffProposalTab = () => {
             console.error(err);
             alert("Errore durante l'approvazione: " + err.message);
         }
+    };
+
+    // Helper per leggere il nome della caratteristica (gestisce stringa, id o oggetto)
+    const getCharName = (componente) => {
+        if (componente.caratteristica_nome) return componente.caratteristica_nome;
+        if (typeof componente.caratteristica === 'object' && componente.caratteristica !== null) {
+            return componente.caratteristica.nome || componente.caratteristica.sigla || "Unknown";
+        }
+        return componente.caratteristica; // Fallback se è solo ID o stringa
+    };
+
+    // Helper per leggere il nome del personaggio
+    const getPgName = (p) => {
+        if (p.personaggio_nome) return p.personaggio_nome;
+        if (typeof p.personaggio === 'object' && p.personaggio !== null) return p.personaggio.nome;
+        return "ID: " + p.personaggio; // Fallback ID
     };
 
     // --- RENDER: LISTA ---
@@ -123,14 +125,13 @@ const StaffProposalTab = () => {
                                 <th className="px-6 py-4">Personaggio</th>
                                 <th className="px-6 py-4">Tipo</th>
                                 <th className="px-6 py-4">Nome Tecnica</th>
-                                <th className="px-6 py-4">Data Invio</th>
                                 <th className="px-6 py-4 text-right">Azioni</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700">
                             {proposals.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="p-10 text-center text-gray-500 italic flex flex-col items-center gap-2">
+                                    <td colSpan="4" className="p-10 text-center text-gray-500 italic flex flex-col items-center gap-2">
                                         <AlertCircle size={24}/>
                                         Nessuna proposta in attesa di valutazione.
                                     </td>
@@ -139,7 +140,7 @@ const StaffProposalTab = () => {
                                 proposals.map(p => (
                                     <tr key={p.id} className="hover:bg-gray-700/50 transition-colors">
                                         <td className="px-6 py-4 font-bold text-white">
-                                            {typeof p.personaggio === 'object' ? p.personaggio.nome : p.personaggio_nome || "ID: " + p.personaggio}
+                                            {getPgName(p)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded text-[10px] font-black tracking-wider uppercase border ${
@@ -151,7 +152,6 @@ const StaffProposalTab = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-white font-medium">{p.nome}</td>
-                                        <td className="px-6 py-4 text-sm">{new Date(p.data_invio).toLocaleDateString()}</td>
                                         <td className="px-6 py-4 text-right">
                                             <button 
                                                 onClick={() => handleOpenDetail(p)} 
@@ -195,7 +195,6 @@ const StaffProposalTab = () => {
                         <button onClick={() => setViewMode('detail')} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Annulla</button>
                     </div>
                     
-                    {/* Renderizza l'editor corretto in base al tipo */}
                     <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden min-h-[80vh]">
                         {selectedProposal.tipo === 'INF' && <InfusioneEditor {...commonProps} />}
                         {selectedProposal.tipo === 'TES' && <TessituraEditor {...commonProps} />}
@@ -245,7 +244,8 @@ const StaffProposalTab = () => {
                                         <ul className="list-disc pl-5 text-gray-300 space-y-1">
                                             {selectedProposal.componenti && selectedProposal.componenti.map((c, i) => (
                                                 <li key={i}>
-                                                    <span className="text-cyan-400 font-bold">{c.caratteristica_nome || c.caratteristica}</span> 
+                                                    {/* QUI ERA L'ERRORE: Ora gestiamo l'oggetto caratteristica */}
+                                                    <span className="text-cyan-400 font-bold">{getCharName(c)}</span> 
                                                     <span className="text-gray-500 text-xs ml-2">x{c.valore}</span>
                                                 </li>
                                             ))}
