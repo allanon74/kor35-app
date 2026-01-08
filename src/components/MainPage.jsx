@@ -403,7 +403,10 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                     </div>
                     {isStaff && (
                         <button
-                            onClick={() => setStaffWorkMode('dashboard')}
+                            onClick={() => {
+                                onSwitchToMaster(); // Chiama la prop corretta per tornare alla StaffDashboard
+                                setIsMenuOpen(false); // Chiude il menu
+                            }}
                             className="w-full flex items-center gap-3 px-4 py-3 text-emerald-400 hover:bg-gray-700 transition-colors border-b border-gray-700"
                         >
                             <span className="text-xl">🔙</span>

@@ -6,7 +6,7 @@ import {
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
-    User, Users, Plus, Edit, Eye, EyeOff, Save, X, ShieldAlert 
+    User, Users, Plus, Edit, Save, X, ShieldAlert 
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 
@@ -14,7 +14,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const { 
         personaggiList, 
         fetchPersonaggi, 
-        isMaster, 
+        isStaff, 
         isAdmin, 
         viewAll, 
         toggleViewAll, 
@@ -29,10 +29,10 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        // Carica le tipologie (necessarie per la combo box dello staff)
         getTipologiePersonaggio(onLogout).then(data => setTipologie(data));
-        // Se la lista è vuota o serve refreshare
         fetchPersonaggi();
-    }, []);
+    }, [fetchPersonaggi, onLogout]);
 
     const handleOpenCreate = () => {
         setEditMode(false);
@@ -40,20 +40,22 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             nome: '', 
             cognome: '', 
             tipologia: 1, // Default Standard
-            costume: '' 
+            testo: '',    // Campo Background
+            costume: ''   // Appunti Costume
         });
         setShowModal(true);
     };
 
     const handleOpenEdit = (char, e) => {
-        e.stopPropagation(); // Evita di selezionare il personaggio mentre clicchi edit
+        e.stopPropagation(); 
         setEditMode(true);
         setFormData({
             id: char.id,
             nome: char.nome,
             cognome: char.cognome || '',
-            tipologia: char.tipologia, // Assumendo che il backend restituisca l'ID o l'oggetto
-            costume: char.costume || ''
+            tipologia: char.tipologia?.id || char.tipologia, 
+            testo: char.testo || '',      // Background
+            costume: char.costume || ''   // Costume
         });
         setShowModal(true);
     };
@@ -61,13 +63,19 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const handleSave = async () => {
         setLoading(true);
         try {
+            // Se non è staff, rimuoviamo la tipologia dal payload per sicurezza/richiesta
+            const payload = { ...formData };
+            if (!isStaff && !editMode) {
+                delete payload.tipologia;
+            }
+
             if (editMode) {
-                await updatePersonaggio(formData.id, formData, onLogout);
+                await updatePersonaggio(formData.id, payload, onLogout);
             } else {
-                await createPersonaggio(formData, onLogout);
+                await createPersonaggio(payload, onLogout);
             }
             setShowModal(false);
-            fetchPersonaggi(); // Ricarica la lista
+            fetchPersonaggi(); 
         } catch (error) {
             alert("Errore durante il salvataggio: " + error.message);
         } finally {
@@ -89,17 +97,16 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 </h2>
                 
                 <div className="flex gap-2">
-                    {isAdmin && (
+                    {(isAdmin || isStaff) && (
                         <button 
                             onClick={toggleViewAll} 
                             className={`p-2 rounded-lg border ${viewAll ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-transparent border-gray-600 text-gray-400'}`}
-                            title={viewAll ? "Mostra solo i miei" : "Mostra tutti (Admin)"}
+                            title={viewAll ? "Mostra solo i miei" : "Mostra tutti (Staff)"}
                         >
                             {viewAll ? <Users size={20}/> : <User size={20}/>}
                         </button>
                     )}
                     
-                    {/* Solo Master/Staff o se vuoi permettere ai player di creare PG multipli */}
                     <button 
                         onClick={handleOpenCreate} 
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-emerald-500 transition-colors shadow-lg"
@@ -113,7 +120,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             <div className="flex-1 overflow-y-auto space-y-4 pb-20 custom-scrollbar">
                 {personaggiList.length === 0 ? (
                     <div className="text-center text-gray-500 mt-10 italic">
-                        Nessun personaggio trovato. Creane uno nuovo!
+                        Nessun personaggio trovato.
                     </div>
                 ) : (
                     personaggiList.map(char => (
@@ -127,7 +134,6 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 }`}
                         >
                             <div className="flex items-center gap-4">
-                                {/* Avatar / Icona */}
                                 <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl uppercase
                                     ${char.tipologia !== 1 ? 'bg-amber-700 text-amber-100' : 'bg-gray-700 text-gray-300'}`}>
                                     {char.nome.charAt(0)}
@@ -139,7 +145,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                     </h3>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-black/40 rounded text-gray-400">
-                                            {char.rango_label || 'Nessun Rango'}
+                                            {char.rango_label || 'PG'}
                                         </span>
                                         {char.tipologia !== 1 && (
                                             <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-amber-900/50 text-amber-400 border border-amber-800 rounded">
@@ -150,8 +156,8 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 </div>
                             </div>
 
-                            {/* Azioni Master */}
-                            {isMaster && (
+                            {/* Azioni: visibili se sei il proprietario o se sei Staff/Admin */}
+                            {(isStaff || isAdmin) && (
                                 <button 
                                     onClick={(e) => handleOpenEdit(char, e)}
                                     className="p-2 bg-gray-900 rounded-full text-gray-400 hover:text-white hover:bg-indigo-600 transition-colors opacity-0 group-hover:opacity-100"
@@ -160,7 +166,6 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 </button>
                             )}
                             
-                            {/* Indicatore Selezione */}
                             {selectedCharacterId === String(char.id) && (
                                 <div className="absolute top-2 right-2 w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
                             )}
@@ -172,15 +177,17 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             {/* --- MODALE CREAZIONE / EDIT --- */}
             {showModal && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-gray-800 w-full max-w-2xl rounded-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
+                    <div className="bg-gray-800 w-full max-w-3xl rounded-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[95vh]">
                         <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-                            <h3 className="font-black text-xl italic uppercase text-indigo-400">
+                            <h3 className="font-black text-xl italic uppercase text-indigo-400 flex items-center gap-2">
                                 {editMode ? 'Modifica Personaggio' : 'Nuovo Personaggio'}
+                                {isStaff && <ShieldAlert size={18} className="text-amber-500" title="Modalità Staff"/>}
                             </h3>
                             <button onClick={() => setShowModal(false)}><X className="text-gray-400 hover:text-white"/></button>
                         </div>
                         
-                        <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar">
+                        <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
+                            {/* Dati Anagrafici */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1">Nome</label>
@@ -200,37 +207,54 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 </div>
                             </div>
 
-                            {/* Selezione Tipologia (Abilitata solo per Master/Staff) */}
+                            {/* Background (Sempre visibile) */}
                             <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1 items-center gap-2">
-                                    Tipologia {(!isMaster && !editMode) && <span className="text-xs normal-case font-normal text-gray-600">(Bloccato)</span>}
-                                </label>
-                                <select 
-                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm outline-none disabled:opacity-50"
-                                    value={formData.tipologia}
-                                    onChange={e => setFormData({...formData, tipologia: parseInt(e.target.value)})}
-                                    disabled={!isMaster} // Solo i master possono cambiare tipologia (es. creare mostri)
-                                >
-                                    {tipologie.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                                </select>
-                            </div>
-
-                            {/* Campo Costume (Rich Text) */}
-                            <div className="mt-4">
                                 <RichTextEditor 
-                                    label="Descrizione Costume (Visibile ai Master)" 
-                                    value={formData.costume} 
-                                    onChange={val => setFormData({...formData, costume: val})}
-                                    placeholder="Descrivi l'aspetto e il costume del personaggio..."
+                                    label="Background" 
+                                    value={formData.testo} 
+                                    onChange={val => setFormData({...formData, testo: val})}
+                                    placeholder="Scrivi qui la storia del tuo personaggio..."
                                 />
                             </div>
+
+                            {/* Sezione Riservata allo Staff */}
+                            {isStaff && (
+                                <div className="pt-4 border-t border-gray-700 space-y-6">
+                                    <div className="flex items-center gap-2 text-amber-500">
+                                        <ShieldAlert size={16}/>
+                                        <span className="text-xs font-bold uppercase tracking-widest">Opzioni Staff</span>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1">Tipologia Personaggio</label>
+                                        <select 
+                                            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm outline-none"
+                                            value={formData.tipologia}
+                                            onChange={e => setFormData({...formData, tipologia: parseInt(e.target.value)})}
+                                        >
+                                            {tipologie.map(t => (
+                                                <option key={t.id} value={t.id}>{t.nome}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <RichTextEditor 
+                                            label="Appunti sul Costume" 
+                                            value={formData.costume} 
+                                            onChange={val => setFormData({...formData, costume: val})}
+                                            placeholder="Inserisci qui le note tecniche sul costume del PG..."
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="p-4 border-t border-gray-700">
                             <button 
                                 onClick={handleSave} 
                                 disabled={loading}
-                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg"
                             >
                                 {loading ? <span className="animate-spin">...</span> : <><Save size={18}/> Salva Personaggio</>}
                             </button>
