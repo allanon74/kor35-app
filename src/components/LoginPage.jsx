@@ -27,25 +27,24 @@ const LoginPage = ({ onLoginSuccess }) => {
       const data = await response.json();
 
       if (data.token) {
-        // --- MODIFICA IMPORTANTE ---
-        // Salviamo lo stato admin nel localStorage così il Context può leggerlo
-        // data.is_staff arriva dal tuo backend Django modificato (MyAuthToken)
         localStorage.setItem('kor35_token', data.token);
         localStorage.setItem('kor35_is_staff', data.is_staff);
         localStorage.setItem('kor35_is_master', data.is_superuser);
         
-        // Passiamo il token al componente padre (App.jsx)
+        // --- CORREZIONE FONDAMENTALE PER "t is not a function" ---
+        // Controlliamo se la funzione esiste prima di chiamarla
         if (typeof onLoginSuccess === 'function') {
             onLoginSuccess(data.token);
         } else {
-            console.error("onLoginSuccess non è una funzione!", onLoginSuccess);
-            // Fallback: ricarica la pagina se la funzione non c'è, per ripristinare lo stato dell'App
-            window.location.reload(); 
+            // Se la funzione non c'è, ricarichiamo la pagina per ripristinare l'app
+            console.warn("onLoginSuccess mancante, ricarico l'app...");
+            window.location.reload();
         }
       } else {
         throw new Error('Token non ricevuto dal server.');
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError(err.message || 'Si è verificato un errore durante il login.');
     } finally {
       setIsLoading(false);
