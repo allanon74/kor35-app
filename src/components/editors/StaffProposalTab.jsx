@@ -1,281 +1,323 @@
 import React, { useState, useEffect } from 'react';
-import { getProposteInValutazione, rifiutaProposta, approvaProposta } from '../../api';
-import GenericHeader from '../GenericHeader';
-import { Eye, X, Check } from 'lucide-react';
-import RichTextEditor from './RichTextEditor';
-// Importiamo gli editor esistenti per riutilizzarli nel modale di approvazione
+import { staffGetProposteInValutazione, staffRifiutaProposta, staffApprovaProposta } from '../../api';
+import GenericHeader from './GenericHeader';
+import { Eye, X, Check, ClipboardCheck, AlertCircle } from 'lucide-react';
+import RichTextEditor from '../RichTextEditor';
+
+// Importazione degli Editor per la fase di approvazione/creazione finale
 import InfusioneEditor from './InfusioneEditor';
 import TessituraEditor from './TessituraEditor';
 import CerimonialeEditor from './CerimonialeEditor';
 
 const StaffProposalTab = () => {
-  const [proposals, setProposals] = useState([]);
-  const [selectedProposal, setSelectedProposal] = useState(null);
-  const [isRejecting, setIsRejecting] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
-  const [staffNotes, setStaffNotes] = useState("");
-  
-  // Refresh data
-  const loadProposals = async () => {
-    try {
-      const data = await getProposteInValutazione();
-      // Se l'API ritorna paginazione, gestisci data.results, altrimenti data
-      setProposals(Array.isArray(data) ? data : data.results || []);
-    } catch (error) {
-      console.error("Errore caricamento proposte", error);
-    }
-  };
+    const [proposals, setProposals] = useState([]);
+    const [selectedProposal, setSelectedProposal] = useState(null);
+    const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'approve_edit'
+    const [staffNotes, setStaffNotes] = useState("");
+    const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadProposals();
-  }, []);
+    useEffect(() => {
+        loadProposals();
+    }, []);
 
-  const handleOpen = (prop) => {
-    setSelectedProposal(prop);
-    setStaffNotes(prop.note_staff || "");
-    setIsRejecting(false);
-    setIsApproving(false);
-  };
-
-  const handleClose = () => {
-    setSelectedProposal(null);
-    setIsApproving(false);
-  };
-
-  const handleReject = async () => {
-    if (!selectedProposal) return;
-    if (!confirm("Sei sicuro di voler rifiutare questa proposta? Tornerà in bozza al giocatore.")) return;
-    
-    try {
-      await rifiutaProposta(selectedProposal.id, staffNotes);
-      alert("Proposta rifiutata.");
-      handleClose();
-      loadProposals();
-    } catch (err) {
-      alert("Errore: " + err.message);
-    }
-  };
-
-  // Prepara i dati per l'editor di approvazione
-  const getInitialDataForEditor = () => {
-    if (!selectedProposal) return {};
-    
-    // Mappa i campi comuni dalla proposta alla struttura richiesta dagli editor
-    return {
-      nome: selectedProposal.nome,
-      descrizione: selectedProposal.descrizione, // Gli editor spesso usano 'testo' o 'descrizione'
-      testo: selectedProposal.descrizione, 
-      aura_richiesta: selectedProposal.aura, // ID o Oggetto a seconda di come lo gestisce l'editor
-      componenti: selectedProposal.componenti, // Array di {caratteristica, valore}
-      // Campi specifici da passare se presenti nella proposta o default
-      prerequisiti: selectedProposal.prerequisiti,
-      svolgimento: selectedProposal.svolgimento,
-      effetto: selectedProposal.effetto,
-      liv: selectedProposal.livello_proposto,
-      note_staff: staffNotes // Passiamo le note editate
+    const loadProposals = async () => {
+        setLoading(true);
+        try {
+            const data = await staffGetProposteInValutazione();
+            // Gestisce sia array diretto che paginazione Django REST standard
+            setProposals(Array.isArray(data) ? data : data.results || []);
+        } catch (error) {
+            console.error("Errore caricamento proposte", error);
+        } finally {
+            setLoading(false);
+        }
     };
-  };
 
-  // Callback per quando lo staff salva dal form di creazione (Approvazione finale)
-  const onFinalizeApproval = async (finalData) => {
-    try {
-      // Includiamo le note staff nel payload finale
-      finalData.note_staff = staffNotes;
-      await approvaProposta(selectedProposal.id, finalData);
-      alert("Tecnica creata e assegnata con successo!");
-      handleClose();
-      loadProposals();
-    } catch (err) {
-      console.error(err);
-      alert("Errore durante l'approvazione: " + (err.response?.data?.error || err.message));
-    }
-  };
+    // Apre il dettaglio della proposta
+    const handleOpenDetail = (prop) => {
+        setSelectedProposal(prop);
+        setStaffNotes(prop.note_staff || "");
+        setViewMode('detail');
+    };
 
-  return (
-    <div className="text-white p-4">
-      <GenericHeader title="Valutazione Proposte Tecniche" />
-      
-      {/* LISTA PROPOSTE */}
-      <div className="overflow-x-auto bg-gray-900 rounded-lg border border-gray-700 mt-4">
-        <table className="w-full text-sm text-left text-gray-300">
-          <thead className="text-xs text-gray-400 uppercase bg-gray-800">
-            <tr>
-              <th className="px-4 py-3">Personaggio</th>
-              <th className="px-4 py-3">Tipo</th>
-              <th className="px-4 py-3">Nome Tecnica</th>
-              <th className="px-4 py-3">Aura</th>
-              <th className="px-4 py-3">Data Invio</th>
-              <th className="px-4 py-3 text-right">Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-            {proposals.length === 0 ? (
-              <tr><td colSpan="6" className="text-center py-4">Nessuna proposta in attesa.</td></tr>
-            ) : (
-              proposals.map((prop) => (
-                <tr key={prop.id} className="border-b border-gray-700 hover:bg-gray-800">
-                  <td className="px-4 py-3 font-medium text-white">
-                    {/* Gestione oggetto personaggio o ID */}
-                    {typeof prop.personaggio === 'object' ? prop.personaggio.nome : prop.personaggio}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs font-bold 
-                      ${prop.tipo === 'INF' ? 'bg-blue-900 text-blue-200' : 
-                        prop.tipo === 'TES' ? 'bg-purple-900 text-purple-200' : 'bg-yellow-900 text-yellow-200'}`}>
-                      {prop.tipo}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{prop.nome}</td>
-                  <td className="px-4 py-3">
-                     {/* Gestione oggetto aura o ID - assumiamo che il serializer restituisca l'oggetto o il nome */}
-                     {prop.aura_nome || (typeof prop.aura === 'object' ? prop.aura.nome : prop.aura)}
-                  </td>
-                  <td className="px-4 py-3">{new Date(prop.data_invio).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button 
-                      onClick={() => handleOpen(prop)}
-                      className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded flex items-center gap-1 ml-auto"
-                    >
-                      <Eye size={14} /> Valuta
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+    const handleBack = () => {
+        setSelectedProposal(null);
+        setViewMode('list');
+    };
 
-      {/* MODALE DI VALUTAZIONE */}
-      {selectedProposal && !isApproving && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-gray-900 border border-gray-600 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+    // Rifiuta la proposta (torna in BOZZA al giocatore)
+    const handleRifiuta = async () => {
+        if (!confirm("Confermi il rifiuto? La proposta tornerà in Bozza al giocatore con le tue note.")) return;
+        try {
+            await staffRifiutaProposta(selectedProposal.id, staffNotes);
+            alert("Proposta rifiutata e rimandata al giocatore.");
+            handleBack();
+            loadProposals();
+        } catch (err) {
+            alert("Errore: " + err.message);
+        }
+    };
+
+    // Passa alla modalità Editor per creare l'oggetto finale
+    const handleStartApproval = () => {
+        setViewMode('approve_edit');
+    };
+
+    // Prepara i dati iniziali per l'editor basandosi sulla proposta del giocatore
+    const getInitialEditorData = () => {
+        if (!selectedProposal) return {};
+        const p = selectedProposal;
+        
+        // Mappatura dei campi generici
+        return {
+            nome: p.nome,
+            descrizione: p.descrizione, // Gli editor usano 'descrizione'
+            testo: p.descrizione,       // Fallback per vecchi editor
+            aura_richiesta: p.aura,     // ID dell'aura
+            livello: p.livello,         // Livello calcolato/proposto
+            liv: p.livello_proposto,    // Specifico per Cerimoniali
             
-            {/* Header Modale */}
-            <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-              <h2 className="text-xl font-bold text-cyan-400">
-                Valutazione: {selectedProposal.nome} ({selectedProposal.tipo})
-              </h2>
-              <button onClick={handleClose} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
+            // Componenti (trasformiamo la struttura se necessario, dipende da come i tuoi editor leggono 'componenti')
+            // Qui assumiamo che l'editor sappia leggere l'array o lo gestiamo nel backend
+            componenti_override: p.componenti, 
 
-            {/* Body Modale */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              
-              {/* Dettagli Proposta */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-800 p-4 rounded border border-gray-700">
-                  <h3 className="text-sm uppercase text-gray-500 font-bold mb-2">Dati Tecnici</h3>
-                  <p><strong>Livello Calcolato:</strong> {selectedProposal.livello}</p>
-                  <p><strong>Aura:</strong> {typeof selectedProposal.aura === 'object' ? selectedProposal.aura.nome : selectedProposal.aura}</p>
-                  {selectedProposal.tipo === 'CER' && (
-                     <p><strong>Livello Proposto:</strong> {selectedProposal.livello_proposto}</p>
-                  )}
-                  {/* Lista Componenti/Mattoni */}
-                  <div className="mt-2">
-                    <strong>Componenti:</strong>
-                    <ul className="list-disc pl-5 text-sm text-gray-300 mt-1">
-                      {selectedProposal.componenti && selectedProposal.componenti.map((c, idx) => (
-                        <li key={idx}>
-                           {/* Gestione struttura dati componenti (potrebbe variare in base al serializer) */}
-                           {c.caratteristica_nome || c.caratteristica} : {c.valore}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+            prerequisiti: p.prerequisiti,
+            svolgimento: p.svolgimento,
+            effetto: p.effetto,
+            
+            note_staff: staffNotes // Passiamo le note editate finora
+        };
+    };
+
+    // Callback chiamata quando lo Staff salva dal form di creazione (Approvazione finale)
+    const handleFinalizeApproval = async (finalData) => {
+        try {
+            // Assicuriamoci che le note staff siano incluse
+            finalData.note_staff = staffNotes;
+            
+            await staffApprovaProposta(selectedProposal.id, finalData);
+            alert("Tecnica creata, assegnata e costo pagato con successo!");
+            handleBack();
+            loadProposals();
+        } catch (err) {
+            console.error(err);
+            alert("Errore durante l'approvazione: " + err.message);
+        }
+    };
+
+    // --- RENDER: LISTA ---
+    if (viewMode === 'list') {
+        return (
+            <div className="h-full flex flex-col bg-gray-900 text-white p-6 overflow-hidden">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-black uppercase tracking-wider text-orange-500 flex items-center gap-3">
+                        <ClipboardCheck size={32}/> Valutazione Proposte
+                    </h2>
+                    <button onClick={loadProposals} className="text-sm underline text-gray-400 hover:text-white">Aggiorna</button>
                 </div>
+                
+                <div className="flex-1 overflow-auto rounded-xl border border-gray-700 bg-gray-800/50 shadow-inner">
+                    <table className="w-full text-left text-gray-300">
+                        <thead className="bg-gray-800 text-xs uppercase font-bold text-gray-400 sticky top-0 z-10 shadow-md">
+                            <tr>
+                                <th className="px-6 py-4">Personaggio</th>
+                                <th className="px-6 py-4">Tipo</th>
+                                <th className="px-6 py-4">Nome Tecnica</th>
+                                <th className="px-6 py-4">Data Invio</th>
+                                <th className="px-6 py-4 text-right">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-700">
+                            {proposals.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="p-10 text-center text-gray-500 italic flex flex-col items-center gap-2">
+                                        <AlertCircle size={24}/>
+                                        Nessuna proposta in attesa di valutazione.
+                                    </td>
+                                </tr>
+                            ) : (
+                                proposals.map(p => (
+                                    <tr key={p.id} className="hover:bg-gray-700/50 transition-colors">
+                                        <td className="px-6 py-4 font-bold text-white">
+                                            {typeof p.personaggio === 'object' ? p.personaggio.nome : p.personaggio_nome || "ID: " + p.personaggio}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-black tracking-wider uppercase border ${
+                                                p.tipo==='INF' ? 'bg-indigo-900/30 text-indigo-300 border-indigo-700' :
+                                                p.tipo==='TES' ? 'bg-cyan-900/30 text-cyan-300 border-cyan-700' : 
+                                                'bg-purple-900/30 text-purple-300 border-purple-700'
+                                            }`}>
+                                                {p.tipo === 'INF' ? 'Infusione' : p.tipo === 'TES' ? 'Tessitura' : 'Cerimoniale'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-white font-medium">{p.nome}</td>
+                                        <td className="px-6 py-4 text-sm">{new Date(p.data_invio).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button 
+                                                onClick={() => handleOpenDetail(p)} 
+                                                className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold uppercase shadow-lg transition-all flex items-center gap-2 ml-auto"
+                                            >
+                                                <Eye size={14} /> Valuta
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    }
 
-                <div className="bg-gray-800 p-4 rounded border border-gray-700">
-                  <h3 className="text-sm uppercase text-gray-500 font-bold mb-2">Descrizione Giocatore</h3>
-                  <div className="prose prose-invert max-w-none text-sm" 
-                       dangerouslySetInnerHTML={{ __html: selectedProposal.descrizione }} />
-                  
-                  {selectedProposal.tipo === 'CER' && (
-                    <div className="mt-4 space-y-2 text-sm">
-                        <p><strong>Prerequisiti:</strong> {selectedProposal.prerequisiti}</p>
-                        <p><strong>Svolgimento:</strong> {selectedProposal.svolgimento}</p>
-                        <p><strong>Effetto:</strong> {selectedProposal.effetto}</p>
+    // --- RENDER: EDITOR DI APPROVAZIONE ---
+    if (viewMode === 'approve_edit') {
+        const commonProps = {
+            initialData: getInitialEditorData(),
+            onSave: handleFinalizeApproval,
+            onCancel: () => setViewMode('detail'), 
+            isApprovalMode: true 
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black z-60 overflow-y-auto">
+                <div className="p-6 max-w-7xl mx-auto">
+                    <div className="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-green-600/20 p-2 rounded-lg border border-green-500/50">
+                                <Check className="text-green-500" size={24}/>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-white">Finalizzazione {selectedProposal.tipo}</h2>
+                                <p className="text-sm text-gray-400">Modifica se necessario e salva per creare la tecnica effettiva.</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setViewMode('detail')} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Annulla</button>
                     </div>
-                  )}
+                    
+                    {/* Renderizza l'editor corretto in base al tipo */}
+                    <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden min-h-[80vh]">
+                        {selectedProposal.tipo === 'INF' && <InfusioneEditor {...commonProps} />}
+                        {selectedProposal.tipo === 'TES' && <TessituraEditor {...commonProps} />}
+                        {selectedProposal.tipo === 'CER' && <CerimonialeEditor {...commonProps} />}
+                    </div>
                 </div>
-              </div>
-
-              {/* Note Staff Editabili */}
-              <div>
-                <label className="block text-sm font-bold text-gray-400 mb-2">Note Staff (Visibili al giocatore)</label>
-                <RichTextEditor 
-                  value={staffNotes} 
-                  onChange={setStaffNotes}
-                  placeholder="Inserisci qui le motivazioni del rifiuto o note di approvazione..."
-                />
-              </div>
-
             </div>
+        );
+    }
 
-            {/* Footer Azioni */}
-            <div className="p-4 border-t border-gray-700 bg-gray-800 flex justify-end gap-3">
-              <button 
-                onClick={handleReject}
-                className="bg-red-900/50 border border-red-700 text-red-200 hover:bg-red-800 px-4 py-2 rounded flex items-center gap-2"
-              >
-                <X size={18} /> Rifiuta e Invia Note
-              </button>
-              
-              <button 
-                onClick={() => setIsApproving(true)}
-                className="bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded flex items-center gap-2 font-bold shadow-lg shadow-green-900/20"
-              >
-                <Check size={18} /> Procedi all'Approvazione
-              </button>
+    // --- RENDER: DETTAGLIO (MODALE VALUTAZIONE) ---
+    return (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-md">
+            <div className="bg-gray-900 border border-gray-600 rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl">
+                
+                {/* Header Modale */}
+                <div className="p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800 rounded-t-2xl">
+                    <div>
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <span className="text-orange-500">Valutazione:</span> {selectedProposal.nome}
+                        </h2>
+                        <div className="flex gap-2 mt-1">
+                            <span className="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300 font-mono">ID: {selectedProposal.id}</span>
+                            <span className="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">Livello: {selectedProposal.livello}</span>
+                        </div>
+                    </div>
+                    <button onClick={handleBack} className="text-gray-400 hover:text-white bg-gray-700/50 p-2 rounded-full hover:bg-gray-700"><X size={24}/></button>
+                </div>
+
+                {/* Contenuto Scrollabile */}
+                <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+                        
+                        {/* Colonna SX: Dati della Proposta */}
+                        <div className="space-y-6 overflow-y-auto pr-2">
+                            {/* Card Dati Tecnici */}
+                            <div className="bg-gray-800/50 p-5 rounded-xl border border-gray-700">
+                                <h3 className="text-cyan-500 font-black uppercase text-xs tracking-widest mb-4 border-b border-gray-700 pb-2">Specifiche Tecniche</h3>
+                                <div className="space-y-2 text-sm">
+                                    <p><strong className="text-gray-400">Tipo:</strong> {selectedProposal.tipo}</p>
+                                    <p><strong className="text-gray-400">Aura Richiesta:</strong> {typeof selectedProposal.aura === 'object' ? selectedProposal.aura.nome : selectedProposal.aura}</p>
+                                    {selectedProposal.tipo === 'CER' && (
+                                        <p><strong className="text-gray-400">Livello Proposto:</strong> {selectedProposal.livello_proposto}</p>
+                                    )}
+                                    <div className="mt-3 bg-gray-900 p-3 rounded-lg">
+                                        <strong className="text-gray-400 block mb-2 text-xs uppercase">Componenti / Mattoni:</strong>
+                                        <ul className="list-disc pl-5 text-gray-300 space-y-1">
+                                            {selectedProposal.componenti && selectedProposal.componenti.map((c, i) => (
+                                                <li key={i}>
+                                                    <span className="text-cyan-400 font-bold">{c.caratteristica_nome || c.caratteristica}</span> 
+                                                    <span className="text-gray-500 text-xs ml-2">x{c.valore}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Card Descrizione */}
+                            <div className="bg-gray-800/50 p-5 rounded-xl border border-gray-700">
+                                <h3 className="text-cyan-500 font-black uppercase text-xs tracking-widest mb-4 border-b border-gray-700 pb-2">Descrizione Giocatore</h3>
+                                <div className="prose prose-invert text-sm max-w-none text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                    {selectedProposal.descrizione}
+                                </div>
+                                
+                                {selectedProposal.tipo === 'CER' && (
+                                    <div className="mt-6 space-y-4 pt-4 border-t border-gray-700/50">
+                                        <div>
+                                            <strong className="text-yellow-500 block text-xs uppercase mb-1">Prerequisiti</strong>
+                                            <p className="text-sm text-gray-300">{selectedProposal.prerequisiti}</p>
+                                        </div>
+                                        <div>
+                                            <strong className="text-yellow-500 block text-xs uppercase mb-1">Svolgimento</strong>
+                                            <p className="text-sm text-gray-300">{selectedProposal.svolgimento}</p>
+                                        </div>
+                                        <div>
+                                            <strong className="text-yellow-500 block text-xs uppercase mb-1">Effetto</strong>
+                                            <p className="text-sm text-gray-300">{selectedProposal.effetto}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Colonna DX: Note Staff e Azioni */}
+                        <div className="flex flex-col h-full bg-gray-800 p-1 rounded-xl border border-gray-700">
+                            <div className="bg-gray-900 rounded-t-lg p-3 border-b border-gray-700">
+                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <ClipboardCheck size={14}/> Note Staff (Visibili al giocatore)
+                                </label>
+                            </div>
+                            <div className="flex-1 overflow-hidden relative">
+                                <RichTextEditor 
+                                    value={staffNotes} 
+                                    onChange={setStaffNotes}
+                                    placeholder="Scrivi qui le motivazioni del rifiuto o eventuali note di approvazione..."
+                                    className="h-full border-none rounded-none focus:ring-0"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Azioni */}
+                <div className="p-5 border-t border-gray-700 bg-gray-800 rounded-b-2xl flex justify-end gap-4 shadow-lg z-20">
+                    <button 
+                        onClick={handleRifiuta}
+                        className="bg-red-900/30 border border-red-700 text-red-300 hover:bg-red-900/50 px-6 py-3 rounded-xl flex items-center gap-2 text-sm font-bold uppercase transition-all"
+                    >
+                        <X size={18} /> Rifiuta (Torna in Bozza)
+                    </button>
+                    
+                    <button 
+                        onClick={handleStartApproval}
+                        className="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl flex items-center gap-2 font-black uppercase shadow-lg shadow-green-900/30 hover:scale-105 transition-all"
+                    >
+                        <Check size={18} /> Approva & Crea Tecnica
+                    </button>
+                </div>
             </div>
-          </div>
         </div>
-      )}
-
-      {/* MODALE APPROVAZIONE (EDITOR SPECIFICO) */}
-      {selectedProposal && isApproving && (
-        <div className="fixed inset-0 bg-black z-60 overflow-y-auto">
-           {/* Wrapper per riutilizzare gli editor esistenti a schermo intero */}
-           <div className="p-4">
-              <div className="flex justify-between items-center mb-4 bg-gray-800 p-3 rounded">
-                  <h2 className="text-xl font-bold text-green-400">Finalizzazione {selectedProposal.tipo}</h2>
-                  <button onClick={() => setIsApproving(false)} className="bg-gray-700 px-3 py-1 rounded">Annulla</button>
-              </div>
-              
-              {selectedProposal.tipo === 'INF' && (
-                <InfusioneEditor 
-                  initialData={getInitialDataForEditor()} 
-                  onSave={onFinalizeApproval} 
-                  onCancel={() => setIsApproving(false)}
-                  isApprovalMode={true} // Prop opzionale per dire all'editor di nascondere cose inutili se serve
-                />
-              )}
-              
-              {selectedProposal.tipo === 'TES' && (
-                <TessituraEditor 
-                  initialData={getInitialDataForEditor()} 
-                  onSave={onFinalizeApproval} 
-                  onCancel={() => setIsApproving(false)}
-                  isApprovalMode={true}
-                />
-              )}
-
-              {selectedProposal.tipo === 'CER' && (
-                <CerimonialeEditor 
-                  initialData={getInitialDataForEditor()} 
-                  onSave={onFinalizeApproval} 
-                  onCancel={() => setIsApproving(false)}
-                  isApprovalMode={true}
-                />
-              )}
-           </div>
-        </div>
-      )}
-
-    </div>
-  );
+    );
 };
 
 export default StaffProposalTab;
