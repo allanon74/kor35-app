@@ -60,8 +60,27 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         e.stopPropagation(); 
         setEditMode(true);
         // Estrazione sicura dell'ID tipologia
-        const tipoId = typeof char.tipologia === 'object' ? char.tipologia.id : (char.tipologia || 1);
-        
+        let tipoId = 1; // Fallback default (es. Standard)
+
+        if (char.tipologia) {
+            if (typeof char.tipologia === 'number') {
+                // Caso perfetto: è già un ID
+                tipoId = char.tipologia;
+            } else if (typeof char.tipologia === 'object' && char.tipologia.id) {
+                // Caso oggetto: estraiamo l'ID
+                tipoId = char.tipologia.id;
+            } else if (typeof char.tipologia === 'string') {
+                // Caso stringa (es. "Vampiro"): Cerchiamo l'ID nella lista delle tipologie
+                const found = tipologie.find(t => t.nome === char.tipologia);
+                if (found) {
+                    tipoId = found.id;
+                } else {
+                    // Estremo tentativo: la stringa è un numero ("2")?
+                    const parsed = parseInt(char.tipologia, 10);
+                    if (!isNaN(parsed)) tipoId = parsed;
+                }
+            }
+        }
         setFormData({
             id: char.id,
             nome: char.nome,
@@ -73,53 +92,65 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     };
 
     const handleSaveOptimistic = async () => {
+        // Clona i dati
         const payload = { ...formData };
-        const queryKey = ['personaggi_list', viewAll];
         
-        // 1. Snapshot dati precedenti (per rollback)
-        const previousData = queryClient.getQueryData(queryKey);
-
-        if (payload.tipologia) {
-            if (typeof payload.tipologia === 'object' && payload.tipologia.id) {
-                payload.tipologia = payload.tipologia.id;
+        // --- PULIZIA TIPOLOGIA ---
+        if (payload.tipologia !== undefined && payload.tipologia !== null) {
+            // Assicuriamoci che sia un intero
+            const parsedTipo = parseInt(payload.tipologia, 10);
+            
+            if (!isNaN(parsedTipo)) {
+                payload.tipologia = parsedTipo;
             } else {
-                // Parsa come intero per sicurezza
-                payload.tipologia = parseInt(payload.tipologia, 10);
+                // Se non è un numero valido (es. NaN), rimuoviamolo per evitare l'errore 400.
+                // In una modifica (PATCH), se manca il campo, il server tiene il valore vecchio.
+                // In creazione (POST), userà il default del model o darà errore se obbligatorio, 
+                // ma almeno non mandiamo null esplicito.
+                delete payload.tipologia;
             }
         }
+        
+        const queryKey = ['personaggi_list', viewAll];
+        const previousData = queryClient.getQueryData(queryKey);
 
-        // 2. Aggiornamento Ottimistico
+        // Update Ottimistico UI
         queryClient.setQueryData(queryKey, (oldList = []) => {
             if (editMode) {
                 return oldList.map(p => p.id === payload.id ? { ...p, ...payload } : p);
             } else {
-                // Generiamo un ID temporaneo
                 const tempId = 'temp-' + Date.now();
-                return [...oldList, { ...payload, id: tempId, rango_label: '...', crediti: 0 }];
+                // Aggiungiamo campi placeholder per evitare crash nella renderizzazione della lista
+                return [...oldList, { 
+                    ...payload, 
+                    id: tempId, 
+                    rango_label: '...', 
+                    crediti: 0,
+                    // Per la visualizzazione ottimistica immediata, se tipologia è un numero,
+                    // cerchiamo il nome per mostrarlo corretto, altrimenti fallback
+                    tipologia: tipologie.find(t => t.id === payload.tipologia)?.nome || payload.tipologia 
+                }];
             }
         });
 
-        setShowModal(false); // Chiude subito il modale
+        setShowModal(false);
 
         try {
-            // 3. Chiamata API Reale
             if (editMode) {
                 await updatePersonaggio(payload.id, payload, onLogout);
-                // Se stiamo modificando il PG attualmente selezionato, ricarichiamo i suoi dettagli completi
                 if (String(payload.id) === String(selectedCharacterId)) {
                     refreshCharacterData();
                 }
             } else {
                 await createPersonaggio(payload, onLogout);
             }
-            
-            // 4. Sincronizzazione finale (per avere ID reali e dati calcolati dal server)
+            // Sincronizzazione reale
             await fetchPersonaggi();
 
         } catch (error) {
-            // 5. Rollback in caso di errore
             console.error("Errore salvataggio:", error);
-            alert("Errore nel salvataggio. Le modifiche verranno annullate.");
+            alert("Errore nel salvataggio: " + error.message);
+            // Rollback
             if (previousData) queryClient.setQueryData(queryKey, previousData);
         }
     };
