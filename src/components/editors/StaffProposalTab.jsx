@@ -96,14 +96,27 @@ const StaffProposalTab = () => {
 
     const handleFinalizeApproval = async (finalData) => {
         try {
+            // Assicuriamoci che le note staff siano aggiornate
             finalData.note_staff = staffNotes;
+            
+            // Chiamata API
             await staffApprovaProposta(selectedProposal.id, finalData);
-            alert("Tecnica creata con successo!");
-            handleBack();
-            loadProposals();
+            
+            // Feedback Utente
+            alert("Tecnica approvata e creata con successo!");
+            
+            // Chiudi e Aggiorna
+            // IMPORTANTE: Eseguiamo queste azioni in ordine sicuro
+            handleBack(); // Chiude il modale
+            setTimeout(() => {
+                loadProposals(); // Ricarica la lista dopo un attimo per dare tempo al DB di aggiornarsi
+            }, 300);
+
         } catch (err) {
-            console.error(err);
-            alert("Errore durante l'approvazione: " + err.message);
+            console.error("Errore Approvazione:", err);
+            // Gestione sicura dell'errore (evita variabili non definite come 't')
+            const errorMsg = err.response?.data?.error || err.message || "Errore sconosciuto";
+            alert("Errore durante l'approvazione: " + errorMsg);
         }
     };
 
