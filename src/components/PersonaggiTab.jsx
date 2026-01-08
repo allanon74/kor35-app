@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query'; // Import necessario per Optimistic UI
 import { 
     createPersonaggio, 
     updatePersonaggio, 
     getTipologiePersonaggio,
-    staffAddResources // Importa la nuova funzione
+    staffAddResources 
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
@@ -14,7 +15,6 @@ import RichTextEditor from './RichTextEditor';
 const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const { 
         personaggiList, 
-        setPersonaggiList, // Assicurati che CharacterContext esponga il setter!
         fetchPersonaggi, 
         refreshCharacterData, 
         isStaff, 
@@ -24,6 +24,8 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         selectCharacter,
         selectedCharacterId 
     } = useCharacter();
+
+    const queryClient = useQueryClient(); // Hook per accedere alla cache
 
     // Stati Modale Edit/Create
     const [showModal, setShowModal] = useState(false);
@@ -37,11 +39,11 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
 
     useEffect(() => {
         getTipologiePersonaggio(onLogout).then(data => setTipologie(data));
-        // fetchPersonaggi viene chiamato dal context, ma lo chiamiamo qui per sicurezza al mount
+        // fetchPersonaggi viene chiamato dal context, ma lo assicuriamo qui
         fetchPersonaggi();
     }, []);
 
-    // --- GESTIONE MODALE CREATE/EDIT ---
+    // --- LOGICA MODALE CREATE/EDIT ---
 
     const handleOpenCreate = () => {
         setEditMode(false);
@@ -57,10 +59,13 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const handleOpenEdit = (char, e) => {
         e.stopPropagation(); 
         setEditMode(true);
+        // Estrazione sicura dell'ID tipologia
+        const tipoId = typeof char.tipologia === 'object' ? char.tipologia.id : (char.tipologia || 1);
+        
         setFormData({
             id: char.id,
             nome: char.nome,
-            tipologia: typeof char.tipologia === 'object' ? char.tipologia.id : (char.tipologia || 1), // Gestione robusta ID
+            tipologia: tipoId,
             testo: char.testo || '',
             costume: char.costume || ''
         });
@@ -68,55 +73,49 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     };
 
     const handleSaveOptimistic = async () => {
-        const tempId = 'temp-' + Date.now();
         const payload = { ...formData };
+        const queryKey = ['personaggi_list', viewAll];
         
-        // Backup stato precedente per rollback
-        const previousList = [...personaggiList];
+        // 1. Snapshot dati precedenti (per rollback)
+        const previousData = queryClient.getQueryData(queryKey);
 
-        // 1. UPDATE OTTIMISTICO DELLA UI
-        if (editMode) {
-            setPersonaggiList(prev => prev.map(p => 
-                p.id === payload.id ? { ...p, ...payload } : p
-            ));
-        } else {
-            // Creiamo un oggetto fake per la lista
-            const fakeNewChar = { 
-                id: tempId, 
-                ...payload, 
-                rango_label: '...', // Placeholder
-                tipologia: payload.tipologia // ID grezzo
-            };
-            setPersonaggiList(prev => [...prev, fakeNewChar]);
-        }
+        // 2. Aggiornamento Ottimistico
+        queryClient.setQueryData(queryKey, (oldList = []) => {
+            if (editMode) {
+                return oldList.map(p => p.id === payload.id ? { ...p, ...payload } : p);
+            } else {
+                // Generiamo un ID temporaneo
+                const tempId = 'temp-' + Date.now();
+                return [...oldList, { ...payload, id: tempId, rango_label: '...', crediti: 0 }];
+            }
+        });
 
-        setShowModal(false); // Chiudi subito il modale
+        setShowModal(false); // Chiude subito il modale
 
         try {
-            // 2. CHIAMATA API REALE
+            // 3. Chiamata API Reale
             if (editMode) {
                 await updatePersonaggio(payload.id, payload, onLogout);
-                // Aggiorniamo i dati completi nel context se è il PG selezionato
+                // Se stiamo modificando il PG attualmente selezionato, ricarichiamo i suoi dettagli completi
                 if (String(payload.id) === String(selectedCharacterId)) {
                     refreshCharacterData();
                 }
             } else {
                 await createPersonaggio(payload, onLogout);
             }
-
-            // 3. SINCRONIZZAZIONE SILENZIOSA
-            // Ricarichiamo la lista vera dal server per avere ID reali e dati calcolati
+            
+            // 4. Sincronizzazione finale (per avere ID reali e dati calcolati dal server)
             await fetchPersonaggi();
 
         } catch (error) {
-            // 4. ROLLBACK IN CASO DI ERRORE
+            // 5. Rollback in caso di errore
             console.error("Errore salvataggio:", error);
             alert("Errore nel salvataggio. Le modifiche verranno annullate.");
-            setPersonaggiList(previousList);
+            if (previousData) queryClient.setQueryData(queryKey, previousData);
         }
     };
 
-    // --- GESTIONE MODALE STAFF RESOURCES ---
+    // --- LOGICA MODALE STAFF RISORSE ---
 
     const handleOpenResourceModal = (char, e) => {
         e.stopPropagation();
@@ -132,24 +131,23 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
 
     const handleGiveResources = async () => {
         try {
-            await staffAddResources(
+            const resp = await staffAddResources(
                 resourceData.charId, 
                 resourceData.tipo, 
                 parseInt(resourceData.amount), 
                 resourceData.reason, 
                 onLogout
             );
-            alert(`${resourceData.amount} ${resourceData.tipo.toUpperCase()} assegnati a ${resourceData.charName}.`);
+            alert(resp.msg || "Operazione completata");
             setShowResourceModal(false);
-            fetchPersonaggi(); // Aggiorna i totali nella lista se visualizzati
+            fetchPersonaggi(); // Aggiorna i totali nella lista
         } catch (error) {
             alert("Errore: " + error.message);
         }
     };
 
     const handleSelect = (charId) => {
-        // Impedisci selezione di elementi temporanei ottimistici
-        if (String(charId).startsWith('temp-')) return;
+        if (String(charId).startsWith('temp-')) return; // Non selezionare elementi temporanei
         selectCharacter(charId);
         if (onSelectChar) onSelectChar();
     };
@@ -182,7 +180,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 </div>
             </div>
 
-            {/* LISTA */}
+            {/* LISTA PERSONAGGI */}
             <div className="flex-1 overflow-y-auto space-y-4 pb-20 custom-scrollbar">
                 {personaggiList.map(char => (
                     <div 
@@ -202,13 +200,14 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                             <div>
                                 <h3 className="font-bold text-lg leading-none">{char.nome}</h3>
                                 {isStaff && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        Crediti: {char.crediti} | PC: {char.punti_caratteristica}
+                                    <div className="text-[10px] text-gray-400 mt-1 font-mono">
+                                        CR: {char.crediti} | PC: {char.punti_caratteristica}
                                     </div>
                                 )}
                             </div>
                         </div>
 
+                        {/* Pulsanti Azione (Visibili solo a Staff/Admin) */}
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             {(isStaff || isAdmin) && (
                                 <>
@@ -233,7 +232,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 ))}
             </div>
 
-            {/* MODALE EDIT/CREATE (Stesso di prima, ma chiama handleSaveOptimistic) */}
+            {/* MODALE EDIT/CREATE */}
             {showModal && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-gray-800 w-full max-w-3xl rounded-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[95vh]">
@@ -245,37 +244,46 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                         </div>
                         <div className="p-6 overflow-y-auto space-y-4">
                             <input 
-                                className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-xl font-bold text-white"
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-xl font-bold text-white placeholder-gray-600"
                                 value={formData.nome}
                                 onChange={e => setFormData({...formData, nome: e.target.value})}
                                 placeholder="Nome Personaggio"
                             />
-                            {isStaff && (
-                                <select 
-                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
-                                    value={formData.tipologia}
-                                    onChange={e => setFormData({...formData, tipologia: parseInt(e.target.value)})}
-                                >
-                                    {tipologie.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                                </select>
-                            )}
+                            
                             <RichTextEditor 
                                 label="Background" 
                                 value={formData.testo} 
                                 onChange={val => setFormData({...formData, testo: val})}
                             />
+
+                            {/* SEZIONE STAFF ONLY (Tipologia e Costume) */}
                             {isStaff && (
-                                <RichTextEditor 
-                                    label="Note Costume" 
-                                    value={formData.costume} 
-                                    onChange={val => setFormData({...formData, costume: val})}
-                                />
+                                <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-700 space-y-4 mt-4">
+                                    <div className="flex items-center gap-2 text-amber-500 font-bold text-xs uppercase tracking-widest">
+                                        <ShieldAlert size={14}/> Area Staff
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-500 mb-1">Tipologia</label>
+                                        <select 
+                                            className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white"
+                                            value={formData.tipologia}
+                                            onChange={e => setFormData({...formData, tipologia: parseInt(e.target.value)})}
+                                        >
+                                            {tipologie.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                        </select>
+                                    </div>
+                                    <RichTextEditor 
+                                        label="Note Costume" 
+                                        value={formData.costume} 
+                                        onChange={val => setFormData({...formData, costume: val})}
+                                    />
+                                </div>
                             )}
                         </div>
                         <div className="p-4 border-t border-gray-700">
                             <button 
                                 onClick={handleSaveOptimistic}
-                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold uppercase"
+                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold uppercase transition-colors"
                             >
                                 Salva
                             </button>
@@ -296,23 +304,27 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                             <div className="grid grid-cols-2 gap-2">
                                 <button 
                                     onClick={() => setResourceData({...resourceData, tipo: 'crediti'})}
-                                    className={`p-2 rounded border font-bold ${resourceData.tipo === 'crediti' ? 'bg-amber-600 border-amber-500' : 'border-gray-600 text-gray-400'}`}
+                                    className={`p-3 rounded-lg border font-bold transition-all ${resourceData.tipo === 'crediti' ? 'bg-amber-600 border-amber-500 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-700'}`}
                                 >
-                                    <div className="flex items-center justify-center gap-2"><Coins size={16}/> Crediti</div>
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                        <Coins size={20}/> Crediti
+                                    </div>
                                 </button>
                                 <button 
                                     onClick={() => setResourceData({...resourceData, tipo: 'pc'})}
-                                    className={`p-2 rounded border font-bold ${resourceData.tipo === 'pc' ? 'bg-cyan-600 border-cyan-500' : 'border-gray-600 text-gray-400'}`}
+                                    className={`p-3 rounded-lg border font-bold transition-all ${resourceData.tipo === 'pc' ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-700'}`}
                                 >
-                                    <div className="flex items-center justify-center gap-2"><Zap size={16}/> Punti Caratt.</div>
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                        <Zap size={20}/> Punti Caratt.
+                                    </div>
                                 </button>
                             </div>
 
                             <div>
-                                <label className="block text-xs uppercase text-gray-500 mb-1">Quantità (positivo aggiunge, negativo toglie)</label>
+                                <label className="block text-xs uppercase text-gray-500 mb-1">Quantità (+/-)</label>
                                 <input 
                                     type="number"
-                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white font-mono text-lg"
+                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white font-mono text-xl text-center"
                                     value={resourceData.amount}
                                     onChange={e => setResourceData({...resourceData, amount: e.target.value})}
                                 />
@@ -323,7 +335,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 <input 
                                     type="text"
                                     className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
-                                    placeholder="Es: Ricompensa Quest XYZ"
+                                    placeholder="Es: Ricompensa Quest"
                                     value={resourceData.reason}
                                     onChange={e => setResourceData({...resourceData, reason: e.target.value})}
                                 />
