@@ -44,7 +44,7 @@ const StaffProposalTab = () => {
     };
 
     const handleRifiuta = async () => {
-        if (!confirm("Confermi il rifiuto? La proposta tornerà in Bozza al giocatore con le tue note.")) return;
+        if (!confirm("Confermi il rifiuto? La proposta tornerà in Bozza al giocatore.")) return;
         try {
             await staffRifiutaProposta(selectedProposal.id, staffNotes);
             alert("Proposta rifiutata e rimandata al giocatore.");
@@ -59,21 +59,37 @@ const StaffProposalTab = () => {
         setViewMode('approve_edit');
     };
 
+    // Prepara i dati per l'editor.
+    // FIX: Mappiamo correttamente i dati per evitare errori 'undefined map'
     const getInitialEditorData = () => {
         if (!selectedProposal) return {};
         const p = selectedProposal;
         
+        // Normalizziamo i componenti: l'editor si aspetta un array.
+        // Inoltre, convertiamo l'oggetto 'caratteristica' nel suo ID, perché i select degli editor lavorano con gli ID.
+        const cleanComponenti = (p.componenti || []).map(c => ({
+            caratteristica: (c.caratteristica && typeof c.caratteristica === 'object') ? c.caratteristica.id : c.caratteristica,
+            valore: c.valore
+        }));
+
         return {
             nome: p.nome,
             descrizione: p.descrizione,
-            testo: p.descrizione,
-            aura_richiesta: p.aura,
+            testo: p.descrizione, // ridondanza utile per alcuni editor
+            aura_richiesta: (p.aura && typeof p.aura === 'object') ? p.aura.id : p.aura,
+            
+            // Livello e Liv (per compatibilità cerimoniali)
             livello: p.livello,
-            liv: p.livello_proposto,
-            componenti_override: p.componenti, 
-            prerequisiti: p.prerequisiti,
-            svolgimento: p.svolgimento,
-            effetto: p.effetto,
+            liv: p.livello_proposto || 1, 
+            
+            // FIX CRITICO: Passiamo 'componenti' con la chiave standard, non 'override'
+            componenti: cleanComponenti,
+            
+            // Altri campi testuali
+            prerequisiti: p.prerequisiti || "",
+            svolgimento: p.svolgimento || "",
+            effetto: p.effetto || "",
+            
             note_staff: staffNotes
         };
     };
@@ -82,7 +98,7 @@ const StaffProposalTab = () => {
         try {
             finalData.note_staff = staffNotes;
             await staffApprovaProposta(selectedProposal.id, finalData);
-            alert("Tecnica creata, assegnata e costo pagato con successo!");
+            alert("Tecnica creata con successo!");
             handleBack();
             loadProposals();
         } catch (err) {
@@ -91,20 +107,21 @@ const StaffProposalTab = () => {
         }
     };
 
-    // Helper per leggere il nome della caratteristica (gestisce stringa, id o oggetto)
+    // Helper per visualizzare nomi
     const getCharName = (componente) => {
         if (componente.caratteristica_nome) return componente.caratteristica_nome;
-        if (typeof componente.caratteristica === 'object' && componente.caratteristica !== null) {
-            return componente.caratteristica.nome || componente.caratteristica.sigla || "Unknown";
+        if (componente.caratteristica && typeof componente.caratteristica === 'object') {
+            return componente.caratteristica.nome || componente.caratteristica.sigla || "Caratteristica";
         }
-        return componente.caratteristica; // Fallback se è solo ID o stringa
+        return "ID: " + componente.caratteristica;
     };
 
-    // Helper per leggere il nome del personaggio
     const getPgName = (p) => {
+        // Gestione robusta del nome personaggio
         if (p.personaggio_nome) return p.personaggio_nome;
-        if (typeof p.personaggio === 'object' && p.personaggio !== null) return p.personaggio.nome;
-        return "ID: " + p.personaggio; // Fallback ID
+        if (p.personaggio && typeof p.personaggio === 'object') return p.personaggio.nome;
+        // Se è solo ID, proviamo a vedere se abbiamo info extra, altrimenti fallback
+        return "Personaggio (ID " + p.personaggio + ")";
     };
 
     // --- RENDER: LISTA ---
@@ -125,6 +142,7 @@ const StaffProposalTab = () => {
                                 <th className="px-6 py-4">Personaggio</th>
                                 <th className="px-6 py-4">Tipo</th>
                                 <th className="px-6 py-4">Nome Tecnica</th>
+                                {/* Rimossa colonna data come richiesto */}
                                 <th className="px-6 py-4 text-right">Azioni</th>
                             </tr>
                         </thead>
@@ -235,7 +253,7 @@ const StaffProposalTab = () => {
                                 <h3 className="text-cyan-500 font-black uppercase text-xs tracking-widest mb-4 border-b border-gray-700 pb-2">Specifiche Tecniche</h3>
                                 <div className="space-y-2 text-sm">
                                     <p><strong className="text-gray-400">Tipo:</strong> {selectedProposal.tipo}</p>
-                                    <p><strong className="text-gray-400">Aura Richiesta:</strong> {typeof selectedProposal.aura === 'object' ? selectedProposal.aura.nome : selectedProposal.aura}</p>
+                                    <p><strong className="text-gray-400">Aura Richiesta:</strong> {selectedProposal.aura_nome || (typeof selectedProposal.aura === 'object' ? selectedProposal.aura.nome : selectedProposal.aura)}</p>
                                     {selectedProposal.tipo === 'CER' && (
                                         <p><strong className="text-gray-400">Livello Proposto:</strong> {selectedProposal.livello_proposto}</p>
                                     )}
@@ -244,7 +262,6 @@ const StaffProposalTab = () => {
                                         <ul className="list-disc pl-5 text-gray-300 space-y-1">
                                             {selectedProposal.componenti && selectedProposal.componenti.map((c, i) => (
                                                 <li key={i}>
-                                                    {/* QUI ERA L'ERRORE: Ora gestiamo l'oggetto caratteristica */}
                                                     <span className="text-cyan-400 font-bold">{getCharName(c)}</span> 
                                                     <span className="text-gray-500 text-xs ml-2">x{c.valore}</span>
                                                 </li>
@@ -257,9 +274,9 @@ const StaffProposalTab = () => {
                             {/* Card Descrizione */}
                             <div className="bg-gray-800/50 p-5 rounded-xl border border-gray-700">
                                 <h3 className="text-cyan-500 font-black uppercase text-xs tracking-widest mb-4 border-b border-gray-700 pb-2">Descrizione Giocatore</h3>
-                                <div className="prose prose-invert text-sm max-w-none text-gray-300 leading-relaxed whitespace-pre-wrap">
-                                    {selectedProposal.descrizione}
-                                </div>
+                                <div className="prose prose-invert text-sm max-w-none text-gray-300 leading-relaxed whitespace-pre-wrap"
+                                     dangerouslySetInnerHTML={{ __html: selectedProposal.descrizione }} 
+                                />
                                 
                                 {selectedProposal.tipo === 'CER' && (
                                     <div className="mt-6 space-y-4 pt-4 border-t border-gray-700/50">
