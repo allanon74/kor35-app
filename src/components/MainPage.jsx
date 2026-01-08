@@ -28,6 +28,7 @@ import LogViewer from './LogViewer.jsx';
 import TransazioniViewer from './TransazioniViewer.jsx';
 import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; // Se lo usi come tab o widget
+import PersonaggiTab from './PersonaggiTab.jsx';
 
 // VERSIONE APP
 const APP_VERSION = packageInfo.version;
@@ -43,12 +44,14 @@ const AVAILABLE_TABS = [
     { id: 'messaggi', label: 'Messaggi', icon: Mail, component: MessaggiTab },
     { id: 'logs', label: 'Diario', icon: ScrollText, component: LogViewer },
     { id: 'transazioni', label: 'Transazioni', icon: ArrowRightLeft, component: TransazioniViewer },
+    { id: 'personaggi', label: 'Personaggi', icon: Users, component: PersonaggiTab }, // <-- NUOVO
+    { id: 'inventario', label: 'Zaino', icon: Backpack, component: InventoryTab },
     // Aggiungi job requests se è una tab separata, altrimenti è gestita diversamente
 ];
 
 const DEFAULT_SHORTCUTS = ['inventario', 'abilita', 'messaggi', 'qr'];
 
-const MainPage = ({ token, onLogout }) => {
+const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -107,13 +110,22 @@ const MainPage = ({ token, onLogout }) => {
     adminPendingCount,
     unreadCount, 
     isStaff,
-    setStaffWorkMode,
+    setStaffWorkMode, 
   } = useCharacter();
 
   // CARICAMENTO INIZIALE
   useEffect(() => {
     if (token) fetchPersonaggi();
   }, [token, fetchPersonaggi]);
+
+  // --- EFFETTO REINDIRIZZAMENTO ---
+  // Se non ho un ID personaggio selezionato, forzo la vista sulla lista personaggi
+  // A MENO CHE non sia staff (che potrebbe voler fare altro, ma anche loro devono selezionare un PG per vedere le info)
+  useEffect(() => {
+      if (!selectedCharacterId && activeTab !== 'personaggi') {
+          setActiveTab('personaggi');
+      }
+  }, [selectedCharacterId, activeTab]);
 
   // CARICAMENTO PREFERENZE UI DAL DB
   useEffect(() => {
@@ -195,6 +207,28 @@ const MainPage = ({ token, onLogout }) => {
     if (tabDef) {
         const Component = tabDef.component;
         // Props speciali
+        if (tabDef.id === 'personaggi') {
+            return <PersonaggiTab 
+                      onLogout={onLogout} 
+                      onSelectChar={() => setActiveTab('home')} // Quando seleziona, va alla Home del PG
+                   />;
+        }
+        
+        // Blocca l'accesso agli altri tab se non c'è un PG selezionato
+        if (!selectedCharacterId && tabDef.id !== 'personaggi') {
+            return (
+                <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4">
+                    <Users size={64} className="opacity-20"/>
+                    <p className="text-lg font-bold">Nessun Personaggio Selezionato</p>
+                    <button 
+                        onClick={() => setActiveTab('personaggi')}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold uppercase text-xs"
+                    >
+                        Vai alla selezione
+                    </button>
+                </div>
+            );
+        }
         if (tabDef.id === 'qr') return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
         if (tabDef.id === 'logs' || tabDef.id === 'transazioni') return <div className="p-4 h-full overflow-y-auto"><Component charId={selectedCharacterId} /></div>;
         

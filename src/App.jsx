@@ -1,39 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import MainPage from './components/MainPage';
-import PlotTab from './components/PlotTab';
 import StaffDashboard from './components/StaffDashboard'; 
 import { CharacterProvider, useCharacter } from './components/CharacterContext';
-import ToolsTab from './components/ToolsTab';
 
-// Sottocomponente per gestire il "bivio" di navigazione
-const AppContent = ({ token, handleLogout }) => {
-  const { isStaff, staffWorkMode } = useCharacter();
+const AppContent = ({ onLogout }) => {
+  const { isStaff } = useCharacter();
+  
+  // Stato per gestire quale interfaccia mostrare (solo per lo staff)
+  // 'staff' = Dashboard Master | 'player' = Interfaccia Giocatore
+  const [viewMode, setViewMode] = useState('staff'); 
 
-  // Se l'utente NON è staff, va direttamente alla MainPage
-  if (!isStaff) {
-    return <MainPage token={token} onLogout={handleLogout} />;
+  // Effetto: Se l'utente non è staff, forziamo sempre la vista player
+  useEffect(() => {
+    if (!isStaff) {
+      setViewMode('player');
+    }
+  }, [isStaff]);
+
+  // Render: Vista Master (Solo se è staff E siamo in modalità staff)
+  if (isStaff && viewMode === 'staff') {
+    return (
+      <StaffDashboard 
+        onLogout={onLogout} 
+        onSwitchToPlayer={() => setViewMode('player')} 
+      />
+    );
   }
 
-  // Se è staff, mostriamo la sezione basata sulla scelta nella Dashboard
-  switch (staffWorkMode) {
-    case 'char':
-      return <MainPage token={token} onLogout={handleLogout} />;
-    case 'plot':
-      return <PlotTab onLogout={handleLogout} />;
-    case 'tools':
-      return  <ToolsTab onLogout={handleLogout} />;
-    default:
-      // Per impostazione predefinita, lo staff atterra sulla Dashboard
-      return <StaffDashboard onLogout={handleLogout} />;
-  }
+  // Render: Vista Giocatore (Default per tutti)
+  // Passiamo le props per permettere allo staff di tornare indietro
+  return (
+    <MainPage 
+      onLogout={onLogout}
+      isStaff={isStaff} 
+      onSwitchToMaster={() => setViewMode('staff')}
+    />
+  );
 };
 
 export default function App() {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Controlla il token all'avvio
+  // Controllo iniziale del token
   useEffect(() => {
     const storedToken = localStorage.getItem('kor35_token');
     if (storedToken) {
@@ -48,29 +58,30 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    // Pulizia totale della sessione
     localStorage.removeItem('kor35_token');
     localStorage.removeItem('kor35_is_staff');
     localStorage.removeItem('kor35_is_master');
     localStorage.removeItem('kor35_last_char_id');
     setToken(null);
+    // Ricarica la pagina per pulire stati residui in memoria
+    window.location.reload(); 
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
-        Caricamento in corso...
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div>
       </div>
     );
   }
 
   if (!token) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    return <LoginPage onLogin={handleLoginSuccess} />;
   }
 
   return (
     <CharacterProvider onLogout={handleLogout}>
-      <AppContent token={token} handleLogout={handleLogout} />
+      <AppContent onLogout={handleLogout} />
     </CharacterProvider>
   );
 }

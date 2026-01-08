@@ -1008,3 +1008,47 @@ export const staffDeleteOggettoBase = (id, onLogout) =>
 // Utility
 export const staffGetClassiOggetto = (onLogout) => 
     fetchAuthenticated('/personaggi/api/staff/classi-oggetto/', { method: 'GET' }, onLogout);
+
+// Sezione Personaggi
+/**
+ * Crea un nuovo personaggio.
+ * Payload: { nome, cognome, tipologia (id), costume (html), ... }
+ */
+export const createPersonaggio = (data, onLogout) => {
+  return fetchAuthenticated('/personaggi/api/personaggi/', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
+/**
+ * Aggiorna un personaggio esistente.
+ */
+export const updatePersonaggio = (id, data, onLogout) => {
+  return fetchAuthenticated(`/personaggi/api/personaggi/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
+/**
+ * Recupera le tipologie di personaggio disponibili.
+ * Tenta di scaricarle dal server. Se fallisce o l'endpoint non esiste,
+ * usa i valori di fallback per non rompere l'interfaccia.
+ */
+export const getTipologiePersonaggio = async (onLogout) => {
+    try {
+        // Tenta la chiamata all'API reale
+        // Assicurati che nel backend esista: router.register(r'tipologie', TipologiaPersonaggioViewSet)
+        const data = await fetchAuthenticated('/personaggi/api/tipologiepersonaggio/', { method: 'GET' }, onLogout);
+        return data;
+    } catch (error) {
+        console.warn("API Tipologie non raggiungibile, uso fallback locale:", error);
+        
+        // Fallback locale nel caso il backend non sia ancora pronto
+        return [
+            { id: 1, label: 'Standard (Giocatore)' },
+            { id: 2, label: 'PnG (Personaggio Non Giocante)' }
+        ];
+    }
+};
