@@ -5,27 +5,33 @@ import CharacteristicInline from './inlines/CharacteristicInline';
 import StatBaseInline from './inlines/StatBaseInline';
 import RichTextEditor from '../RichTextEditor';
 
-const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
+const TessituraEditor = ({ onBack, onCancel, onSave, onLogout, initialData = null }) => {
   const { punteggiList } = useCharacter();
   const [statsOptions, setStatsOptions] = useState([]);
   
-  const [formData, setFormData] = useState(initialData || {
-    nome: '', testo: '', formula: '', // CAMPO CORRETTO: formula
+  // FIX: Default Data Merging
+  const defaultData = {
+    nome: '', testo: '', formula: '',
     aura_richiesta: null,
     elemento_principale: null,
     componenti: [],
     statistiche_base: []
-  });
+  };
+
+  const [formData, setFormData] = useState({ ...defaultData, ...initialData });
+
+  // Alias per chiusura
+  const handleClose = onCancel || onBack;
 
   useEffect(() => {
     getStatisticheList(onLogout).then(setStatsOptions);
   }, [onLogout]);
 
   // Calcolo livello property (numero componenti)
-  const calculatedLevel = formData.componenti.reduce((acc, curr) => acc + (parseInt(curr.valore) || 0), 0);
+  const calculatedLevel = (formData.componenti || []).reduce((acc, curr) => acc + (parseInt(curr.valore) || 0), 0);
 
   const updateInline = (key, index, field, value) => {
-    const newList = [...formData[key]];
+    const newList = [...(formData[key] || [])];
     if (index === -1 && key === 'statistiche_base') {
       const exists = newList.find(it => (it.statistica?.id || it.statistica) === value.statId);
       if (!exists) newList.push({ statistica: value.statId, valore_base: value.value });
@@ -41,18 +47,26 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
         ...formData,
         aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta || null,
         elemento_principale: formData.elemento_principale?.id || formData.elemento_principale || null,
-        statistiche_base: formData.statistiche_base.map(sb => ({
+        statistiche_base: (formData.statistiche_base || []).map(sb => ({
           ...sb,
           statistica: sb.statistica?.id || sb.statistica
         }))
       };
       
-      if (formData.id) await staffUpdateTessitura(formData.id, dataToSend, onLogout);
-      else await staffCreateTessitura(dataToSend, onLogout);
-      
-      alert("Tessitura salvata!");
-      onBack();
-    } catch (e) { alert("Errore: " + e.message); }
+      if (onSave) {
+        // APPROVAL MODE
+        await onSave(dataToSend);
+      } else {
+        // STANDARD MODE
+        if (formData.id) await staffUpdateTessitura(formData.id, dataToSend, onLogout);
+        else await staffCreateTessitura(dataToSend, onLogout);
+        alert("Tessitura salvata!");
+        if (handleClose) handleClose();
+      }
+    } catch (e) { 
+        console.error(e);
+        alert("Errore: " + (e.message || "Errore sconosciuto")); 
+    }
   };
 
   return (
@@ -62,8 +76,12 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
           {formData.id ? `Edit: ${formData.nome}` : 'Nuova Tessitura'}
         </h2>
         <div className="flex gap-3">
-           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white">SALVA</button>
-           <button onClick={onBack} className="bg-gray-700 px-6 py-2 rounded-lg font-bold text-sm text-white">ANNULLA</button>
+           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white">
+             {onSave ? 'APPROVA & CREA' : 'SALVA'}
+           </button>
+           {handleClose && (
+             <button onClick={handleClose} className="bg-gray-700 px-6 py-2 rounded-lg font-bold text-sm text-white">ANNULLA</button>
+           )}
         </div>
       </div>
 
@@ -91,14 +109,18 @@ const TessituraEditor = ({ onBack, onLogout, initialData = null }) => {
       <RichTextEditor label="Descrizione Effetto" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
 
       <CharacteristicInline 
-        items={formData.componenti} 
+        items={formData.componenti || []} 
         options={punteggiList.filter(p => p.tipo === 'CA')}
-        onAdd={() => setFormData({...formData, componenti: [...formData.componenti, {caratteristica:'', valore:1}]})}
+        onAdd={() => setFormData({...formData, componenti: [...(formData.componenti || []), {caratteristica:'', valore:1}]})}
         onChange={(i, f, v) => updateInline('componenti', i, f, v)}
         onRemove={(i) => setFormData({...formData, componenti: formData.componenti.filter((_, idx) => idx !== i)})}
       />
 
-      <StatBaseInline items={formData.statistiche_base} options={statsOptions} onChange={(i, f, v) => updateInline('statistiche_base', i, f, v)} />
+      <StatBaseInline 
+        items={formData.statistiche_base || []} 
+        options={statsOptions} 
+        onChange={(i, f, v) => updateInline('statistiche_base', i, f, v)} 
+      />
     </div>
   );
 };

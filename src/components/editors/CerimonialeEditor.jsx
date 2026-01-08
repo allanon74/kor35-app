@@ -4,21 +4,28 @@ import { staffUpdateCerimoniale, staffCreateCerimoniale } from '../../api';
 import CharacteristicInline from './inlines/CharacteristicInline';
 import RichTextEditor from '../RichTextEditor';
 
-const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
+// Aggiunto onCancel e onSave ai props
+const CerimonialeEditor = ({ onBack, onCancel, onSave, onLogout, initialData = null }) => {
   const { punteggiList } = useCharacter();
   
-  const [formData, setFormData] = useState(initialData || {
-    nome: '', testo: '', formula_attacco: '', // Campo "Effetto" del rito
+  // FIX: Uniamo initialData ai default per non perdere i campi non presenti nella proposta
+  const defaultData = {
+    nome: '', testo: '', formula_attacco: '',
     aura_richiesta: null,
     prerequisiti: '',
     svolgimento: '',
     effetto: '',
     liv: 1,
     componenti: []
-  });
+  };
+
+  const [formData, setFormData] = useState({ ...defaultData, ...initialData });
+
+  // Gestione alias per chiusura
+  const handleClose = onCancel || onBack;
 
   const updateInline = (key, index, field, value) => {
-    const newList = [...formData[key]];
+    const newList = [...(formData[key] || [])]; // Protezione array vuoto
     newList[index] = { ...newList[index], [field]: value };
     setFormData({ ...formData, [key]: newList });
   };
@@ -29,11 +36,22 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
         ...formData,
         aura_richiesta: formData.aura_richiesta?.id || formData.aura_richiesta || null
       };
-      if (formData.id) await staffUpdateCerimoniale(formData.id, dataToSend, onLogout);
-      else await staffCreateCerimoniale(dataToSend, onLogout);
-      alert("Cerimoniale salvato!");
-      onBack();
-    } catch (e) { alert("Errore: " + e.message); }
+
+      if (onSave) {
+        // MODALITÀ APPROVAZIONE PROPOSTA
+        // Passiamo i dati al padre (StaffProposalTab) che gestirà la chiamata API di approvazione
+        await onSave(dataToSend);
+      } else {
+        // MODALITÀ EDITOR STANDARD
+        if (formData.id) await staffUpdateCerimoniale(formData.id, dataToSend, onLogout);
+        else await staffCreateCerimoniale(dataToSend, onLogout);
+        alert("Cerimoniale salvato!");
+        if (handleClose) handleClose();
+      }
+    } catch (e) { 
+        console.error(e);
+        alert("Errore: " + (e.message || "Errore sconosciuto")); 
+    }
   };
 
   return (
@@ -43,8 +61,12 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
           {formData.id ? `Edit Cerimoniale: ${formData.nome}` : 'Nuovo Cerimoniale'}
         </h2>
         <div className="flex gap-3">
-           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white">SALVA</button>
-           <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm text-white">ANNULLA</button>
+           <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-lg font-black text-sm text-white">
+             {onSave ? 'APPROVA & CREA' : 'SALVA'}
+           </button>
+           {handleClose && (
+               <button onClick={handleClose} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm text-white">ANNULLA</button>
+           )}
         </div>
       </div>
 
@@ -65,9 +87,9 @@ const CerimonialeEditor = ({ onBack, onLogout, initialData = null }) => {
       <RichTextEditor label="Svolgimento e Testo Narrativo" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
 
       <CharacteristicInline 
-        items={formData.componenti} 
+        items={formData.componenti || []} 
         options={punteggiList.filter(p => p.tipo === 'CA')}
-        onAdd={() => setFormData({...formData, componenti: [...formData.componenti, {caratteristica:'', valore:1}]})}
+        onAdd={() => setFormData({...formData, componenti: [...(formData.componenti || []), {caratteristica:'', valore:1}]})}
         onChange={(i, f, v) => updateInline('componenti', i, f, v)}
         onRemove={(i) => setFormData({...formData, componenti: formData.componenti.filter((_, idx) => idx !== i)})}
       />
