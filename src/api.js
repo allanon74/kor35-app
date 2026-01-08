@@ -1063,3 +1063,43 @@ export const staffAddResources = (charId, tipo, amount, reason, onLogout) => {
         body: JSON.stringify({ tipo, amount, reason })
     }, onLogout);
 };
+
+/**
+ * Recupera le proposte tecniche in stato VALUTAZIONE per lo staff.
+ */
+export const staffGetProposteInValutazione = (onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/staff/proposte/valutazione/', 
+    { method: 'GET' }, 
+    onLogout
+  );
+};
+
+/**
+ * Rifiuta una proposta tecnica, riportandola in BOZZA e inviando un messaggio.
+ */
+export const staffRifiutaProposta = (propostaId, noteStaff, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/staff/proposte/${propostaId}/rifiuta/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ note_staff: noteStaff })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Approva una proposta: crea la tecnica finale, scala i crediti e aggiorna lo stato.
+ * 'finalData' contiene i dati definitivi compilati tramite l'editor (Infusione/Tessitura/Cerimoniale).
+ */
+export const staffApprovaProposta = (propostaId, finalData, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/staff/proposte/${propostaId}/approva/`,
+    {
+      method: 'POST',
+      body: JSON.stringify(finalData)
+    },
+    onLogout
+  );
+};
