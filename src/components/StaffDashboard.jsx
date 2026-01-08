@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 import { 
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
-    LayoutGrid, LogOut 
+    LayoutGrid, LogOut, ClipboardCheck,
 } from 'lucide-react';
 
 // Importazione dei Sotto-Componenti (Tools)
