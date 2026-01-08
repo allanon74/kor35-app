@@ -1010,26 +1010,6 @@ export const staffGetClassiOggetto = (onLogout) =>
     fetchAuthenticated('/personaggi/api/staff/classi-oggetto/', { method: 'GET' }, onLogout);
 
 // Sezione Personaggi
-/**
- * Crea un nuovo personaggio.
- * Payload: { nome, cognome, tipologia (id), costume (html), ... }
- */
-export const createPersonaggio = (data, onLogout) => {
-  return fetchAuthenticated('/personaggi/api/personaggi/', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }, onLogout);
-};
-
-/**
- * Aggiorna un personaggio esistente.
- */
-export const updatePersonaggio = (id, data, onLogout) => {
-  return fetchAuthenticated(`/personaggi/api/personaggi/${id}/`, {
-    method: 'PATCH',
-    body: JSON.stringify(data)
-  }, onLogout);
-};
 
 /**
  * Recupera le tipologie di personaggio disponibili.
@@ -1051,4 +1031,35 @@ export const getTipologiePersonaggio = async (onLogout) => {
             { id: 2, label: 'PnG (Personaggio Non Giocante)' }
         ];
     }
+};
+
+// --- CRUD PERSONAGGI (Nuovo Endpoint) ---
+
+export const getPersonaggiEditList = (onLogout, viewAll = false) => {
+    // Nota: gestione-personaggi restituisce già la lista filtrata o completa in base all'utente/staff
+    // Se vuoi forzare viewAll lato server potresti dover gestire i permessi, 
+    // ma il get_queryset sopra lo fa già in automatico basandosi su is_staff.
+    return fetchAuthenticated('/personaggi/api/gestione-personaggi/', { method: 'GET' }, onLogout);
+};
+
+export const createPersonaggio = (data, onLogout) => {
+    return fetchAuthenticated('/personaggi/api/gestione-personaggi/', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }, onLogout);
+};
+
+export const updatePersonaggio = (id, data, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/gestione-personaggi/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+    }, onLogout);
+};
+
+// --- STAFF RESOURCES ---
+export const staffAddResources = (charId, tipo, amount, reason, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/gestione-personaggi/${charId}/add_resources/`, {
+        method: 'POST',
+        body: JSON.stringify({ tipo, amount, reason })
+    }, onLogout);
 };

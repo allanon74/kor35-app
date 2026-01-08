@@ -2,19 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { 
     createPersonaggio, 
     updatePersonaggio, 
-    getTipologiePersonaggio 
+    getTipologiePersonaggio,
+    staffAddResources // Importa la nuova funzione
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
-    User, Users, Plus, Edit, Save, X, ShieldAlert 
+    User, Users, Plus, Edit, Save, X, ShieldAlert, Coins, Zap 
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 
 const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const { 
         personaggiList, 
+        setPersonaggiList, // Assicurati che CharacterContext esponga il setter!
         fetchPersonaggi, 
-        refreshCharacterData, // Necessario per aggiornare la scheda dopo il salvataggio
+        refreshCharacterData, 
         isStaff, 
         isAdmin, 
         viewAll, 
@@ -23,25 +25,31 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         selectedCharacterId 
     } = useCharacter();
 
+    // Stati Modale Edit/Create
     const [showModal, setShowModal] = useState(false);
-    const [editMode, setEditMode] = useState(false); // false = create, true = edit
+    const [editMode, setEditMode] = useState(false);
     const [formData, setFormData] = useState({});
     const [tipologie, setTipologie] = useState([]);
-    const [loading, setLoading] = useState(false);
+    
+    // Stati Modale Staff Risorse
+    const [showResourceModal, setShowResourceModal] = useState(false);
+    const [resourceData, setResourceData] = useState({ charId: null, charName: '', tipo: 'crediti', amount: 0, reason: '' });
 
     useEffect(() => {
-        // Carica le tipologie per il menu a tendina dello staff
         getTipologiePersonaggio(onLogout).then(data => setTipologie(data));
+        // fetchPersonaggi viene chiamato dal context, ma lo chiamiamo qui per sicurezza al mount
         fetchPersonaggi();
-    }, [fetchPersonaggi, onLogout]);
+    }, []);
+
+    // --- GESTIONE MODALE CREATE/EDIT ---
 
     const handleOpenCreate = () => {
         setEditMode(false);
         setFormData({ 
             nome: '', 
-            tipologia: 1, // Default: Standard
-            testo: '',    // Utilizzato per il Background
-            costume: ''   // Note tecniche sul costume
+            tipologia: 1, 
+            testo: '', 
+            costume: '' 
         });
         setShowModal(true);
     };
@@ -52,53 +60,103 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         setFormData({
             id: char.id,
             nome: char.nome,
-            // Gestisce tipologia sia come oggetto (detail) che come stringa/id (list)
-            tipologia: typeof char.tipologia === 'object' ? char.tipologia.id : (tipologie.find(t => t.nome === char.tipologia)?.id || 1),
-            testo: char.testo || '',      // Background
-            costume: char.costume || ''   // Costume
+            tipologia: typeof char.tipologia === 'object' ? char.tipologia.id : (char.tipologia || 1), // Gestione robusta ID
+            testo: char.testo || '',
+            costume: char.costume || ''
         });
         setShowModal(true);
     };
 
-    const handleSave = async () => {
-        setLoading(true);
-        try {
-            const payload = { ...formData };
-            
-            // Per il backend mappiamo 'tipologia' su 'tipologia_id' per scrivere correttamente la FK
-            if (payload.tipologia) {
-                payload.tipologia_id = payload.tipologia;
-                delete payload.tipologia;
-            }
+    const handleSaveOptimistic = async () => {
+        const tempId = 'temp-' + Date.now();
+        const payload = { ...formData };
+        
+        // Backup stato precedente per rollback
+        const previousList = [...personaggiList];
 
+        // 1. UPDATE OTTIMISTICO DELLA UI
+        if (editMode) {
+            setPersonaggiList(prev => prev.map(p => 
+                p.id === payload.id ? { ...p, ...payload } : p
+            ));
+        } else {
+            // Creiamo un oggetto fake per la lista
+            const fakeNewChar = { 
+                id: tempId, 
+                ...payload, 
+                rango_label: '...', // Placeholder
+                tipologia: payload.tipologia // ID grezzo
+            };
+            setPersonaggiList(prev => [...prev, fakeNewChar]);
+        }
+
+        setShowModal(false); // Chiudi subito il modale
+
+        try {
+            // 2. CHIAMATA API REALE
             if (editMode) {
-                await updatePersonaggio(formData.id, payload, onLogout);
+                await updatePersonaggio(payload.id, payload, onLogout);
+                // Aggiorniamo i dati completi nel context se è il PG selezionato
+                if (String(payload.id) === String(selectedCharacterId)) {
+                    refreshCharacterData();
+                }
             } else {
                 await createPersonaggio(payload, onLogout);
             }
 
-            // --- SINCRONIZZAZIONE DATI ---
-            // Aggiorna la lista dei personaggi a sinistra
+            // 3. SINCRONIZZAZIONE SILENZIOSA
+            // Ricarichiamo la lista vera dal server per avere ID reali e dati calcolati
             await fetchPersonaggi();
-            // Invalida la cache e ricarica i dettagli nel context globale (per aggiornare la scheda PG)
-            await refreshCharacterData();
-            
-            setShowModal(false);
+
         } catch (error) {
-            alert("Errore durante il salvataggio: " + error.message);
-        } finally {
-            setLoading(false);
+            // 4. ROLLBACK IN CASO DI ERRORE
+            console.error("Errore salvataggio:", error);
+            alert("Errore nel salvataggio. Le modifiche verranno annullate.");
+            setPersonaggiList(previousList);
+        }
+    };
+
+    // --- GESTIONE MODALE STAFF RESOURCES ---
+
+    const handleOpenResourceModal = (char, e) => {
+        e.stopPropagation();
+        setResourceData({ 
+            charId: char.id, 
+            charName: char.nome, 
+            tipo: 'crediti', 
+            amount: 0, 
+            reason: 'Bonus Staff' 
+        });
+        setShowResourceModal(true);
+    };
+
+    const handleGiveResources = async () => {
+        try {
+            await staffAddResources(
+                resourceData.charId, 
+                resourceData.tipo, 
+                parseInt(resourceData.amount), 
+                resourceData.reason, 
+                onLogout
+            );
+            alert(`${resourceData.amount} ${resourceData.tipo.toUpperCase()} assegnati a ${resourceData.charName}.`);
+            setShowResourceModal(false);
+            fetchPersonaggi(); // Aggiorna i totali nella lista se visualizzati
+        } catch (error) {
+            alert("Errore: " + error.message);
         }
     };
 
     const handleSelect = (charId) => {
+        // Impedisci selezione di elementi temporanei ottimistici
+        if (String(charId).startsWith('temp-')) return;
         selectCharacter(charId);
         if (onSelectChar) onSelectChar();
     };
 
     return (
         <div className="h-full flex flex-col bg-gray-900 text-white p-4 overflow-hidden">
-            {/* --- HEADER TAB --- */}
+            {/* HEADER */}
             <div className="flex justify-between items-center mb-6 shrink-0">
                 <h2 className="text-2xl font-black uppercase italic tracking-wider text-indigo-500">
                     Seleziona Personaggio
@@ -109,7 +167,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                         <button 
                             onClick={toggleViewAll} 
                             className={`p-2 rounded-lg border ${viewAll ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-transparent border-gray-600 text-gray-400'}`}
-                            title={viewAll ? "Vista Staff: Tutti i PG" : "Vista Player: I miei PG"}
+                            title="Filtro Staff"
                         >
                             {viewAll ? <Users size={20}/> : <User size={20}/>}
                         </button>
@@ -124,144 +182,157 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 </div>
             </div>
 
-            {/* --- LISTA PERSONAGGI --- */}
+            {/* LISTA */}
             <div className="flex-1 overflow-y-auto space-y-4 pb-20 custom-scrollbar">
-                {personaggiList.length === 0 ? (
-                    <div className="text-center text-gray-500 mt-10 italic">
-                        Nessun personaggio trovato.
-                    </div>
-                ) : (
-                    personaggiList.map(char => (
-                        <div 
-                            key={char.id} 
-                            onClick={() => handleSelect(char.id)}
-                            className={`relative group p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between
-                                ${selectedCharacterId === String(char.id) 
-                                    ? 'bg-indigo-900/30 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]' 
-                                    : 'bg-gray-800 border-gray-700 hover:border-gray-500 hover:bg-gray-750'
-                                }`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl uppercase
-                                    ${char.tipologia !== 1 ? 'bg-amber-700 text-amber-100' : 'bg-gray-700 text-gray-300'}`}>
-                                    {char.nome ? char.nome.charAt(0) : '?'}
-                                </div>
-                                
-                                <div>
-                                    <h3 className="font-bold text-lg leading-none">
-                                        {char.nome}
-                                    </h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-black/40 rounded text-gray-400">
-                                            {char.rango_label || 'PG'}
-                                        </span>
-                                        {char.tipologia !== 1 && (
-                                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-amber-900/50 text-amber-400 border border-amber-800 rounded">
-                                                PNG / NPC
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
+                {personaggiList.map(char => (
+                    <div 
+                        key={char.id} 
+                        onClick={() => handleSelect(char.id)}
+                        className={`relative group p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between
+                            ${selectedCharacterId === String(char.id) 
+                                ? 'bg-indigo-900/30 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]' 
+                                : 'bg-gray-800 border-gray-700 hover:border-gray-500 hover:bg-gray-750'
+                            }`}
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl uppercase bg-gray-700 text-gray-300`}>
+                                {char.nome ? char.nome.charAt(0) : '?'}
                             </div>
-
-                            {(isStaff || isAdmin) && (
-                                <button 
-                                    onClick={(e) => handleOpenEdit(char, e)}
-                                    className="p-2 bg-gray-900 rounded-full text-gray-400 hover:text-white hover:bg-indigo-600 transition-colors opacity-0 group-hover:opacity-100"
-                                >
-                                    <Edit size={16}/>
-                                </button>
-                            )}
                             
-                            {selectedCharacterId === String(char.id) && (
-                                <div className="absolute top-2 right-2 w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
+                            <div>
+                                <h3 className="font-bold text-lg leading-none">{char.nome}</h3>
+                                {isStaff && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        Crediti: {char.crediti} | PC: {char.punti_caratteristica}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {(isStaff || isAdmin) && (
+                                <>
+                                    <button 
+                                        onClick={(e) => handleOpenResourceModal(char, e)}
+                                        className="p-2 bg-amber-900/50 border border-amber-700 rounded-full text-amber-400 hover:bg-amber-800 transition-colors"
+                                        title="Gestisci Risorse (Staff)"
+                                    >
+                                        <Coins size={16}/>
+                                    </button>
+                                    <button 
+                                        onClick={(e) => handleOpenEdit(char, e)}
+                                        className="p-2 bg-gray-900 rounded-full text-gray-400 hover:text-white hover:bg-indigo-600 transition-colors"
+                                        title="Modifica Anagrafica"
+                                    >
+                                        <Edit size={16}/>
+                                    </button>
+                                </>
                             )}
                         </div>
-                    ))
-                )}
+                    </div>
+                ))}
             </div>
 
-            {/* --- MODALE EDIT/CREATE --- */}
+            {/* MODALE EDIT/CREATE (Stesso di prima, ma chiama handleSaveOptimistic) */}
             {showModal && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-gray-800 w-full max-w-3xl rounded-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[95vh]">
                         <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-                            <h3 className="font-black text-xl italic uppercase text-indigo-400 flex items-center gap-2">
-                                {editMode ? 'Gestione Personaggio' : 'Nuovo Personaggio'}
-                                {isStaff && <ShieldAlert size={18} className="text-amber-500" title="Modalità Staff Attiva"/>}
+                            <h3 className="font-black text-xl italic uppercase text-indigo-400">
+                                {editMode ? 'Modifica Personaggio' : 'Nuovo Personaggio'}
                             </h3>
                             <button onClick={() => setShowModal(false)}><X className="text-gray-400 hover:text-white"/></button>
                         </div>
-                        
-                        <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
-                            {/* Nome Unico Ampio */}
-                            <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-widest">Nome Personaggio</label>
-                                <input 
-                                    className="w-full bg-gray-900 border border-gray-700 rounded p-3 focus:border-indigo-500 outline-none text-xl font-bold text-indigo-100 placeholder-gray-700"
-                                    value={formData.nome}
-                                    onChange={e => setFormData({...formData, nome: e.target.value})}
-                                    placeholder="Inserisci il nome completo..."
-                                />
-                            </div>
-
-                            {/* Background (Campo 'testo' del DB) */}
-                            <div>
-                                <RichTextEditor 
-                                    label="Background / Storia" 
-                                    value={formData.testo} 
-                                    onChange={val => setFormData({...formData, testo: val})}
-                                    placeholder="Scrivi qui la storia del tuo personaggio..."
-                                />
-                            </div>
-
-                            {/* Sezione condizionale Staff */}
+                        <div className="p-6 overflow-y-auto space-y-4">
+                            <input 
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-xl font-bold text-white"
+                                value={formData.nome}
+                                onChange={e => setFormData({...formData, nome: e.target.value})}
+                                placeholder="Nome Personaggio"
+                            />
                             {isStaff && (
-                                <div className="pt-6 border-t border-gray-700 space-y-6">
-                                    <div className="flex items-center gap-2 text-amber-500 mb-2">
-                                        <ShieldAlert size={16}/>
-                                        <span className="text-xs font-black uppercase tracking-widest italic">Opzioni Amministrative Staff</span>
-                                    </div>
-
-                                    {/* Selezione Tipologia */}
-                                    <div>
-                                        <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1">Tipologia</label>
-                                        <select 
-                                            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm outline-none cursor-pointer focus:border-amber-500"
-                                            value={formData.tipologia}
-                                            onChange={e => setFormData({...formData, tipologia: parseInt(e.target.value)})}
-                                        >
-                                            {tipologie.map(t => (
-                                                <option key={t.id} value={t.id}>{t.nome}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Appunti Costume */}
-                                    <div>
-                                        <RichTextEditor 
-                                            label="Note Tecniche Costume" 
-                                            value={formData.costume} 
-                                            onChange={val => setFormData({...formData, costume: val})}
-                                            placeholder="Inserisci qui appunti sul costume, materiali o oggetti speciali..."
-                                        />
-                                    </div>
-                                </div>
+                                <select 
+                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                                    value={formData.tipologia}
+                                    onChange={e => setFormData({...formData, tipologia: parseInt(e.target.value)})}
+                                >
+                                    {tipologie.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                </select>
+                            )}
+                            <RichTextEditor 
+                                label="Background" 
+                                value={formData.testo} 
+                                onChange={val => setFormData({...formData, testo: val})}
+                            />
+                            {isStaff && (
+                                <RichTextEditor 
+                                    label="Note Costume" 
+                                    value={formData.costume} 
+                                    onChange={val => setFormData({...formData, costume: val})}
+                                />
                             )}
                         </div>
-
-                        <div className="p-4 border-t border-gray-700 bg-gray-800/50">
+                        <div className="p-4 border-t border-gray-700">
                             <button 
-                                onClick={handleSave} 
-                                disabled={loading}
-                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 rounded-xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-[0_4px_15px_rgba(0,0,0,0.3)]"
+                                onClick={handleSaveOptimistic}
+                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold uppercase"
                             >
-                                {loading ? (
-                                    <span className="flex items-center gap-2 animate-pulse"><Save size={18}/> Salvataggio in corso...</span>
-                                ) : (
-                                    <><Save size={18}/> Salva Modifiche</>
-                                )}
+                                Salva
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODALE STAFF RISORSE */}
+            {showResourceModal && (
+                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+                    <div className="bg-gray-800 w-full max-w-md rounded-2xl border border-amber-600 shadow-2xl p-6">
+                        <h3 className="text-amber-500 font-bold text-lg uppercase mb-4 flex items-center gap-2">
+                            <ShieldAlert size={20}/> Gestione Risorse: {resourceData.charName}
+                        </h3>
+                        
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-2">
+                                <button 
+                                    onClick={() => setResourceData({...resourceData, tipo: 'crediti'})}
+                                    className={`p-2 rounded border font-bold ${resourceData.tipo === 'crediti' ? 'bg-amber-600 border-amber-500' : 'border-gray-600 text-gray-400'}`}
+                                >
+                                    <div className="flex items-center justify-center gap-2"><Coins size={16}/> Crediti</div>
+                                </button>
+                                <button 
+                                    onClick={() => setResourceData({...resourceData, tipo: 'pc'})}
+                                    className={`p-2 rounded border font-bold ${resourceData.tipo === 'pc' ? 'bg-cyan-600 border-cyan-500' : 'border-gray-600 text-gray-400'}`}
+                                >
+                                    <div className="flex items-center justify-center gap-2"><Zap size={16}/> Punti Caratt.</div>
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs uppercase text-gray-500 mb-1">Quantità (positivo aggiunge, negativo toglie)</label>
+                                <input 
+                                    type="number"
+                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white font-mono text-lg"
+                                    value={resourceData.amount}
+                                    onChange={e => setResourceData({...resourceData, amount: e.target.value})}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs uppercase text-gray-500 mb-1">Motivazione (Log)</label>
+                                <input 
+                                    type="text"
+                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                                    placeholder="Es: Ricompensa Quest XYZ"
+                                    value={resourceData.reason}
+                                    onChange={e => setResourceData({...resourceData, reason: e.target.value})}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex gap-2">
+                            <button onClick={() => setShowResourceModal(false)} className="flex-1 py-2 bg-gray-700 rounded hover:bg-gray-600">Annulla</button>
+                            <button onClick={handleGiveResources} className="flex-1 py-2 bg-emerald-600 rounded font-bold hover:bg-emerald-500">Conferma</button>
                         </div>
                     </div>
                 </div>
