@@ -9,7 +9,7 @@ import InfusioneEditor from './InfusioneEditor';
 import TessituraEditor from './TessituraEditor';
 import CerimonialeEditor from './CerimonialeEditor';
 
-const StaffProposalTab = () => {
+const StaffProposalTab = ({ onLogout }) => {
     const [proposals, setProposals] = useState([]);
     const [selectedProposal, setSelectedProposal] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'approve_edit'
@@ -23,7 +23,7 @@ const StaffProposalTab = () => {
     const loadProposals = async () => {
         setLoading(true);
         try {
-            const data = await staffGetProposteInValutazione();
+            const data = await staffGetProposteInValutazione(onLogout);
             setProposals(Array.isArray(data) ? data : data.results || []);
         } catch (error) {
             console.error("Errore caricamento proposte", error);
@@ -46,7 +46,7 @@ const StaffProposalTab = () => {
     const handleRifiuta = async () => {
         if (!confirm("Confermi il rifiuto? La proposta tornerà in Bozza al giocatore.")) return;
         try {
-            await staffRifiutaProposta(selectedProposal.id, staffNotes);
+            await staffRifiutaProposta(selectedProposal.id, staffNotes, onLogout);
             alert("Proposta rifiutata e rimandata al giocatore.");
             handleBack();
             loadProposals();
@@ -100,7 +100,7 @@ const StaffProposalTab = () => {
             finalData.note_staff = staffNotes;
             
             // Chiamata API
-            await staffApprovaProposta(selectedProposal.id, finalData);
+            await staffApprovaProposta(selectedProposal.id, finalData, onLogout);
             
             // Feedback Utente
             alert("Tecnica approvata e creata con successo!");
@@ -206,7 +206,8 @@ const StaffProposalTab = () => {
         const commonProps = {
             initialData: getInitialEditorData(),
             onSave: handleFinalizeApproval,
-            onCancel: () => setViewMode('detail'), 
+            onCancel: () => setViewMode('detail'),
+            onLogout: onLogout, 
             isApprovalMode: true 
         };
 
