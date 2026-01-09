@@ -1103,3 +1103,27 @@ export const staffApprovaProposta = (propostaId, finalData, onLogout) => {
     onLogout
   );
 };
+
+// --- GESTIONE MOSTRI (TEMPLATE) ---
+
+export const staffGetMostriTemplates = (onLogout) => {
+    return fetchAuthenticated('/plot/api/staff/mostri-templates/', { method: 'GET' }, onLogout);
+};
+
+export const staffCreateMostroTemplate = (data, onLogout) => {
+    return fetchAuthenticated('/plot/api/staff/mostri-templates/', { 
+        method: 'POST', 
+        body: JSON.stringify(data) 
+    }, onLogout);
+};
+
+export const staffUpdateMostroTemplate = (id, data, onLogout) => {
+    return fetchAuthenticated(`/plot/api/staff/mostri-templates/${id}/`, { 
+        method: 'PUT', // Usa PUT per sostituire l'intero oggetto inclusi gli attacchi
+        body: JSON.stringify(data) 
+    }, onLogout);
+};
+
+export const staffDeleteMostroTemplate = (id, onLogout) => {
+    return fetchAuthenticated(`/plot/api/staff/mostri-templates/${id}/`, { method: 'DELETE' }, onLogout);
+};

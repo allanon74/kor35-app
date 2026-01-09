@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { Users, Swords, QrCode as QrIcon, Heart, Shield, Layout, Trash, X, Plus, ChevronDown, ChevronUp, Package, Edit2, UserCheck } from 'lucide-react';
+import { Users, Swords, QrCode as QrIcon, Heart, Shield, Layout, Trash, X, Plus, ChevronDown, ChevronUp, Package, Edit2, UserCheck, Eye } from 'lucide-react';
 
 const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChange, onSaveNotes, onEdit, onScanQr }) => {
-    // Stato per tracciare quali mostri sono espansi (usa l'ID come chiave per evitare aperture multiple)
+    // Stato per tracciare quali mostri sono espansi
     const [expandedMostri, setExpandedMostri] = useState({});
     
     // Stato locale per il form di aggiunta Vista (MAN/INV)
     const [newVista, setNewVista] = useState({ tipo: 'MAN', contentId: '' });
 
-    // Filtriamo i personaggi per mostrare solo i NON GIOCANTI (flag giocante: false) per i PnG della quest
+    // Filtriamo i personaggi per mostrare solo i NON GIOCANTI
     const pngDisponibili = risorse.png?.filter(p => p.giocante === false) || [];
 
     const toggleMonster = (id) => {
@@ -82,7 +82,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                         </div>
                     </div>
 
-                    {/* Colonna Mostri */}
+                    {/* Colonna Mostri - MODIFICATA */}
                     <div className="space-y-2">
                         <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1 px-1"><Swords size={12}/> Combat Table</span>
                         <div className="bg-gray-900/50 rounded-xl p-2 space-y-2">
@@ -103,39 +103,67 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                         <StatCounter label={<Layout size={10} className="text-indigo-400"/>} value={m.guscio} onUp={() => onStatChange(m.id, 'guscio', 1)} onDown={() => onStatChange(m.id, 'guscio', -1)} />
                                     </div>
 
-                                    {/* Lista Attacchi */}
-                                    <div className="mt-2 space-y-1">
-                                        {m.template_details?.attacchi?.map((att, idx) => (
-                                            <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20">
-                                                <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Pulsante Toggle Dettagli Individuale */}
-                                    <button onClick={() => toggleMonster(m.id)} className="w-full mt-2 text-[8px] font-black uppercase text-gray-500 hover:text-indigo-400 py-1 border-t border-gray-800/50">
-                                        {expandedMostri[m.id] ? "Chiudi Info Staff" : "Mostra Costume / Note"}
+                                    {/* Pulsante Toggle Dettagli (Include gli Attacchi ora) */}
+                                    <button 
+                                        onClick={() => toggleMonster(m.id)} 
+                                        className="w-full mt-3 flex items-center justify-center gap-1 text-[9px] font-black uppercase text-gray-400 hover:text-indigo-400 py-1.5 border-t border-gray-800/50 transition-colors"
+                                    >
+                                        {expandedMostri[m.id] ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+                                        {expandedMostri[m.id] ? "Nascondi Dettagli" : "Vedi Attacchi e Note"}
                                     </button>
                                     
+                                    {/* SEZIONE COLLASSABILE */}
                                     {expandedMostri[m.id] && (
-                                        <div className="mt-2 space-y-2 animate-in fade-in duration-200">
-                                            <div className="p-2 bg-indigo-950/20 border border-indigo-500/20 rounded text-[10px] italic">
-                                                <span className="font-bold text-indigo-400 block uppercase not-italic mb-1">Costume / Tratti:</span> 
-                                                {m.template_details?.costume || "Nessuna nota costume."}
-                                            </div>
-                                            <div className="space-y-1">
-                                                <span className="text-[8px] font-black text-emerald-500 uppercase block">Note per lo Staffer:</span>
+                                        <div className="mt-2 space-y-3 animate-in fade-in duration-200 border-t border-gray-800 pt-2">
+                                            
+                                            {/* Lista Attacchi (Spostata qui) */}
+                                            {m.template_details?.attacchi?.length > 0 && (
+                                                <div className="space-y-1">
+                                                    <span className="text-[8px] font-black text-amber-600 uppercase block">Capacità Offensive:</span>
+                                                    {m.template_details.attacchi.map((att, idx) => (
+                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20">
+                                                            <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Costume (Rich Text) */}
+                                            {m.template_details?.costume && (
+                                                <div className="bg-indigo-950/20 border border-indigo-500/20 rounded p-2">
+                                                     <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Costume & Tratti:</span> 
+                                                     <div 
+                                                        className="text-[10px] text-indigo-200/80 ql-editor-view" 
+                                                        dangerouslySetInnerHTML={{__html: m.template_details.costume}} 
+                                                     />
+                                                </div>
+                                            )}
+
+                                            {/* Note Generali Template (Rich Text) */}
+                                            {m.template_details?.note_generali && (
+                                                <div className="bg-gray-800/40 border border-gray-700 rounded p-2">
+                                                     <span className="text-[8px] font-black text-gray-400 uppercase block mb-1">Info Gen. Specie:</span> 
+                                                     <div 
+                                                        className="text-[10px] text-gray-400 ql-editor-view" 
+                                                        dangerouslySetInnerHTML={{__html: m.template_details.note_generali}} 
+                                                     />
+                                                </div>
+                                            )}
+
+                                            {/* Note Staffer Specifche (Textarea) */}
+                                            <div className="space-y-1 pt-2 border-t border-dashed border-gray-800">
+                                                <span className="text-[8px] font-black text-emerald-500 uppercase block">Note Tattiche Staffer (Istanza):</span>
                                                 <textarea 
                                                     id={`note-${m.id}`} 
                                                     defaultValue={m.note_per_staffer} 
-                                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-[10px] h-16 outline-none focus:border-emerald-500" 
-                                                    placeholder="Istruzioni per chi interpreta..."
+                                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-[10px] h-16 outline-none focus:border-emerald-500 resize-none" 
+                                                    placeholder="Istruzioni specifiche per chi interpreta..."
                                                 />
                                                 <button 
                                                     onClick={() => onSaveNotes(m.id, document.getElementById(`note-${m.id}`).value)} 
                                                     className="w-full bg-emerald-600/20 text-emerald-400 py-1 rounded text-[8px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all"
                                                 >
-                                                    Salva Note
+                                                    Salva Note Istanza
                                                 </button>
                                             </div>
                                         </div>
@@ -169,7 +197,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                     </div>
                 </div>
 
-                {/* Sezione Viste e QR */}
+                {/* Sezione Viste e QR (INVARIATA) */}
                 <div className="pt-4 border-t border-gray-800">
                     <span className="text-[10px] font-black text-emerald-500 uppercase block mb-2 px-1">Viste e Documenti QR</span>
                     <div className="flex flex-wrap gap-2">

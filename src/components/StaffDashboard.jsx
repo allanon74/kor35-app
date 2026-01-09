@@ -5,18 +5,19 @@ import {
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
+    Skull // Icona per Mostri
 } from 'lucide-react';
 
 // Importazione dei Sotto-Componenti (Tools)
 import PlotTab from './PlotTab';
 import AdminMessageTab from './AdminMessageTab';
-// Assumi che questi esistano o usino i placeholder/manager che abbiamo visto
 import CerimonialeManager from './editors/CerimonialeManager'; 
 import InfusioneManager from './editors/InfusioneManager';
 import TessituraManager from './editors/TessituraManager';
 import OggettoBaseManager from './editors/OggettoBaseManager';
 import OggettoManager from './editors/OggettoManager';
 import StaffProposalTab from './editors/StaffProposalTab';
+import MostroManager from './editors/MostroManager'; // <--- NUOVO IMPORT
 
 const StaffDashboard = ({ onLogout, onSwitchToPlayer }) => {
     // 'home' è la griglia di icone. Altrimenti è l'id del tool attivo.
@@ -26,6 +27,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer }) => {
     // Configurazione dei Tools disponibili
     const toolsConfig = [
         { id: 'plot', label: 'Gestione Plot', icon: <Map size={48} />, color: 'bg-indigo-600', component: <PlotTab onLogout={onLogout} /> },
+        { id: 'mostri', label: 'Database Mostri', icon: <Skull size={48} />, color: 'bg-red-700', component: <MostroManager onLogout={onLogout} /> }, // <--- NUOVO ELEMENTO
         { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={48} />, color: 'bg-amber-700', component: <CerimonialeManager onLogout={onLogout} /> },
         { id: 'tessiture', label: 'Tessiture', icon: <Feather size={48} />, color: 'bg-cyan-700', component: <TessituraManager onLogout={onLogout} /> },
         { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={48} />, color: 'bg-purple-700', component: <InfusioneManager onLogout={onLogout} /> },
@@ -33,7 +35,6 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer }) => {
         { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={48} />, color: 'bg-stone-600', component: <OggettoManager onLogout={onLogout} /> },
         { id: 'oggetti-base', label: 'Templates Oggetti Base', icon: <Gavel size={48} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={48} />, color: 'bg-emerald-600', component: <AdminMessageTab onLogout={onLogout} /> },        
-        
     ];
 
     // Costruzione voci Sidebar
