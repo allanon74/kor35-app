@@ -12,6 +12,7 @@ const MostroList = ({ onAdd, onEdit, onLogout }) => {
         if (typeof staffGetMostriTemplates === 'function') {
             staffGetMostriTemplates(onLogout)
                 .then(data => {
+                    console.log("DEBUG MOSTRI:", data);
                     // Gestione response paginata (Django REST Framework)
                     if (data && data.results && Array.isArray(data.results)) {
                         setItems(data.results);
