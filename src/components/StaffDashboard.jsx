@@ -18,9 +18,9 @@ import OggettoBaseManager from './editors/OggettoBaseManager';
 import OggettoManager from './editors/OggettoManager';
 import StaffProposalTab from './editors/StaffProposalTab';
 
-const StaffDashboard = ({ onLogout, onSwitchToPlayer }) => {
+const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) => {
     // 'home' è la griglia di icone. Altrimenti è l'id del tool attivo.
-    const [activeTool, setActiveTool] = useState('home'); 
+    const [activeTool, setActiveTool] = useState(initialTool); 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     // Configurazione dei Tools disponibili

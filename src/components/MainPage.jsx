@@ -14,7 +14,7 @@ import {
     Home, QrCode, Zap, TestTube2, Scroll, LogOut, Mail, Backpack, 
     Menu, X, UserCog, RefreshCw, Filter, DownloadCloud, ScrollText, 
     ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users,
-    Pin, PinOff, Briefcase
+    Pin, PinOff, Briefcase, ClipboardCheck,
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -379,12 +379,6 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                         })}
 
                         {/* LINK ADMIN AGGIUNTIVI */}
-                        {isAdmin && (
-                            <button onClick={() => handleMenuNavigation('admin_msg')} className="w-full flex items-center gap-3 p-3 rounded-lg bg-red-900/20 text-red-300 hover:bg-red-900/30 mt-2 border border-red-900/30">
-                                <Mail size={20} /> <span>Admin Messaggi</span>
-                                {adminPendingCount > 0 && <span className="ml-auto bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">{adminPendingCount}</span>}
-                            </button>
-                        )}
                     </div>
                 </div>
 
@@ -401,6 +395,25 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                             {needRefresh ? "AGGIORNA ORA" : "Verifica Agg."}
                         </button>
                     </div>
+                    
+                {/* --- NUOVO PULSANTE PROPOSTE PENDENTI --- */}
+                {isStaff && adminPendingCount > 0 && (
+                     <button
+                        onClick={() => {
+                            // Passiamo 'proposte' come argomento per dire alla dashboard cosa aprire
+                            onSwitchToMaster('proposte'); 
+                            setIsMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 mb-2 text-orange-400 hover:bg-gray-700 transition-colors border border-orange-500/30 bg-orange-500/10 rounded-lg animate-pulse"
+                    >
+                        <ClipboardCheck size={20} />
+                        <span className="font-bold">PROPOSTE DA APPROVARE</span>
+                        <span className="ml-auto bg-red-600 text-white text-xs px-2 py-0.5 rounded-full shadow-sm">
+                            {adminPendingCount}
+                        </span>
+                    </button>
+                )}
+
                     {isStaff && (
                         <button
                             onClick={() => {
