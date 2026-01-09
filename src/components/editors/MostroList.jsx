@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { staffGetMostriTemplates, staffDeleteMostroTemplate } from '../../api'; // Assicurati di creare queste funzioni in api.js
+import React, { useState, useEffect, useMemo } from 'react'; // <--- Aggiungi useMemo
+import { staffGetMostriTemplates, staffDeleteMostroTemplate } from '../../api'; 
 import MasterGenericList from './MasterGenericList';
 import { Heart, Shield, Layout } from 'lucide-react';
 
@@ -13,13 +13,11 @@ const MostroList = ({ onAdd, onEdit, onLogout }) => {
             staffGetMostriTemplates(onLogout)
                 .then(data => {
                     console.log("DEBUG MOSTRI:", data);
-                    // Gestione response paginata (Django REST Framework)
                     if (data && data.results && Array.isArray(data.results)) {
                         setItems(data.results);
                     } else if (Array.isArray(data)) {
                         setItems(data);
                     } else {
-                        console.warn("Formato dati Mostri non riconosciuto:", data);
                         setItems([]);
                     }
                 })
@@ -29,14 +27,14 @@ const MostroList = ({ onAdd, onEdit, onLogout }) => {
                 })
                 .finally(() => setLoading(false));
         } else {
-            console.error("Manca la funzione API staffGetMostriTemplates");
             setLoading(false);
         }
     };
 
     useEffect(() => { loadData(); }, []);
 
-    const columns = [
+    // --- CORREZIONE: Avvolgi columns in useMemo ---
+    const columns = useMemo(() => [
         { 
             header: 'Nome Template', 
             render: (item) => (
@@ -62,7 +60,8 @@ const MostroList = ({ onAdd, onEdit, onLogout }) => {
                 </span>
             )
         }
-    ];
+    ], []); // Dipendenze vuote perché le colonne sono statiche
+    // ----------------------------------------------
 
     const sortLogic = (a, b) => a.nome.localeCompare(b.nome);
 
