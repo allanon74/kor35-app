@@ -61,7 +61,7 @@ const MasterGenericList = ({
         const itemVal = item[key]?.id !== undefined ? item[key].id : item[key];
         return values.includes(itemVal);
       });
-    });
+    
 
     return sortLogic ? [...filtered].sort(sortLogic) : filtered;
   }, [items, searchTerm, activeFilters, sortLogic, filterConfig]);
