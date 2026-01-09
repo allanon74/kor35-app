@@ -42,30 +42,29 @@ const MasterGenericList = ({
   const filteredItems = useMemo(() => {
     const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
     
-    // Retrocompatibilità: se non c'è ricerca né filtri, non mostriamo nulla (logica originale)
-    if (!searchTerm && !hasActiveFilters) return [];
+    // --- CORREZIONE QUI ---
+    // Nascondiamo i risultati di default SOLO se ci sono filtri configurati (filterConfig.length > 0)
+    // Se non ci sono filtri (es. Mostri), mostriamo tutto subito.
+    if (!searchTerm && !hasActiveFilters && filterConfig.length > 0) return []; 
+    // ----------------------
 
     let filtered = items.filter(item => {
-      // 1. Ricerca testuale standard sul nome
+      // 1. Ricerca testuale
       const matchSearch = (item.nome || "").toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchSearch) return false;
       
-      // 2. Controllo dinamico dei filtri (AND tra diverse categorie, OR tra valori della stessa)
+      // 2. Filtri dinamici
       return Object.entries(activeFilters).every(([key, values]) => {
         if (values.length === 0) return true;
-        
-        // Cerchiamo se la config del filtro ha una funzione di matching personalizzata
         const conf = filterConfig.find(c => c.key === key);
-        if (conf?.match) {
-          return conf.match(item, values);
-        }
-
-        // Matching Standard (usato da Oggetti e OggettiBase):
-        // Cerca l'ID se il campo è un oggetto, altrimenti usa il valore diretto
+        if (conf?.match) return conf.match(item, values);
         const itemVal = item[key]?.id !== undefined ? item[key].id : item[key];
         return values.includes(itemVal);
       });
     });
+
+    return sortLogic ? [...filtered].sort(sortLogic) : filtered;
+  }, [items, searchTerm, activeFilters, sortLogic, filterConfig]);
 
     // 3. Ordinamento (se fornito)
     return sortLogic ? [...filtered].sort(sortLogic) : filtered;
