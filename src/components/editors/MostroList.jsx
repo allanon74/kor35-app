@@ -9,10 +9,23 @@ const MostroList = ({ onAdd, onEdit, onLogout }) => {
 
     const loadData = () => {
         setLoading(true);
-        // Fallback: se non hai ancora creato la funzione api, usa fetchAuthenticated o un placeholder
         if (typeof staffGetMostriTemplates === 'function') {
             staffGetMostriTemplates(onLogout)
-                .then(data => setItems(data || []))
+                .then(data => {
+                    // Gestione response paginata (Django REST Framework)
+                    if (data && data.results && Array.isArray(data.results)) {
+                        setItems(data.results);
+                    } else if (Array.isArray(data)) {
+                        setItems(data);
+                    } else {
+                        console.warn("Formato dati Mostri non riconosciuto:", data);
+                        setItems([]);
+                    }
+                })
+                .catch(err => {
+                    console.error("Errore fetch mostri:", err);
+                    setItems([]);
+                })
                 .finally(() => setLoading(false));
         } else {
             console.error("Manca la funzione API staffGetMostriTemplates");
