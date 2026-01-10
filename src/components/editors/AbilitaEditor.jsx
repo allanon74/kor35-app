@@ -188,11 +188,11 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                 
                 {/* 1. Tiers (Specifico per Tabella Costi) */}
                 <GenericRelationInline 
-                    title="Tiers & Costi"
+                    title="Tiers (livelli)"
                     items={formData.tiers}
                     options={tiersList} // Tiers dal DB
                     targetKey="tabella"
-                    valueKey="costo" // Usiamo 'costo' invece di valore
+                    valueKey="ordine" // Usiamo 'ordine' invece di valore
                     onChange={list => setFormData({...formData, tiers: list})}
                     labelFinder={t => t.nome}
                 />
