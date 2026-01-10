@@ -5,6 +5,7 @@ import { Search, Pencil, Trash2, Plus, FilterX } from 'lucide-react';
  * MasterGenericList
  * Componente core per la gestione delle liste Staff/Master.
  * Mantiene la compatibilità con OggettoList e OggettoBaseList.
+ * Ottimizzato per Mobile (Responsive).
  */
 const MasterGenericList = ({ 
   items = [], 
@@ -42,11 +43,9 @@ const MasterGenericList = ({
   const filteredItems = useMemo(() => {
     const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
     
-    // --- CORREZIONE QUI ---
     // Nascondiamo i risultati di default SOLO se ci sono filtri configurati (filterConfig.length > 0)
     // Se non ci sono filtri (es. Mostri), mostriamo tutto subito.
     if (!searchTerm && !hasActiveFilters && filterConfig.length > 0) return []; 
-    // ----------------------
 
     let filtered = items.filter(item => {
       // 1. Ricerca testuale
@@ -61,10 +60,7 @@ const MasterGenericList = ({
         const itemVal = item[key]?.id !== undefined ? item[key].id : item[key];
         return values.includes(itemVal);
       });
-    
-
-    return sortLogic ? [...filtered].sort(sortLogic) : filtered;
-  }, [items, searchTerm, activeFilters, sortLogic, filterConfig]);
+    });
 
     // 3. Ordinamento (se fornito)
     return sortLogic ? [...filtered].sort(sortLogic) : filtered;
@@ -74,9 +70,11 @@ const MasterGenericList = ({
     <div className="space-y-4">
       {/* Barra Superiore: Titolo e Azioni */}
       <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-4">
-        <div className="flex flex-wrap justify-between items-center gap-4">
+        {/* Header Responsive: si adatta su mobile */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h2 className="text-xl font-bold text-white uppercase tracking-tighter">{title}</h2>
-          <div className="flex items-center gap-3">
+          
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
             {Object.values(activeFilters).some(a => a.length > 0) && (
                 <button 
                   onClick={resetFilters} 
@@ -87,7 +85,7 @@ const MasterGenericList = ({
             )}
             <button 
               onClick={onAdd} 
-              className="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-lg font-black text-xs transition-all flex items-center gap-2 uppercase text-white shadow-lg active:scale-95"
+              className="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-lg font-black text-xs transition-all flex items-center gap-2 uppercase text-white shadow-lg active:scale-95 whitespace-nowrap"
             >
               <Plus size={16} /> {addLabel}
             </button>
@@ -110,8 +108,8 @@ const MasterGenericList = ({
         {filterConfig.length > 0 && (
           <div className="space-y-3 pt-2 border-t border-gray-700/50">
             {filterConfig.map(conf => (
-              <div key={conf.key} className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-black text-gray-500 uppercase w-full md:w-auto min-w-[70px]">
+              <div key={conf.key} className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                <span className="text-[10px] font-black text-gray-500 uppercase w-full md:w-auto min-w-[70px] mb-1 md:mb-0">
                   {conf.label}:
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -140,22 +138,23 @@ const MasterGenericList = ({
         )}
       </div>
 
-      {/* Tabella Dati */}
+      {/* Tabella Dati - Container Responsive */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-xl">
+        {/* OVERFLOW-X-AUTO per lo scroll orizzontale su mobile */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[600px]"> {/* Min-width forza lo scroll se troppo stretto */}
             <thead>
               <tr className="bg-gray-900/50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b border-gray-700">
                 {columns.map((col, idx) => (
                   <th 
                     key={idx} 
-                    className={`px-4 py-3 ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`} 
+                    className={`px-4 py-3 whitespace-nowrap ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`} 
                     style={{ width: col.width }}
                   >
                     {col.header}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right w-24">Azioni</th>
+                <th className="px-4 py-3 text-right w-24 bg-gray-900/50 sticky right-0 z-10 shadow-[-5px_0px_5px_-2px_rgba(0,0,0,0.3)]">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/50 text-sm">
@@ -164,13 +163,14 @@ const MasterGenericList = ({
                   {columns.map((col, idx) => (
                     <td 
                       key={idx} 
-                      className={`px-4 py-3 ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`}
+                      className={`px-4 py-3 whitespace-nowrap ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`}
                     >
                       {col.render(item)}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                  {/* Colonna Azioni Sticky a Destra */}
+                  <td className="px-4 py-3 text-right whitespace-nowrap sticky right-0 bg-gray-800 group-hover:bg-gray-700/30 transition-colors z-10 shadow-[-5px_0px_5px_-2px_rgba(0,0,0,0.3)]">
+                      <div className="flex justify-end gap-1 opacity-100 md:opacity-60 md:group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => onEdit(item)} 
                           className="p-2 bg-amber-600/20 text-amber-500 hover:bg-amber-600 hover:text-white rounded-lg transition-all"
