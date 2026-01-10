@@ -1127,3 +1127,36 @@ export const staffUpdateMostroTemplate = (id, data, onLogout) => {
 export const staffDeleteMostroTemplate = (id, onLogout) => {
     return fetchAuthenticated(`/plot/api/staff/mostri-templates/${id}/`, { method: 'DELETE' }, onLogout);
 };
+
+// --- GESTIONE ABILITÀ ---
+
+export const staffGetAbilitaList = (onLogout) => {
+    return fetchAuthenticated('/personaggi/staff/abilita/', { method: 'GET' }, onLogout);
+};
+
+export const staffCreateAbilita = (data, onLogout) => {
+    return fetchAuthenticated('/personaggi/staff/abilita/', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }, onLogout);
+};
+
+export const staffUpdateAbilita = (id, data, onLogout) => {
+    return fetchAuthenticated(`/personaggi/staff/abilita/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+    }, onLogout);
+};
+
+export const staffDeleteAbilita = (id, onLogout) => {
+    return fetchAuthenticated(`/personaggi/staff/abilita/${id}/`, { method: 'DELETE' }, onLogout);
+};
+
+// Utile per l'editor: serve la lista di tutte le abilità per i prerequisiti
+export const getAbilitaOptions = (onLogout) => {
+    return fetchAuthenticated('/personaggi/api/abilita/', { method: 'GET' }, onLogout);
+};
+
+export const getTiersList = (onLogout) => {
+    return fetchAuthenticated('/personaggi/api/tier/', { method: 'GET' }, onLogout);
+};

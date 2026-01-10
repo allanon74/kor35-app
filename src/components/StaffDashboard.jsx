@@ -5,7 +5,7 @@ import {
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
-    Skull // Icona per Mostri
+    Skull, BookOpen
 } from 'lucide-react';
 
 // Importazione dei Sotto-Componenti (Tools)
@@ -18,6 +18,7 @@ import OggettoBaseManager from './editors/OggettoBaseManager';
 import OggettoManager from './editors/OggettoManager';
 import StaffProposalTab from './editors/StaffProposalTab';
 import MostroManager from './editors/MostroManager'; // <--- NUOVO IMPORT
+import AbilitaManager from './editors/AbilitaManager';
 
 const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) => {
     // 'home' è la griglia di icone. Altrimenti è l'id del tool attivo.
@@ -28,6 +29,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
     const toolsConfig = [
         { id: 'plot', label: 'Gestione Plot', icon: <Map size={48} />, color: 'bg-indigo-600', component: <PlotTab onLogout={onLogout} /> },
         { id: 'mostri', label: 'Database Mostri', icon: <Skull size={48} />, color: 'bg-red-700', component: <MostroManager onLogout={onLogout} /> }, // <--- NUOVO ELEMENTO
+        { id: 'abilita', label: 'Database Abilità', icon: <BookOpen size={48} />, color: 'bg-blue-700', component: <AbilitaManager onLogout={onLogout} /> },
         { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={48} />, color: 'bg-amber-700', component: <CerimonialeManager onLogout={onLogout} /> },
         { id: 'tessiture', label: 'Tessiture', icon: <Feather size={48} />, color: 'bg-cyan-700', component: <TessituraManager onLogout={onLogout} /> },
         { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={48} />, color: 'bg-purple-700', component: <InfusioneManager onLogout={onLogout} /> },
