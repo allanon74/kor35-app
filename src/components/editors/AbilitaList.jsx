@@ -71,6 +71,7 @@ const AbilitaList = ({ onAdd, onEdit, onLogout }) => {
             onDelete={handleDelete} // Passiamo la funzione che gestisce l'eliminazione
             columns={columns}
             filterConfig={filterConfig}
+            sortLogic={(a, b) => (a.nome || "").localeCompare(b.nome || "")}
         />
     );
 };

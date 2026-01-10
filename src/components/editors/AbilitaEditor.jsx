@@ -9,6 +9,10 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     const [abilitaList, setAbilitaList] = useState([]); 
     const [tiersList, setTiersList] = useState([]); 
 
+    const statsOptions = punteggi.filter(p => p.tipo === 'ST');
+    const auraOptions = punteggi.filter(p => p.tipo === 'AU');
+    const elementOptions = punteggi.filter(p => p.tipo === 'EL' || p.tipo === 'MA'); // 'EL' o 'MA' a seconda di come codifichi gli elementi/materie nel DB
+
     const [formData, setFormData] = useState(initialData || {
         nome: '',
         descrizione: '',
@@ -249,26 +253,40 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
 
                 {/* 5. Statistiche (Inline Complessa) */}
                 <div className="md:col-span-2 lg:col-span-3 bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                    <div className="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
-                        <h4 className="font-bold text-gray-300 uppercase text-xs">Modificatori Statistiche</h4>
-                        <button onClick={handleAddStat} className="text-emerald-400 text-xs font-bold uppercase hover:text-emerald-300">
-                            + Aggiungi
-                        </button>
-                    </div>
-                    
-                    <div className="space-y-2">
-                        {formData.statistiche.map((statItem, idx) => (
-                            <StatModInline 
-                                key={idx}
-                                index={idx}
-                                data={statItem}
-                                onUpdate={handleUpdateStat}
-                                onRemove={handleRemoveStat}
-                                availableStats={allStats}
-                            />
-                        ))}
-                        {formData.statistiche.length === 0 && <p className="text-gray-600 text-xs italic">Nessun modificatore statistica.</p>}
-                    </div>
+                    {/* Nota: StatModInline include già il suo header e il pulsante 'Aggiungi', 
+                         quindi non serve ricrearli esternamente come facevo prima. 
+                         Usiamolo esattamente come in OggettoEditor. */}
+                    <StatModInline 
+                        items={formData.statistiche}
+                        
+                        // PROPS FONDAMENTALI (senza queste crasha il map)
+                        options={statsOptions}        
+                        auraOptions={auraOptions}
+                        elementOptions={elementOptions}
+                        
+                        // Gestione Aggiunta
+                        onAdd={() => setFormData({
+                            ...formData, 
+                            statistiche: [
+                                ...formData.statistiche, 
+                                // Struttura oggetto vuoto allineata a OggettoEditor
+                                { statistica: null, valore: 0, tipo_modificatore: 'ADD' }
+                            ]
+                        })}
+                        
+                        // Gestione Modifica
+                        onChange={(index, field, value) => {
+                            const newStats = [...formData.statistiche];
+                            newStats[index] = { ...newStats[index], [field]: value };
+                            setFormData({ ...formData, statistiche: newStats });
+                        }}
+                        
+                        // Gestione Rimozione
+                        onRemove={(index) => {
+                            const newStats = formData.statistiche.filter((_, i) => i !== index);
+                            setFormData({ ...formData, statistiche: newStats });
+                        }}
+                    />
                 </div>
 
             </div>
