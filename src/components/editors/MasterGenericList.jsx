@@ -1,12 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Pencil, Trash2, Plus, FilterX } from 'lucide-react';
 
-/**
- * MasterGenericList
- * Componente core per la gestione delle liste Staff/Master.
- * Mantiene la compatibilità con OggettoList e OggettoBaseList.
- * Ottimizzato per Mobile (Responsive).
- */
 const MasterGenericList = ({ 
   items = [], 
   title, 
@@ -15,17 +9,13 @@ const MasterGenericList = ({
   onDelete, 
   addLabel = "Nuovo",
   loading = false,
-  // filterConfig: [{ key, label, options, type, renderOption, match }]
   filterConfig = [], 
-  // columns: [{ header, render, width, align }]
   columns = [],
-  // sortLogic: (a, b) => number
   sortLogic,
-  // Messaggio visualizzato quando non ci sono risultati o filtri attivi
   emptyMessage = "Seleziona dei filtri o cerca per visualizzare i dati."
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilters, setActiveFilters] = useState({}); // Stato: { [key]: [array_di_id_selezionati] }
+  const [activeFilters, setActiveFilters] = useState({});
 
   const toggleFilter = (key, val) => {
     setActiveFilters(prev => {
@@ -42,17 +32,12 @@ const MasterGenericList = ({
 
   const filteredItems = useMemo(() => {
     const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
-    
-    // Nascondiamo i risultati di default SOLO se ci sono filtri configurati (filterConfig.length > 0)
-    // Se non ci sono filtri (es. Mostri), mostriamo tutto subito.
     if (!searchTerm && !hasActiveFilters && filterConfig.length > 0) return []; 
 
     let filtered = items.filter(item => {
-      // 1. Ricerca testuale
       const matchSearch = (item.nome || "").toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchSearch) return false;
       
-      // 2. Filtri dinamici
       return Object.entries(activeFilters).every(([key, values]) => {
         if (values.length === 0) return true;
         const conf = filterConfig.find(c => c.key === key);
@@ -62,15 +47,15 @@ const MasterGenericList = ({
       });
     });
 
-    // 3. Ordinamento (se fornito)
     return sortLogic ? [...filtered].sort(sortLogic) : filtered;
   }, [items, searchTerm, activeFilters, sortLogic, filterConfig]);
 
   return (
-    <div className="space-y-4">
-      {/* Barra Superiore: Titolo e Azioni */}
-      <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-4">
-        {/* Header Responsive: si adatta su mobile */}
+    // H-FULL e FLEX-COL sono cruciali per bloccare l'altezza e scrollare dentro
+    <div className="flex flex-col h-full space-y-4">
+      
+      {/* HEADER FISSO */}
+      <div className="flex-none bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h2 className="text-xl font-bold text-white uppercase tracking-tighter">{title}</h2>
           
@@ -92,7 +77,6 @@ const MasterGenericList = ({
           </div>
         </div>
 
-        {/* Input Ricerca */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
           <input 
@@ -104,7 +88,6 @@ const MasterGenericList = ({
           />
         </div>
 
-        {/* Sezione Filtri Configurabili */}
         {filterConfig.length > 0 && (
           <div className="space-y-3 pt-2 border-t border-gray-700/50">
             {filterConfig.map(conf => (
@@ -138,23 +121,22 @@ const MasterGenericList = ({
         )}
       </div>
 
-      {/* Tabella Dati - Container Responsive */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-xl">
-        {/* OVERFLOW-X-AUTO per lo scroll orizzontale su mobile */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[600px]"> {/* Min-width forza lo scroll se troppo stretto */}
-            <thead>
-              <tr className="bg-gray-900/50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b border-gray-700">
+      {/* BODY SCROLLABILE - Questa è la parte magica per mobile */}
+      <div className="flex-1 bg-gray-800 rounded-xl border border-gray-700 shadow-xl overflow-hidden flex flex-col min-h-0">
+        <div className="overflow-auto flex-1"> {/* Overflow-auto qui gestisce X e Y */}
+          <table className="w-full text-left border-collapse min-w-[600px]">
+            <thead className="sticky top-0 z-20"> {/* Sticky Header */}
+              <tr className="bg-gray-900 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b border-gray-700 shadow-md">
                 {columns.map((col, idx) => (
                   <th 
                     key={idx} 
-                    className={`px-4 py-3 whitespace-nowrap ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`} 
+                    className={`px-4 py-3 whitespace-nowrap bg-gray-900 ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`} 
                     style={{ width: col.width }}
                   >
                     {col.header}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right w-24 bg-gray-900/50 sticky right-0 z-10 shadow-[-5px_0px_5px_-2px_rgba(0,0,0,0.3)]">Azioni</th>
+                <th className="px-4 py-3 text-right w-24 bg-gray-900 sticky right-0 z-30 shadow-[-5px_0px_5px_-2px_rgba(0,0,0,0.5)]">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/50 text-sm">
@@ -168,7 +150,6 @@ const MasterGenericList = ({
                       {col.render(item)}
                     </td>
                   ))}
-                  {/* Colonna Azioni Sticky a Destra */}
                   <td className="px-4 py-3 text-right whitespace-nowrap sticky right-0 bg-gray-800 group-hover:bg-gray-700/30 transition-colors z-10 shadow-[-5px_0px_5px_-2px_rgba(0,0,0,0.3)]">
                       <div className="flex justify-end gap-1 opacity-100 md:opacity-60 md:group-hover:opacity-100 transition-opacity">
                         <button 
@@ -189,21 +170,22 @@ const MasterGenericList = ({
               ))}
             </tbody>
           </table>
+        
+          {loading && (
+              <div className="p-12 text-center text-cyan-500 animate-pulse font-black uppercase tracking-widest">
+                  Caricamento dati in corso...
+              </div>
+          )}
+          
+          {!loading && filteredItems.length === 0 && (
+              <div className="p-12 text-center space-y-3">
+                  <div className="text-gray-700 flex justify-center"><FilterX size={48} /></div>
+                  <p className="text-gray-500 italic text-sm max-w-xs mx-auto">
+                      {emptyMessage}
+                  </p>
+              </div>
+          )}
         </div>
-
-        {/* Stati Vuoti o Loading */}
-        {loading ? (
-            <div className="p-12 text-center text-cyan-500 animate-pulse font-black uppercase tracking-widest">
-                Caricamento dati in corso...
-            </div>
-        ) : filteredItems.length === 0 && (
-            <div className="p-12 text-center space-y-3">
-                <div className="text-gray-700 flex justify-center"><FilterX size={48} /></div>
-                <p className="text-gray-500 italic text-sm max-w-xs mx-auto">
-                    {emptyMessage}
-                </p>
-            </div>
-        )}
       </div>
     </div>
   );

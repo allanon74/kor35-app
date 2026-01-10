@@ -111,7 +111,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
 
                 {/* VISTA TOOL SPECIFICO */}
                 {activeTool !== 'home' && (
-                    <div className="h-full w-full animate-in fade-in zoom-in-95 duration-200">
+                    <div className="h-full w-full overflow-y-auto animate-in fade-in zoom-in-95 duration-200 p-4 md:p-6 pb-20">
                         {toolsConfig.find(t => t.id === activeTool)?.component}
                     </div>
                 )}
