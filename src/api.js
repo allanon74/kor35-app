@@ -1131,25 +1131,25 @@ export const staffDeleteMostroTemplate = (id, onLogout) => {
 // --- GESTIONE ABILITÀ ---
 
 export const staffGetAbilitaList = (onLogout) => {
-    return fetchAuthenticated('/personaggi/staff/abilita/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/personaggi/api/staff/abilita/', { method: 'GET' }, onLogout);
 };
 
 export const staffCreateAbilita = (data, onLogout) => {
-    return fetchAuthenticated('/personaggi/staff/abilita/', {
+    return fetchAuthenticated('/personaggi/api/staff/abilita/', {
         method: 'POST',
         body: JSON.stringify(data)
     }, onLogout);
 };
 
 export const staffUpdateAbilita = (id, data, onLogout) => {
-    return fetchAuthenticated(`/personaggi/staff/abilita/${id}/`, {
+    return fetchAuthenticated(`/personaggi/api/staff/abilita/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }, onLogout);
 };
 
 export const staffDeleteAbilita = (id, onLogout) => {
-    return fetchAuthenticated(`/personaggi/staff/abilita/${id}/`, { method: 'DELETE' }, onLogout);
+    return fetchAuthenticated(`/personaggi/api/staff/abilita/${id}/`, { method: 'DELETE' }, onLogout);
 };
 
 // Utile per l'editor: serve la lista di tutte le abilità per i prerequisiti
