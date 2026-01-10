@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://www.k-o-r-35.it';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://www.kor35.it';
 
 /**
  * Helper generico per le chiamate API autenticate.
