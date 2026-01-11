@@ -5,20 +5,22 @@ const RichTextDisplay = ({ content }) => {
 
     return (
         <div 
-            // Aggiungo 'ql-editor-view' per ereditare gli stili dei paragrafi (margin-bottom) dal tuo index.css
-            className="rich-text-container ql-editor-view text-sm text-gray-300 leading-relaxed"
+            className="rich-text-container ql-editor-view"
             style={{
-                // FONDAMENTALE: Per contenuto HTML usare 'normal'. 
-                // 'pre-wrap' va usato SOLO per testo puro (txt) senza tag HTML.
-                whiteSpace: 'normal',
+                // 1. FONDAMENTALE per HTML: Ignora gli 'a capo' del codice sorgente, usa solo i tag <br> e <p>
+                whiteSpace: 'normal !important',
                 
-                // Rompe la parola SOLO se è un'unica stringa lunghissima (es. URL) che non entra nel container
-                overflowWrap: 'anywhere', 
+                // 2. Rompe la riga tra le parole (spazi), MAI dentro una parola (a meno che non sia un URL lunghissimo)
+                overflowWrap: 'break-word !important', 
+                wordWrap: 'break-word !important',
                 
-                // Impedisce di spezzare le parole normali a metà
-                wordBreak: 'normal',
+                // 3. Impedisce esplicitamente di spezzare le parole a metà (es. "cipol-la")
+                wordBreak: 'normal !important',
                 
-                // Sicurezze layout
+                // 4. Stile testo
+                fontSize: '0.875rem', // text-sm
+                lineHeight: '1.625',  // leading-relaxed
+                color: '#d1d5db',     // text-gray-300
                 maxWidth: '100%',
                 display: 'block'
             }}
