@@ -3,28 +3,34 @@ import React from 'react';
 const RichTextDisplay = ({ content }) => {
     if (!content) return null;
 
+    // Rimuoviamo eventuali <p> vuoti che creano spazio extra inutile
+    const cleanContent = content.replace(/<p><br><\/p>/g, '<br/>');
+
     return (
         <div 
-            className="rich-text-container ql-editor-view"
+            className="rich-text-container ql-editor-view text-sm text-gray-300"
             style={{
-                // 1. FONDAMENTALE per HTML: Ignora gli 'a capo' del codice sorgente, usa solo i tag <br> e <p>
-                whiteSpace: 'normal !important',
+                // 1. preserve-3d: hack per forzare il rendering corretto su alcuni engine
+                transform: 'translateZ(0)',
                 
-                // 2. Rompe la riga tra le parole (spazi), MAI dentro una parola (a meno che non sia un URL lunghissimo)
-                overflowWrap: 'break-word !important', 
-                wordWrap: 'break-word !important',
+                // 2. LA CONFIGURAZIONE VINCENTE:
+                // 'pre-wrap' preserva gli 'a capo' veri E permette il wrapping
+                whiteSpace: 'pre-wrap', 
                 
-                // 3. Impedisce esplicitamente di spezzare le parole a metà (es. "cipol-la")
-                wordBreak: 'normal !important',
+                // 'anywhere' è la chiave: rompe SOLO se la parola sfora la larghezza, 
+                // altrimenti va a capo negli spazi. È meglio di 'break-word'.
+                overflowWrap: 'anywhere', 
                 
-                // 4. Stile testo
-                fontSize: '0.875rem', // text-sm
-                lineHeight: '1.625',  // leading-relaxed
-                color: '#d1d5db',     // text-gray-300
+                // 'normal' impedisce di spezzare le parole a metà (es. "cipol-la")
+                wordBreak: 'normal',
+                
+                // 3. Layout constraints
                 maxWidth: '100%',
+                minWidth: '0',     // Fondamentale dentro i flex/grid container per permettere lo shrink
+                lineHeight: '1.6', // Migliora la leggibilità
                 display: 'block'
             }}
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: cleanContent }}
         />
     );
 };
