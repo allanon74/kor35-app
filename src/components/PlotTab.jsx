@@ -6,6 +6,8 @@ import {
     createQuest, updateQuest, deleteQuest,
     addPngToQuest, addMostroToQuest, addVistaToQuest,
     removePngFromQuest, removeMostroFromQuest, removeVistaFromQuest,
+    // AGGIUNTI GLI IMPORT MANCANTI PER LO STAFF:
+    staffCreateOffGame, staffDeleteOffGame,
     fetchAuthenticated 
 } from '../api';
 import { useCharacter } from './CharacterContext';
@@ -72,7 +74,6 @@ const PlotTab = ({ onLogout }) => {
                 if (formData.id) await updateGiorno(formData.id, data, onLogout);
                 else await createGiorno(data, onLogout);
             } else if (editMode === 'quest') {
-                // FIX: Il backend si aspetta 'giorno', non 'giorno_evento'
                 if (formData.id) await updateQuest(formData.id, formData, onLogout);
                 else await createQuest(formData, onLogout);
             }
@@ -81,37 +82,45 @@ const PlotTab = ({ onLogout }) => {
         } catch (e) { alert("Errore durante il salvataggio."); console.error(e); }
     };
 
-    // Wrapper per le cancellazioni per evitare errori di argomenti nei componenti figli
     const handleDeleteEvento = async (id) => { if(window.confirm("Eliminare intero evento?")) { await deleteEvento(id, onLogout); refreshData(); } };
     const handleDeleteGiorno = async (id) => { if(window.confirm("Eliminare giorno?")) { await deleteGiorno(id, onLogout); refreshData(); } };
 
     const questHandlers = {
         onAddSub: async (tipo, payload) => {
-            if (tipo === 'png') {
-                const pId = parseInt(payload.personaggio);
-                const stafferId = risorse.png.find(p => p.id === pId)?.proprietario;
-                await addPngToQuest(parseInt(payload.quest), pId, stafferId, onLogout);
+            try {
+                if (tipo === 'png') {
+                    const pId = parseInt(payload.personaggio);
+                    const stafferId = risorse.png.find(p => p.id === pId)?.proprietario;
+                    await addPngToQuest(parseInt(payload.quest), pId, stafferId, onLogout);
+                }
+                if (tipo === 'mostro') {
+                    await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), parseInt(payload.staffer), onLogout);
+                }
+                // CORREZIONE QUI: Separato il blocco offgame da vista
+                if (tipo === 'offgame') {
+                    await staffCreateOffGame(payload, onLogout);
+                }
+                if (tipo === 'vista') {
+                    const vistaPayload = { 
+                        quest: parseInt(payload.quest), 
+                        tipo: payload.tipo, 
+                        manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null, 
+                        inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null 
+                    };
+                    await addVistaToQuest(payload.quest, vistaPayload, onLogout);
+                }
+                refreshData();
+            } catch (error) {
+                console.error("Errore aggiunta:", error);
+                alert("Errore nell'operazione: " + error.message);
             }
-            if (tipo === 'mostro') await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), parseInt(payload.staffer), onLogout);
-            if (tipo === 'vista') {
-                const vistaPayload = { 
-                    quest: parseInt(payload.quest), 
-                    tipo: payload.tipo, 
-                    manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null, 
-                    inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null 
-                };
-            if (type === 'offgame') {
-                await staffCreateOffGame(payload, onLogout);
-        }
-                await addVistaToQuest(payload.quest, vistaPayload, onLogout);
-            }
-            refreshData();
         },
         onRemoveSub: async (tipo, id) => {
             if (tipo === 'png') await removePngFromQuest(id, onLogout);
             if (tipo === 'mostro') await removeMostroFromQuest(id, onLogout);
             if (tipo === 'vista') await removeVistaFromQuest(id, onLogout);
-            if (type === 'offgame') {await staffDeleteOffGame(id, onLogout);}
+            // CORREZIONE QUI: Aggiunta rimozione offgame
+            if (tipo === 'offgame') await staffDeleteOffGame(id, onLogout);
             if (tipo === 'quest') { if (window.confirm("Eliminare quest?")) await deleteQuest(id, onLogout); }
             refreshData();
         },
@@ -131,7 +140,6 @@ const PlotTab = ({ onLogout }) => {
 
     return (
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
-            
             <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40 shadow-xl">
                 <select className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none cursor-pointer"
                     value={selectedEvento?.id || ''} onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id === parseInt(e.target.value)))}>
@@ -149,8 +157,8 @@ const PlotTab = ({ onLogout }) => {
                             <h3 className="text-xl font-black uppercase text-indigo-400 italic tracking-widest">Editor {editMode}</h3>
                             <button onClick={() => setEditMode(null)} className="p-2 hover:bg-gray-700 rounded-full transition-colors"><X/></button>
                         </div>
-                        
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* ... Codice form invariato ... */}
                             {editMode === 'evento' && (
                                 <>
                                     <div className="md:col-span-2">
@@ -166,7 +174,6 @@ const PlotTab = ({ onLogout }) => {
                                     </div>
                                 </>
                             )}
-                            
                             {editMode === 'giorno' && (
                                 <>
                                     <div className="md:col-span-2">
@@ -189,7 +196,6 @@ const PlotTab = ({ onLogout }) => {
                                     </div>
                                 </>
                             )}
-                            
                             {editMode === 'quest' && (
                                 <>
                                     <div className="md:col-span-2"><label className="text-[10px] font-bold text-gray-500 uppercase px-1">Titolo Quest</label><input className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" value={formData.titolo || ''} onChange={e => setFormData({...formData, titolo: e.target.value})} /></div>
@@ -203,7 +209,6 @@ const PlotTab = ({ onLogout }) => {
                                 </>
                             )}
                         </div>
-
                         <button onClick={handleSaveMain} className="w-full mt-6 bg-indigo-600 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-500 transition-all flex items-center justify-center gap-2">
                             <Save size={20}/> Salva {editMode}
                         </button>
@@ -223,7 +228,6 @@ const PlotTab = ({ onLogout }) => {
                         onAddGiorno={() => startEdit('giorno')}
                     />
                 )}
-
                 <div className="p-4 space-y-16">
                     {selectedEvento?.giorni.map((giorno, gIdx) => (
                         <GiornoSection key={giorno.id} giorno={giorno} gIdx={gIdx} isMaster={isMaster} risorse={risorse}
