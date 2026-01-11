@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import GenericHeader from './GenericHeader';
-import Sidebar from './Sidebar'; // Usato SOLO per mobile (Modale)
+import Sidebar from './Sidebar';
 import versionData from '../../package.json'; 
 import { 
     Map, Scroll, FlaskConical, Gavel, 
@@ -39,13 +39,11 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: <AdminMessageTab onLogout={onLogout} /> },        
     ];
 
-    // Helper per cambio tool
     const handleToolSelect = (id) => {
         setActiveTool(id);
         setIsMenuOpen(false);
     };
 
-    // Costruzione voci Sidebar
     const sidebarItems = [
         { label: 'Master Hub', icon: <LayoutGrid size={18}/>, active: activeTool === 'home', action: () => handleToolSelect('home') },
         ...toolsConfig.map(t => ({
@@ -61,9 +59,8 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
     return (
         <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
             
-            {/* === 1. SIDEBAR DESKTOP (Renderizzata "Inline" per evitare il blur) === */}
+            {/* === SIDEBAR DESKTOP (Fissa a sinistra, solo desktop) === */}
             <aside className="hidden md:flex flex-col w-72 bg-gray-950 border-r border-gray-800 shadow-2xl z-20">
-                {/* Header Sidebar Desktop */}
                 <div className="p-6 border-b border-gray-900 flex items-center gap-3">
                      <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-900/50">
                         <LayoutGrid size={20} className="text-white"/>
@@ -71,7 +68,6 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                      <span className="font-black text-indigo-400 italic tracking-widest uppercase text-sm">MENU MASTER</span>
                 </div>
                 
-                {/* Navigazione Desktop */}
                 <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
                     {sidebarItems.map((item, idx) => {
                         if (item.label.includes('---')) return <div key={idx} className="h-px bg-gray-900 my-2 mx-4"></div>;
@@ -97,7 +93,6 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                     })}
                 </nav>
 
-                {/* Footer Desktop */}
                 <div className="p-4 border-t border-gray-900 bg-gray-950">
                     <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 rounded-xl font-bold text-red-500 hover:bg-red-500/10 transition-all mb-2">
                         <LogOut size={18} /><span className="text-xs uppercase tracking-wide">Logout</span>
@@ -108,50 +103,42 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                 </div>
             </aside>
 
-            {/* === 2. SIDEBAR MOBILE (Usa il componente Originale Modale) === */}
-            {/* Viene montata solo se serve o gestita via CSS/JS interno, qui usiamo display condizionale del componente Sidebar */}
-            <div className="md:hidden">
-                <Sidebar 
-                    isOpen={isMenuOpen} 
-                    onClose={() => setIsMenuOpen(false)} 
-                    title="Menu Master"
-                    items={sidebarItems} 
-                    onLogout={onLogout} 
-                />
-            </div>
+            {/* === SIDEBAR MOBILE (Overlay a DESTRA) === */}
+            {/* Renderizzata sempre, gestita via CSS/State interno */}
+            <Sidebar 
+                isOpen={isMenuOpen} 
+                onClose={() => setIsMenuOpen(false)} 
+                title="Menu Master"
+                items={sidebarItems} 
+                onLogout={onLogout} 
+            />
 
-            {/* === 3. CONTENUTO PRINCIPALE === */}
+            {/* === CONTENUTO PRINCIPALE === */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-gray-900">
-                {/* Header Applicativo */}
                 <GenericHeader 
                     title="KOR 35"
                     subtitle={activeTool === 'home' ? "Dashboard" : toolsConfig.find(t => t.id === activeTool)?.label}
-                    // IMPORTANTE: Non passare onMenuClick se vuoi nascondere quello a sinistra,
-                    // oppure passa showMenuButton={false} se supportato dal tuo GenericHeader.
-                    showMenuButton={false} 
                     rightSlot={
                         <div className="flex items-center gap-2">
-                             {/* Hamburger a DESTRA (solo Mobile) */}
-                            <button 
-                                onClick={() => setIsMenuOpen(true)} 
-                                className="md:hidden p-2 text-indigo-400 hover:bg-gray-800 rounded transition-colors active:scale-95"
-                            >
-                                <Menu size={24} />
-                            </button>
-                            
-                            {/* Tasto Home rapido (sempre utile) */}
+                            {/* Tasto Home Rapido */}
                             {activeTool !== 'home' && (
-                                <button onClick={() => setActiveTool('home')} className="hidden md:block p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors" title="Torna alla Dashboard">
+                                <button onClick={() => setActiveTool('home')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors" title="Dashboard">
                                     <LayoutGrid size={20}/>
                                 </button>
                             )}
+                            
+                            {/* Hamburger Menu (Visibile SOLO su Mobile, apre sidebar a destra) */}
+                            <button 
+                                onClick={() => setIsMenuOpen(true)} 
+                                className="md:hidden p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-indigo-400 transition-colors"
+                            >
+                                <Menu size={24} />
+                            </button>
                         </div>
                     }
                 />
 
                 <main className="flex-1 overflow-y-auto overflow-x-hidden relative p-0 custom-scrollbar">
-                    
-                    {/* VISTA HOME */}
                     {activeTool === 'home' && (
                         <div className="min-h-full p-6 animate-in fade-in duration-300">
                             <h2 className="text-2xl font-black text-gray-700 uppercase italic mb-6 tracking-widest text-center md:text-left">Strumenti Staff</h2>
@@ -181,13 +168,11 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         </div>
                     )}
 
-                    {/* VISTA TOOL ATTIVO */}
                     {activeTool !== 'home' && (
                         <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
                             {toolsConfig.find(t => t.id === activeTool)?.component}
                         </div>
                     )}
-
                 </main>
             </div>
         </div>

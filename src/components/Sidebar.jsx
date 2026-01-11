@@ -5,19 +5,19 @@ import versionData from '../../package.json';
 const Sidebar = ({ isOpen, onClose, title, items, onLogout }) => {
     const [expandedItems, setExpandedItems] = useState({});
 
-    // Se non è aperto, non renderizzare nulla (evita overlay invisibili che bloccano i click)
+    // Se non è aperto, non renderizzare nulla (evita overlay invisibili)
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex font-sans">
+        <div className="fixed inset-0 z-50 flex justify-end font-sans">
             {/* Overlay Sfondo Scuro */}
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
                 onClick={onClose}
             ></div>
             
-            {/* Pannello Laterale */}
-            <div className="relative w-72 bg-gray-950 h-full border-r border-gray-800 flex flex-col shadow-2xl animate-in slide-in-from-left duration-200 z-50">
+            {/* Pannello Laterale (Ancorato a DESTRA) */}
+            <div className="relative w-72 bg-gray-950 h-full border-l border-gray-800 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 z-50">
                 
                 {/* Header Sidebar */}
                 <div className="p-6 flex justify-between items-center border-b border-gray-900">

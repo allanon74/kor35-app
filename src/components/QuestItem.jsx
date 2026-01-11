@@ -35,20 +35,22 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
 
             <div className="p-5 space-y-6">
                 {/* Dettagli Quest */}
-                <div className="space-y-4">
+                <div className="space-y-4 w-full min-w-0">
                     {quest.descrizione_ampia && (
-                        <div 
-                            className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view wrap-break-words whitespace-pre-wrap w-full"
-                            dangerouslySetInnerHTML={{ __html: quest.descrizione_ampia }}
-                        />
+                        <div className="w-full min-w-0">
+                            <div 
+                                className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view break-words whitespace-pre-wrap w-full max-w-full"
+                                dangerouslySetInnerHTML={{ __html: quest.descrizione_ampia }}
+                            />
+                        </div>
                     )}
                     {quest.props && (
-                        <div className="flex items-start gap-3 bg-amber-900/10 border border-amber-900/20 p-3 rounded-xl w-full">
+                        <div className="flex items-start gap-3 bg-amber-900/10 border border-amber-900/20 p-3 rounded-xl w-full min-w-0">
                             <Package size={18} className="text-amber-500 shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
                                 <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
                                 <div 
-                                    className="text-xs text-amber-100/80 ql-editor-view wrap-break-words whitespace-pre-wrap w-full"
+                                    className="text-xs text-amber-100/80 ql-editor-view break-words whitespace-pre-wrap w-full max-w-full"
                                     dangerouslySetInnerHTML={{ __html: quest.props }}
                                 />
                             </div>
@@ -63,7 +65,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                         <div className="bg-gray-900/50 rounded-xl p-2 space-y-1">
                             {quest.png_richiesti.map(p => (
                                 <div key={p.id} className="flex justify-between items-center p-2.5 bg-gray-950 border border-gray-800 rounded-lg text-[11px]">
-                                    <span className="font-bold truncate">{p.personaggio_details?.nome}</span>
+                                    <span className="font-bold truncate max-w-[150px]">{p.personaggio_details?.nome}</span>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <span className="text-indigo-400 font-bold italic"><UserCheck size={10} className="inline mr-1"/>{p.staffer_details?.username || '---'}</span>
                                         {isMaster && <button onClick={() => onRemoveSub('png', p.id)} className="text-red-500"><X size={14}/></button>}
@@ -87,13 +89,13 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                         <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1 px-1"><Swords size={12}/> Combat Table</span>
                         <div className="bg-gray-900/50 rounded-xl p-2 space-y-2">
                             {quest.mostri_presenti.map(m => (
-                                <div key={m.id} className="bg-gray-950 p-3 rounded-lg border border-gray-800 shadow-sm">
+                                <div key={m.id} className="bg-gray-950 p-3 rounded-lg border border-gray-800 shadow-sm w-full max-w-full">
                                     <div className="flex justify-between items-start mb-2 gap-2">
                                         <div className="min-w-0">
                                             <div className="text-[11px] font-black uppercase text-red-400 truncate">{m.template_details?.nome}</div>
                                             <div className="text-[10px] text-indigo-400 font-bold italic truncate"><UserCheck size={10} className="inline mr-1"/>{m.staffer_details?.username || 'DA ASSEGNARE'}</div>
                                         </div>
-                                        {isMaster && <button onClick={() => onRemoveSub('mostro', m.id)} className="text-red-900 shrink-0"><Trash size={12}/></button>}
+                                        {isMaster && <button onClick={() => onRemoveSub('mostro', m.id)} className="text-red-900 hover:text-red-500 shrink-0"><Trash size={12}/></button>}
                                     </div>
 
                                     {/* Contatori Statistiche */}
@@ -114,14 +116,14 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     
                                     {/* SEZIONE COLLASSABILE */}
                                     {expandedMostri[m.id] && (
-                                        <div className="mt-2 space-y-3 animate-in fade-in duration-200 border-t border-gray-800 pt-2 w-full">
+                                        <div className="mt-2 space-y-3 animate-in fade-in duration-200 border-t border-gray-800 pt-2 w-full min-w-0">
                                             
                                             {/* Lista Attacchi */}
                                             {m.template_details?.attacchi?.length > 0 && (
                                                 <div className="space-y-1">
                                                     <span className="text-[8px] font-black text-amber-600 uppercase block">Capacità Offensive:</span>
                                                     {m.template_details.attacchi.map((att, idx) => (
-                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20 wrap-break-words whitespace-pre-wrap">
+                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20 break-words whitespace-pre-wrap w-full">
                                                             <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
                                                         </div>
                                                     ))}
@@ -133,7 +135,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                                 <div className="bg-indigo-950/20 border border-indigo-500/20 rounded p-2 w-full">
                                                      <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Costume & Tratti:</span> 
                                                      <div 
-                                                        className="text-[10px] text-indigo-200/80 ql-editor-view wrap-break-words whitespace-pre-wrap" 
+                                                        className="text-[10px] text-indigo-200/80 ql-editor-view break-words whitespace-pre-wrap" 
                                                         dangerouslySetInnerHTML={{__html: m.template_details.costume}} 
                                                      />
                                                 </div>
@@ -144,7 +146,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                                 <div className="bg-gray-800/40 border border-gray-700 rounded p-2 w-full">
                                                      <span className="text-[8px] font-black text-gray-400 uppercase block mb-1">Info Gen. Specie:</span> 
                                                      <div 
-                                                        className="text-[10px] text-gray-400 ql-editor-view wrap-break-words whitespace-pre-wrap" 
+                                                        className="text-[10px] text-gray-400 ql-editor-view break-words whitespace-pre-wrap" 
                                                         dangerouslySetInnerHTML={{__html: m.template_details.note_generali}} 
                                                      />
                                                 </div>
@@ -207,7 +209,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     <QrIcon size={14} className={v.qr_code ? 'text-emerald-500' : 'text-gray-600'} />
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-[10px] font-bold text-gray-200 truncate max-w-[150px]">
+                                    <span className="text-[10px] font-bold text-gray-200 truncate max-w-[120px]">
                                         {v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}
                                     </span>
                                     <span className="text-[7px] text-gray-500 uppercase font-black">{v.tipo}</span>
@@ -231,7 +233,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     <option value="INV">INV</option>
                                 </select>
                                 <select 
-                                    className="bg-transparent text-[9px] text-gray-400 outline-none max-w-[120px]" 
+                                    className="bg-transparent text-[9px] text-gray-400 outline-none max-w-[100px]" 
                                     value={newVista.contentId} 
                                     onChange={(e) => setNewVista({...newVista, contentId: e.target.value})}
                                 >

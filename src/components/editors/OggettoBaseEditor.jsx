@@ -3,6 +3,7 @@ import { useCharacter } from '../CharacterContext';
 import { staffUpdateOggettoBase, staffCreateOggettoBase, staffGetClassiOggetto } from '../../api';
 import StatBaseInline from './inlines/StatBaseInline';
 import StatModInline from './inlines/StatModInline';
+import { ArrowLeft, Save } from 'lucide-react';
 
 const TIPO_CHOICES = [
     {id:'FIS', nome:'Fisico'}, {id:'MAT', nome:'Materia'}, {id:'MOD', nome:'Mod'},
@@ -14,10 +15,17 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
   const [classi, setClassi] = useState([]);
   
   const [formData, setFormData] = useState(initialData || {
-    nome: '', descrizione: '', tipo_oggetto: 'FIS', classe_oggetto: null, 
+    nome: '', 
+    descrizione: '', 
+    tipo_oggetto: 'FIS', 
+    classe_oggetto: null, 
     costo: 0, 
-    is_tecnologico: false, is_pesante: false, attacco_base: '', in_vendita: true,
-    statistiche_base: [], statistiche_modificatori: []
+    is_tecnologico: false, 
+    is_pesante: false, 
+    attacco_base: '',
+    in_vendita: true,
+    statistiche_base: [], 
+    statistiche_modificatori: []
   });
 
   useEffect(() => { staffGetClassiOggetto(onLogout).then(setClassi); }, []);
@@ -25,7 +33,6 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
   const updateInline = (key, index, field, value) => {
     const newList = [...formData[key]];
     if (index === -1) {
-        // Logica creazione: usa i valori di default se non specificati
         const exists = newList.find(it => (it.statistica?.id || it.statistica) === value.statId);
         if (!exists) {
             const newRecord = { statistica: value.statId };
@@ -46,23 +53,18 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
   const handleSave = async () => {
     try {
         const getId = (item) => item?.id || item || null;
-        const cleanAndDeduplicate = (list, keyField) => {
-            const seen = new Set();
-            return list
-            .map(item => ({ ...item, [keyField]: getId(item[keyField]) }))
-            .filter(item => {
-                const id = item[keyField];
-                if (!id || seen.has(id)) return false; 
-                seen.add(id);
-                return true;
-            });
-        };
+        const cleanStats = (list) => list.map(item => ({
+             statistica: typeof item.statistica === 'object' ? item.statistica.id : item.statistica,
+             valore_base: parseInt(item.valore_base || 0),
+             valore: parseInt(item.valore || 0),
+             tipo_modificatore: item.tipo_modificatore || 'ADD'
+        })).filter(i => i.statistica);
 
         const data = { 
             ...formData, 
             classe_oggetto: getId(formData.classe_oggetto),
-            statistiche_base: cleanAndDeduplicate(formData.statistiche_base, 'statistica'),
-            statistiche_modificatori: cleanAndDeduplicate(formData.statistiche_modificatori, 'statistica')
+            statistiche_base: cleanStats(formData.statistiche_base),
+            statistiche_modificatori: cleanStats(formData.statistiche_modificatori)
         };
 
         if (formData.id) await staffUpdateOggettoBase(formData.id, data, onLogout);
@@ -94,15 +96,15 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
             {formData.id ? `Edit Template: ${formData.nome}` : 'Nuovo Oggetto Base'}
         </h2>
         <div className="flex gap-3">
-           <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 px-8 py-2 rounded-lg font-black text-sm shadow-lg transition-all">SALVA</button>
-           <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm transition-all">ANNULLA</button>
+           <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 px-8 py-2 rounded-lg font-black text-sm shadow-lg transition-all flex items-center gap-2"><Save size={16}/> SALVA</button>
+           <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2"><ArrowLeft size={16}/> ANNULLA</button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-900/40 p-4 rounded-xl border border-gray-800">
         <div className="md:col-span-2">
             <label className="text-[10px] text-gray-500 uppercase font-black block mb-1">Nome Template</label>
-            <input className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm focus:border-blue-500 outline-none" 
+            <input className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm focus:border-blue-500 outline-none text-white" 
                 value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} />
         </div>
         
@@ -111,11 +113,19 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
 
         <div className="w-full">
             <label className="text-[10px] text-gray-500 uppercase font-black block mb-1">Costo (CR)</label>
-            <input type="number" className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm focus:border-blue-500 outline-none" 
+            <input type="number" className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm focus:border-blue-500 outline-none text-white" 
                 value={formData.costo} onChange={e => setFormData({...formData, costo: e.target.value})} />
         </div>
+
+        {/* CAMPO AGGIUNTO: Attacco Base */}
+        <div className="w-full">
+            <label className="text-[10px] text-red-500 uppercase font-black block mb-1">Attacco Base (Formula)</label>
+            <input className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm focus:border-red-500 outline-none text-red-300 font-mono" 
+                placeholder="{stat} + X"
+                value={formData.attacco_base || ''} onChange={e => setFormData({...formData, attacco_base: e.target.value})} />
+        </div>
         
-        <div className="md:col-span-3 flex items-center gap-6 pt-4 px-2">
+        <div className="md:col-span-2 flex items-center gap-6 pt-4 px-2">
             <label className="flex items-center gap-2 text-xs font-bold cursor-pointer hover:text-blue-300">
                 <input type="checkbox" className="accent-blue-500" checked={formData.in_vendita} onChange={e => setFormData({...formData, in_vendita: e.target.checked})} /> 
                 In Vendita (Shop)
@@ -128,6 +138,16 @@ const OggettoBaseEditor = ({ onBack, onLogout, initialData = null }) => {
                 <input type="checkbox" className="accent-emerald-500" checked={formData.is_tecnologico} onChange={e => setFormData({...formData, is_tecnologico: e.target.checked})} /> 
                 Tecnologico
             </label>
+        </div>
+
+        {/* CAMPO AGGIUNTO: Descrizione */}
+        <div className="md:col-span-4 mt-2">
+            <label className="text-[10px] text-gray-500 uppercase font-black block mb-1">Descrizione Oggetto</label>
+            <textarea 
+                className="w-full bg-gray-950 p-2 rounded border border-gray-700 text-sm focus:border-blue-500 outline-none text-gray-300 h-24 resize-none"
+                value={formData.descrizione || ''} 
+                onChange={e => setFormData({...formData, descrizione: e.target.value})} 
+            />
         </div>
       </div>
 
