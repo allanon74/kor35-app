@@ -100,6 +100,9 @@ const PlotTab = ({ onLogout }) => {
                     manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null, 
                     inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null 
                 };
+            if (type === 'offgame') {
+                await staffCreateOffGame(payload, onLogout);
+        }
                 await addVistaToQuest(payload.quest, vistaPayload, onLogout);
             }
             refreshData();
@@ -108,6 +111,7 @@ const PlotTab = ({ onLogout }) => {
             if (tipo === 'png') await removePngFromQuest(id, onLogout);
             if (tipo === 'mostro') await removeMostroFromQuest(id, onLogout);
             if (tipo === 'vista') await removeVistaFromQuest(id, onLogout);
+            if (type === 'offgame') {await staffDeleteOffGame(id, onLogout);}
             if (tipo === 'quest') { if (window.confirm("Eliminare quest?")) await deleteQuest(id, onLogout); }
             refreshData();
         },

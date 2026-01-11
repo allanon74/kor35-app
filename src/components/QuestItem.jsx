@@ -37,10 +37,11 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                 {/* Dettagli Quest */}
                 <div className="space-y-4 w-full min-w-0">
                     {quest.descrizione_ampia && (
-                        <div className="w-full min-w-0">
-                            {/* FIX: Sostituito 'wrap-wrap-break-words' (non standard) con 'wrap-break-words' e aggiunto 'overflow-hidden' al container */}
+                        <div className="w-full min-w-0 overflow-hidden">
+                            {/* FIX: Sostituito 'wrap-wrap-wrap-break-words' (non standard) con 'wrap-wrap-break-words' e aggiunto 'overflow-hidden' al container */}
                             <div 
-                                className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view wrap-break-words whitespace-pre-wrap w-full max-w-full overflow-hidden"
+                                className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view whitespace-pre-wrap! wrap-break-words! break-all! w-full max-w-full"
+                                style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}
                                 dangerouslySetInnerHTML={{ __html: quest.descrizione_ampia }}
                             />
                         </div>
@@ -51,7 +52,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                             <div className="min-w-0 flex-1">
                                 <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
                                 <div 
-                                    className="text-xs text-amber-100/80 ql-editor-view wrap-break-words whitespace-pre-wrap w-full max-w-full"
+                                    className="text-xs text-amber-100/80 ql-editor-view wrap-wrap-break-words whitespace-pre-wrap w-full max-w-full"
                                     dangerouslySetInnerHTML={{ __html: quest.props }}
                                 />
                             </div>
@@ -176,7 +177,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                                 <div className="space-y-1">
                                                     <span className="text-[8px] font-black text-amber-600 uppercase block">Capacità Offensive:</span>
                                                     {m.template_details.attacchi.map((att, idx) => (
-                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20 wrap-break-words whitespace-pre-wrap w-full">
+                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20 wrap-wrap-break-words whitespace-pre-wrap w-full">
                                                             <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
                                                         </div>
                                                     ))}
@@ -184,12 +185,12 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                             )}
                                              
                                              {/* ... Resto del codice mostri identico ... */}
-                                             {/* Nota: Assicurati di cambiare anche qui wrap-wrap-break-words con wrap-break-words se necessario */}
+                                             {/* Nota: Assicurati di cambiare anche qui wrap-wrap-wrap-break-words con wrap-wrap-break-words se necessario */}
                                              {m.template_details?.costume && (
                                                 <div className="bg-indigo-950/20 border border-indigo-500/20 rounded p-2 w-full">
                                                      <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Costume & Tratti:</span> 
                                                      <div 
-                                                        className="text-[10px] text-indigo-200/80 ql-editor-view wrap-break-words whitespace-pre-wrap" 
+                                                        className="text-[10px] text-indigo-200/80 ql-editor-view wrap-wrap-break-words whitespace-pre-wrap" 
                                                         dangerouslySetInnerHTML={{__html: m.template_details.costume}} 
                                                      />
                                                 </div>

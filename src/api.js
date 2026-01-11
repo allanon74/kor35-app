@@ -1160,3 +1160,11 @@ export const getAbilitaOptions = (onLogout) => {
 export const getTiersList = (onLogout) => {
     return fetchAuthenticated('/personaggi/api/tier/', { method: 'GET' }, onLogout);
 };
+
+export const staffCreateOffGame = async (data, onLogout) => {
+    return await authenticatedFetch('/gestione-plot/staff-offgame/', 'POST', data, onLogout);
+};
+
+export const staffDeleteOffGame = async (id, onLogout) => {
+    return await authenticatedFetch(`/gestione-plot/staff-offgame/${id}/`, 'DELETE', null, onLogout);
+};
