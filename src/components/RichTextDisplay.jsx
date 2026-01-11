@@ -3,35 +3,56 @@ import React from 'react';
 const RichTextDisplay = ({ content }) => {
     if (!content) return null;
 
-    // Rimuoviamo eventuali <p> vuoti che creano spazio extra inutile
-    const cleanContent = content.replace(/<p><br><\/p>/g, '<br/>');
+    // Pulizia preventiva di tag vuoti che creano spazi enormi
+    const cleanContent = content.replace(/<p><br><\/p>/g, '');
 
     return (
-        <div 
-            className="rich-text-container ql-editor-view text-sm text-gray-300"
-            style={{
-                // 1. preserve-3d: hack per forzare il rendering corretto su alcuni engine
-                transform: 'translateZ(0)',
+        <div className="rich-text-wrapper" style={{ width: '100%', minWidth: 0 }}>
+            <style>{`
+                .rich-text-content {
+                    /* Reset di base */
+                    all: revert;
+                    font-family: inherit;
+                    font-size: 0.875rem; /* text-sm */
+                    line-height: 1.6;
+                    color: #d1d5db; /* text-gray-300 */
+                    
+                    /* IL FIX DEL TESTO */
+                    white-space: normal !important;       /* Ignora gli 'a capo' del codice, usa solo i <br> visivi */
+                    word-break: normal !important;        /* NON spezzare le parole a metà */
+                    overflow-wrap: anywhere !important;   /* Spezza SOLO se la parola è più lunga del contenitore (es. URL) */
+                    
+                    /* Layout */
+                    display: block;
+                    width: 100%;
+                    max-width: 100%;
+                }
+
+                /* Gestione paragrafi e liste per non farli uscire */
+                .rich-text-content p, 
+                .rich-text-content li,
+                .rich-text-content h1,
+                .rich-text-content h2,
+                .rich-text-content h3 {
+                    margin-bottom: 0.5em;
+                    white-space: normal !important;
+                    word-break: normal !important;
+                    overflow-wrap: anywhere !important;
+                    max-width: 100%;
+                }
                 
-                // 2. LA CONFIGURAZIONE VINCENTE:
-                // 'pre-wrap' preserva gli 'a capo' veri E permette il wrapping
-                whiteSpace: 'pre-wrap', 
-                
-                // 'anywhere' è la chiave: rompe SOLO se la parola sfora la larghezza, 
-                // altrimenti va a capo negli spazi. È meglio di 'break-word'.
-                overflowWrap: 'anywhere', 
-                
-                // 'normal' impedisce di spezzare le parole a metà (es. "cipol-la")
-                wordBreak: 'normal',
-                
-                // 3. Layout constraints
-                maxWidth: '100%',
-                minWidth: '0',     // Fondamentale dentro i flex/grid container per permettere lo shrink
-                lineHeight: '1.6', // Migliora la leggibilità
-                display: 'block'
-            }}
-            dangerouslySetInnerHTML={{ __html: cleanContent }}
-        />
+                /* Stile per i link */
+                .rich-text-content a {
+                    color: #818cf8; /* indigo-400 */
+                    text-decoration: underline;
+                }
+            `}</style>
+            
+            <div 
+                className="rich-text-content"
+                dangerouslySetInnerHTML={{ __html: cleanContent }}
+            />
+        </div>
     );
 };
 
