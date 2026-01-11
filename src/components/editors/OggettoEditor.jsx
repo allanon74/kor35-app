@@ -149,7 +149,7 @@ const OggettoEditor = ({ onBack, onLogout, initialData = null }) => {
 
       <RichTextEditor label="Descrizione Narrativa" value={formData.testo} onChange={v => setFormData({...formData, testo: v})} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
           <StatBaseInline 
             items={formData.statistiche_base} 
             options={punteggiList.filter(p => p.tipo === 'ST')} 
