@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import GenericHeader from './GenericHeader';
-import Sidebar from './Sidebar';
+import Sidebar from './Sidebar'; // Usato SOLO per mobile
+import versionData from '../../package.json'; // Importato per coerenza con la sidebar desktop
 import { 
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
-    Skull, BookOpen, Menu
+    Skull, BookOpen, Menu, ChevronRight
 } from 'lucide-react';
 
 // Importazione dei Sotto-Componenti (Tools)
@@ -21,25 +22,24 @@ import MostroManager from './editors/MostroManager';
 import AbilitaManager from './editors/AbilitaManager';
 
 const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) => {
-    // 'home' è la griglia di icone. Altrimenti è l'id del tool attivo.
     const [activeTool, setActiveTool] = useState(initialTool); 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     // Configurazione dei Tools disponibili
     const toolsConfig = [
-        { id: 'plot', label: 'Gestione Plot', icon: <Map size={48} />, color: 'bg-indigo-600', component: <PlotTab onLogout={onLogout} /> },
-        { id: 'mostri', label: 'Database Mostri', icon: <Skull size={48} />, color: 'bg-red-700', component: <MostroManager onLogout={onLogout} /> }, 
-        { id: 'abilita', label: 'Database Abilità', icon: <BookOpen size={48} />, color: 'bg-blue-700', component: <AbilitaManager onLogout={onLogout} /> },
-        { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={48} />, color: 'bg-amber-700', component: <CerimonialeManager onLogout={onLogout} /> },
-        { id: 'tessiture', label: 'Tessiture', icon: <Feather size={48} />, color: 'bg-cyan-700', component: <TessituraManager onLogout={onLogout} /> },
-        { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={48} />, color: 'bg-purple-700', component: <InfusioneManager onLogout={onLogout} /> },
-        { id: 'proposte', label: 'Valutazione Proposte', icon: <ClipboardCheck size={48} />, color: 'bg-orange-600', component: <StaffProposalTab onLogout={onLogout} /> },
-        { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={48} />, color: 'bg-stone-600', component: <OggettoManager onLogout={onLogout} /> },
-        { id: 'oggetti-base', label: 'Templates Oggetti Base', icon: <Gavel size={48} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
-        { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={48} />, color: 'bg-emerald-600', component: <AdminMessageTab onLogout={onLogout} /> },        
+        { id: 'plot', label: 'Gestione Plot', icon: <Map size={24} />, color: 'bg-indigo-600', component: <PlotTab onLogout={onLogout} /> },
+        { id: 'mostri', label: 'Database Mostri', icon: <Skull size={24} />, color: 'bg-red-700', component: <MostroManager onLogout={onLogout} /> }, 
+        { id: 'abilita', label: 'Database Abilità', icon: <BookOpen size={24} />, color: 'bg-blue-700', component: <AbilitaManager onLogout={onLogout} /> },
+        { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={24} />, color: 'bg-amber-700', component: <CerimonialeManager onLogout={onLogout} /> },
+        { id: 'tessiture', label: 'Tessiture', icon: <Feather size={24} />, color: 'bg-cyan-700', component: <TessituraManager onLogout={onLogout} /> },
+        { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={24} />, color: 'bg-purple-700', component: <InfusioneManager onLogout={onLogout} /> },
+        { id: 'proposte', label: 'Valutazione Proposte', icon: <ClipboardCheck size={24} />, color: 'bg-orange-600', component: <StaffProposalTab onLogout={onLogout} /> },
+        { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={24} />, color: 'bg-stone-600', component: <OggettoManager onLogout={onLogout} /> },
+        { id: 'oggetti-base', label: 'Templates Base', icon: <Shield size={24} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
+        { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: <AdminMessageTab onLogout={onLogout} /> },        
     ];
 
-    // Helper per chiudere menu su click
+    // Helper per cambio tool
     const handleToolSelect = (id) => {
         setActiveTool(id);
         setIsMenuOpen(false);
@@ -50,29 +50,65 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         { label: 'Master Hub', icon: <LayoutGrid size={18}/>, active: activeTool === 'home', action: () => handleToolSelect('home') },
         ...toolsConfig.map(t => ({
             label: t.label,
-            icon: React.cloneElement(t.icon, { size: 18 }), // Riduco icona per sidebar
+            icon: React.cloneElement(t.icon, { size: 18 }),
             active: activeTool === t.id,
             action: () => handleToolSelect(t.id)
         })),
-        { label: '----------------', icon: null, action: () => {} }, // Separatore visivo
-        { label: 'Vai a Personaggi', icon: <Users size={18}/>, action: onSwitchToPlayer, active: false } // Link esterno
+        { label: '----------------', icon: null, action: () => {} },
+        { label: 'Vai a Personaggi', icon: <Users size={18}/>, action: onSwitchToPlayer, active: false }
     ];
 
     return (
         <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
             
-            {/* Sidebar Desktop (Fissa a sinistra, nascosta su mobile) */}
-            <div className="hidden md:block w-64 shrink-0 z-20">
-                <Sidebar 
-                    isOpen={true} // Sempre aperta su desktop
-                    onClose={() => {}} 
-                    title="Menu Master"
-                    items={sidebarItems} 
-                    onLogout={onLogout} 
-                />
-            </div>
+            {/* === 1. SIDEBAR DESKTOP (Renderizzata "Inline" per evitare il blur) === */}
+            <aside className="hidden md:flex flex-col w-72 bg-gray-950 border-r border-gray-800 shadow-2xl z-20">
+                {/* Header Sidebar Desktop */}
+                <div className="p-6 border-b border-gray-900 flex items-center gap-3">
+                     <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-900/50">
+                        <LayoutGrid size={20} className="text-white"/>
+                     </div>
+                     <span className="font-black text-indigo-400 italic tracking-widest uppercase text-sm">MENU MASTER</span>
+                </div>
+                
+                {/* Navigazione Desktop */}
+                <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                    {sidebarItems.map((item, idx) => {
+                        if (item.label.includes('---')) return <div key={idx} className="h-px bg-gray-900 my-2 mx-4"></div>;
+                        return (
+                            <button 
+                                key={idx}
+                                onClick={item.action}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl font-bold transition-all group ${
+                                    item.active 
+                                    ? 'bg-indigo-600 text-white shadow-lg' 
+                                    : 'text-gray-400 hover:bg-gray-900 hover:text-white'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`transition-transform duration-200 ${item.active ? '' : 'group-hover:scale-110'}`}>
+                                        {item.icon}
+                                    </div>
+                                    <span className="text-xs uppercase tracking-wide truncate">{item.label}</span>
+                                </div>
+                                {item.active && <ChevronRight size={14} className="opacity-50"/>}
+                            </button>
+                        );
+                    })}
+                </nav>
 
-            {/* Sidebar Mobile (Drawer) */}
+                {/* Footer Desktop */}
+                <div className="p-4 border-t border-gray-900 bg-gray-950">
+                    <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 rounded-xl font-bold text-red-500 hover:bg-red-500/10 transition-all mb-2">
+                        <LogOut size={18} /><span className="text-xs uppercase tracking-wide">Logout</span>
+                    </button>
+                    <div className="text-center">
+                        <span className="text-[10px] text-gray-700 font-mono tracking-widest">v{versionData.version}</span>
+                    </div>
+                </div>
+            </aside>
+
+            {/* === 2. SIDEBAR MOBILE (Usa il componente Originale Modale) === */}
             <div className="md:hidden">
                 <Sidebar 
                     isOpen={isMenuOpen} 
@@ -83,63 +119,65 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                 />
             </div>
 
-            {/* Contenuto Principale */}
+            {/* === 3. CONTENUTO PRINCIPALE === */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-gray-900">
-                {/* Header Unificato */}
+                {/* Header Applicativo */}
                 <GenericHeader 
                     title="KOR 35"
-                    subtitle={activeTool === 'home' ? "Master Control" : toolsConfig.find(t => t.id === activeTool)?.label}
+                    subtitle={activeTool === 'home' ? "Dashboard" : toolsConfig.find(t => t.id === activeTool)?.label}
                     onMenuClick={() => setIsMenuOpen(true)}
-                    showMenuButton={false} // Disabilita bottone default a sinistra
+                    showMenuButton={false} // Nascondo pulsante sinistra default
                     rightSlot={
                         <div className="flex items-center gap-2">
-                            {/* Bottone Home Rapido (Desktop/Mobile) */}
+                             {/* Hamburger a DESTRA (solo Mobile) */}
+                            <button onClick={() => setIsMenuOpen(true)} className="md:hidden p-2 text-indigo-400 hover:bg-gray-800 rounded transition-colors">
+                                <Menu size={24} />
+                            </button>
+                            {/* Tasto Home rapido (sempre utile) */}
                             {activeTool !== 'home' && (
-                                <button onClick={() => setActiveTool('home')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors">
+                                <button onClick={() => setActiveTool('home')} className="hidden md:block p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors" title="Torna alla Dashboard">
                                     <LayoutGrid size={20}/>
                                 </button>
                             )}
-                            {/* Hamburger Menu (Solo Mobile, a Destra) */}
-                            <button onClick={() => setIsMenuOpen(true)} className="md:hidden p-2 text-indigo-400 hover:bg-gray-800 rounded">
-                                <Menu size={24} />
-                            </button>
                         </div>
                     }
                 />
 
-                <main className="flex-1 overflow-y-auto overflow-x-hidden relative p-0">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden relative p-0 custom-scrollbar">
                     
-                    {/* VISTA HOME: Griglia pulsanti */}
+                    {/* VISTA HOME */}
                     {activeTool === 'home' && (
-                        <div className="h-full overflow-y-auto p-6">
-                            <h2 className="text-2xl font-black text-gray-700 uppercase italic mb-6 tracking-widest text-center md:text-left">Strumenti Disponibili</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto md:mx-0">
+                        <div className="min-h-full p-6 animate-in fade-in duration-300">
+                            <h2 className="text-2xl font-black text-gray-700 uppercase italic mb-6 tracking-widest text-center md:text-left">Strumenti Staff</h2>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                 {toolsConfig.map(tool => (
                                     <button 
                                         key={tool.id}
                                         onClick={() => setActiveTool(tool.id)}
-                                        className={`${tool.color} p-6 rounded-2xl shadow-xl hover:scale-105 transition-transform flex flex-col items-center justify-center gap-4 aspect-square border-t border-white/10`}
+                                        className={`${tool.color} p-6 rounded-2xl shadow-xl hover:scale-[1.02] hover:shadow-2xl transition-all flex flex-col items-center justify-center gap-4 aspect-square border-t border-white/10 group relative overflow-hidden`}
                                     >
-                                        <div className="text-white drop-shadow-md">{tool.icon}</div>
-                                        <span className="font-bold text-white uppercase tracking-wider text-sm md:text-base text-center">{tool.label}</span>
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"/>
+                                        <div className="text-white drop-shadow-md transform group-hover:-translate-y-1 transition-transform duration-300">
+                                            {React.cloneElement(tool.icon, { size: 40 })}
+                                        </div>
+                                        <span className="font-black text-white uppercase tracking-wider text-xs text-center z-10">{tool.label}</span>
                                     </button>
                                 ))}
                                 
-                                {/* Card speciale per Personaggi */}
                                 <button 
                                     onClick={onSwitchToPlayer}
-                                    className="bg-gray-800 border-2 border-dashed border-gray-700 p-6 rounded-2xl hover:bg-gray-700 hover:border-gray-500 transition-all flex flex-col items-center justify-center gap-4 aspect-square"
+                                    className="bg-gray-800 border-2 border-dashed border-gray-700 p-6 rounded-2xl hover:bg-gray-750 hover:border-gray-500 transition-all flex flex-col items-center justify-center gap-4 aspect-square group"
                                 >
-                                    <Users size={48} className="text-gray-500" />
-                                    <span className="font-bold text-gray-400 uppercase tracking-wider text-sm text-center">Vai a Personaggi</span>
+                                    <Users size={40} className="text-gray-600 group-hover:text-gray-300 transition-colors" />
+                                    <span className="font-bold text-gray-500 group-hover:text-white uppercase tracking-wider text-xs text-center">Vai a Personaggi</span>
                                 </button>
                             </div>
                         </div>
                     )}
 
-                    {/* VISTA TOOL SPECIFICO */}
+                    {/* VISTA TOOL ATTIVO */}
                     {activeTool !== 'home' && (
-                        <div className="h-full w-full overflow-y-auto animate-in fade-in zoom-in-95 duration-200 p-4 md:p-6 pb-20 custom-scrollbar">
+                        <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
                             {toolsConfig.find(t => t.id === activeTool)?.component}
                         </div>
                     )}
