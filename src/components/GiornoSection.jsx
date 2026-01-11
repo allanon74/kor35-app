@@ -1,12 +1,15 @@
 import React, { useState } from 'react'; 
-import { Calendar, Clock, Edit2, Trash, Plus, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { Calendar, Clock, Edit2, Trash, ChevronDown, ChevronUp, BookOpen, Plus } from 'lucide-react';
 import QuestItem from './QuestItem';
 import RichTextDisplay from './RichTextDisplay';
 
 const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAddQuest, questHandlers }) => {
     const [showDettagli, setShowDettagli] = useState(false);
+
+    // LOGICA DI ORDINAMENTO AGGIUNTA
+    // Crea una copia dell'array e ordina per orario_indicativo
     const sortedQuests = [...(giorno.quests || [])].sort((a, b) => {
-        // Gestione valori nulli (metti in fondo chi non ha orario)
+        // Se manca l'orario, considera come fine giornata ("23:59:59") per metterlo in fondo
         const timeA = a.orario_indicativo || "23:59:59";
         const timeB = b.orario_indicativo || "23:59:59";
         return timeA.localeCompare(timeB);
@@ -33,12 +36,12 @@ const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAd
                     
                     {/* Sinossi Breve */}
                     {giorno.sinossi_breve && (
-                            <div className="text-sm text-indigo-300 italic font-medium bg-indigo-900/10 p-2 rounded-lg border border-indigo-500/20 mt-2">
-                                <RichTextDisplay content={giorno.sinossi_breve} />
-                            </div>
-                        )}
+                        <div className="text-sm text-indigo-300 italic font-medium bg-indigo-900/10 p-2 rounded-lg border border-indigo-500/20 mt-2">
+                            <RichTextDisplay content={giorno.sinossi_breve} />
+                        </div>
+                    )}
 
-                    <div className="flex flex-wrap items-center gap-3 text-[10px] text-emerald-400 font-bold uppercase italic">
+                    <div className="flex flex-wrap items-center gap-3 text-[10px] text-emerald-400 font-bold uppercase italic mt-2">
                         <span className="flex items-center gap-1 whitespace-nowrap"><Clock size={12}/> {formatTime(giorno.data_ora_inizio)} - {formatTime(giorno.data_ora_fine)}</span>
                         
                         {/* Bottone per espandere i dettagli completi */}
@@ -59,7 +62,9 @@ const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAd
                     <div className="flex gap-2 shrink-0">
                         <button onClick={() => onEdit('giorno', giorno)} className="text-gray-500 hover:text-white p-1"><Edit2 size={16}/></button>
                         <button onClick={() => onDelete(giorno.id)} className="text-red-900 hover:text-red-500 p-1"><Trash size={16}/></button>
-                        <button onClick={() => onAddQuest(giorno.id)} className="bg-emerald-600 px-3 py-1.5 rounded text-[10px] font-black uppercase whitespace-nowrap">+ Quest</button>
+                        <button onClick={() => onAddQuest(giorno.id)} className="bg-emerald-600 px-3 py-1.5 rounded text-[10px] font-black uppercase whitespace-nowrap flex items-center gap-1">
+                            <Plus size={12}/> Quest
+                        </button>
                     </div>
                 )}
             </div>
@@ -68,18 +73,28 @@ const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAd
             {showDettagli && giorno.descrizione_completa && (
                 <div className="bg-emerald-950/20 border-l-2 border-emerald-500 p-4 rounded-r-lg animate-in fade-in w-full">
                     <h4 className="text-[10px] font-black text-emerald-500 uppercase mb-2">Dettagli Plot / Note Master</h4>
-                    <div className="mt-3 pt-3 border-t border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase block mb-1">Note Master (Plot Completo):</span>
-                                <div className="text-xs text-gray-400 bg-black/20 p-2 rounded">
-                                    <RichTextDisplay content={giorno.descrizione_completa} />
-                                </div>
-                            </div>
+                    <div className="text-xs text-gray-400 bg-black/20 p-2 rounded">
+                        <RichTextDisplay content={giorno.descrizione_completa} />
+                    </div>
                 </div>
             )}
 
             <div className="grid gap-8 w-full">
-                {giorno.quests.map(quest => (
-                    <QuestItem key={quest.id} quest={quest} isMaster={isMaster} risorse={risorse} onEdit={onEdit} {...questHandlers} />
+                {/* QUI è la correzione: mappiamo 'sortedQuests' invece di 'giorno.quests' */}
+                {sortedQuests.map(quest => (
+                    <QuestItem 
+                        key={quest.id} 
+                        quest={quest} 
+                        isMaster={isMaster} 
+                        risorse={risorse} 
+                        onEdit={onEdit} 
+                        // Espando i questHandlers (onAddSub, onRemoveSub, ecc.)
+                        onAddSub={questHandlers.onAddSub}
+                        onRemoveSub={questHandlers.onRemoveSub}
+                        onStatChange={questHandlers.onStatChange}
+                        onSaveNotes={questHandlers.onSaveNotes}
+                        onScanQr={questHandlers.onScanQr}
+                    />
                 ))}
             </div>
         </div>
