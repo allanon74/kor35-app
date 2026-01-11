@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import GenericHeader from './GenericHeader';
-import Sidebar from './Sidebar'; // Usato SOLO per mobile
-import versionData from '../../package.json'; // Importato per coerenza con la sidebar desktop
+import Sidebar from './Sidebar'; // Usato SOLO per mobile (Modale)
+import versionData from '../../package.json'; 
 import { 
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
@@ -103,12 +103,13 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         <LogOut size={18} /><span className="text-xs uppercase tracking-wide">Logout</span>
                     </button>
                     <div className="text-center">
-                        <span className="text-[10px] text-gray-700 font-mono tracking-widest">v{versionData.version}</span>
+                        <span className="text-[10px] text-gray-700 font-mono tracking-widest">v{versionData?.version || '1.0'}</span>
                     </div>
                 </div>
             </aside>
 
             {/* === 2. SIDEBAR MOBILE (Usa il componente Originale Modale) === */}
+            {/* Viene montata solo se serve o gestita via CSS/JS interno, qui usiamo display condizionale del componente Sidebar */}
             <div className="md:hidden">
                 <Sidebar 
                     isOpen={isMenuOpen} 
@@ -125,14 +126,19 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                 <GenericHeader 
                     title="KOR 35"
                     subtitle={activeTool === 'home' ? "Dashboard" : toolsConfig.find(t => t.id === activeTool)?.label}
-                    onMenuClick={() => setIsMenuOpen(true)}
-                    showMenuButton={false} // Nascondo pulsante sinistra default
+                    // IMPORTANTE: Non passare onMenuClick se vuoi nascondere quello a sinistra,
+                    // oppure passa showMenuButton={false} se supportato dal tuo GenericHeader.
+                    showMenuButton={false} 
                     rightSlot={
                         <div className="flex items-center gap-2">
                              {/* Hamburger a DESTRA (solo Mobile) */}
-                            <button onClick={() => setIsMenuOpen(true)} className="md:hidden p-2 text-indigo-400 hover:bg-gray-800 rounded transition-colors">
+                            <button 
+                                onClick={() => setIsMenuOpen(true)} 
+                                className="md:hidden p-2 text-indigo-400 hover:bg-gray-800 rounded transition-colors active:scale-95"
+                            >
                                 <Menu size={24} />
                             </button>
+                            
                             {/* Tasto Home rapido (sempre utile) */}
                             {activeTool !== 'home' && (
                                 <button onClick={() => setActiveTool('home')} className="hidden md:block p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors" title="Torna alla Dashboard">
@@ -156,7 +162,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                                         onClick={() => setActiveTool(tool.id)}
                                         className={`${tool.color} p-6 rounded-2xl shadow-xl hover:scale-[1.02] hover:shadow-2xl transition-all flex flex-col items-center justify-center gap-4 aspect-square border-t border-white/10 group relative overflow-hidden`}
                                     >
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"/>
+                                        <div className="absolute inset-0 bg-linear-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"/>
                                         <div className="text-white drop-shadow-md transform group-hover:-translate-y-1 transition-transform duration-300">
                                             {React.cloneElement(tool.icon, { size: 40 })}
                                         </div>

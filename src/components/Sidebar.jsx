@@ -5,22 +5,26 @@ import versionData from '../../package.json';
 const Sidebar = ({ isOpen, onClose, title, items, onLogout }) => {
     const [expandedItems, setExpandedItems] = useState({});
 
-    const toggleExpand = (label, e) => {
-        e.stopPropagation();
-        setExpandedItems(prev => ({ ...prev, [label]: !prev[label] }));
-    };
-
+    // Se non è aperto, non renderizzare nulla (evita overlay invisibili che bloccano i click)
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0  flex font-sans">
-            <div className="absolute inset-0 z-100 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative w-72 bg-gray-950 h-full border-r border-gray-800 flex flex-col shadow-2xl animate-in slide-in-from-left duration-200">
+        <div className="fixed inset-0 z-50 flex font-sans">
+            {/* Overlay Sfondo Scuro */}
+            <div 
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                onClick={onClose}
+            ></div>
+            
+            {/* Pannello Laterale */}
+            <div className="relative w-72 bg-gray-950 h-full border-r border-gray-800 flex flex-col shadow-2xl animate-in slide-in-from-left duration-200 z-50">
                 
                 {/* Header Sidebar */}
                 <div className="p-6 flex justify-between items-center border-b border-gray-900">
                     <span className="font-black text-indigo-400 italic tracking-widest uppercase text-sm">{title}</span>
-                    <button onClick={onClose} className="p-1 hover:bg-gray-800 rounded-full text-gray-400"><X size={20}/></button>
+                    <button onClick={onClose} className="p-1 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors">
+                        <X size={20}/>
+                    </button>
                 </div>
 
                 {/* Lista Voci */}
@@ -30,22 +34,28 @@ const Sidebar = ({ isOpen, onClose, title, items, onLogout }) => {
                         const isExpanded = expandedItems[item.label];
                         
                         // Separatore
-                        if (item.label === '---') return <div key={idx} className="h-px bg-gray-800 my-2 mx-4"></div>;
+                        if (item.label.includes('---')) return <div key={idx} className="h-px bg-gray-800 my-2 mx-4"></div>;
 
                         return (
                             <div key={idx} className="flex flex-col">
                                 <button 
                                     onClick={() => {
-                                        if (hasSubItems) setExpandedItems(prev => ({ ...prev, [item.label]: !prev[item.label] }));
-                                        else { item.action(); onClose(); }
+                                        if (hasSubItems) {
+                                            setExpandedItems(prev => ({ ...prev, [item.label]: !prev[item.label] }));
+                                        } else { 
+                                            item.action(); 
+                                            onClose(); 
+                                        }
                                     }}
                                     className={`w-full flex items-center justify-between p-4 rounded-xl font-bold transition-all ${
-                                        item.active ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-white'
+                                        item.active 
+                                        ? 'bg-indigo-600 text-white shadow-lg' 
+                                        : 'text-gray-400 hover:bg-gray-900 hover:text-white'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
                                         {item.icon}
-                                        <span className="text-sm uppercase tracking-wide">{item.label}</span>
+                                        <span className="text-sm uppercase tracking-wide truncate">{item.label}</span>
                                     </div>
                                     {hasSubItems && (
                                         isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>
@@ -79,11 +89,12 @@ const Sidebar = ({ isOpen, onClose, title, items, onLogout }) => {
                         <LogOut size={20} /><span className="text-sm uppercase tracking-wide">Logout</span>
                     </button>
                     <div className="text-center">
-                        <span className="text-[10px] text-gray-600 font-mono tracking-widest">v{versionData.version}</span>
+                        <span className="text-[10px] text-gray-600 font-mono tracking-widest">v{versionData?.version || '1.0'}</span>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+
 export default Sidebar;
