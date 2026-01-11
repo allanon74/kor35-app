@@ -1,43 +1,50 @@
 import React from 'react';
-import ReactQuill from 'react-quill-new'; // Importa il fork per React 19
-import 'react-quill-new/dist/quill.snow.css'; 
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import { sanitizeHtml } from '../utils/htmlSanitizer'; // Importa il sanitizer
 
-const RichTextEditor = ({ label, value, onChange, placeholder }) => {
-  const modules = {
-    toolbar: [
-      [{ 'header': [1, 2, false] }],
-      ['bold', 'italic', 'underline'],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      ['clean']
-    ],
-  };
+const RichTextEditor = ({ label, value, onChange }) => {
+    
+    // Intercettiamo il cambiamento
+    const handleChange = (content) => {
+        // Puliamo l'HTML prima di inviarlo al form padre
+        // Nota: ReactQuill a volte ritorna "<p><br></p>" quando è vuoto
+        const isActuallyEmpty = content === '<p><br></p>' || content === '';
+        
+        if (isActuallyEmpty) {
+            onChange('');
+        } else {
+            // Eseguiamo la pulizia "pesante" solo se stiamo incollando o scrivendo
+            // Per evitare lag eccessivo su testi lunghi, si potrebbe fare onBlur, 
+            // ma per ora facciamolo diretto per sicurezza.
+            const clean = sanitizeHtml(content); 
+            onChange(clean);
+        }
+    };
 
-  return (
-    <div className="flex flex-col mb-4">
-      <label className="text-[10px] text-gray-500 uppercase font-black mb-1">{label}</label>
-      <div className="bg-gray-900 rounded border border-gray-700 overflow-hidden text-white">
-        <ReactQuill 
-          theme="snow"
-          value={value || ""}
-          onChange={(content, delta, source) => {
-            // Aggiorniamo lo stato solo se il cambiamento è fatto dall'utente
-            if (source === 'user') {
-              onChange(content);
-            }
-          }}
-          modules={modules}
-          placeholder={placeholder}
-        />
-      </div>
-      <style>{`
-        .ql-container { border: none !important; min-height: 120px; font-size: 0.875rem; }
-        .ql-editor { color: white !important; }
-        .ql-toolbar { background: #1f2937 !important; border: none !important; border-bottom: 1px solid #374151 !important; }
-        .ql-stroke { stroke: #9ca3af !important; }
-        .ql-picker { color: #9ca3af !important; }
-      `}</style>
-    </div>
-  );
+    const modules = {
+        toolbar: [
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link'],
+            ['clean'] // Il pulsante 'Tx' di Quill fa già pulizia parziale
+        ],
+    };
+
+    return (
+        <div className="flex flex-col gap-2 mb-4">
+            {label && <label className="text-[10px] font-bold text-gray-500 uppercase px-1">{label}</label>}
+            <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden focus-within:border-indigo-500 transition-colors">
+                <ReactQuill 
+                    theme="snow"
+                    value={value || ''}
+                    onChange={handleChange}
+                    modules={modules}
+                    className="text-gray-300"
+                />
+            </div>
+        </div>
+    );
 };
 
 export default RichTextEditor;

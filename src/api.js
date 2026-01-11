@@ -1162,9 +1162,9 @@ export const getTiersList = (onLogout) => {
 };
 
 export const staffCreateOffGame = async (data, onLogout) => {
-    return await fetchAuthenticated('/gestione-plot/staff/staff-offgame/', 'POST', data, onLogout);
+    return await fetchAuthenticated('/plot/staff/staff-offgame/', 'POST', data, onLogout);
 };
 
 export const staffDeleteOffGame = async (id, onLogout) => {
-    return await fetchAuthenticated(`/gestione-plot/staff/staff-offgame/${id}/`, 'DELETE', null, onLogout);
+    return await fetchAuthenticated(`/plot/staff/staff-offgame/${id}/`, 'DELETE', null, onLogout);
 };
