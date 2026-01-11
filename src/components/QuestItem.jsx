@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 // Aggiungi l'icona 'Whistle' (fischietto) o 'Monitor' per l'arbitro se disponibile, altrimenti usiamo Shield o User
 import { Users, Swords, QrCode as QrIcon, Heart, Shield, Layout, Trash, X, Plus, ChevronDown, ChevronUp, Package, Edit2, UserCheck, Eye, Monitor } from 'lucide-react';
+import RichTextDisplay from './RichTextDisplay';
 
 const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChange, onSaveNotes, onEdit, onScanQr }) => {
     const [expandedMostri, setExpandedMostri] = useState({});
@@ -37,13 +38,8 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                 {/* Dettagli Quest */}
                 <div className="space-y-4 w-full min-w-0">
                     {quest.descrizione_ampia && (
-                        <div className="w-full min-w-0 overflow-hidden">
-                            {/* FIX: Sostituito 'wrap-wrap-wrap-break-words' (non standard) con 'wrap-wrap-break-words' e aggiunto 'overflow-hidden' al container */}
-                            <div 
-                                className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view whitespace-pre-wrap! wrap-break-words! break-all! w-full max-w-full"
-                                style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}
-                                dangerouslySetInnerHTML={{ __html: quest.descrizione_ampia }}
-                            />
+                        <div className="w-full min-w-0 bg-black/10 p-3 rounded-xl border border-gray-800 italic">
+                            <RichTextDisplay content={quest.descrizione_ampia} />
                         </div>
                     )}
                     {quest.props && (
@@ -51,10 +47,9 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                             <Package size={18} className="text-amber-500 shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
                                 <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
-                                <div 
-                                    className="text-xs text-amber-100/80 ql-editor-view wrap-wrap-break-words whitespace-pre-wrap w-full max-w-full"
-                                    dangerouslySetInnerHTML={{ __html: quest.props }}
-                                />
+                                <div className="text-amber-100/80">
+                                    <RichTextDisplay content={quest.props} />
+                                </div>
                             </div>
                         </div>
                     )}
@@ -184,15 +179,21 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                                 </div>
                                             )}
                                              
-                                             {/* ... Resto del codice mostri identico ... */}
-                                             {/* Nota: Assicurati di cambiare anche qui wrap-wrap-wrap-break-words con wrap-wrap-break-words se necessario */}
                                              {m.template_details?.costume && (
                                                 <div className="bg-indigo-950/20 border border-indigo-500/20 rounded p-2 w-full">
-                                                     <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Costume & Tratti:</span> 
-                                                     <div 
-                                                        className="text-[10px] text-indigo-200/80 ql-editor-view wrap-wrap-break-words whitespace-pre-wrap" 
-                                                        dangerouslySetInnerHTML={{__html: m.template_details.costume}} 
-                                                     />
+                                                    <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Costume & Tratti:</span> 
+                                                    <div className="text-indigo-200/80">
+                                                        <RichTextDisplay content={m.template_details.costume} />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {m.template_details?.note_generali && (
+                                                <div className="bg-indigo-950/20 border border-indigo-500/20 rounded p-2 w-full">
+                                                    <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Note Generali:</span> 
+                                                    <div className="text-indigo-200/80">
+                                                        <RichTextDisplay content={m.template_details.note_generali} />
+                                                    </div>
                                                 </div>
                                             )}
                                              {/* ... */}
