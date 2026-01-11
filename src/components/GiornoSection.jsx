@@ -28,7 +28,7 @@ const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAd
                     
                     {/* Sinossi Breve (sotto il titolo) */}
                     <div 
-                        className="text-emerald-400/80 text-xs font-bold uppercase italic mb-2"
+                        className="text-emerald-400/80 text-xs font-bold uppercase italic mb-2 wrap-reak-word whitespace-pre-wrap"
                         dangerouslySetInnerHTML={{ __html: giorno.sinossi_breve }}
                     />
 

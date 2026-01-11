@@ -38,7 +38,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                 <div className="space-y-4">
                     {quest.descrizione_ampia && (
                         <div 
-                            className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view"
+                            className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view wrap-reak-word whitespace-pre-wrap"
                             dangerouslySetInnerHTML={{ __html: quest.descrizione_ampia }}
                         />
                     )}
@@ -48,7 +48,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                             <div>
                                 <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
                                 <div 
-                                    className="text-xs text-amber-100/80 ql-editor-view"
+                                    className="text-xs text-amber-100/80 ql-editor-view wrap-reak-word whitespace-pre-wrap"
                                     dangerouslySetInnerHTML={{ __html: quest.props }}
                                 />
                             </div>
