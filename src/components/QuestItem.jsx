@@ -2,13 +2,9 @@ import React, { useState } from 'react';
 import { Users, Swords, QrCode as QrIcon, Heart, Shield, Layout, Trash, X, Plus, ChevronDown, ChevronUp, Package, Edit2, UserCheck, Eye } from 'lucide-react';
 
 const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChange, onSaveNotes, onEdit, onScanQr }) => {
-    // Stato per tracciare quali mostri sono espansi
     const [expandedMostri, setExpandedMostri] = useState({});
-    
-    // Stato locale per il form di aggiunta Vista (MAN/INV)
     const [newVista, setNewVista] = useState({ tipo: 'MAN', contentId: '' });
 
-    // Filtriamo i personaggi per mostrare solo i NON GIOCANTI
     const pngDisponibili = risorse.png?.filter(p => p.giocante === false) || [];
 
     const toggleMonster = (id) => {
@@ -38,8 +34,9 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                 <div className="space-y-4 w-full min-w-0">
                     {quest.descrizione_ampia && (
                         <div className="w-full min-w-0">
+                            {/* FIX: whitespace-pre-wrap preserva gli 'a capo', wrap-break-words manda a capo le parole lunghe SENZA spezzarle a metà (tranne se necessario) */}
                             <div 
-                                className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view break-words whitespace-pre-wrap w-full max-w-full"
+                                className="text-sm text-gray-300 leading-relaxed italic bg-black/10 p-3 rounded-xl border border-gray-800 ql-editor-view wrap-break-words whitespace-pre-wrap w-full max-w-full"
                                 dangerouslySetInnerHTML={{ __html: quest.descrizione_ampia }}
                             />
                         </div>
@@ -50,7 +47,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                             <div className="min-w-0 flex-1">
                                 <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Materiale di Scena:</span>
                                 <div 
-                                    className="text-xs text-amber-100/80 ql-editor-view break-words whitespace-pre-wrap w-full max-w-full"
+                                    className="text-xs text-amber-100/80 ql-editor-view wrap-break-words whitespace-pre-wrap w-full max-w-full"
                                     dangerouslySetInnerHTML={{ __html: quest.props }}
                                 />
                             </div>
@@ -123,7 +120,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                                 <div className="space-y-1">
                                                     <span className="text-[8px] font-black text-amber-600 uppercase block">Capacità Offensive:</span>
                                                     {m.template_details.attacchi.map((att, idx) => (
-                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20 break-words whitespace-pre-wrap w-full">
+                                                        <div key={idx} className="text-[9px] text-amber-500 font-mono bg-amber-900/10 px-2 py-1 rounded border border-amber-900/20 wrap-break-words whitespace-pre-wrap w-full">
                                                             <span className="font-black uppercase tracking-tighter">{att.nome_attacco}:</span> {att.descrizione_danno}
                                                         </div>
                                                     ))}
@@ -135,7 +132,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                                 <div className="bg-indigo-950/20 border border-indigo-500/20 rounded p-2 w-full">
                                                      <span className="text-[8px] font-black text-indigo-400 uppercase block mb-1">Costume & Tratti:</span> 
                                                      <div 
-                                                        className="text-[10px] text-indigo-200/80 ql-editor-view break-words whitespace-pre-wrap" 
+                                                        className="text-[10px] text-indigo-200/80 ql-editor-view wrap-break-words whitespace-pre-wrap" 
                                                         dangerouslySetInnerHTML={{__html: m.template_details.costume}} 
                                                      />
                                                 </div>
@@ -146,7 +143,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                                 <div className="bg-gray-800/40 border border-gray-700 rounded p-2 w-full">
                                                      <span className="text-[8px] font-black text-gray-400 uppercase block mb-1">Info Gen. Specie:</span> 
                                                      <div 
-                                                        className="text-[10px] text-gray-400 ql-editor-view break-words whitespace-pre-wrap" 
+                                                        className="text-[10px] text-gray-400 ql-editor-view wrap-break-words whitespace-pre-wrap" 
                                                         dangerouslySetInnerHTML={{__html: m.template_details.note_generali}} 
                                                      />
                                                 </div>
