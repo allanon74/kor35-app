@@ -1,9 +1,16 @@
 import React, { useState } from 'react'; 
 import { Calendar, Clock, Edit2, Trash, Plus, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import QuestItem from './QuestItem';
+import RichTextDisplay from './RichTextDisplay';
 
 const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAddQuest, questHandlers }) => {
     const [showDettagli, setShowDettagli] = useState(false);
+    const sortedQuests = [...(giorno.quests || [])].sort((a, b) => {
+        // Gestione valori nulli (metti in fondo chi non ha orario)
+        const timeA = a.orario_indicativo || "23:59:59";
+        const timeB = b.orario_indicativo || "23:59:59";
+        return timeA.localeCompare(timeB);
+    });
     
     const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--";
     const formatDate = (iso) => iso ? new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' }) : "";
@@ -25,10 +32,11 @@ const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAd
                     </h2>
                     
                     {/* Sinossi Breve */}
-                    <div 
-                        className="text-emerald-400/80 text-xs font-bold uppercase italic mb-2 wrap-break-words whitespace-pre-wrap w-full"
-                        dangerouslySetInnerHTML={{ __html: giorno.sinossi_breve }}
-                    />
+                    {giorno.sinossi_breve && (
+                            <div className="text-sm text-indigo-300 italic font-medium bg-indigo-900/10 p-2 rounded-lg border border-indigo-500/20 mt-2">
+                                <RichTextDisplay content={giorno.sinossi_breve} />
+                            </div>
+                        )}
 
                     <div className="flex flex-wrap items-center gap-3 text-[10px] text-emerald-400 font-bold uppercase italic">
                         <span className="flex items-center gap-1 whitespace-nowrap"><Clock size={12}/> {formatTime(giorno.data_ora_inizio)} - {formatTime(giorno.data_ora_fine)}</span>
@@ -60,10 +68,12 @@ const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAd
             {showDettagli && giorno.descrizione_completa && (
                 <div className="bg-emerald-950/20 border-l-2 border-emerald-500 p-4 rounded-r-lg animate-in fade-in w-full">
                     <h4 className="text-[10px] font-black text-emerald-500 uppercase mb-2">Dettagli Plot / Note Master</h4>
-                    <div 
-                        className="text-gray-300 text-sm italic ql-editor-view wrap-break-words whitespace-pre-wrap w-full"
-                        dangerouslySetInnerHTML={{ __html: giorno.descrizione_completa }}
-                    />
+                    <div className="mt-3 pt-3 border-t border-gray-700/50">
+                                <span className="text-[10px] font-black text-gray-500 uppercase block mb-1">Note Master (Plot Completo):</span>
+                                <div className="text-xs text-gray-400 bg-black/20 p-2 rounded">
+                                    <RichTextDisplay content={giorno.descrizione_completa} />
+                                </div>
+                            </div>
                 </div>
             )}
 
