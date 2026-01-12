@@ -81,7 +81,7 @@ const ProposalManager = ({ type, onClose }) => { // type = 'Infusione' | 'Tessit
                                         </div>
                                         {p.stato === 'BOZZA' && <FileEdit size={16} className="text-gray-500 group-hover:text-indigo-400"/>}
                                     </div>
-                                    <h3 className="font-bold text-lg text-white mb-1 truncate">{p.nome}</h3>
+                                    <h3 className="font-bold text-lg text-white mb-1 truncate">{p.personaggio_nome}</h3>
                                     <div className="text-sm text-gray-400 mb-3 flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full" style={{backgroundColor: p.aura_details?.colore || '#ccc'}}></div>
                                         {p.aura_details?.nome || 'Aura sconosciuta'}
