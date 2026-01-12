@@ -6,6 +6,8 @@ import {
     createQuest, updateQuest, deleteQuest,
     addPngToQuest, addMostroToQuest, addVistaToQuest,
     removePngFromQuest, removeMostroFromQuest, removeVistaFromQuest,
+    addFaseToQuest, removeFaseFromQuest,
+    addTaskToFase, removeTaskFromFase,
     // AGGIUNTI GLI IMPORT MANCANTI PER LO STAFF:
     staffCreateOffGame, staffDeleteOffGame,
     fetchAuthenticated 
@@ -86,55 +88,50 @@ const PlotTab = ({ onLogout }) => {
     const handleDeleteGiorno = async (id) => { if(window.confirm("Eliminare giorno?")) { await deleteGiorno(id, onLogout); refreshData(); } };
 
     const questHandlers = {
-        onAddSub: async (tipo, payload) => {
-            try {
-                if (tipo === 'png') {
-                    const pId = parseInt(payload.personaggio);
-                    const stafferId = risorse.png.find(p => p.id === pId)?.proprietario;
-                    await addPngToQuest(parseInt(payload.quest), pId, stafferId, onLogout);
-                }
-                if (tipo === 'mostro') {
-                    await addMostroToQuest(parseInt(payload.quest), parseInt(payload.template), parseInt(payload.staffer), onLogout);
-                }
-                // CORREZIONE QUI: Separato il blocco offgame da vista
-                if (tipo === 'offgame') {
-                    await staffCreateOffGame(payload, onLogout);
-                }
-                if (tipo === 'vista') {
-                    const vistaPayload = { 
-                        quest: parseInt(payload.quest), 
-                        tipo: payload.tipo, 
-                        manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null, 
-                        inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null 
-                    };
-                    await addVistaToQuest(payload.quest, vistaPayload, onLogout);
-                }
-                refreshData();
-            } catch (error) {
-                console.error("Errore aggiunta:", error);
-                alert("Errore nell'operazione: " + error.message);
+    onAddSub: async (tipo, payload) => {
+        try {
+            if (tipo === 'fase') await addFaseToQuest(payload, onLogout);
+            if (tipo === 'task') await addTaskToFase(payload, onLogout);
+            if (tipo === 'vista') {
+                const vistaPayload = { 
+                    quest: parseInt(payload.quest), 
+                    tipo: payload.tipo, 
+                    manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null, 
+                    inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null 
+                };
+                await addVistaToQuest(payload.quest, vistaPayload, onLogout);
             }
-        },
-        onRemoveSub: async (tipo, id) => {
-            if (tipo === 'png') await removePngFromQuest(id, onLogout);
-            if (tipo === 'mostro') await removeMostroFromQuest(id, onLogout);
-            if (tipo === 'vista') await removeVistaFromQuest(id, onLogout);
-            // CORREZIONE QUI: Aggiunta rimozione offgame
-            if (tipo === 'offgame') await staffDeleteOffGame(id, onLogout);
-            if (tipo === 'quest') { if (window.confirm("Eliminare quest?")) await deleteQuest(id, onLogout); }
             refreshData();
-        },
-        onStatChange: async (id, field, delta) => {
-            const m = selectedEvento.giorni.flatMap(g => g.quests).flatMap(q => q.mostri_presenti).find(mo => mo.id === id);
-            await fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'PATCH', body: JSON.stringify({ [field]: (m[field] || 0) + delta }) }, onLogout);
-            refreshData();
-        },
-        onSaveNotes: async (id, note) => {
-            await fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'PATCH', body: JSON.stringify({ note_per_staffer: note }) }, onLogout);
-            alert("Note salvate"); refreshData();
-        },
-        onScanQr: (id) => setScanningForVista(id)
-    };
+        } catch (error) {
+            console.error("Errore aggiunta:", error);
+            alert("Errore nell'operazione: " + error.message);
+        }
+    },
+    onRemoveSub: async (tipo, id) => {
+        if (tipo === 'fase') await removeFaseFromQuest(id, onLogout);
+        if (tipo === 'task') await removeTaskFromFase(id, onLogout);
+        if (tipo === 'vista') await removeVistaFromQuest(id, onLogout);
+        if (tipo === 'quest') { if (window.confirm("Eliminare quest?")) await deleteQuest(id, onLogout); }
+        refreshData();
+    },
+    onStatChange: async (id, field, delta) => {
+        // Cerchiamo il task nell'albero dei dati per avere il valore attuale
+        const allTasks = selectedEvento.giorni
+            .flatMap(g => g.quests)
+            .flatMap(q => q.fasi || [])
+            .flatMap(f => f.tasks || []);
+        
+        const task = allTasks.find(t => t.id === id);
+        if (!task) return;
+
+        await fetchAuthenticated(`/plot/api/tasks/${id}/`, { 
+            method: 'PATCH', 
+            body: JSON.stringify({ [field]: (task[field] || 0) + delta }) 
+        }, onLogout);
+        refreshData();
+    },
+    onScanQr: (id) => setScanningForVista(id)
+};
 
     if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
 
