@@ -1,13 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { Swords, Users, Monitor, Trash, Heart, Shield, Edit2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-// 1. IMPORTIAMO I COMPONENTI RICH TEXT
+import { Swords, Users, Monitor, Trash, Heart, Shield, Edit2, Plus, ChevronDown, ChevronUp, UserCheck } from 'lucide-react';
+// IMPORTIAMO I COMPONENTI RICH TEXT
 import RichTextEditor from './RichTextEditor';
 import RichTextDisplay from './RichTextDisplay';
 
 const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, onStatChange, onEdit, onDelete }) => {
     const [formOpen, setFormOpen] = useState(false);
-    // Nota: 'istruzioni' ora conterrà HTML, non testo semplice
     const [form, setForm] = useState({ ruolo: 'PNG', staffer: '', personaggio: '', mostro_template: '', compito_offgame: 'REG', istruzioni: '' });
+
+    // 1. RECUPERA L'ID DELL'UTENTE LOGGATO PER L'EVIDENZIAZIONE
+    const currentUserId = useMemo(() => {
+        try {
+            const userParams = JSON.parse(localStorage.getItem('user'));
+            return userParams ? userParams.id : null;
+        } catch (e) {
+            return null;
+        }
+    }, []);
 
     // FIX: Logica di filtro PnG robusta (gestisce ID, Oggetti e Nomi)
     const pngFiltrati = useMemo(() => {
@@ -41,48 +50,67 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
         };
     }, [fase.tasks]);
 
-    const renderTaskCard = (task) => (
-        // Rimosso h-full fisso o restrizioni severe per permettere l'espansione
-        <div key={task.id} className="bg-gray-950 border border-gray-800 rounded-lg p-3 flex flex-col gap-2 group relative hover:border-indigo-500/50 transition-colors">
-            {/* Intestazione Card */}
-            <div className="flex justify-between items-start">
-                <div className={`p-1.5 rounded-md shrink-0 ${task.ruolo === 'MOSTRO' ? 'bg-red-900/20 text-red-500' : 'bg-indigo-900/20 text-indigo-400'}`}>
-                    {task.ruolo === 'MOSTRO' ? <Swords size={14}/> : task.ruolo === 'PNG' ? <Users size={14}/> : <Monitor size={14}/>}
-                </div>
-                {isMaster && (
-                    <button onClick={() => onRemoveTask(task.id)} className="text-gray-600 hover:text-red-500 transition-colors">
-                        <Trash size={12}/>
-                    </button>
-                )}
-            </div>
+    const renderTaskCard = (task) => {
+        // 2. CONTROLLA SE IL TASK È MIO
+        const isMine = task.staffer === currentUserId;
 
-            {/* Contenuto Card */}
-            <div>
-                <div className="text-[11px] font-black uppercase text-gray-100 leading-tight mb-1">
-                    {task.personaggio_details?.nome || task.mostro_details?.nome || (task.compito_offgame === 'REG' ? 'Regole' : task.compito_offgame === 'AIU' ? 'Aiuto' : 'Allestimento')}
-                </div>
-                <div className="text-[9px] text-indigo-400 font-bold mb-2">@{task.staffer_details?.username}</div>
-                
-                {/* 2. RICH TEXT DISPLAY: Rimosso max-h e overflow per espansione verticale */}
-                {task.istruzioni && (
-                    <div className="bg-black/40 p-2 rounded border border-gray-800/50 text-gray-300">
-                        {/* Ridimensioniamo leggermente il testo del RichTextDisplay per adattarlo alla card */}
-                        <div className="scale-90 origin-top-left w-[110%]">
-                             <RichTextDisplay content={task.istruzioni} />
+        // 3. STILI DINAMICI: Se è mio usa bordo AMBRA/ORO e sfondo leggermente diverso
+        const cardClasses = isMine 
+            ? "bg-amber-950/20 border-amber-500 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]" 
+            : "bg-gray-950 border-gray-800 hover:border-indigo-500/50";
+
+        return (
+            <div key={task.id} className={`${cardClasses} border rounded-lg p-3 flex flex-col gap-2 group relative transition-all duration-300`}>
+                {/* Intestazione Card */}
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-md shrink-0 ${task.ruolo === 'MOSTRO' ? 'bg-red-900/20 text-red-500' : 'bg-indigo-900/20 text-indigo-400'}`}>
+                            {task.ruolo === 'MOSTRO' ? <Swords size={14}/> : task.ruolo === 'PNG' ? <Users size={14}/> : <Monitor size={14}/>}
                         </div>
+                        {/* BADGE "TUO" */}
+                        {isMine && (
+                            <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1">
+                                <UserCheck size={10}/> TUO
+                            </span>
+                        )}
+                    </div>
+                    
+                    {isMaster && (
+                        <button onClick={() => onRemoveTask(task.id)} className="text-gray-600 hover:text-red-500 transition-colors">
+                            <Trash size={12}/>
+                        </button>
+                    )}
+                </div>
+
+                {/* Contenuto Card */}
+                <div>
+                    <div className={`text-[11px] font-black uppercase leading-tight mb-1 ${isMine ? 'text-amber-100' : 'text-gray-100'}`}>
+                        {task.personaggio_details?.nome || task.mostro_details?.nome || (task.compito_offgame === 'REG' ? 'Regole' : task.compito_offgame === 'AIU' ? 'Aiuto' : 'Allestimento')}
+                    </div>
+                    <div className={`text-[9px] font-bold mb-2 ${isMine ? 'text-amber-400' : 'text-indigo-400'}`}>
+                        @{task.staffer_details?.username}
+                    </div>
+                    
+                    {/* RICH TEXT DISPLAY */}
+                    {task.istruzioni && (
+                        <div className="bg-black/40 p-2 rounded border border-gray-800/50 text-gray-300">
+                            <div className="scale-90 origin-top-left w-[110%]">
+                                 <RichTextDisplay content={task.istruzioni} />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer Card (Stats Mostri) */}
+                {task.ruolo === 'MOSTRO' && (
+                    <div className="mt-auto pt-2 border-t border-gray-800/50 flex gap-2 justify-center">
+                        <StatMini icon={<Heart size={10}/>} value={task.punti_vita} onUp={() => onStatChange(task.id, 'punti_vita', 1)} onDown={() => onStatChange(task.id, 'punti_vita', -1)} color="text-red-500" />
+                        <StatMini icon={<Shield size={10}/>} value={task.armatura} onUp={() => onStatChange(task.id, 'armatura', 1)} onDown={() => onStatChange(task.id, 'armatura', -1)} color="text-gray-400" />
                     </div>
                 )}
             </div>
-
-            {/* Footer Card (Stats Mostri) */}
-            {task.ruolo === 'MOSTRO' && (
-                <div className="mt-auto pt-2 border-t border-gray-800/50 flex gap-2 justify-center">
-                    <StatMini icon={<Heart size={10}/>} value={task.punti_vita} onUp={() => onStatChange(task.id, 'punti_vita', 1)} onDown={() => onStatChange(task.id, 'punti_vita', -1)} color="text-red-500" />
-                    <StatMini icon={<Shield size={10}/>} value={task.armatura} onUp={() => onStatChange(task.id, 'armatura', 1)} onDown={() => onStatChange(task.id, 'armatura', -1)} color="text-gray-400" />
-                </div>
-            )}
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="bg-gray-900/60 rounded-xl border border-gray-700/50 overflow-hidden mb-6 shadow-lg">
@@ -109,7 +137,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
             {/* Content Body */}
             <div className="p-4 space-y-6">
                 
-                {/* Gruppo PNG - Items start per allineare in alto e permettere altezze diverse */}
+                {/* Gruppo PNG */}
                 {groupedTasks.PNG.length > 0 && (
                     <div>
                         <div className="text-[10px] font-black text-gray-500 uppercase mb-2 flex items-center gap-2">
@@ -210,7 +238,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                         </div>
                                     )}
 
-                                    {/* 3. RICH TEXT EDITOR PER L'INSERIMENTO */}
+                                    {/* RICH TEXT EDITOR PER L'INSERIMENTO */}
                                     <div className="h-64 border border-gray-700 rounded-lg overflow-hidden bg-gray-900">
                                         <RichTextEditor 
                                             value={form.istruzioni} 
