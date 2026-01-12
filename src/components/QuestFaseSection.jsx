@@ -13,7 +13,8 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
             const propId = typeof p.proprietario === 'object' && p.proprietario !== null 
                 ? p.proprietario.id 
                 : p.proprietario;
-            return propId === stafferId;
+                const isPnG = p.giocante === false;
+            return propId === stafferId && isPnG;
         }) || [];
     }, [form.staffer, risorse.png]);
 
@@ -206,7 +207,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                     <div className="flex gap-2 pt-2">
                                         <button onClick={() => setFormOpen(false)} className="flex-1 py-1.5 rounded border border-gray-700 text-gray-400 text-[10px] font-bold hover:bg-gray-800">ANNULLA</button>
                                         <button onClick={() => { onAddTask({ fase: fase.id, ...form }); setForm({...form, personaggio: '', mostro_template: '', istruzioni: ''}); setFormOpen(false); }} 
-                                            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 py-1.5 rounded font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/20">
+                                            className="flex-2 bg-indigo-600 hover:bg-indigo-500 py-1.5 rounded font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/20">
                                             Conferma Incarico
                                         </button>
                                     </div>
