@@ -9,14 +9,34 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
     const pngFiltrati = useMemo(() => {
         if (!form.staffer) return [];
         const stafferId = parseInt(form.staffer);
+        
+        // Recuperiamo anche lo username dello staffer selezionato (per sicurezza)
+        const stafferObj = risorse.staff?.find(s => s.id === stafferId);
+        const stafferName = stafferObj ? stafferObj.username : "";
+
         return risorse.png?.filter(p => {
-            const propId = typeof p.proprietario === 'object' && p.proprietario !== null 
-                ? p.proprietario.id 
-                : p.proprietario;
-                const isPnG = p.giocante === false;
-            return propId === stafferId && isPnG;
+            let isMio = false;
+
+            // CASO 1: Il backend invia 'proprietario_id' (Modifica consigliata)
+            if (p.proprietario_id !== undefined) {
+                isMio = (p.proprietario_id === stafferId);
+            }
+            // CASO 2: Il backend invia 'proprietario' come oggetto { id: ... }
+            else if (typeof p.proprietario === 'object' && p.proprietario !== null) {
+                isMio = (p.proprietario.id === stafferId);
+            }
+            // CASO 3: Il backend invia 'proprietario' come stringa (Username)
+            else if (typeof p.proprietario === 'string') {
+                isMio = (p.proprietario === stafferName);
+            }
+
+            // Filtro PnG: deve essere esplicitamente un non-giocante
+            // Se p.giocante è undefined, assumiamo sia false (PnG) per sicurezza, o controlla il backend
+            const isPnG = p.giocante === false;
+
+            return isMio && isPnG;
         }) || [];
-    }, [form.staffer, risorse.png]);
+    }, [form.staffer, risorse.png, risorse.staff]);
 
     // Raggruppa le task per visualizzazione ordinata
     const groupedTasks = useMemo(() => {
