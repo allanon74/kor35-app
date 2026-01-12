@@ -355,7 +355,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                     
                                     <div className="flex gap-3 pt-2">
                                         <button onClick={() => setFormOpen(false)} className="flex-1 py-3 rounded-lg border border-gray-700 text-gray-400 text-[10px] font-bold hover:bg-gray-800 transition-colors uppercase">Annulla</button>
-                                        <button onClick={() => { onAddTask({ fase: fase.id, ...form }); setForm({...form, personaggio: '', mostro_template: '', istruzioni: ''}); setFormOpen(false); }} className="flex-[2] bg-indigo-600 hover:bg-indigo-500 py-3 rounded-lg font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/30 transition-all transform active:scale-95">Conferma Incarico</button>
+                                        <button onClick={() => { onAddTask({ fase: fase.id, ...form }); setForm({...form, personaggio: '', mostro_template: '', istruzioni: ''}); setFormOpen(false); }} className="flex-2 bg-indigo-600 hover:bg-indigo-500 py-3 rounded-lg font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/30 transition-all transform active:scale-95">Conferma Incarico</button>
                                     </div>
                                 </div>
                             </div>

@@ -35,7 +35,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={24} />, color: 'bg-purple-700', component: <InfusioneManager onLogout={onLogout} /> },
         { id: 'proposte', label: 'Valutazione Proposte', icon: <ClipboardCheck size={24} />, color: 'bg-orange-600', component: <StaffProposalTab onLogout={onLogout} /> },
         { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={24} />, color: 'bg-stone-600', component: <OggettoManager onLogout={onLogout} /> },
-        { id: 'oggetti-base', label: 'Templates Base', icon: <Shield size={24} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
+        { id: 'oggetti-base', label: 'Oggetti Base', icon: <Shield size={24} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: <AdminMessageTab onLogout={onLogout} /> },        
     ];
 

@@ -144,86 +144,141 @@ const PlotTab = ({ onLogout }) => {
 
         const printWindow = window.open('', '_blank');
         
-        // Stili CSS per la stampa
+        // --- FUNZIONI DI FORMATTAZIONE PER LA STAMPA ---
+        const formatFullDate = (iso) => iso ? new Date(iso).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Data da definire';
+        const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+        const formatTimeSimple = (timeStr) => timeStr ? timeStr.slice(0, 5) : 'N/D';
+
+        // --- STILI CSS AVANZATI PER STAMPA ---
         const styles = `
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap');
-                body { font-family: 'Roboto', sans-serif; color: #000; line-height: 1.4; padding: 20px; max-width: 210mm; margin: 0 auto; }
-                h1 { font-size: 24pt; text-transform: uppercase; border-bottom: 4px solid #000; margin-bottom: 10px; }
-                h2 { font-size: 18pt; margin-top: 30px; background: #eee; padding: 5px 10px; border-left: 10px solid #333; page-break-after: avoid; }
-                h3 { font-size: 14pt; margin-top: 20px; color: #444; border-bottom: 1px solid #ccc; padding-bottom: 5px; page-break-after: avoid; }
-                h4 { font-size: 11pt; margin-top: 15px; font-weight: 900; text-transform: uppercase; color: #666; page-break-after: avoid; }
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&family=Merriweather:ital,wght@0,300;0,700;1,400&display=swap');
                 
-                .meta { font-size: 10pt; color: #666; margin-bottom: 20px; font-style: italic; }
-                .synopsis { font-size: 11pt; text-align: justify; margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; background: #f9f9f9; }
+                @page { margin: 1.5cm; size: A4; }
                 
-                .quest-block { margin-left: 0px; margin-bottom: 30px; page-break-inside: avoid; }
-                .fase-block { margin-left: 20px; border-left: 2px solid #ccc; padding-left: 15px; margin-bottom: 15px; }
-                
-                .task-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 5px; }
-                .task-card { border: 1px solid #000; padding: 8px; font-size: 9pt; background: #fff; page-break-inside: avoid; }
-                .task-header { font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 5px; display: flex; justify-content: space-between; }
-                .task-role { text-transform: uppercase; font-size: 7pt; background: #000; color: #fff; padding: 1px 4px; border-radius: 3px; }
-                
-                .stats { font-family: monospace; margin-top: 5px; border-top: 1px dotted #ccc; padding-top: 2px; }
-                
-                /* Classi Rich Text semplificate per la stampa */
-                .rich-text p { margin-bottom: 5px; }
-                .rich-text ul { padding-left: 20px; margin: 5px 0; }
-                
-                @media print {
-                    body { padding: 0; }
-                    .no-print { display: none; }
-                    h2 { page-break-before: always; } /* Ogni giorno nuova pagina */
-                    h2:first-of-type { page-break-before: avoid; }
+                body { 
+                    font-family: 'Roboto', sans-serif; 
+                    color: #1a1a1a; 
+                    line-height: 1.5; 
+                    font-size: 10pt;
+                    -webkit-print-color-adjust: exact; 
                 }
+
+                h1 { font-size: 26pt; text-transform: uppercase; border-bottom: 4px solid #000; margin-bottom: 5px; padding-bottom: 10px; font-weight: 900; }
+                h2 { font-size: 18pt; margin-top: 0; background: #222; color: #fff; padding: 8px 15px; font-weight: 700; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                h3 { font-size: 14pt; margin: 20px 0 10px 0; border-bottom: 2px solid #666; padding-bottom: 5px; color: #444; font-weight: 800; display: flex; justify-content: space-between; }
+                h4 { font-size: 12pt; margin: 15px 0 5px 0; color: #2563eb; font-weight: 700; text-transform: uppercase; border-left: 4px solid #2563eb; padding-left: 10px; }
+
+                .meta { font-size: 11pt; color: #666; margin-bottom: 20px; font-style: italic; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+                
+                /* Box Informativi */
+                .box-synopsis { background-color: #f3f4f6; padding: 15px; border-left: 5px solid #000; margin-bottom: 30px; font-family: 'Merriweather', serif; text-align: justify; }
+                .box-master { background-color: #e0e7ff; padding: 10px; border: 1px solid #c7d2fe; margin-bottom: 15px; font-size: 9pt; }
+                .box-props { background-color: #fff7ed; padding: 10px; border: 1px solid #ffedd5; margin: 10px 0; font-size: 9pt; page-break-inside: avoid; }
+
+                /* Struttura Giorni */
+                .day-container { margin-bottom: 40px; page-break-before: always; }
+                .day-container:first-of-type { page-break-before: auto; }
+                .day-meta { font-size: 12pt; font-weight: bold; margin-bottom: 15px; color: #444; }
+
+                /* Struttura Quest */
+                .quest-block { margin-bottom: 30px; }
+                .quest-desc { font-family: 'Merriweather', serif; margin-bottom: 15px; }
+
+                /* Task Grid */
+                .task-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+                .task-card { border: 1px solid #ccc; padding: 8px; font-size: 9pt; background: #fff; page-break-inside: avoid; box-shadow: 2px 2px 0px #eee; }
+                .task-header { font-weight: 900; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+                .task-role { font-size: 7pt; color: #fff; padding: 2px 5px; border-radius: 3px; font-weight: bold; text-transform: uppercase; }
+                .bg-png { background-color: #4f46e5; }
+                .bg-mostro { background-color: #dc2626; }
+                .bg-off { background-color: #4b5563; }
+                .stats { font-family: monospace; font-weight: bold; margin-top: 5px; font-size: 8pt; color: #666; background: #f9f9f9; padding: 2px; text-align: center; }
+
+                /* Rich Text Reset per stampa */
+                .rich-text p { margin-bottom: 8px; margin-top: 0; }
+                .rich-text ul, .rich-text ol { padding-left: 20px; margin: 5px 0; }
+                .rich-text li { margin-bottom: 2px; }
+                strong { font-weight: 900; }
             </style>
         `;
 
-        // Contenuto HTML
+        // --- BODY HTML ---
         let content = `
             <html>
-            <head><title>Report Evento: ${selectedEvento.titolo}</title>${styles}</head>
+            <head><title>Report Plot: ${selectedEvento.titolo}</title>${styles}</head>
             <body>
                 <h1>${selectedEvento.titolo}</h1>
                 <div class="meta">
-                    Data Inizio: ${new Date(selectedEvento.data_inizio).toLocaleDateString('it-IT')} | 
-                    Luogo: ${selectedEvento.luogo || 'N/D'} | 
-                    Staff Assegnato: ${selectedEvento.staff_assegnato?.length || 0}
+                    <strong>Periodo:</strong> ${formatFullDate(selectedEvento.data_inizio)} - ${formatFullDate(selectedEvento.data_fine)} <br/>
+                    <strong>Luogo:</strong> ${selectedEvento.luogo || 'Non specificato'} | 
+                    <strong>PC Globali:</strong> ${selectedEvento.pc_guadagnati || 0}
                 </div>
                 
-                <div class="synopsis">
-                    <strong>Sinossi Evento:</strong><br/>
-                    ${selectedEvento.descrizione || 'Nessuna descrizione disponibile.'}
-                </div>
+                ${selectedEvento.sinossi ? `
+                    <div class="box-synopsis">
+                        <div style="font-weight:bold; text-transform:uppercase; font-size:9pt; color:#666; margin-bottom:5px;">Sinossi Evento</div>
+                        <div class="rich-text">${selectedEvento.sinossi}</div>
+                    </div>
+                ` : ''}
         `;
 
         // Loop Giorni
         selectedEvento.giorni.forEach((giorno, idx) => {
             content += `
-                <h2>GIORNO ${idx + 1}: ${new Date(giorno.data).toLocaleDateString('it-IT')}</h2>
-                <p><em>${giorno.sinossi_breve || ''}</em></p>
+                <div class="day-container">
+                    <h2>GIORNO ${idx + 1}: ${giorno.titolo || 'Senza Titolo'}</h2>
+                    <div class="day-meta">
+                        Data: ${formatFullDate(giorno.data_ora_inizio)} | 
+                        Orario: ${formatTime(giorno.data_ora_inizio)} - ${formatTime(giorno.data_ora_fine)}
+                    </div>
+
+                    ${giorno.sinossi_breve ? `<p class="rich-text"><strong>Sinossi Breve:</strong> ${giorno.sinossi_breve}</p>` : ''}
+                    
+                    ${giorno.descrizione_completa ? `
+                        <div class="box-master">
+                            <strong>Note Master / Descrizione Completa:</strong><br/>
+                            <div class="rich-text">${giorno.descrizione_completa}</div>
+                        </div>
+                    ` : ''}
             `;
 
-            // Loop Quest
+            // Loop Quest (Ordinate per orario)
             if (giorno.quests && giorno.quests.length > 0) {
-                giorno.quests.forEach(quest => {
+                // Ordina quest per orario
+                const questsOrdinate = [...giorno.quests].sort((a, b) => 
+                    (a.orario_indicativo || '00:00').localeCompare(b.orario_indicativo || '00:00')
+                );
+
+                questsOrdinate.forEach(quest => {
                     content += `
                         <div class="quest-block">
-                            <h3>QUEST: ${quest.titolo}</h3>
-                            <p>${quest.descrizione || ''}</p>
+                            <h3>
+                                <span>${quest.titolo}</span>
+                                <span>${formatTimeSimple(quest.orario_indicativo)}</span>
+                            </h3>
+                            
+                            <div class="quest-desc rich-text">
+                                ${quest.descrizione_ampia || quest.descrizione || '<em style="color:#999">Nessuna descrizione disponibile.</em>'}
+                            </div>
+
+                            ${quest.props ? `
+                                <div class="box-props">
+                                    <strong>OGGETTI DI SCENA (PROPS):</strong>
+                                    <div class="rich-text">${quest.props}</div>
+                                </div>
+                            ` : ''}
                     `;
 
                     // Loop Fasi
                     if (quest.fasi && quest.fasi.length > 0) {
-                        // Ordina le fasi
                         const fasiOrdinate = [...quest.fasi].sort((a,b) => a.ordine - b.ordine);
                         
                         fasiOrdinate.forEach(fase => {
                             content += `
-                                <div class="fase-block">
+                                <div>
                                     <h4>FASE ${fase.ordine}: ${fase.titolo}</h4>
-                                    ${fase.descrizione ? `<p class="rich-text">${fase.descrizione}</p>` : ''}
+                                    ${fase.descrizione ? `<div class="rich-text" style="font-size:9pt; margin-bottom:5px; padding-left:10px; color:#555;">${fase.descrizione}</div>` : ''}
                             `;
 
                             // Loop Tasks
@@ -232,38 +287,49 @@ const PlotTab = ({ onLogout }) => {
                                 fase.tasks.forEach(task => {
                                     const nomeTarget = task.personaggio_details?.nome 
                                         || task.mostro_details?.nome 
-                                        || (task.compito_offgame === 'REG' ? 'Regole' : task.compito_offgame === 'AIU' ? 'Aiuto' : 'Allestimento');
+                                        || (task.compito_offgame === 'REG' ? 'Gestione Regole' : task.compito_offgame === 'AIU' ? 'Aiuto Master' : 'Allestimento');
                                     
-                                    const ruoloLabel = task.ruolo === 'MOSTRO' ? 'MOSTRO' : task.ruolo === 'PNG' ? 'PNG' : 'OFF-GAME';
+                                    let ruoloClass = 'bg-off';
+                                    if(task.ruolo === 'PNG') ruoloClass = 'bg-png';
+                                    if(task.ruolo === 'MOSTRO') ruoloClass = 'bg-mostro';
                                     
                                     content += `
                                         <div class="task-card">
                                             <div class="task-header">
                                                 <span>${nomeTarget}</span>
-                                                <span class="task-role">${ruoloLabel}</span>
+                                                <span class="task-role ${ruoloClass}">${task.ruolo}</span>
                                             </div>
-                                            <div style="margin-bottom:4px;"><strong>Staff:</strong> ${task.staffer_details?.username || 'N/D'}</div>
-                                            <div class="rich-text">${task.istruzioni || ''}</div>
-                                            ${task.ruolo === 'MOSTRO' ? `<div class="stats">PV: ${task.punti_vita} | ARM: ${task.armatura}</div>` : ''}
+                                            <div style="margin-bottom:4px; font-size:8pt; color:#666;">
+                                                <strong>Staff:</strong> @${task.staffer_details?.username || 'N/D'}
+                                                ${task.ruolo === 'PNG' ? `(PnG di ${task.personaggio_details?.proprietario || 'N/D'})` : ''}
+                                            </div>
+                                            
+                                            ${task.istruzioni ? `<div class="rich-text">${task.istruzioni}</div>` : ''}
+                                            
+                                            ${task.ruolo === 'MOSTRO' ? `
+                                                <div class="stats">
+                                                    PV: ${task.punti_vita} | SC: ${task.schermo || task.guscio || 0} | ARM: ${task.armatura}
+                                                </div>
+                                                ${task.mostro_details?.costume ? `<div style="margin-top:4px; font-size:8pt;"><strong>Costume:</strong> ${task.mostro_details.costume}</div>` : ''}
+                                            ` : ''}
                                         </div>
                                     `;
                                 });
-                                content += `</div>`; // chiude grid
+                                content += `</div>`; // close grid
                             } else {
-                                content += `<p style="font-size:9pt; color:#999;">Nessun incarico assegnato.</p>`;
+                                content += `<div style="font-style:italic; font-size:9pt; color:#aaa; margin-left:10px;">Nessun incarico assegnato.</div>`;
                             }
-
-                            content += `</div>`; // chiude fase
+                            content += `</div>`; // close fase div
                         });
                     } else {
-                        content += `<p>Nessuna fase operativa definita.</p>`;
+                        content += `<p style="margin-left:10px;">Nessuna fase operativa definita.</p>`;
                     }
-
-                    content += `</div>`; // chiude quest
+                    content += `</div>`; // close quest-block
                 });
             } else {
                 content += `<p>Nessuna quest pianificata per questo giorno.</p>`;
             }
+            content += `</div>`; // close day-container
         });
 
         content += `
