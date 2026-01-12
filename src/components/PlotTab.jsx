@@ -6,7 +6,7 @@ import {
     createQuest, updateQuest, deleteQuest,
     addPngToQuest, addMostroToQuest, addVistaToQuest,
     removePngFromQuest, removeMostroFromQuest, removeVistaFromQuest,
-    addFaseToQuest, removeFaseFromQuest,
+    addFaseToQuest, removeFaseFromQuest,updateFase,
     addTaskToFase, removeTaskFromFase,
     // AGGIUNTI GLI IMPORT MANCANTI PER LO STAFF:
     staffCreateOffGame, staffDeleteOffGame,
@@ -78,7 +78,11 @@ const PlotTab = ({ onLogout }) => {
             } else if (editMode === 'quest') {
                 if (formData.id) await updateQuest(formData.id, formData, onLogout);
                 else await createQuest(formData, onLogout);
-            }
+            } else if (editMode === 'fase') { // <--- NUOVO BLOCCO
+                if (formData.id) {
+                    await updateFase(formData.id, formData, onLogout);
+                }
+             } 
             setEditMode(null);
             refreshData();
         } catch (e) { alert("Errore durante il salvataggio."); console.error(e); }
@@ -202,6 +206,28 @@ const PlotTab = ({ onLogout }) => {
                                     </div>
                                     <div className="md:col-span-2">
                                         <RichTextEditor label="Props (Materiale di scena)" value={formData.props} onChange={val => setFormData({...formData, props: val})} />
+                                    </div>
+                                </>
+                            )}
+                            {editMode === 'fase' && (
+                                <>
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Titolo Fase</label>
+                                        <input className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
+                                            value={formData.titolo || ''} 
+                                            onChange={e => setFormData({...formData, titolo: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Ordine</label>
+                                        <input type="number" className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700" 
+                                            value={formData.ordine || 0} 
+                                            onChange={e => setFormData({...formData, ordine: parseInt(e.target.value)})} />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Descrizione (Opzionale)</label>
+                                        <textarea className="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 h-24 resize-none" 
+                                            value={formData.descrizione || ''} 
+                                            onChange={e => setFormData({...formData, descrizione: e.target.value})} />
                                     </div>
                                 </>
                             )}

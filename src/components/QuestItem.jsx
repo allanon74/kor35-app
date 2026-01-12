@@ -58,9 +58,17 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                     {viewMode === 'FASI' ? (
                         <div className="space-y-4">
                             {quest.fasi?.map(fase => (
-                                <QuestFaseSection key={fase.id} fase={fase} isMaster={isMaster} risorse={risorse}
-                                    onAddTask={(p) => onAddSub('task', p)} onRemoveTask={(id) => onRemoveSub('task', id)}
-                                    onStatChange={onStatChange} />
+                                <QuestFaseSection 
+                                    key={fase.id} 
+                                    fase={fase} 
+                                    isMaster={isMaster} 
+                                    risorse={risorse}
+                                    onAddTask={(p) => onAddSub('task', p)} 
+                                    onRemoveTask={(id) => onRemoveSub('task', id)}
+                                    onStatChange={onStatChange} 
+                                    onEdit={() => onEdit('fase', fase)}
+                                    onDelete={() => onRemoveSub('fase', fase.id)}
+                                />
                             ))}
                             {isMaster && (
                                 <button onClick={() => onAddSub('fase', { quest: quest.id, titolo: 'Nuova Fase', ordine: (quest.fasi?.length || 0) + 1 })}

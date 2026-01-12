@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Swords, Users, Monitor, Trash, Heart, Shield } from 'lucide-react';
+import { Swords, Users, Monitor, Trash, Heart, Shield, Edit2 } from 'lucide-react';
 
-const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, onStatChange }) => {
+const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, onStatChange, onEdit, onDelete }) => {
     const [form, setForm] = useState({ ruolo: 'PNG', staffer: '', personaggio: '', mostro_template: '', compito_offgame: 'REG', istruzioni: '' });
 
     const pngFiltrati = useMemo(() => {
@@ -13,6 +13,16 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
         <div className="bg-gray-900/60 rounded-xl border border-gray-700/50 overflow-hidden mb-4 shadow-lg">
             <div className="bg-gray-800/50 px-4 py-2 flex justify-between items-center border-b border-gray-700">
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Fase {fase.ordine}: {fase.titolo}</span>
+                {isMaster && (
+                    <div className="flex items-center gap-1">
+                        <button onClick={onEdit} className="text-gray-500 hover:text-white p-1 transition-colors">
+                            <Edit2 size={12}/>
+                        </button>
+                        <button onClick={() => { if(window.confirm("Eliminare questa fase e tutti i suoi task?")) onDelete(); }} className="text-gray-500 hover:text-red-500 p-1 transition-colors">
+                            <Trash size={12}/>
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="p-3 space-y-3">

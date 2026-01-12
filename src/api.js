@@ -1174,3 +1174,4 @@ export const addFaseToQuest = (payload, onLogout) => fetchAuthenticated('/plot/a
 export const removeFaseFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/fasi/${id}/`, { method: 'DELETE' }, onLogout);
 export const addTaskToFase = (payload, onLogout) => fetchAuthenticated('/plot/api/tasks/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 export const removeTaskFromFase = (id, onLogout) => fetchAuthenticated(`/plot/api/tasks/${id}/`, { method: 'DELETE' }, onLogout);
+export const updateFase = (id, data, onLogout) => fetchAuthenticated(`/plot/api/fasi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
