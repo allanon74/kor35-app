@@ -140,7 +140,7 @@ const PlotTab = ({ onLogout }) => {
     if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
 
     const handlePrintEvent = () => {
-        if (!selectedEvento || !giorni) return;
+        if (!selectedEvento || !selectedEvento.giorni) return;
 
         const printWindow = window.open('', '_blank');
         
@@ -199,7 +199,7 @@ const PlotTab = ({ onLogout }) => {
         `;
 
         // Loop Giorni
-        giorni.forEach((giorno, idx) => {
+        selectedEvento.giorni.forEach((giorno, idx) => {
             content += `
                 <h2>GIORNO ${idx + 1}: ${new Date(giorno.data).toLocaleDateString('it-IT')}</h2>
                 <p><em>${giorno.sinossi_breve || ''}</em></p>
