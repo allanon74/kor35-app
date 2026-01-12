@@ -13,7 +13,7 @@ import {
     fetchAuthenticated 
 } from '../api';
 import { useCharacter } from './CharacterContext';
-import { Plus, X, Save } from 'lucide-react';
+import { Plus, X, Save, Printer } from 'lucide-react';
 import EventoSection from './EventoSection';
 import GiornoSection from './GiornoSection';
 import QrTab from './QrTab'; 
@@ -139,6 +139,144 @@ const PlotTab = ({ onLogout }) => {
 
     if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
 
+    const handlePrintEvent = () => {
+        if (!selectedEvento || !giorni) return;
+
+        const printWindow = window.open('', '_blank');
+        
+        // Stili CSS per la stampa
+        const styles = `
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap');
+                body { font-family: 'Roboto', sans-serif; color: #000; line-height: 1.4; padding: 20px; max-width: 210mm; margin: 0 auto; }
+                h1 { font-size: 24pt; text-transform: uppercase; border-bottom: 4px solid #000; margin-bottom: 10px; }
+                h2 { font-size: 18pt; margin-top: 30px; background: #eee; padding: 5px 10px; border-left: 10px solid #333; page-break-after: avoid; }
+                h3 { font-size: 14pt; margin-top: 20px; color: #444; border-bottom: 1px solid #ccc; padding-bottom: 5px; page-break-after: avoid; }
+                h4 { font-size: 11pt; margin-top: 15px; font-weight: 900; text-transform: uppercase; color: #666; page-break-after: avoid; }
+                
+                .meta { font-size: 10pt; color: #666; margin-bottom: 20px; font-style: italic; }
+                .synopsis { font-size: 11pt; text-align: justify; margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; background: #f9f9f9; }
+                
+                .quest-block { margin-left: 0px; margin-bottom: 30px; page-break-inside: avoid; }
+                .fase-block { margin-left: 20px; border-left: 2px solid #ccc; padding-left: 15px; margin-bottom: 15px; }
+                
+                .task-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 5px; }
+                .task-card { border: 1px solid #000; padding: 8px; font-size: 9pt; background: #fff; page-break-inside: avoid; }
+                .task-header { font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 5px; display: flex; justify-content: space-between; }
+                .task-role { text-transform: uppercase; font-size: 7pt; background: #000; color: #fff; padding: 1px 4px; border-radius: 3px; }
+                
+                .stats { font-family: monospace; margin-top: 5px; border-top: 1px dotted #ccc; padding-top: 2px; }
+                
+                /* Classi Rich Text semplificate per la stampa */
+                .rich-text p { margin-bottom: 5px; }
+                .rich-text ul { padding-left: 20px; margin: 5px 0; }
+                
+                @media print {
+                    body { padding: 0; }
+                    .no-print { display: none; }
+                    h2 { page-break-before: always; } /* Ogni giorno nuova pagina */
+                    h2:first-of-type { page-break-before: avoid; }
+                }
+            </style>
+        `;
+
+        // Contenuto HTML
+        let content = `
+            <html>
+            <head><title>Report Evento: ${selectedEvento.titolo}</title>${styles}</head>
+            <body>
+                <h1>${selectedEvento.titolo}</h1>
+                <div class="meta">
+                    Data Inizio: ${new Date(selectedEvento.data_inizio).toLocaleDateString('it-IT')} | 
+                    Luogo: ${selectedEvento.luogo || 'N/D'} | 
+                    Staff Assegnato: ${selectedEvento.staff_assegnato?.length || 0}
+                </div>
+                
+                <div class="synopsis">
+                    <strong>Sinossi Evento:</strong><br/>
+                    ${selectedEvento.descrizione || 'Nessuna descrizione disponibile.'}
+                </div>
+        `;
+
+        // Loop Giorni
+        giorni.forEach((giorno, idx) => {
+            content += `
+                <h2>GIORNO ${idx + 1}: ${new Date(giorno.data).toLocaleDateString('it-IT')}</h2>
+                <p><em>${giorno.sinossi_breve || ''}</em></p>
+            `;
+
+            // Loop Quest
+            if (giorno.quests && giorno.quests.length > 0) {
+                giorno.quests.forEach(quest => {
+                    content += `
+                        <div class="quest-block">
+                            <h3>QUEST: ${quest.titolo}</h3>
+                            <p>${quest.descrizione || ''}</p>
+                    `;
+
+                    // Loop Fasi
+                    if (quest.fasi && quest.fasi.length > 0) {
+                        // Ordina le fasi
+                        const fasiOrdinate = [...quest.fasi].sort((a,b) => a.ordine - b.ordine);
+                        
+                        fasiOrdinate.forEach(fase => {
+                            content += `
+                                <div class="fase-block">
+                                    <h4>FASE ${fase.ordine}: ${fase.titolo}</h4>
+                                    ${fase.descrizione ? `<p class="rich-text">${fase.descrizione}</p>` : ''}
+                            `;
+
+                            // Loop Tasks
+                            if (fase.tasks && fase.tasks.length > 0) {
+                                content += `<div class="task-grid">`;
+                                fase.tasks.forEach(task => {
+                                    const nomeTarget = task.personaggio_details?.nome 
+                                        || task.mostro_details?.nome 
+                                        || (task.compito_offgame === 'REG' ? 'Regole' : task.compito_offgame === 'AIU' ? 'Aiuto' : 'Allestimento');
+                                    
+                                    const ruoloLabel = task.ruolo === 'MOSTRO' ? 'MOSTRO' : task.ruolo === 'PNG' ? 'PNG' : 'OFF-GAME';
+                                    
+                                    content += `
+                                        <div class="task-card">
+                                            <div class="task-header">
+                                                <span>${nomeTarget}</span>
+                                                <span class="task-role">${ruoloLabel}</span>
+                                            </div>
+                                            <div style="margin-bottom:4px;"><strong>Staff:</strong> ${task.staffer_details?.username || 'N/D'}</div>
+                                            <div class="rich-text">${task.istruzioni || ''}</div>
+                                            ${task.ruolo === 'MOSTRO' ? `<div class="stats">PV: ${task.punti_vita} | ARM: ${task.armatura}</div>` : ''}
+                                        </div>
+                                    `;
+                                });
+                                content += `</div>`; // chiude grid
+                            } else {
+                                content += `<p style="font-size:9pt; color:#999;">Nessun incarico assegnato.</p>`;
+                            }
+
+                            content += `</div>`; // chiude fase
+                        });
+                    } else {
+                        content += `<p>Nessuna fase operativa definita.</p>`;
+                    }
+
+                    content += `</div>`; // chiude quest
+                });
+            } else {
+                content += `<p>Nessuna quest pianificata per questo giorno.</p>`;
+            }
+        });
+
+        content += `
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+            </body></html>
+        `;
+
+        printWindow.document.write(content);
+        printWindow.document.close();
+    };
+
     return (
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
             <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40 shadow-xl">
@@ -149,6 +287,14 @@ const PlotTab = ({ onLogout }) => {
                 {isMaster && (
                     <button onClick={() => startEdit('evento')} className="p-3 bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-colors shadow-lg"><Plus size={24}/></button>
                 )}
+                <button 
+                    onClick={handlePrintEvent}
+                    className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"
+                    title="Stampa Report Completo"
+                >
+                    <Printer size={20} />
+                    <span className="hidden md:inline font-bold text-xs uppercase">Stampa Report</span>
+                </button>
             </div>
 
             {editMode && (
