@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getWikiTier } from '../../api';
-import AbilitaTable from '../wiki/AbilitaTable'; // Riutilizziamo la tabella grafica
+import AbilitaTable from '../wiki/AbilitaTable'; 
 
 export default function WidgetTier({ id }) {
   const [data, setData] = useState(null);
@@ -18,15 +18,13 @@ export default function WidgetTier({ id }) {
   if (error) return <div className="text-red-500 text-xs border border-red-300 p-2 rounded bg-red-50">Tier #{id} non disponibile.</div>;
   if (!data) return <div className="animate-pulse h-20 bg-gray-200 rounded my-4"></div>;
 
-  // Se il serializer restituisce 'abilita' (come definito sopra), usiamo quello.
-  // Fallback a array vuoto.
-  // const list = data.abilita || [];
+  // Ordina per nome
   const sortedList = [...(data.abilita || [])].sort((a, b) => 
-    a.nome.localeCompare(b.nome)
+    (a.nome || '').localeCompare(b.nome || '')
   );
 
   return (
-    <div className="my-8 border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+    <div className="my-8 border border-gray-300 rounded-lg overflow-hidden shadow-sm bg-white">
         {/* HEADER DEL TIER */}
         <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
             <div>
@@ -39,11 +37,10 @@ export default function WidgetTier({ id }) {
         {/* DESCRIZIONE TIER */}
         {data.descrizione && (
             <div 
-            className="p-4 bg-gray-50 text-gray-700 text-sm border-b border-gray-200 italic"
-            dangerouslySetInnerHTML={{ __html: data.descrizione }}
+              className="p-4 bg-gray-50 text-gray-700 text-sm border-b border-gray-200 italic prose prose-sm max-w-none"
+              // CORREZIONE FONDAMENTALE QUI SOTTO:
+              dangerouslySetInnerHTML={{ __html: data.descrizione }}
             />
-                
-            
         )}
 
         {/* LISTA ABILITÀ (TABELLA) */}
