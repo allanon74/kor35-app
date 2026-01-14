@@ -2,6 +2,7 @@
 import React from 'react';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
 import WidgetAura from './wg/WidgetAura';
+import WidgetTier from './wg/WidgetTier';
 
 export default function WikiRenderer({ content }) {
   if (!content) return null;
