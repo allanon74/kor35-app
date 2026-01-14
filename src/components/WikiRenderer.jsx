@@ -1,43 +1,61 @@
+// src/components/WikiRenderer.jsx
 import React from 'react';
-// Importiamo i componenti che vogliamo usare come Widget
-import AbilitaList from './editors/AbilitaList'; 
-import OggettoList from './editors/OggettoList';
-import TessituraList from './editors/TessituraList';
-import WidgetTabellaAbilita from './widgets/WidgetTabellaAbilita';
-
-
-// Mappa dei Widget disponibili
-// Chiave (nel testo DB) -> Componente React
-const WIDGET_MAP = {
-  '{{WIDGET_ABILITA}}': <AbilitaList readOnly={true} />,
-  '{{WIDGET_OGGETTI}}': <OggettoList readOnly={true} />,
-  '{{WIDGET_TESSITURE}}': <TessituraList readOnly={true} />,
-  '{{WIDGET_TABELLA_ABILITA}}': <WidgetTabellaAbilita key={index} id={part.id} />, // Esempio con ID fisso, potrebbe essere dinamico  
-};
+import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
+import WidgetAura from './wg/WidgetAura';
 
 export default function WikiRenderer({ content }) {
   if (!content) return null;
 
-  // Regex per trovare qualsiasi placeholder {{WIDGET_...}}
-  const regex = /({{WIDGET_[A-Z_]+}})/g;
+  // Regex migliorata: Cerca {{WIDGET_TIPO:ID}}
+  // Es: {{WIDGET_TABELLA:5}} cattura Group1="TABELLA", Group2="5"
+  const regex = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
   
-  const parts = content.split(regex);
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    // 1. Aggiungi il testo prima del widget
+    if (match.index > lastIndex) {
+      parts.push({ 
+        type: 'html', 
+        content: content.substring(lastIndex, match.index) 
+      });
+    }
+
+    // 2. Aggiungi il widget
+    parts.push({
+      type: 'widget',
+      widgetType: match[1], // Es: TABELLA, AURA
+      id: match[2]          // Es: 5, 12
+    });
+
+    lastIndex = regex.lastIndex;
+  }
+
+  // 3. Aggiungi il resto del testo
+  if (lastIndex < content.length) {
+    parts.push({ type: 'html', content: content.substring(lastIndex) });
+  }
 
   return (
-    <div className="prose prose-red max-w-none text-gray-800 leading-relaxed">
+    <div className="prose prose-red max-w-none text-gray-800">
       {parts.map((part, index) => {
-        // Se la parte corrisponde a una chiave nella nostra mappa, renderizza il componente
-        if (WIDGET_MAP[part]) {
-            return (
-                <div key={index} className="my-8 p-4 border border-gray-200 rounded-lg shadow-sm bg-gray-50 not-prose">
-                    {/* Clona l'elemento per essere sicuri di passare key univoca se necessario */}
-                    {React.cloneElement(WIDGET_MAP[part], { key: index })}
-                </div>
-            );
+        if (part.type === 'widget') {
+            switch (part.widgetType) {
+                case 'TABELLA':
+                    return <WidgetTabellaAbilita key={index} id={part.id} />;
+                case 'AURA':
+                    return <WidgetAura key={index} id={part.id} />;
+                // Caso "Nested" usato da solo:
+                case 'SOLO_MATTONI': 
+                    // Dovresti fare un WidgetWrapper per MattoneList che fa il fetch
+                    return <div key={index}>Widget Mattoni {part.id}</div>;
+                default:
+                    return <span key={index} className="text-red-500">[Widget sconosciuto: {part.widgetType}]</span>;
+            }
         }
-
-        // Altrimenti renderizza HTML
-        return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
+        return <span key={index} dangerouslySetInnerHTML={{ __html: part.content }} />;
       })}
     </div>
   );
