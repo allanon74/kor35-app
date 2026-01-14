@@ -100,7 +100,7 @@ export default function WikiPage({ slug: propSlug }) {
         {pageData.immagine && (
             <div className="w-full h-48 md:h-64 overflow-hidden relative">
                 <img src={pageData.immagine} alt={pageData.titolo} className="w-full h-full object-cover"/>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent"></div>
                 <h1 className="absolute bottom-4 left-4 text-3xl md:text-5xl font-bold text-white drop-shadow-lg">{pageData.titolo}</h1>
             </div>
         )}

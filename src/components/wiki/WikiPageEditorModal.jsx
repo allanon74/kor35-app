@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { api, getWikiTierList } from '../../api'; // Usa la tua importazione corretta
-// Se usi RichTextEditor importalo, altrimenti usa textarea
-import RichTextEditor from '../RichTextEditor'; 
+import { api, getWikiTierList } from '../../api';
+import RichTextEditor from '../RichTextEditor'; // Importiamo il tuo editor
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
-  // Se abbiamo initialData, usiamo quello, altrimenti valori vuoti
   const [formData, setFormData] = useState({
     titolo: '',
     slug: '',
     parent: '',
     contenuto: '',
     public: false,
-    ...initialData // Sovrascrive i default se stiamo modificando
+    ...initialData
   });
   
-  const isEditing = !!initialData?.id; // Flag per sapere se stiamo modificando
+  // Gestione file immagine
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(initialData?.immagine || null);
 
-  // Helper Widget (copiato dalla versione precedente)
+  const isEditing = !!initialData?.id;
+  const [loading, setLoading] = useState(false);
+
+  // Widget Helper logic
   const [showWidgetHelper, setShowWidgetHelper] = useState(false);
   const [availableTiers, setAvailableTiers] = useState([]);
 
@@ -28,127 +31,209 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     }
   }, [showWidgetHelper]);
 
+  // Funzione per inserire il widget nel Rich Text Editor
   const insertWidget = (code) => {
+    // Aggiungiamo il codice widget in coda al contenuto esistente come un blocco HTML
+    const widgetHtml = `<p><strong>${code}</strong></p><p>&nbsp;</p>`;
+    
     setFormData(prev => ({
         ...prev,
-        contenuto: prev.contenuto + `\n<p>${code}</p>\n`
+        contenuto: (prev.contenuto || '') + widgetHtml
     }));
     setShowWidgetHelper(false);
   };
 
+  const handleImageChange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+          setImageFile(file);
+          setPreviewUrl(URL.createObjectURL(file));
+      }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
-        if (isEditing) {
-            // MODALITÀ MODIFICA (PUT)
-            await api.put(`/gestione_plot/staff/pagine-regolamento/${initialData.id}/`, formData);
-            alert("Pagina aggiornata!");
-        } else {
-            // MODALITÀ CREAZIONE (POST)
-            await api.post('/gestione_plot/staff/pagine-regolamento/', formData);
-            alert("Pagina creata!");
+        const data = new FormData();
+        data.append('titolo', formData.titolo);
+        // Assicuriamoci di mandare una stringa vuota se il contenuto è null
+        data.append('contenuto', formData.contenuto || ''); 
+        data.append('public', formData.public);
+        
+        if (formData.slug) data.append('slug', formData.slug);
+        if (formData.parent) data.append('parent', formData.parent);
+        
+        if (imageFile) {
+            data.append('immagine', imageFile);
         }
-        // Passiamo il nuovo slug a onSuccess per fare redirect se necessario
-        onSuccess(formData.slug);
+
+        const config = { headers: { 'Content-Type': 'multipart/form-data' } };
+        
+        let response;
+        if (isEditing) {
+             response = await api.put(`/gestione_plot/staff/pagine-regolamento/${initialData.id}/`, data, config);
+        } else {
+             response = await api.post(`/gestione_plot/staff/pagine-regolamento/`, data, config);
+        }
+
+        alert("Salvataggio completato!");
+        onSuccess(response.data.slug);
+
     } catch (error) {
         console.error("Errore salvataggio:", error);
-        alert("Errore durante il salvataggio.");
+        alert("Errore durante il salvataggio. Controlla la console.");
+    } finally {
+        setLoading(false);
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] flex flex-col">
         
+        {/* HEADER */}
         <div className="p-4 border-b flex justify-between items-center bg-gray-100 rounded-t-lg">
-            <h2 className="font-bold text-xl text-gray-800">
-                {isEditing ? `Modifica: ${initialData.titolo}` : 'Nuova Pagina Wiki'}
+            <h2 className="font-bold text-xl text-gray-800 flex items-center gap-2">
+                {isEditing ? '✏️ Modifica Pagina' : '📄 Nuova Pagina Wiki'}
             </h2>
             <button onClick={onClose} className="text-gray-500 hover:text-red-600 font-bold text-xl">✕</button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
-            <form id="wiki-form" onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+        {/* BODY SCROLLABILE */}
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col md:flex-row gap-6">
+            
+            {/* COLONNA SINISTRA: IMPOSTAZIONI */}
+            <div className="w-full md:w-1/3 space-y-6">
+                
+                {/* 1. Titolo e Slug */}
+                <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700">Titolo</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Titolo Pagina</label>
                         <input 
                             type="text" 
-                            className="w-full border p-2 rounded" 
+                            className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
                             value={formData.titolo}
                             onChange={e => setFormData({...formData, titolo: e.target.value})}
                             required 
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-700">Slug (URL)</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Slug URL <span className="font-normal text-gray-400 text-xs">(Opzionale)</span></label>
                         <input 
                             type="text" 
-                            className="w-full border p-2 rounded bg-gray-50" 
+                            className="w-full border border-gray-300 p-2 rounded bg-gray-50 text-gray-600 text-sm" 
                             value={formData.slug}
                             onChange={e => setFormData({...formData, slug: e.target.value})}
-                            placeholder="Lascia vuoto per auto-generare"
+                            placeholder="es: combattimento-avanzato"
                         />
                     </div>
                 </div>
 
-                {/* --- WIDGET HELPER --- */}
-                <div className="bg-blue-50 p-2 rounded border border-blue-200 flex gap-2 items-center">
-                    <span className="text-xs font-bold text-blue-800 uppercase">Strumenti:</span>
-                    <button 
-                        type="button"
-                        onClick={() => setShowWidgetHelper(!showWidgetHelper)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
-                    >
-                        🧩 Inserisci Widget Tier/Dati
-                    </button>
-                </div>
-
-                {showWidgetHelper && (
-                    <div className="border p-3 bg-gray-50 rounded shadow-inner grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                        <p className="col-span-2 text-xs text-gray-500 mb-2">Clicca per inserire il codice nel testo:</p>
-                        {availableTiers.map(tier => (
-                            <button 
-                                key={tier.id}
-                                type="button"
-                                onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
-                                className="text-left text-sm p-2 bg-white border hover:bg-blue-50 rounded flex justify-between group"
-                            >
-                                <span className="group-hover:text-blue-700 font-medium">{tier.nome}</span>
-                                <span className="text-xs text-gray-400">ID: {tier.id}</span>
-                            </button>
-                        ))}
+                {/* 2. Immagine */}
+                <div className="border rounded-lg p-4 bg-gray-50">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Immagine Copertina</label>
+                    <div className="space-y-3">
+                        <div className="w-full h-32 bg-gray-200 rounded overflow-hidden border border-gray-300 relative group">
+                            {previewUrl ? (
+                                <img src={previewUrl} alt="Anteprima" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">Nessuna Immagine</div>
+                            )}
+                        </div>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-indigo-100 file:text-indigo-700"
+                        />
                     </div>
-                )}
-
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Contenuto HTML</label>
-                    <RichTextEditor 
-                        className="w-full border p-2 rounded h-80 font-mono text-sm"
-                        value={formData.contenuto}
-                        onChange={e => setFormData({...formData, contenuto: e.target.value})}
-                    ></RichTextEditor>
-                    <p className="text-xs text-gray-500 mt-1">Usa tag HTML standard e i placeholder dei widget.</p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-yellow-50 p-2 rounded border border-yellow-200">
+                {/* 3. Visibilità */}
+                <div className="flex items-center gap-3 bg-yellow-50 p-3 rounded border border-yellow-200">
                     <input 
                         type="checkbox" 
                         id="is_public"
+                        className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
                         checked={formData.public} 
                         onChange={e => setFormData({...formData, public: e.target.checked})}
                     />
-                    <label htmlFor="is_public" className="text-sm font-bold text-gray-700">Pagina Pubblica (Visibile a tutti)</label>
+                    <label htmlFor="is_public" className="text-sm font-bold text-gray-800 cursor-pointer">
+                        Pubblica Online
+                    </label>
                 </div>
-            </form>
+
+                {/* 4. Widget Helper (Spostato a sinistra per comodità) */}
+                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                    <button 
+                        type="button"
+                        onClick={() => setShowWidgetHelper(!showWidgetHelper)}
+                        className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition flex justify-between items-center"
+                    >
+                        <span>🧩 Inserisci Widget</span>
+                        <span>{showWidgetHelper ? '▲' : '▼'}</span>
+                    </button>
+                    
+                    {showWidgetHelper && (
+                        <div className="mt-2 max-h-60 overflow-y-auto bg-white rounded border border-gray-300 shadow-inner">
+                            {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
+                            {availableTiers.map(tier => (
+                                <button 
+                                    key={tier.id}
+                                    type="button"
+                                    onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
+                                    className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
+                                >
+                                    <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2">{tier.nome}</span>
+                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{tier.id}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <p className="text-[10px] text-gray-500 mt-2 leading-tight">
+                        Cliccando su un widget, verrà aggiunto in fondo all'editor.
+                    </p>
+                </div>
+            </div>
+
+            {/* COLONNA DESTRA: EDITOR (Prende più spazio) */}
+            <div className="w-full md:w-2/3 flex flex-col h-full">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Contenuto Pagina</label>
+                
+                <div className="flex-1 border border-gray-300 rounded-lg overflow-hidden bg-white min-h-[400px]">
+                    {/* IMPLEMENTAZIONE RICH TEXT EDITOR */}
+                    <RichTextEditor 
+                        value={formData.contenuto} 
+                        onChange={(newContent) => setFormData({...formData, contenuto: newContent})}
+                        placeholder="Scrivi qui il contenuto della pagina..."
+                        className="h-full" // Passa classi se supportate
+                    />
+                </div>
+            </div>
+
         </div>
 
-        <div className="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded">Annulla</button>
-            <button type="submit" form="wiki-form" className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 shadow">
+        {/* FOOTER AZIONI */}
+        <div className="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
+            <button 
+                onClick={onClose} 
+                disabled={loading}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded font-medium disabled:opacity-50"
+            >
+                Annulla
+            </button>
+            <button 
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+                {loading && <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>}
                 {isEditing ? 'Salva Modifiche' : 'Crea Pagina'}
             </button>
         </div>
+
       </div>
     </div>
   );
