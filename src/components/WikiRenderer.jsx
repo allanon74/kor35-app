@@ -68,6 +68,15 @@ export default function WikiRenderer({ content }) {
     parts.push({ type: 'html', content: processedContent.substring(lastIndex) });
   }
 
+  console.log("--- DEBUG WIKI RENDERER ---");
+  parts.forEach((part, i) => {
+      console.log(`Part ${i} [${part.type}]:`, part.content || part.widgetType);
+      if (part.type === 'html') {
+          // Controlla se ci sono tag aperti non chiusi
+          console.log("HTML Chunk:", part.content); 
+      }
+  });
+
   return (
     <div className="wiki-content prose prose-red max-w-none text-gray-800">
       {parts.map((part, index) => {
