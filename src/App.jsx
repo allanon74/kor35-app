@@ -1,63 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { CharacterProvider } from './components/CharacterContext';
 import LoginPage from './components/LoginPage';
-import MainPage from './components/MainPage';
-import StaffDashboard from './components/StaffDashboard'; 
-import { CharacterProvider, useCharacter } from './components/CharacterContext';
 
-const AppContent = ({ token, onLogout }) => {
-  const { isStaff } = useCharacter();
-  
-  // Stato per gestire quale interfaccia mostrare (solo per lo staff)
-  // 'staff' = Dashboard Master | 'player' = Interfaccia Giocatore
-  const [viewMode, setViewMode] = useState('staff'); 
+// Layouts
+import AppLayout from './layouts/AppLayout';
+import PublicLayout from './layouts/PublicLayout';
 
-  // --- NUOVO STATO: Memorizza quale tool aprire nella dashboard (default 'home') ---
-  const [dashboardInitialTool, setDashboardInitialTool] = useState('home');
-
-  // Effetto: Se l'utente non è staff, forziamo sempre la vista player
-  useEffect(() => {
-    if (!isStaff) {
-      setViewMode('player');
-    }
-  }, [isStaff]);
-
-  // Render: Vista Master (Solo se è staff E siamo in modalità staff)
-  if (isStaff && viewMode === 'staff') {
-    return (
-      <StaffDashboard 
-        token={token}
-        onLogout={onLogout} 
-        onSwitchToPlayer={() => {
-            setViewMode('player');
-            setDashboardInitialTool('home'); // Reset opzionale quando si torna al player
-        }}
-        initialTool={dashboardInitialTool} // <--- MODIFICA: Passiamo il tool iniziale
-      />
-    );
-  }
-
-  // Render: Vista Giocatore (Default per tutti)
-  // Passiamo le props per permettere allo staff di tornare indietro
-  return (
-    <MainPage 
-      token={token}
-      onLogout={onLogout}
-      isStaff={isStaff} 
-      // <--- MODIFICA: Accettiamo il parametro 'tool' (default 'home')
-      onSwitchToMaster={(tool = 'home') => {
-          setDashboardInitialTool(tool);
-          setViewMode('staff');
-      }}
-    />
-  );
-};
+// Pages
+import WikiPage from './pages/WikiPage';
 
 export default function App() {
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('kor35_token'));
   const [isLoading, setIsLoading] = useState(true);
 
-  // Controllo iniziale del token
   useEffect(() => {
+    // Controllo token al mount
     const storedToken = localStorage.getItem('kor35_token');
     if (storedToken) {
       setToken(storedToken);
@@ -76,8 +34,8 @@ export default function App() {
     localStorage.removeItem('kor35_is_master');
     localStorage.removeItem('kor35_last_char_id');
     setToken(null);
-    // Ricarica la pagina per pulire stati residui in memoria
-    window.location.reload(); 
+    // Non ricarichiamo la pagina brutalmente, lasciamo fare al router
+    window.location.href = '/login'; 
   };
 
   if (isLoading) {
@@ -88,13 +46,45 @@ export default function App() {
     );
   }
 
-  if (!token) {
-    return <LoginPage onLogin={handleLoginSuccess} />;
-  }
+  // Wrapper per fornire il contesto utente solo se c'è il token
+  const AuthProvider = ({ children }) => {
+    if (!token) return <>{children}</>;
+    return (
+      <CharacterProvider onLogout={handleLogout}>
+        {children}
+      </CharacterProvider>
+    );
+  };
 
   return (
-    <CharacterProvider onLogout={handleLogout}>
-      <AppContent token={token} onLogout={handleLogout} />
-    </CharacterProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* --- ROTTE PUBBLICHE --- */}
+          <Route path="/" element={<PublicLayout token={token} />}>
+            <Route index element={<WikiPage slug="home" />} />
+            <Route path="regolamento/:slug" element={<WikiPage />} />
+            <Route 
+              path="login" 
+              element={
+                token ? <Navigate to="/app" replace /> : <LoginPage onLogin={handleLoginSuccess} />
+              } 
+            />
+          </Route>
+
+          {/* --- ROTTE APPLICAZIONE (PROTETTE) --- */}
+          <Route 
+            path="/app/*" 
+            element={
+              token ? (
+                <AppLayout token={token} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
+          />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

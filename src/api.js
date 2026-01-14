@@ -77,6 +77,27 @@ export const fetchAuthenticated = async (endpoint, options = {}, onLogout) => {
   }
 };
 
+
+export const fetchPublic = async (endpoint, options = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Errore API Public (${response.status}): ${errorText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Errore fetch public ${endpoint}:`, error);
+    throw error;
+  }
+};
+
 // --- Funzioni API specifiche ---
 
 /**
@@ -1175,3 +1196,22 @@ export const removeFaseFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/a
 export const addTaskToFase = (payload, onLogout) => fetchAuthenticated('/plot/api/tasks/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 export const removeTaskFromFase = (id, onLogout) => fetchAuthenticated(`/plot/api/tasks/${id}/`, { method: 'DELETE' }, onLogout);
 export const updateFase = (id, data, onLogout) => fetchAuthenticated(`/plot/api/fasi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+
+
+
+export const getWikiMenu = () => {
+  // Nota: Assicurati che l'URL coincida con quello definito in urls.py
+  return fetchPublic('/plot/api/public/wiki-menu/');
+};
+
+export const getWikiPage = (slug) => {
+  return fetchPublic(`/plot/api/public/wiki-page/${slug}/`);
+};
+
+export const getWikiTable = (id) => {
+  return fetchPublic(`/plot/api/public/wiki-tabelle/${id}/`);
+};
+
+export const getWikiAura = (id) => {
+  return fetchPublic(`/plot/api/public/wiki-aure/${id}/`);
+};
