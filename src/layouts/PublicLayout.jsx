@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useCharacter } from '../components/CharacterContext';
 import { getWikiMenu } from '../api';
+import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal';
 
 export default function PublicLayout({ token }) {
+  const { isStaff } = token ? useCharacter() : { isStaff: false };
+  const [isEditorOpen, setEditorOpen] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { character } = token ? useCharacter() : { character: null };
   const location = useLocation();
@@ -114,6 +117,15 @@ export default function PublicLayout({ token }) {
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           `}
         >
+          {isStaff && (
+              <button 
+                  onClick={() => setEditorOpen(true)}
+                  className="fixed bottom-6 right-6 bg-red-700 text-white p-4 rounded-full shadow-xl hover:bg-red-800 z-50 flex items-center justify-center text-2xl"
+                  title="Nuova Pagina Wiki"
+              >
+                  +
+              </button>
+          )}
           <div className="p-4 font-bold text-gray-400 uppercase text-xs tracking-widest border-b border-gray-700">
             Indice Regolamento
           </div>

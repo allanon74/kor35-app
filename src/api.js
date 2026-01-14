@@ -1215,3 +1215,13 @@ export const getWikiTable = (id) => {
 export const getWikiAura = (id) => {
   return fetchPublic(`/plot/api/public/wiki-aure/${id}/`);
 };
+
+// --- AGGIUNTA PER WIDGET TIER ---
+export const getWikiTier = (id) => {
+  return fetchPublic(`/gestione_plot/public/wiki-tiers/${id}/`);
+};
+
+// Helper per avere la lista di tutti i Tier (per l'editor del Master)
+export const getWikiTierList = () => {
+  return fetchPublic('/gestione_plot/public/wiki-tiers/');
+};

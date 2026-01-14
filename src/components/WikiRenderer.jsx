@@ -43,6 +43,8 @@ export default function WikiRenderer({ content }) {
       {parts.map((part, index) => {
         if (part.type === 'widget') {
             switch (part.widgetType) {
+                case 'TIER':
+                    return <WidgetTier key={index} id={part.id} />;
                 case 'TABELLA':
                     return <WidgetTabellaAbilita key={index} id={part.id} />;
                 case 'AURA':

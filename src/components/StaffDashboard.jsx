@@ -8,6 +8,7 @@ import {
     LayoutGrid, LogOut, ClipboardCheck,
     Skull, BookOpen, Menu, ChevronRight
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 // Importazione dei Sotto-Componenti (Tools)
 import PlotTab from './PlotTab';
@@ -92,7 +93,15 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         );
                     })}
                 </nav>
-
+                <div className="flex gap-2">
+                    <Link 
+                        to="/" 
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded shadow text-sm flex items-center gap-2"
+                        title="Torna al sito pubblico"
+                    >
+                        <span>📖</span> Wiki Pubblica
+                    </Link>
+                </div>
                 <div className="p-4 border-t border-gray-900 bg-gray-950">
                     <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 rounded-xl font-bold text-red-500 hover:bg-red-500/10 transition-all mb-2">
                         <LogOut size={18} /><span className="text-xs uppercase tracking-wide">Logout</span>

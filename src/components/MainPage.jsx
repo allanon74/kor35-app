@@ -380,6 +380,15 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
 
                         {/* LINK ADMIN AGGIUNTIVI */}
                     </div>
+                    <div className="flex gap-2">
+                        <Link 
+                            to="/" 
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded shadow text-sm flex items-center gap-2"
+                            title="Torna al sito pubblico"
+                        >
+                            <span>📖</span> Wiki Pubblica
+                        </Link>
+                    </div>
                 </div>
 
                 {/* DRAWER FOOTER (VERSIONE & UPDATE) */}
