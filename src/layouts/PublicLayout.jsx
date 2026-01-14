@@ -2,23 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useCharacter } from '../components/CharacterContext';
 import { getWikiMenu } from '../api';
-import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal'; // Assicurati che il file sia qui
+import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal';
 
 export default function PublicLayout({ token }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   
   // Gestione stato del Modale Editor
   const [isEditorOpen, setEditorOpen] = useState(false);
+  const [newParentId, setNewParentId] = useState(null); // Per memorizzare il parent scelto
 
-  // Recuperiamo i dati utente in modo sicuro
-  // Se non siamo loggati, useCharacter (grazie al SafeProvider) restituisce valori vuoti/falsi
   const { character, isStaff, isMaster } = useCharacter();
-  const canEdit = isStaff || isMaster; // Permessi per vedere il bottone
+  const canEdit = isStaff || isMaster;
 
   const location = useLocation();
   
-  // Stato per il menu
+  // Stato per il menu (Albero e Lista Piatta)
   const [menuTree, setMenuTree] = useState([]);
+  const [flatMenu, setFlatMenu] = useState([]); // Memorizziamo anche la lista piatta per ricerche
   const [loadingMenu, setLoadingMenu] = useState(true);
 
   // Caricamento Menu
@@ -26,6 +26,7 @@ export default function PublicLayout({ token }) {
     const fetchMenu = async () => {
       try {
         const flatList = await getWikiMenu();
+        setFlatMenu(flatList); // Salviamo la lista grezza
         const tree = buildTree(flatList);
         setMenuTree(tree);
       } catch (error) {
@@ -35,11 +36,11 @@ export default function PublicLayout({ token }) {
       }
     };
     fetchMenu();
-  }, []); // Esegue solo al mount
+  }, []);
 
-  // Funzione helper per costruire l'albero
   const buildTree = (items) => {
     if (!Array.isArray(items)) return [];
+    // Clona gli oggetti per evitare mutazioni sulla flatList originale
     const map = {};
     const roots = [];
     
@@ -61,7 +62,36 @@ export default function PublicLayout({ token }) {
     return roots;
   };
 
-  // Componente ricorsivo Menu
+  // Funzione per trovare l'ID della pagina corrente basandosi sull'URL
+  const getCurrentPageId = () => {
+      const path = location.pathname;
+      let currentSlug = '';
+      
+      if (path === '/') {
+          currentSlug = 'home';
+      } else if (path.startsWith('/regolamento/')) {
+          // Estrae lo slug dall'URL: /regolamento/pippo -> pippo
+          currentSlug = path.split('/')[2];
+      }
+
+      // Cerca nella lista piatta
+      const page = flatMenu.find(p => p.slug === currentSlug);
+      return page ? page.id : null;
+  };
+
+  // Apre modale per NUOVA PAGINA ROOT (dal menu laterale)
+  const handleCreateRoot = () => {
+      setNewParentId(null); // Nessun genitore
+      setEditorOpen(true);
+  };
+
+  // Apre modale per SOTTO-PAGINA (dal bottone +)
+  const handleCreateNested = () => {
+      const parentId = getCurrentPageId();
+      setNewParentId(parentId); // Imposta il genitore corrente
+      setEditorOpen(true);
+  };
+
   const MenuItem = ({ item }) => (
     <li>
       <Link 
@@ -102,7 +132,6 @@ export default function PublicLayout({ token }) {
         <div className="flex items-center gap-3">
           {token ? (
             <div className="flex items-center gap-3">
-                {/* Info Utente ridotta */}
                 <div className="text-right hidden sm:block leading-tight">
                     <div className="font-bold text-sm">{character?.nome}</div>
                     <div className="text-xs text-red-200">{isStaff ? 'Staff' : 'Giocatore'}</div>
@@ -128,18 +157,29 @@ export default function PublicLayout({ token }) {
         {/* SIDEBAR (Menu Regolamento) */}
         <aside 
           className={`
-            absolute inset-y-0 left-0 w-72 bg-gray-800 text-gray-200 transform transition-transform duration-300 z-30 shadow-xl
+            absolute inset-y-0 left-0 w-72 bg-gray-800 text-gray-200 transform transition-transform duration-300 z-30 shadow-xl flex flex-col
             md:relative md:translate-x-0
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           `}
         >
-          <div className="p-4 font-bold text-gray-400 uppercase text-xs tracking-widest border-b border-gray-700 flex justify-between items-center">
+          <div className="p-4 font-bold text-gray-400 uppercase text-xs tracking-widest border-b border-gray-700 flex justify-between items-center bg-gray-900">
             <span>Indice</span>
-            {/* Tasto chiudi solo su mobile */}
             <button onClick={() => setSidebarOpen(false)} className="md:hidden text-lg">✕</button>
           </div>
+
+          {/* BOTTONE CREA ROOT (Solo Staff) */}
+          {canEdit && (
+             <div className="p-2 border-b border-gray-700 bg-gray-800">
+                <button 
+                    onClick={handleCreateRoot}
+                    className="w-full bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 px-3 rounded flex items-center justify-center gap-2 transition"
+                >
+                    <span>📄</span> Nuova Pagina Principale
+                </button>
+             </div>
+          )}
           
-          <nav className="overflow-y-auto h-full pb-20 scrollbar-thin scrollbar-thumb-gray-600">
+          <nav className="overflow-y-auto flex-1 pb-20 scrollbar-thin scrollbar-thumb-gray-600">
             {loadingMenu ? (
                <div className="p-4 text-gray-400 text-sm animate-pulse">Caricamento indice...</div>
             ) : (
@@ -154,14 +194,14 @@ export default function PublicLayout({ token }) {
         <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 md:m-0 scroll-smooth relative">
           <Outlet />
           
-          {/* --- BOTTONE GALLEGGIANTE 'AGGIUNGI PAGINA' (Solo Staff) --- */}
+          {/* --- BOTTONE GALLEGGIANTE 'AGGIUNGI SOTTO-PAGINA' (Solo Staff) --- */}
           {canEdit && (
             <button 
-                onClick={() => setEditorOpen(true)}
+                onClick={handleCreateNested}
                 className="fixed bottom-8 right-8 bg-red-700 hover:bg-red-800 text-white w-14 h-14 rounded-full shadow-2xl z-50 flex items-center justify-center text-3xl transition transform hover:scale-110"
-                title="Crea Nuova Pagina"
+                title="Crea Sotto-Pagina qui"
             >
-                +
+                <span className="relative top-0.5">+</span>
             </button>
           )}
         </main>
@@ -179,10 +219,12 @@ export default function PublicLayout({ token }) {
       {/* --- MODALE EDITOR --- */}
       {isEditorOpen && (
         <WikiPageEditorModal 
+            // Passiamo il parent ID calcolato (null per Root, ID per Nested)
+            initialData={{ parent: newParentId }} 
             onClose={() => setEditorOpen(false)} 
             onSuccess={(newSlug) => {
                 setEditorOpen(false);
-                // Se abbiamo creato una nuova pagina, ricarichiamo tutto per aggiornare il menu
+                // Ricarichiamo la pagina per aggiornare menu e contenuto
                 window.location.href = newSlug ? `/regolamento/${newSlug}` : '/';
             }}
         />
