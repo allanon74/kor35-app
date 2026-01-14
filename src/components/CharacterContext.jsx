@@ -20,7 +20,7 @@ import {
   useAcquirableCerimoniali
 } from '../hooks/useGameData';
 
-const CharacterContext = createContext(null);
+export const CharacterContext = createContext(null);
 
 // --- HELPER UTILS ---
 function urlBase64ToUint8Array(base64String) {
