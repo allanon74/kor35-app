@@ -6,50 +6,66 @@ import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
 export default function WikiRenderer({ content }) {
   if (!content) return null;
 
-  // 1. PULIZIA ROBUSTA
-  // Rimuove qualsiasi tag contenitore (p, div, span, h1-6) che avvolge ESCLUSIVAMENTE un widget.
-  // Gestisce attributi (class, style), spazi, <br> e &nbsp; che l'editor potrebbe aggiungere.
-  
-  // Spiegazione Regex:
-  // <(p|div|span|h\d)[^>]*>  -> Trova apertura tag (es. <p>, <p class="x">, <div>)
-  // (?:<br\/?>|&nbsp;|\s)* -> Ignora br, spazi e nbsp prima del widget
-  // ({{WIDGET_[^}]+}})       -> CATTURA IL WIDGET ($2)
-  // (?:<br\/?>|&nbsp;|\s)* -> Ignora br, spazi e nbsp dopo il widget
-  // <\/\1>                   -> Trova chiusura tag corrispondente (es. </p>)
-  
-  const cleanRegex = /<(p|div|span|h\d|li)[^>]*>\s*(?:<br\/?>|&nbsp;|\s)*({{WIDGET_[A-Z_]+:\d+}})(?:<br\/?>|&nbsp;|\s)*<\/\1>/gi;
-  
-  // Sostituiamo il tutto con SOLO il codice del widget ($2)
-  let cleanContent = content.replace(cleanRegex, '$2');
+  // --- FUNZIONE DI PULIZIA PROFONDA ---
+  const cleanContent = (html) => {
+    let currentHtml = html;
+    let hasChanged = true;
 
-  // 2. PARSING
+    // Regex spiegata:
+    // <([a-z][a-z0-9]*)   -> Cattura il tag di apertura (es: p, div, span, strong) nel gruppo 1
+    // [^>]*>              -> Ignora attributi (class, style, etc.)
+    // [\s\u00A0]* -> Ignora spazi bianchi e Non-Breaking Spaces reali
+    // (?:&nbsp;|<br\/?>)* -> Ignora entità &nbsp; e tag <br>
+    // ({{WIDGET_[^}]+}})  -> CATTURA IL WIDGET nel gruppo 2
+    // ...ripetizione ignore... -> Ignora spazi/br dopo il widget
+    // <\/\1>              -> Cerca la chiusura dello STESSO tag catturato all'inizio
+    
+    const wrapperRegex = /<([a-z][a-z0-9]*)[^>]*>(?:[\s\u00A0]|&nbsp;|<br\/?>)*({{WIDGET_[A-Z_]+:\d+}})(?:[\s\u00A0]|&nbsp;|<br\/?>)*<\/\1>/gi;
+
+    // Continuiamo a eseguire la replace finché troviamo match (per gestire nesting tipo <p><span>{{WIDGET}}</span></p>)
+    while (hasChanged) {
+      const newHtml = currentHtml.replace(wrapperRegex, '$2');
+      if (newHtml !== currentHtml) {
+        currentHtml = newHtml;
+      } else {
+        hasChanged = false;
+      }
+    }
+    
+    return currentHtml;
+  };
+
+  // 1. Eseguiamo la pulizia
+  const processedContent = cleanContent(content);
+
+  // 2. Parsing per dividere HTML e Widget
   const regex = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
   const parts = [];
   let lastIndex = 0;
   let match;
 
-  while ((match = regex.exec(cleanContent)) !== null) {
-    // Aggiungi testo HTML prima del widget
+  while ((match = regex.exec(processedContent)) !== null) {
+    // Aggiungi parte HTML precedente
     if (match.index > lastIndex) {
       parts.push({ 
         type: 'html', 
-        content: cleanContent.substring(lastIndex, match.index) 
+        content: processedContent.substring(lastIndex, match.index) 
       });
     }
 
     // Aggiungi Widget
     parts.push({
       type: 'widget',
-      widgetType: match[1], // Es: TIER
-      id: match[2]          // Es: 32
+      widgetType: match[1], 
+      id: match[2]
     });
 
     lastIndex = regex.lastIndex;
   }
 
-  // Aggiungi testo rimanente
-  if (lastIndex < cleanContent.length) {
-    parts.push({ type: 'html', content: cleanContent.substring(lastIndex) });
+  // Aggiungi eventuale HTML rimanente
+  if (lastIndex < processedContent.length) {
+    parts.push({ type: 'html', content: processedContent.substring(lastIndex) });
   }
 
   return (
@@ -65,14 +81,16 @@ export default function WikiRenderer({ content }) {
                     return <WidgetTabellaAbilita key={index} id={part.id} />;
                 default:
                     return (
-                        <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50">
-                            [Widget non supportato: {part.widgetType}]
+                        <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">
+                            [WIDGET IGNOTO: {part.widgetType}]
                         </div>
                     );
             }
         }
         
-        // Renderizza HTML puro
+        // Renderizza HTML.
+        // Importante: se cleanContent ha funzionato, qui dentro NON ci sono pezzi di tag orfani.
+        // Se part.content è solo uno spazio o a capo, React lo gestisce bene.
         return <div key={index} dangerouslySetInnerHTML={{ __html: part.content }} />;
       })}
     </div>
