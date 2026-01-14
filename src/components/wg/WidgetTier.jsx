@@ -20,7 +20,10 @@ export default function WidgetTier({ id }) {
 
   // Se il serializer restituisce 'abilita' (come definito sopra), usiamo quello.
   // Fallback a array vuoto.
-  const list = data.abilita || [];
+  // const list = data.abilita || [];
+  const sortedList = [...(data.abilita || [])].sort((a, b) => 
+    a.nome.localeCompare(b.nome)
+  );
 
   return (
     <div className="my-8 border border-gray-300 rounded-lg overflow-hidden shadow-sm">
@@ -35,14 +38,17 @@ export default function WidgetTier({ id }) {
 
         {/* DESCRIZIONE TIER */}
         {data.descrizione && (
-            <div className="p-4 bg-gray-50 text-gray-700 text-sm border-b border-gray-200 italic">
-                {data.descrizione}
-            </div>
+            <div 
+            className="p-4 bg-gray-50 text-gray-700 text-sm border-b border-gray-200 italic"
+            dangerouslySetInnerHTML={data.descrizione}
+            />
+                
+            
         )}
 
         {/* LISTA ABILITÀ (TABELLA) */}
         <div className="p-0">
-            <AbilitaTable list={list} />
+            <AbilitaTable list={sortedList} />
         </div>
     </div>
   );
