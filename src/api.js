@@ -1218,10 +1218,26 @@ export const getWikiAura = (id) => {
 
 // --- AGGIUNTA PER WIDGET TIER ---
 export const getWikiTier = (id) => {
-  return fetchPublic(`/gestione_plot/public/wiki-tiers/${id}/`);
+  return fetchPublic(`/plot/api/public/wiki-tiers/${id}/`);
 };
 
 // Helper per avere la lista di tutti i Tier (per l'editor del Master)
 export const getWikiTierList = () => {
-  return fetchPublic('/gestione_plot/public/wiki-tiers/');
+  return fetchPublic('/plot/api/public/wiki-tiers/');
+};
+
+// Crea una nuova pagina (Staff) - Supporta FormData per immagini
+export const createWikiPage = (formData, onLogout) => {
+  return fetchAuthenticated('/plot/api/staff/pagine-regolamento/', {
+    method: 'POST',
+    body: formData // fetchAuthenticated gestisce automaticamente il Content-Type per FormData
+  }, onLogout);
+};
+
+// Aggiorna una pagina esistente (Staff)
+export const updateWikiPage = (id, formData, onLogout) => {
+  return fetchAuthenticated(`/plot/api/staff/pagine-regolamento/${id}/`, {
+    method: 'PUT',
+    body: formData
+  }, onLogout);
 };

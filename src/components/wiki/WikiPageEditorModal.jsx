@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { api, getWikiTierList } from '../../api';
-import RichTextEditor from '../RichTextEditor'; // Importiamo il tuo editor
+// CORREZIONE IMPORT: Usiamo le funzioni specifiche definite in api.js
+import { getWikiTierList, createWikiPage, updateWikiPage } from '../../api';
+import RichTextEditor from '../RichTextEditor';
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -25,17 +26,15 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
   useEffect(() => {
     if (showWidgetHelper) {
+        // CORREZIONE: Chiamata alla funzione specifica
         getWikiTierList()
             .then(data => setAvailableTiers(data))
             .catch(err => console.error("Err loading tiers", err));
     }
   }, [showWidgetHelper]);
 
-  // Funzione per inserire il widget nel Rich Text Editor
   const insertWidget = (code) => {
-    // Aggiungiamo il codice widget in coda al contenuto esistente come un blocco HTML
     const widgetHtml = `<p><strong>${code}</strong></p><p>&nbsp;</p>`;
-    
     setFormData(prev => ({
         ...prev,
         contenuto: (prev.contenuto || '') + widgetHtml
@@ -56,9 +55,9 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     setLoading(true);
 
     try {
+        // Preparazione dati Multipart
         const data = new FormData();
         data.append('titolo', formData.titolo);
-        // Assicuriamoci di mandare una stringa vuota se il contenuto è null
         data.append('contenuto', formData.contenuto || ''); 
         data.append('public', formData.public);
         
@@ -69,17 +68,20 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
             data.append('immagine', imageFile);
         }
 
-        const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-        
+        // CORREZIONE: Chiamate alle funzioni specifiche di api.js
         let response;
         if (isEditing) {
-             response = await api.put(`/gestione_plot/staff/pagine-regolamento/${initialData.id}/`, data, config);
+             response = await updateWikiPage(initialData.id, data);
         } else {
-             response = await api.post(`/gestione_plot/staff/pagine-regolamento/`, data, config);
+             response = await createWikiPage(data);
         }
 
         alert("Salvataggio completato!");
-        onSuccess(response.data.slug);
+        
+        // Se la risposta contiene i dati aggiornati (es. slug), li usiamo
+        // Nota: controlla se il tuo backend restituisce l'oggetto direttamente o dentro un wrapper
+        const newSlug = response.slug || formData.slug; 
+        onSuccess(newSlug);
 
     } catch (error) {
         console.error("Errore salvataggio:", error);
@@ -165,7 +167,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     </label>
                 </div>
 
-                {/* 4. Widget Helper (Spostato a sinistra per comodità) */}
+                {/* 4. Widget Helper */}
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
                     <button 
                         type="button"
@@ -198,17 +200,16 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                 </div>
             </div>
 
-            {/* COLONNA DESTRA: EDITOR (Prende più spazio) */}
+            {/* COLONNA DESTRA: EDITOR */}
             <div className="w-full md:w-2/3 flex flex-col h-full">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Contenuto Pagina</label>
                 
                 <div className="flex-1 border border-gray-300 rounded-lg overflow-hidden bg-white min-h-[400px]">
-                    {/* IMPLEMENTAZIONE RICH TEXT EDITOR */}
                     <RichTextEditor 
                         value={formData.contenuto} 
                         onChange={(newContent) => setFormData({...formData, contenuto: newContent})}
                         placeholder="Scrivi qui il contenuto della pagina..."
-                        className="h-full" // Passa classi se supportate
+                        className="h-full"
                     />
                 </div>
             </div>
