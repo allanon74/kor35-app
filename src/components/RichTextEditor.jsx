@@ -57,43 +57,45 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
     );
 
     return (
-        <div className="flex flex-col h-full bg-gray-900 border border-gray-700 rounded-lg overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
-            {/* Toolbar */}
+        <>
             <label className="block text-xs text-gray-500 mb-1">{label}</label>
-            <div className="flex items-center gap-1 bg-gray-800/50 p-1 border-b border-gray-700">
-                <ToolbarButton icon={Bold} command="bold" title="Grassetto" />
-                <ToolbarButton icon={Italic} command="italic" title="Corsivo" />
-                <div className="w-px h-4 bg-gray-700 mx-1"></div>
-                <ToolbarButton icon={List} command="insertUnorderedList" title="Elenco Puntato" />
-                <ToolbarButton icon={ListOrdered} command="insertOrderedList" title="Elenco Numerato" />
-                <div className="w-px h-4 bg-gray-700 mx-1"></div>
-                <ToolbarButton icon={AlignLeft} command="justifyLeft" title="Allinea Sinistra" />
-                <ToolbarButton icon={AlignCenter} command="justifyCenter" title="Allinea Centro" />
-                {/* <ToolbarButton icon={AlignRight} command="justifyRight" title="Allinea Destra" /> */}
-            </div>
+            <div className="flex flex-col h-full bg-gray-900 border border-gray-700 rounded-lg overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+                {/* Toolbar */}
+                <div className="flex items-center gap-1 bg-gray-800/50 p-1 border-b border-gray-700">
+                    <ToolbarButton icon={Bold} command="bold" title="Grassetto" />
+                    <ToolbarButton icon={Italic} command="italic" title="Corsivo" />
+                    <div className="w-px h-4 bg-gray-700 mx-1"></div>
+                    <ToolbarButton icon={List} command="insertUnorderedList" title="Elenco Puntato" />
+                    <ToolbarButton icon={ListOrdered} command="insertOrderedList" title="Elenco Numerato" />
+                    <div className="w-px h-4 bg-gray-700 mx-1"></div>
+                    <ToolbarButton icon={AlignLeft} command="justifyLeft" title="Allinea Sinistra" />
+                    <ToolbarButton icon={AlignCenter} command="justifyCenter" title="Allinea Centro" />
+                    {/* <ToolbarButton icon={AlignRight} command="justifyRight" title="Allinea Destra" /> */}
+                </div>
 
-            {/* Editor Area */}
-            <div
-                ref={editorRef}
-                contentEditable
-                onInput={handleInput}
-                onPaste={handlePaste} // <--- AGGIUNTO L'HANDLER QUI
-                className="flex-1 p-3 text-[11px] text-gray-200 outline-none overflow-y-auto custom-scrollbar leading-relaxed"
-                style={{ minHeight: '100px' }}
-                data-placeholder={placeholder}
-            />
-            
-            {/* Placeholder visivo simulato con CSS se vuoto */}
-            <style jsx>{`
-                [contenteditable]:empty:before {
-                    content: attr(data-placeholder);
-                    color: #6b7280;
-                    font-style: italic;
-                    pointer-events: none;
-                    display: block; /* For Firefox */
-                }
-            `}</style>
-        </div>
+                {/* Editor Area */}
+                <div
+                    ref={editorRef}
+                    contentEditable
+                    onInput={handleInput}
+                    onPaste={handlePaste} // <--- AGGIUNTO L'HANDLER QUI
+                    className="flex-1 p-3 text-[11px] text-gray-200 outline-none overflow-y-auto custom-scrollbar leading-relaxed"
+                    style={{ minHeight: '100px' }}
+                    data-placeholder={placeholder}
+                />
+                
+                {/* Placeholder visivo simulato con CSS se vuoto */}
+                <style jsx>{`
+                    [contenteditable]:empty:before {
+                        content: attr(data-placeholder);
+                        color: #6b7280;
+                        font-style: italic;
+                        pointer-events: none;
+                        display: block; /* For Firefox */
+                    }
+                `}</style>
+            </div>
+        </>
     );
 };
 

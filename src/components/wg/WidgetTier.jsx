@@ -40,7 +40,7 @@ export default function WidgetTier({ id }) {
         {/* DESCRIZIONE TIER */}
         {data.descrizione && (
             <div 
-              className="p-3 md:p-4 bg-gray-50 text-gray-700 text-xs md:text-sm border-b border-gray-200 italic prose prose-sm max-w-none break-words"
+              className="p-3 md:p-4 bg-gray-50 text-gray-700 text-xs md:text-sm border-b border-gray-200 italic prose prose-sm max-w-none wrap-break-words"
               dangerouslySetInnerHTML={{ __html: data.descrizione }}
             />
         )}
