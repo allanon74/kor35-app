@@ -11,15 +11,22 @@ const PunteggioDisplay = ({
   displayText = "abbr", 
   iconType = "inv_circle", 
   size = "m",
-  className = ""
+  className = "",
+  readOnly = false // <--- NUOVA PROP
 }) => {
-  const { selectedCharacterData, refreshCharacterData } = useCharacter();
+  // Safe destructuring nel caso useCharacter ritorni null (ospiti) o loading
+  const context = useCharacter();
+  const selectedCharacterData = context?.selectedCharacterData || null;
+  const refreshCharacterData = context?.refreshCharacterData || (() => {});
+
   const [showModal, setShowModal] = useState(false);
   const [showTraitsModal, setShowTraitsModal] = useState(false);
   
   if (!punteggio || !punteggio.colore) {
+    // Fallback elegante se mancano i dati (es. backend non manda l'oggetto completo)
     return (
-      <div className={`flex items-center gap-2 p-2 bg-gray-700 rounded-lg ${className}`}>
+      <div className={`flex items-center gap-1 p-1 bg-gray-200 rounded border border-gray-300 ${className}`}>
+        {punteggio?.sigla && <span className="text-[10px] font-bold text-gray-500">{punteggio.sigla}</span>}
         <span className="text-[10px] font-semibold text-gray-400">N/A</span>
       </div>
     );
@@ -40,7 +47,9 @@ const PunteggioDisplay = ({
     textToShow = punteggio.nome;
   }
 
+  // Configurazione dimensioni (ho aggiunto 'badge' per uso in tabelle)
   const layoutConfig = {
+    badge: { gap: 'gap-1', text: 'text-[9px]', val: 'hidden', p: 'p-0.5 px-1.5' }, // Compatto per badge
     xs: { gap: 'gap-1',    text: 'text-[9px]',     val: 'text-[10px]', p: 'p-0.5' },
     s:  { gap: 'gap-1.5',  text: 'text-[11px]',    val: 'text-xs',     p: 'p-1' },
     m:  { gap: 'gap-2.5',  text: 'text-sm',        val: 'text-lg',     p: 'p-1.5' },
@@ -51,35 +60,33 @@ const PunteggioDisplay = ({
   const layout = layoutConfig[size] || layoutConfig.m;
   const url = punteggio.icona_url || punteggio.icona;
 
-  // --- LOGICA MODELLI AURA ---
+  // --- LOGICA INTERATTIVA (Disabilitata se readOnly) ---
   const isAura = punteggio.tipo === 'AU';
   const hasModelsAvailable = punteggio.has_models;
   const userValue = parseInt(value) || 0;
   
-  const selectedModelName = isAura && selectedCharacterData?.modelli_aura
+  const selectedModelName = !readOnly && isAura && selectedCharacterData?.modelli_aura
       ? selectedCharacterData.modelli_aura.find(m => m.aura === punteggio.id)?.nome 
       : null;
 
-  const needsSelection = isAura && userValue > 0 && hasModelsAvailable && !selectedModelName;
-
-  // --- LOGICA TRATTI AURA (Configurazione Livelli) ---
-  const hasTraitsConfig = punteggio.configurazione_livelli && punteggio.configurazione_livelli.length > 0;
+  const needsSelection = !readOnly && isAura && userValue > 0 && hasModelsAvailable && !selectedModelName;
+  const hasTraitsConfig = !readOnly && punteggio.configurazione_livelli && punteggio.configurazione_livelli.length > 0;
 
   const handleContainerClick = () => {
-    if (hasTraitsConfig) {
-        setShowTraitsModal(true);
-    }
+    if (readOnly) return;
+    if (hasTraitsConfig) setShowTraitsModal(true);
   };
 
   return (
     <>
         <div 
-          className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} grow ${className} 
-            ${hasTraitsConfig ? 'cursor-pointer hover:brightness-110 relative group' : ''}`} 
+          className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} ${className} 
+            ${hasTraitsConfig ? 'cursor-pointer hover:brightness-110 relative group' : ''}
+            ${readOnly ? 'cursor-default' : ''}`} 
           style={{ backgroundColor: punteggio.colore }}
           onClick={handleContainerClick}
         >
-          <div className={`flex items-center ${layout.gap} grow min-w-0`}> 
+          <div className={`flex items-center ${layout.gap} min-w-0`}> 
             
             <div className="relative">
                 {iconMode && url && (
@@ -87,7 +94,7 @@ const PunteggioDisplay = ({
                     url={url} 
                     color={punteggio.colore} 
                     mode={iconMode} 
-                    size={size}
+                    size={size === 'badge' ? 'xs' : size} // Badge usa icone piccole
                     className="shrink-0" 
                   />
                 )}
@@ -125,16 +132,11 @@ const PunteggioDisplay = ({
                         {selectedModelName}
                     </span>
                 )}
-                
-                {hasTraitsConfig && !needsSelection && !selectedModelName && (
-                    <span className="text-[9px] opacity-75 font-light italic leading-none hidden group-hover:block" style={{ color: textColor }}>
-                        Gestisci
-                    </span>
-                )}
             </div>
           </div>
           
-          {value !== undefined && (
+          {/* Valore numerico (nascosto se size='badge' o value è null) */}
+          {value !== null && value !== undefined && layout.val !== 'hidden' && (
             <span 
               className={`font-bold font-mono ${layout.val} shrink-0 ml-2 whitespace-nowrap`} 
               style={{ color: textColor }}
@@ -155,7 +157,7 @@ const PunteggioDisplay = ({
             <AuraTraitsModal 
                 aura={punteggio}
                 personaggio={selectedCharacterData}
-                currentValue={userValue} // <--- PASSO IL VALORE DIRETTAMENTE QUI
+                currentValue={userValue} 
                 onClose={() => setShowTraitsModal(false)}
                 onUpdateCharacter={refreshCharacterData} 
             />

@@ -1,18 +1,5 @@
 import React from 'react';
-
-// Se hai il componente PunteggioDisplay importalo qui, altrimenti uso questo fallback grafico
-const StatBadge = ({ caratteristica }) => {
-  if (!caratteristica) return null;
-  
-  // Gestisce sia se caratteristica è un oggetto { sigla: 'FOR', ... } sia se è stringa
-  const sigla = typeof caratteristica === 'object' ? caratteristica.sigla || caratteristica.nome?.substring(0,3) : caratteristica;
-  
-  return (
-    <div className="float-right ml-2 mb-1 flex flex-col items-center justify-center bg-gray-100 border border-gray-300 rounded p-1 min-w-[30px]">
-       <span className="text-[10px] uppercase font-bold text-gray-600">{sigla}</span>
-    </div>
-  );
-};
+import PunteggioDisplay from '../PunteggioDisplay';
 
 export default function AbilitaTable({ list }) {
   if (!list || list.length === 0) return <p className="text-gray-500 italic text-sm p-2">Nessuna abilità elencata.</p>;
@@ -23,21 +10,37 @@ export default function AbilitaTable({ list }) {
         <div key={item.id} className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid">
           
           {/* HEADER SCHEDA: Nome + Costo */}
-          <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center">
-            <span className="font-bold text-red-900 text-sm md:text-base leading-tight">
+          <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2">
+            <span className="font-bold text-red-900 text-sm md:text-base leading-tight truncate">
               {item.nome}
             </span>
-            {item.costo && (
-              <span className="text-xs font-mono bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-600 whitespace-nowrap ml-2">
-                Costo: {item.costo}
-              </span>
-            )}
+            
+            <div className="flex items-center gap-2 shrink-0">
+               {/* Costo */}
+               {item.costo && (
+                  <span className="text-xs font-mono bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-600 whitespace-nowrap">
+                    Costo: {item.costo}
+                  </span>
+                )}
+            </div>
           </div>
 
           {/* CORPO SCHEDA */}
           <div className="p-3 text-xs md:text-sm text-gray-700 relative">
-            {/* Display Caratteristica (Flottante a destra) */}
-            <StatBadge caratteristica={item.caratteristica} />
+            
+            {/* BADGE CARATTERISTICA (Flottante a destra) */}
+            {/* Controllo se esiste e se è un oggetto valido con colore */}
+            {item.caratteristica && typeof item.caratteristica === 'object' && (
+                <div className="float-right ml-2 mb-1">
+                    <PunteggioDisplay 
+                        punteggio={item.caratteristica}
+                        value={null} // Nessun valore numerico
+                        size="badge" // Uso il nuovo preset compatto
+                        readOnly={true} // Disabilita click e interazioni
+                        iconType="inv_circle"
+                    />
+                </div>
+            )}
             
             {/* Descrizione HTML */}
             <div 
