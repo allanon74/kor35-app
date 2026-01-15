@@ -237,7 +237,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                             </div>
                         </div>
 
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
                             {(isStaff || isAdmin) && (
                                 <>
                                     <button 
