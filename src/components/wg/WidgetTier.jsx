@@ -18,33 +18,36 @@ export default function WidgetTier({ id }) {
   if (error) return <div className="text-red-500 text-xs border border-red-300 p-2 rounded bg-red-50">Tier #{id} non disponibile.</div>;
   if (!data) return <div className="animate-pulse h-20 bg-gray-200 rounded my-4"></div>;
 
-  // Ordina per nome
   const sortedList = [...(data.abilita || [])].sort((a, b) => 
     (a.nome || '').localeCompare(b.nome || '')
   );
 
   return (
-    <div className="my-8 border border-gray-300 rounded-lg overflow-hidden shadow-sm bg-white">
-        {/* HEADER DEL TIER */}
-        <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
-            <div>
-                <h3 className="text-xl font-bold uppercase tracking-wider">{data.nome}</h3>
-                {data.costo && <span className="text-xs text-gray-300 bg-gray-700 px-2 py-1 rounded mt-1 inline-block">Costo Base: {data.costo}</span>}
+    // w-full e max-w-full prevengono lo sforamento laterale
+    <div className="my-6 w-full max-w-full border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm break-inside-avoid">
+        {/* Header Responsivo */}
+        <div className="bg-gray-800 text-white p-3 md:p-4 flex flex-row justify-between items-center gap-2">
+            <div className="flex flex-col">
+                <h3 className="text-base md:text-xl font-bold uppercase tracking-wider leading-tight">{data.nome}</h3>
+                {data.costo && (
+                  <span className="text-[10px] md:text-xs text-gray-300 bg-gray-700 px-2 py-0.5 rounded mt-1 self-start">
+                    Costo Base: {data.costo}
+                  </span>
+                )}
             </div>
-            <div className="text-2xl opacity-20">📊</div>
+            <div className="text-xl md:text-2xl opacity-20 select-none">📊</div>
         </div>
 
-        {/* DESCRIZIONE TIER */}
+        {/* Descrizione */}
         {data.descrizione && (
             <div 
-              className="p-4 bg-gray-50 text-gray-700 text-sm border-b border-gray-200 italic prose prose-sm max-w-none"
-              // CORREZIONE FONDAMENTALE QUI SOTTO:
+              className="p-3 md:p-4 bg-gray-50 text-gray-700 text-xs md:text-sm border-b border-gray-200 italic prose prose-sm max-w-none break-words"
               dangerouslySetInnerHTML={{ __html: data.descrizione }}
             />
         )}
 
-        {/* LISTA ABILITÀ (TABELLA) */}
-        <div className="p-0">
+        {/* Contenitore Tabella */}
+        <div className="p-0 w-full">
             <AbilitaTable list={sortedList} />
         </div>
     </div>

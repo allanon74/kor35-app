@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// CORREZIONE IMPORT: Usiamo le funzioni specifiche definite in api.js
 import { getWikiTierList, createWikiPage, updateWikiPage } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 
@@ -26,7 +25,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
   useEffect(() => {
     if (showWidgetHelper) {
-        // CORREZIONE: Chiamata alla funzione specifica
         getWikiTierList()
             .then(data => setAvailableTiers(data))
             .catch(err => console.error("Err loading tiers", err));
@@ -55,7 +53,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     setLoading(true);
 
     try {
-        // Preparazione dati Multipart
         const data = new FormData();
         data.append('titolo', formData.titolo);
         data.append('contenuto', formData.contenuto || ''); 
@@ -68,7 +65,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
             data.append('immagine', imageFile);
         }
 
-        // CORREZIONE: Chiamate alle funzioni specifiche di api.js
         let response;
         if (isEditing) {
              response = await updateWikiPage(initialData.id, data);
@@ -79,7 +75,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         alert("Salvataggio completato!");
         
         // Se la risposta contiene i dati aggiornati (es. slug), li usiamo
-        // Nota: controlla se il tuo backend restituisce l'oggetto direttamente o dentro un wrapper
         const newSlug = response.slug || formData.slug; 
         onSuccess(newSlug);
 
@@ -92,19 +87,20 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] flex flex-col">
+    // CONTENITORE PRINCIPALE: Padding ridotto su mobile (p-0) per usare tutto lo schermo
+    <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-0 md:p-4">
+      <div className="bg-white md:rounded-lg shadow-xl w-full max-w-6xl h-full md:h-auto md:max-h-[95vh] flex flex-col">
         
         {/* HEADER */}
-        <div className="p-4 border-b flex justify-between items-center bg-gray-100 rounded-t-lg">
-            <h2 className="font-bold text-xl text-gray-800 flex items-center gap-2">
+        <div className="p-3 md:p-4 border-b flex justify-between items-center bg-gray-100 md:rounded-t-lg shrink-0">
+            <h2 className="font-bold text-lg md:text-xl text-gray-800 flex items-center gap-2 truncate">
                 {isEditing ? '✏️ Modifica Pagina' : '📄 Nuova Pagina Wiki'}
             </h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-red-600 font-bold text-xl">✕</button>
+            <button onClick={onClose} className="text-gray-500 hover:text-red-600 font-bold text-xl px-2">✕</button>
         </div>
 
-        {/* BODY SCROLLABILE */}
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col md:flex-row gap-6">
+        {/* BODY SCROLLABILE: Layout a colonna su mobile, riga su desktop */}
+        <div className="p-4 overflow-y-auto flex-1 flex flex-col md:flex-row gap-6">
             
             {/* COLONNA SINISTRA: IMPOSTAZIONI */}
             <div className="w-full md:w-1/3 space-y-6">
@@ -112,17 +108,17 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                 {/* 1. Titolo e Slug */}
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Titolo Pagina</label>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Titolo Pagina</label>
                         <input 
                             type="text" 
-                            className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
                             value={formData.titolo}
                             onChange={e => setFormData({...formData, titolo: e.target.value})}
                             required 
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Slug URL <span className="font-normal text-gray-400 text-xs">(Opzionale)</span></label>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Slug URL <span className="font-normal text-gray-400 text-xs">(Opzionale)</span></label>
                         <input 
                             type="text" 
                             className="w-full border border-gray-300 p-2 rounded bg-gray-50 text-gray-600 text-sm" 
@@ -134,10 +130,10 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                 </div>
 
                 {/* 2. Immagine */}
-                <div className="border rounded-lg p-4 bg-gray-50">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Immagine Copertina</label>
+                <div className="border rounded-lg p-3 bg-gray-50">
+                    <label className="block text-xs font-bold text-gray-700 mb-2">Immagine Copertina</label>
                     <div className="space-y-3">
-                        <div className="w-full h-32 bg-gray-200 rounded overflow-hidden border border-gray-300 relative group">
+                        <div className="w-full h-24 md:h-32 bg-gray-200 rounded overflow-hidden border border-gray-300 relative group">
                             {previewUrl ? (
                                 <img src={previewUrl} alt="Anteprima" className="w-full h-full object-cover" />
                             ) : (
@@ -158,7 +154,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     <input 
                         type="checkbox" 
                         id="is_public"
-                        className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                         checked={formData.public} 
                         onChange={e => setFormData({...formData, public: e.target.checked})}
                     />
@@ -167,20 +163,22 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     </label>
                 </div>
 
-                {/* 4. Widget Helper */}
+                {/* 4. Widget Helper (Ripristinato testo e loader) */}
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
                     <button 
                         type="button"
                         onClick={() => setShowWidgetHelper(!showWidgetHelper)}
-                        className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition flex justify-between items-center"
+                        className="w-full bg-blue-600 text-white px-3 py-2 rounded text-xs hover:bg-blue-700 transition flex justify-between items-center"
                     >
                         <span>🧩 Inserisci Widget</span>
                         <span>{showWidgetHelper ? '▲' : '▼'}</span>
                     </button>
                     
                     {showWidgetHelper && (
-                        <div className="mt-2 max-h-60 overflow-y-auto bg-white rounded border border-gray-300 shadow-inner">
+                        <div className="mt-2 max-h-40 md:max-h-60 overflow-y-auto bg-white rounded border border-gray-300 shadow-inner">
+                            {/* RIPRISTINATO: Messaggio di caricamento */}
                             {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
+                            
                             {availableTiers.map(tier => (
                                 <button 
                                     key={tier.id}
@@ -194,6 +192,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             ))}
                         </div>
                     )}
+                    {/* RIPRISTINATO: Testo esplicativo */}
                     <p className="text-[10px] text-gray-500 mt-2 leading-tight">
                         Cliccando su un widget, verrà aggiunto in fondo all'editor.
                     </p>
@@ -201,15 +200,15 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
             </div>
 
             {/* COLONNA DESTRA: EDITOR */}
-            <div className="w-full md:w-2/3 flex flex-col h-full">
-                <label className="block text-sm font-bold text-gray-700 mb-2">Contenuto Pagina</label>
+            <div className="w-full md:w-2/3 flex flex-col min-h-[400px]">
+                <label className="block text-xs font-bold text-gray-700 mb-2">Contenuto Pagina</label>
                 
-                <div className="flex-1 border border-gray-300 rounded-lg overflow-hidden bg-white min-h-[400px]">
+                <div className="flex-1 border border-gray-300 rounded-lg overflow-hidden bg-white">
                     <RichTextEditor 
                         value={formData.contenuto} 
                         onChange={(newContent) => setFormData({...formData, contenuto: newContent})}
                         placeholder="Scrivi qui il contenuto della pagina..."
-                        className="h-full"
+                        className="h-full min-h-[300px]"
                     />
                 </div>
             </div>
@@ -217,20 +216,20 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         </div>
 
         {/* FOOTER AZIONI */}
-        <div className="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
+        <div className="p-3 md:p-4 border-t bg-gray-50 md:rounded-b-lg flex justify-end gap-3 shrink-0">
             <button 
                 onClick={onClose} 
                 disabled={loading}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded font-medium disabled:opacity-50"
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded font-medium disabled:opacity-50"
             >
                 Annulla
             </button>
             <button 
                 onClick={handleSubmit}
                 disabled={loading}
-                className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-5 py-2 text-sm bg-red-700 text-white font-bold rounded hover:bg-red-800 shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-                {loading && <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>}
+                {loading && <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></div>}
                 {isEditing ? 'Salva Modifiche' : 'Crea Pagina'}
             </button>
         </div>

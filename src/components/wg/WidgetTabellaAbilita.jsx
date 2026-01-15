@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-// CORRETTO: Importiamo la funzione specifica che abbiamo appena creato
 import { getWikiTable } from '../../api'; 
 import AbilitaTable from '../wiki/AbilitaTable'; 
 
@@ -8,7 +7,6 @@ export default function WidgetTabellaAbilita({ id }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Chiamata diretta alla funzione importata
     getWikiTable(id)
        .then(responseData => setData(responseData))
        .catch(err => {
@@ -18,8 +16,8 @@ export default function WidgetTabellaAbilita({ id }) {
   }, [id]);
 
   if (error) return (
-    <div className="p-4 border-l-4 border-red-500 bg-red-50 text-red-700 my-4 rounded">
-      <strong>Errore:</strong> Impossibile caricare la tabella #{id}.
+    <div className="p-3 border-l-4 border-red-500 bg-red-50 text-red-700 text-sm my-4 rounded">
+      <strong>Errore:</strong> Tabella #{id} non trovata.
     </div>
   );
 
@@ -29,17 +27,16 @@ export default function WidgetTabellaAbilita({ id }) {
     </div>
   );
 
-  // Adattamento dati: il backend potrebbe restituire 'abilita' o 'abilita_selezionate'
   const listaAbilita = data.abilita_selezionate || data.abilita || [];
 
   return (
-    <div className="my-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-4 border-b border-gray-100 bg-gray-50">
-          <h3 className="text-xl font-bold text-red-900">
+    <div className="my-6 w-full max-w-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="p-3 md:p-4 border-b border-gray-100 bg-gray-50">
+          <h3 className="text-lg md:text-xl font-bold text-red-900 leading-tight">
             {data.titolo}
           </h3>
           {data.descrizione && (
-            <div className="mt-2 text-sm text-gray-600 italic" dangerouslySetInnerHTML={{__html: data.descrizione}} />
+            <div className="mt-2 text-xs md:text-sm text-gray-600 italic break-words" dangerouslySetInnerHTML={{__html: data.descrizione}} />
           )}
       </div>
 
