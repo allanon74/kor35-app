@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Bold, Italic, List, ListOrdered, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 
-const RichTextEditor = ({ value, onChange, placeholder }) => {
+const RichTextEditor = ({ value, onChange, placeholder, label }) => {
     const editorRef = useRef(null);
 
     // Sincronizza il contenuto solo se diverso per evitare loop o reset del cursore
@@ -20,7 +20,7 @@ const RichTextEditor = ({ value, onChange, placeholder }) => {
 
     const handleInput = (e) => {
         const html = e.currentTarget.innerHTML;
-        onChange(html);
+        onChange(html); 
     };
 
     // --- FIX CRASH COPIA/INCOLLA ---
@@ -59,6 +59,7 @@ const RichTextEditor = ({ value, onChange, placeholder }) => {
     return (
         <div className="flex flex-col h-full bg-gray-900 border border-gray-700 rounded-lg overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
             {/* Toolbar */}
+            <label className="block text-xs text-gray-500 mb-1">{label}</label>
             <div className="flex items-center gap-1 bg-gray-800/50 p-1 border-b border-gray-700">
                 <ToolbarButton icon={Bold} command="bold" title="Grassetto" />
                 <ToolbarButton icon={Italic} command="italic" title="Corsivo" />
