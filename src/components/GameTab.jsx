@@ -15,13 +15,57 @@ import ActiveItemWidget from './ActiveItemWidget';
 // --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     // Zone del corpo
+    // const zones = [
+    //     { id: 'PV_TR', name: 'Tronco', d: "M70,55 C70,55 85,65 100,65 C115,65 130,55 130,55 C135,65 135,80 130,130 C120,145 80,145 70,130 C65,80 65,65 70,55 Z", cx: 100, cy: 90 },
+    //     { id: 'PV_RA', name: 'Braccio Dx', d: "M132,55 C145,52 155,58 155,70 C155,90 150,110 160,135 C162,140 150,145 145,135 C135,110 135,90 132,80 Z", cx: 145, cy: 95 },
+    //     { id: 'PV_LA', name: 'Braccio Sx', d: "M68,55 C55,52 45,58 45,70 C45,90 50,110 40,135 C38,140 50,145 55,135 C65,110 65,90 68,80 Z", cx: 55, cy: 95 },
+    //     { id: 'PV_RL', name: 'Gamba Dx', d: "M105,135 C115,135 125,140 125,150 C125,180 128,210 125,240 C120,250 140,255 130,260 C110,260 110,240 110,220 C110,190 102,150 105,135 Z", cx: 120, cy: 190 },
+    //     { id: 'PV_LL', name: 'Gamba Sx', d: "M95,135 C85,135 75,140 75,150 C75,180 72,210 75,240 C80,250 60,255 70,260 C90,260 90,240 90,220 C90,190 98,150 95,135 Z", cx: 80, cy: 190 },
+    // ];
+
     const zones = [
-        { id: 'PV_TR', name: 'Tronco', d: "M70,55 C70,55 85,65 100,65 C115,65 130,55 130,55 C135,65 135,80 130,130 C120,145 80,145 70,130 C65,80 65,65 70,55 Z", cx: 100, cy: 90 },
-        { id: 'PV_RA', name: 'Braccio Dx', d: "M132,55 C145,52 155,58 155,70 C155,90 150,110 160,135 C162,140 150,145 145,135 C135,110 135,90 132,80 Z", cx: 145, cy: 95 },
-        { id: 'PV_LA', name: 'Braccio Sx', d: "M68,55 C55,52 45,58 45,70 C45,90 50,110 40,135 C38,140 50,145 55,135 C65,110 65,90 68,80 Z", cx: 55, cy: 95 },
-        { id: 'PV_RL', name: 'Gamba Dx', d: "M105,135 C115,135 125,140 125,150 C125,180 128,210 125,240 C120,250 140,255 130,260 C110,260 110,240 110,220 C110,190 102,150 105,135 Z", cx: 120, cy: 190 },
-        { id: 'PV_LL', name: 'Gamba Sx', d: "M95,135 C85,135 75,140 75,150 C75,180 72,210 75,240 C80,250 60,255 70,260 C90,260 90,240 90,220 C90,190 98,150 95,135 Z", cx: 80, cy: 190 },
+        { 
+            id: 'PV_TR', 
+            name: 'Tronco', 
+            // Disegno più anatomico: spalle arrotondate, rientro in vita, fianchi leggermente curvi
+            d: "M100,50 C120,50 138,60 135,80 C132,100 128,120 130,145 L70,145 C72,120 68,100 65,80 C62,60 80,50 100,50 Z", 
+            cx: 100, 
+            cy: 95 
+        },
+        { 
+            id: 'PV_RA', 
+            name: 'Braccio Dx', 
+            // Aggiunta curva del deltoide (spalla) e forma dell'avambraccio
+            d: "M134,75 C145,70 158,80 158,100 C158,125 152,130 158,150 C150,155 138,152 136,145 C132,125 136,95 134,75 Z", 
+            cx: 146, 
+            cy: 110 
+        },
+        { 
+            id: 'PV_LA', 
+            name: 'Braccio Sx', 
+            // Speculare al destro
+            d: "M66,75 C55,70 42,80 42,100 C42,125 48,130 42,150 C50,155 62,152 64,145 C68,125 64,95 66,75 Z", 
+            cx: 54, 
+            cy: 110 
+        },
+        { 
+            id: 'PV_RL', 
+            name: 'Gamba Dx', 
+            // Coscia più larga, ginocchio accennato, caviglia più stretta
+            d: "M115,145 C128,145 132,160 130,190 C129,210 132,230 130,255 C120,260 110,260 105,255 C103,230 106,210 105,190 C103,160 105,145 115,145 Z", 
+            cx: 118, 
+            cy: 200 
+        },
+        { 
+            id: 'PV_LL', 
+            name: 'Gamba Sx', 
+            // Speculare alla destra
+            d: "M85,145 C72,145 68,160 70,190 C71,210 68,230 70,255 C80,260 90,260 95,255 C97,230 94,210 95,190 C97,160 95,145 85,145 Z", 
+            cx: 82, 
+            cy: 200 
+        },
     ];
+
 
     const getZoneColor = (current) => {
         if (current <= 0) return '#ef4444';
