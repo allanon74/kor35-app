@@ -23,48 +23,48 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     //     { id: 'PV_LL', name: 'Gamba Sx', d: "M95,135 C85,135 75,140 75,150 C75,180 72,210 75,240 C80,250 60,255 70,260 C90,260 90,240 90,220 C90,190 98,150 95,135 Z", cx: 80, cy: 190 },
     // ];
 
-    const zones = [
-        { 
-            id: 'PV_TR', 
-            name: 'Tronco', 
-            // Disegno più anatomico: spalle arrotondate, rientro in vita, fianchi leggermente curvi
-            d: "M100,50 C120,50 138,60 135,80 C132,100 128,120 130,145 L70,145 C72,120 68,100 65,80 C62,60 80,50 100,50 Z", 
-            cx: 100, 
-            cy: 95 
-        },
-        { 
-            id: 'PV_RA', 
-            name: 'Braccio Dx', 
-            // Aggiunta curva del deltoide (spalla) e forma dell'avambraccio
-            d: "M134,75 C145,70 158,80 158,100 C158,125 152,130 158,150 C150,155 138,152 136,145 C132,125 136,95 134,75 Z", 
-            cx: 146, 
-            cy: 110 
-        },
-        { 
-            id: 'PV_LA', 
-            name: 'Braccio Sx', 
-            // Speculare al destro
-            d: "M66,75 C55,70 42,80 42,100 C42,125 48,130 42,150 C50,155 62,152 64,145 C68,125 64,95 66,75 Z", 
-            cx: 54, 
-            cy: 110 
-        },
-        { 
-            id: 'PV_RL', 
-            name: 'Gamba Dx', 
-            // Coscia più larga, ginocchio accennato, caviglia più stretta
-            d: "M115,145 C128,145 132,160 130,190 C129,210 132,230 130,255 C120,260 110,260 105,255 C103,230 106,210 105,190 C103,160 105,145 115,145 Z", 
-            cx: 118, 
-            cy: 200 
-        },
-        { 
-            id: 'PV_LL', 
-            name: 'Gamba Sx', 
-            // Speculare alla destra
-            d: "M85,145 C72,145 68,160 70,190 C71,210 68,230 70,255 C80,260 90,260 95,255 C97,230 94,210 95,190 C97,160 95,145 85,145 Z", 
-            cx: 82, 
-            cy: 200 
-        },
-    ];
+const zones = [
+    { 
+        id: 'PV_TR', 
+        name: 'Tronco', 
+        // Un busto solido con spalle arrotondate e base dritta per le gambe
+        d: "M80,50 L120,50 C135,50 140,60 140,80 L135,145 L65,145 L60,80 C60,60 65,50 80,50 Z", 
+        cx: 100, 
+        cy: 95 
+    },
+    { 
+        id: 'PV_RA', 
+        name: 'Braccio Dx', 
+        // Braccio staccato dal corpo, estremità arrotondate (stile capsula)
+        d: "M145,65 L160,65 C170,65 170,75 168,90 L162,150 C160,160 150,160 148,150 L142,90 C140,75 140,65 145,65 Z", 
+        cx: 155, 
+        cy: 110 
+    },
+    { 
+        id: 'PV_LA', 
+        name: 'Braccio Sx', 
+        // Speculare al destro
+        d: "M55,65 L40,65 C30,65 30,75 32,90 L38,150 C40,160 50,160 52,150 L58,90 C60,75 60,65 55,65 Z", 
+        cx: 45, 
+        cy: 110 
+    },
+    { 
+        id: 'PV_RL', 
+        name: 'Gamba Dx', 
+        // Gamba dritta con piede appena accennato verso l'esterno
+        d: "M105,155 L130,155 L128,240 C128,250 135,255 125,255 L110,255 C100,255 105,250 105,240 Z", 
+        cx: 118, 
+        cy: 205 
+    },
+    { 
+        id: 'PV_LL', 
+        name: 'Gamba Sx', 
+        // Speculare alla destra
+        d: "M95,155 L70,155 L72,240 C72,250 65,255 75,255 L90,255 C100,255 95,250 95,240 Z", 
+        cx: 82, 
+        cy: 205 
+    },
+];
 
 
     const getZoneColor = (current) => {
