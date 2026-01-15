@@ -1,35 +1,52 @@
 import React from 'react';
 
+// Se hai il componente PunteggioDisplay importalo qui, altrimenti uso questo fallback grafico
+const StatBadge = ({ caratteristica }) => {
+  if (!caratteristica) return null;
+  
+  // Gestisce sia se caratteristica è un oggetto { sigla: 'FOR', ... } sia se è stringa
+  const sigla = typeof caratteristica === 'object' ? caratteristica.sigla || caratteristica.nome?.substring(0,3) : caratteristica;
+  
+  return (
+    <div className="float-right ml-2 mb-1 flex flex-col items-center justify-center bg-gray-100 border border-gray-300 rounded p-1 min-w-[30px]">
+       <span className="text-[10px] uppercase font-bold text-gray-600">{sigla}</span>
+    </div>
+  );
+};
+
 export default function AbilitaTable({ list }) {
   if (!list || list.length === 0) return <p className="text-gray-500 italic text-sm p-2">Nessuna abilità elencata.</p>;
 
   return (
-    <div className="w-full overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* min-w-[600px] forza la tabella a non schiacciarsi, attivando lo scroll orizzontale se serve */}
-      <table className="min-w-[600px] w-full">
-        <thead className="bg-red-50 text-red-900 uppercase text-[10px] md:text-xs font-bold tracking-wider">
-          <tr>
-            <th className="px-3 py-2 md:px-4 border-b text-left w-1/4">Nome</th>
-            <th className="px-2 py-2 md:px-4 border-b text-center w-16">Costo</th>
-            <th className="px-3 py-2 md:px-4 border-b text-left">Descrizione</th>
-          </tr>
-        </thead>
-        <tbody className="text-xs md:text-sm text-gray-700 divide-y divide-gray-100">
-          {list.map((item) => (
-            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-              <td className="px-3 py-2 md:px-4 font-bold align-top text-red-900">
-                {item.nome}
-              </td>
-              <td className="px-2 py-2 md:px-4 text-center font-mono text-gray-500 align-top bg-gray-50/50">
-                {item.costo || "-"}
-              </td>
-              <td className="px-3 py-2 md:px-4 align-top whitespace-normal leading-relaxed">
-                 <div dangerouslySetInnerHTML={{ __html: item.descrizione }} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
+      {list.map((item) => (
+        <div key={item.id} className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid">
+          
+          {/* HEADER SCHEDA: Nome + Costo */}
+          <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center">
+            <span className="font-bold text-red-900 text-sm md:text-base leading-tight">
+              {item.nome}
+            </span>
+            {item.costo && (
+              <span className="text-xs font-mono bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-600 whitespace-nowrap ml-2">
+                Costo: {item.costo}
+              </span>
+            )}
+          </div>
+
+          {/* CORPO SCHEDA */}
+          <div className="p-3 text-xs md:text-sm text-gray-700 relative">
+            {/* Display Caratteristica (Flottante a destra) */}
+            <StatBadge caratteristica={item.caratteristica} />
+            
+            {/* Descrizione HTML */}
+            <div 
+              className="prose prose-sm max-w-none leading-snug"
+              dangerouslySetInnerHTML={{ __html: item.descrizione }} 
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

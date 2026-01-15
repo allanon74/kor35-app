@@ -30,8 +30,8 @@ export default function WidgetTabellaAbilita({ id }) {
   const listaAbilita = data.abilita_selezionate || data.abilita || [];
 
   return (
-    <div className="my-6 w-full max-w-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-3 md:p-4 border-b border-gray-100 bg-gray-50">
+    <div className="my-6 w-full max-w-full bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="p-3 md:p-4 border-b border-gray-100 bg-gray-50 rounded-t-lg">
           <h3 className="text-lg md:text-xl font-bold text-red-900 leading-tight">
             {data.titolo}
           </h3>
@@ -40,7 +40,9 @@ export default function WidgetTabellaAbilita({ id }) {
           )}
       </div>
 
-      <AbilitaTable list={listaAbilita} />
+      <div className="bg-white">
+        <AbilitaTable list={listaAbilita} />
+      </div>
     </div>
   );
 }

@@ -23,10 +23,9 @@ export default function WidgetTier({ id }) {
   );
 
   return (
-    // w-full e max-w-full prevengono lo sforamento laterale
-    <div className="my-6 w-full max-w-full border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm break-inside-avoid">
-        {/* Header Responsivo */}
-        <div className="bg-gray-800 text-white p-3 md:p-4 flex flex-row justify-between items-center gap-2">
+    <div className="my-6 w-full max-w-full border border-gray-300 rounded-lg bg-white shadow-sm break-inside-avoid">
+        {/* HEADER DEL TIER */}
+        <div className="bg-gray-800 text-white p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg">
             <div className="flex flex-col">
                 <h3 className="text-base md:text-xl font-bold uppercase tracking-wider leading-tight">{data.nome}</h3>
                 {data.costo && (
@@ -38,7 +37,7 @@ export default function WidgetTier({ id }) {
             <div className="text-xl md:text-2xl opacity-20 select-none">📊</div>
         </div>
 
-        {/* Descrizione */}
+        {/* DESCRIZIONE TIER */}
         {data.descrizione && (
             <div 
               className="p-3 md:p-4 bg-gray-50 text-gray-700 text-xs md:text-sm border-b border-gray-200 italic prose prose-sm max-w-none break-words"
@@ -46,8 +45,8 @@ export default function WidgetTier({ id }) {
             />
         )}
 
-        {/* Contenitore Tabella */}
-        <div className="p-0 w-full">
+        {/* GRIGLIA ABILITÀ (Non serve più padding extra qui, ci pensa AbilitaTable) */}
+        <div className="w-full bg-gray-50/30">
             <AbilitaTable list={sortedList} />
         </div>
     </div>
