@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // --- LOGICA PWA ---
 import { useRegisterSW } from 'virtual:pwa-register/react'; 
+import { Link } from 'react-router-dom';
 
 import HomeTab from './HomeTab.jsx';
 import QrTab from './QrTab.jsx';
