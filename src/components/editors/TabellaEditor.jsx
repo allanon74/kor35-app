@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Plus, Trash2, Search, ArrowUp, ArrowDown, Layers } from 'lucide-react';
+import { Save, X, Plus, Trash2, Search, ArrowUp, ArrowDown, Layers } from 'lucide-react'; // Assicurati che Layers sia qui
 import RichTextEditor from '../RichTextEditor'; 
-import { getAllAbilitaSimple } from '../../api'; // Assicurati che il path sia corretto
+import { getAllAbilitaSimple } from '../../api';
 
-const TabellaEditor = ({ tier, onSave, onCancel, token }) => {
+// IMPORTANTE: onLogout DEVE essere qui dentro le parentesi graffe
+const TabellaEditor = ({ tier, onSave, onCancel, onLogout }) => { 
+    
     // Stato form principale
     const [formData, setFormData] = useState({
         nome: tier?.nome || '',
@@ -30,17 +32,19 @@ const TabellaEditor = ({ tier, onSave, onCancel, token }) => {
     useEffect(() => {
         const loadAbilities = async () => {
             try {
-                // CORRETTO: Chiamata con onLogout
+                // Qui usiamo onLogout che ora è definito dalle props in alto
                 const data = await getAllAbilitaSimple(onLogout);
                 setAllAbilities(data);
                 
-                // ... logica ordine ...
+                // Calcola prossimo ordine suggerito
+                const maxOrder = connectedSkills.length > 0 ? Math.max(...connectedSkills.map(s => s.ordine)) : 0;
+                setNewOrder(maxOrder + 1);
             } catch (error) {
                 console.error("Errore caricamento abilità", error);
             }
         };
         loadAbilities();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Filtra abilità nella combo
     const filteredAbilities = allAbilities.filter(a => 
@@ -65,11 +69,6 @@ const TabellaEditor = ({ tier, onSave, onCancel, token }) => {
 
     const handleRemoveSkill = (id) => {
         setConnectedSkills(prev => prev.filter(s => s.abilita_id !== id));
-    };
-
-    const handleOrderChange = (index, delta) => {
-        // Funzione opzionale per spostare su/giù visivamente (aggiorna il campo ordine)
-        // Per ora semplice input numerico nella lista è più flessibile
     };
     
     const handleSkillOrderEdit = (idx, val) => {
@@ -165,7 +164,7 @@ const TabellaEditor = ({ tier, onSave, onCancel, token }) => {
                                 value={selectedAbilityId}
                                 onChange={e => setSelectedAbilityId(e.target.value)}
                                 className="w-full p-2 bg-gray-800 border border-t-0 border-gray-600 rounded-b text-sm focus:outline-none text-white appearance-none"
-                                size={5} // Mostra come lista aperta
+                                size={5} 
                             >
                                 {filteredAbilities.map(a => (
                                     <option key={a.id} value={a.id} className="p-1 hover:bg-indigo-600 cursor-pointer">
