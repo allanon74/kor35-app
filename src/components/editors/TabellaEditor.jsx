@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Plus, Trash2, Search, ArrowUp, ArrowDown } from 'lucide-react';
+import { Save, X, Plus, Trash2, Search, ArrowUp, ArrowDown, Layers } from 'lucide-react';
 import RichTextEditor from '../RichTextEditor'; 
 import { getAllAbilitaSimple } from '../../api'; // Assicurati che il path sia corretto
 
