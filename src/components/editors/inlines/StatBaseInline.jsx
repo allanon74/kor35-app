@@ -4,8 +4,8 @@ const StatBaseInline = ({ items, options, onChange }) => {
   return (
     <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 w-full">
       <div className="mb-4 border-b border-gray-800 pb-2">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-indigo-400">Statistiche Base (Valori Fissi)</h3>
-        <p className="text-[9px] text-gray-500 italic uppercase font-medium">Parametri tecnici rilevati dal sistema</p>
+        <h3 className="text-sm font-bold uppercase tracking-widest text-indigo-400">Statistiche Base per l'abilità</h3>
+        <p className="text-[9px] text-gray-500 italic uppercase font-medium">Parametri tecnici per la definizione dell'effetto</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">

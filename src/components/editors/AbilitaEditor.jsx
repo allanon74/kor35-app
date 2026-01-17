@@ -212,7 +212,7 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                 
                 {/* 1. Tiers */}
                 <GenericRelationInline 
-                    title="Tiers (Livelli)"
+                    title="Tabelle (Ordine)"
                     items={formData.tiers}
                     options={tiersList}
                     targetKey="tabella"
@@ -223,7 +223,7 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
 
                 {/* 2. Requisiti */}
                 <GenericRelationInline 
-                    title="Requisiti Punteggi"
+                    title="Punteggi Richiesti"
                     items={formData.requisiti}
                     options={punteggi}
                     targetKey="requisito"
@@ -233,7 +233,7 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
 
                 {/* 3. Prerequisiti */}
                 <GenericRelationInline 
-                    title="Prerequisiti (Abilità)"
+                    title="Abilità di prerequisito"
                     items={formData.prerequisiti}
                     options={abilitaList.filter(a => a.id !== formData.id)}
                     targetKey="prerequisito"
@@ -243,7 +243,7 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
 
                 {/* 4. Punteggi Assegnati */}
                 <GenericRelationInline 
-                    title="Assegna Punteggi (Bonus Fissi)"
+                    title="Assegna Punteggi (Bonus Generali)"
                     items={formData.punteggi_assegnati}
                     options={punteggi.filter(p => p.tipo !== 'ST')}
                     targetKey="punteggio"

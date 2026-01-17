@@ -12,7 +12,7 @@ const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, 
   return (
     <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">Modificatori Statistici</h3>
+        <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">Modifica Generale alle statistiche</h3>
         <button onClick={onAdd} className="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded font-bold transition-all shadow-md">+ AGGIUNGI MODIFICATORE</button>
       </div>
       
