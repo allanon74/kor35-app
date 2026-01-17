@@ -9,16 +9,19 @@ const TabellaManager = ({ onLogout }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [currentTier, setCurrentTier] = useState(null);
-    const token = localStorage.getItem('access_token');
+    
+    // RIMOSSO: const token = localStorage.getItem('access_token'); 
+    // fetchAuthenticated gestisce il token internamente ('kor35_token')
 
     const fetchTiers = async () => {
         setIsLoading(true);
         try {
-            const data = await getTiers(token);
+            // CORRETTO: Passiamo onLogout, non il token
+            const data = await getTiers(onLogout);
             setTiers(data);
         } catch (error) {
             console.error("Errore fetch tiers", error);
-            if (error.status === 401) onLogout();
+            // Se l'errore è gestito da fetchAuthenticated, onLogout potrebbe essere già stato chiamato
         } finally {
             setIsLoading(false);
         }
@@ -41,7 +44,7 @@ const TabellaManager = ({ onLogout }) => {
     const handleDelete = async (id) => {
         if (!window.confirm("Sei sicuro di voler eliminare questa tabella?")) return;
         try {
-            await deleteTier(id, token);
+            await deleteTier(id, onLogout);
             setTiers(prev => prev.filter(t => t.id !== id));
         } catch (error) {
             alert("Errore durante l'eliminazione");
@@ -53,14 +56,14 @@ const TabellaManager = ({ onLogout }) => {
             let savedTier;
             if (currentTier) {
                 // Update Base Info
-                savedTier = await updateTier(currentTier.id, formData, token);
+                savedTier = await updateTier(currentTier.id, formData, onLogout);
                 // Update Skills Relation
-                await updateTierAbilita(currentTier.id, connectedSkills, token);
+                await updateTierAbilita(currentTier.id, connectedSkills, onLogout);
             } else {
                 // Create
-                savedTier = await createTier(formData, token);
+                savedTier = await createTier(formData, onLogout);
                 // Update Skills Relation (ora che abbiamo l'ID)
-                await updateTierAbilita(savedTier.id, connectedSkills, token);
+                await updateTierAbilita(savedTier.id, connectedSkills, onLogout);
             }
             
             setIsEditing(false);
@@ -78,7 +81,7 @@ const TabellaManager = ({ onLogout }) => {
                     tier={currentTier} 
                     onSave={handleSave} 
                     onCancel={() => setIsEditing(false)} 
-                    token={token}
+                    onLogout={onLogout} // Passiamo onLogout anche all'editor
                 />
             </div>
         );
@@ -90,7 +93,7 @@ const TabellaManager = ({ onLogout }) => {
             <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950 shadow-sm z-10">
                 <div className="flex items-center gap-3">
                     <h2 className="text-xl font-black text-gray-100 uppercase tracking-wide">Gestione Tabelle (Tier)</h2>
-                    <span className="bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded-full font-mono">{tiers.length}</span>
+                    <span className="bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded-full font-mono">{tiers?.length || 0}</span>
                 </div>
                 <div className="flex gap-2">
                     <button 

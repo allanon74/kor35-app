@@ -30,11 +30,11 @@ const TabellaEditor = ({ tier, onSave, onCancel, token }) => {
     useEffect(() => {
         const loadAbilities = async () => {
             try {
-                const data = await getAllAbilitaSimple(token);
+                // CORRETTO: Chiamata con onLogout
+                const data = await getAllAbilitaSimple(onLogout);
                 setAllAbilities(data);
-                // Calcola prossimo ordine suggerito
-                const maxOrder = connectedSkills.length > 0 ? Math.max(...connectedSkills.map(s => s.ordine)) : 0;
-                setNewOrder(maxOrder + 1);
+                
+                // ... logica ordine ...
             } catch (error) {
                 console.error("Errore caricamento abilità", error);
             }

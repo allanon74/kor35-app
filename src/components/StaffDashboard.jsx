@@ -22,7 +22,7 @@ import OggettoManager from './editors/OggettoManager';
 import StaffProposalTab from './editors/StaffProposalTab';
 import MostroManager from './editors/MostroManager'; 
 import AbilitaManager from './editors/AbilitaManager';
-import TabellaManager from './editors/TabelaManager';
+import TabellaManager from './editors/TabellaManager';
 
 const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) => {
     const [activeTool, setActiveTool] = useState(initialTool); 

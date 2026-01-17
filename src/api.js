@@ -1243,41 +1243,39 @@ export const updateWikiPage = (id, formData, onLogout) => {
 };
 
 // --- GESTIONE TABELLE (TIER) ---
-export const getTiers = async (token) => {
-    return fetchAuthenticated('/personaggi/api/staff/tiers/', token);
+
+export const getTiers = (onLogout) => {
+    return fetchAuthenticated('/personaggi/api/staff/tiers/', { method: 'GET' }, onLogout);
 };
 
-export const createTier = async (data, token) => {
-    return fetchAuthenticated('/personaggi/api/staff/tiers/', token, {
+export const createTier = (data, onLogout) => {
+    return fetchAuthenticated('/personaggi/api/staff/tiers/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
-    });
+    }, onLogout);
 };
 
-export const updateTier = async (id, data, token) => {
-    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, token, {
+export const updateTier = (id, data, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
-    });
+    }, onLogout);
 };
 
-export const deleteTier = async (id, token) => {
-    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, token, {
+export const deleteTier = (id, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, {
         method: 'DELETE'
-    });
+    }, onLogout);
 };
 
-export const getAllAbilitaSimple = async (token) => {
-    return fetchAuthenticated('/personaggi/api/staff/tiers/all_abilita/', token);
+export const getAllAbilitaSimple = (onLogout) => {
+    return fetchAuthenticated('/personaggi/api/staff/tiers/all_abilita/', { method: 'GET' }, onLogout);
 };
 
-export const updateTierAbilita = async (tierId, abilitaList, token) => {
+export const updateTierAbilita = (tierId, abilitaList, onLogout) => {
     // abilitaList deve essere array di { abilita_id, ordine }
-    return fetchAuthenticated(`/personaggi/api/staff/tiers/${tierId}/update_abilita_list/`, token, {
+    return fetchAuthenticated(`/personaggi/api/staff/tiers/${tierId}/update_abilita_list/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ abilita_list: abilitaList })
-    });
+    }, onLogout);
 };
