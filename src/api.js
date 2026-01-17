@@ -1241,3 +1241,43 @@ export const updateWikiPage = (id, formData, onLogout) => {
     body: formData
   }, onLogout);
 };
+
+// --- GESTIONE TABELLE (TIER) ---
+export const getTiers = async (token) => {
+    return fetchAuthenticated('/personaggi/api/staff/tiers/', token);
+};
+
+export const createTier = async (data, token) => {
+    return fetchAuthenticated('/personaggi/api/staff/tiers/', token, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+};
+
+export const updateTier = async (id, data, token) => {
+    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, token, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+};
+
+export const deleteTier = async (id, token) => {
+    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, token, {
+        method: 'DELETE'
+    });
+};
+
+export const getAllAbilitaSimple = async (token) => {
+    return fetchAuthenticated('/personaggi/api/staff/tiers/all_abilita/', token);
+};
+
+export const updateTierAbilita = async (tierId, abilitaList, token) => {
+    // abilitaList deve essere array di { abilita_id, ordine }
+    return fetchAuthenticated(`/personaggi/api/staff/tiers/${tierId}/update_abilita_list/`, token, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ abilita_list: abilitaList })
+    });
+};

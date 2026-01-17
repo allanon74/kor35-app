@@ -6,7 +6,8 @@ import {
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
-    Skull, BookOpen, Menu, ChevronRight, Globe // Aggiunto Globe
+    Skull, BookOpen, Menu, ChevronRight, Globe, // Aggiunto Globe
+    Layers, Globe2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -21,6 +22,7 @@ import OggettoManager from './editors/OggettoManager';
 import StaffProposalTab from './editors/StaffProposalTab';
 import MostroManager from './editors/MostroManager'; 
 import AbilitaManager from './editors/AbilitaManager';
+import TabellaManager from './editors/TabelaManager';
 
 const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) => {
     const [activeTool, setActiveTool] = useState(initialTool); 
@@ -37,6 +39,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         { id: 'proposte', label: 'Valutazione Proposte', icon: <ClipboardCheck size={24} />, color: 'bg-orange-600', component: <StaffProposalTab onLogout={onLogout} /> },
         { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={24} />, color: 'bg-stone-600', component: <OggettoManager onLogout={onLogout} /> },
         { id: 'oggetti-base', label: 'Oggetti Base', icon: <Shield size={24} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
+        { id: 'tabelle', label: 'Gestione Tabelle', icon: <Layers size={24} />, color: 'bg-pink-700', component: <TabellaManager onLogout={onLogout} /> },
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: <AdminMessageTab onLogout={onLogout} /> },        
     ];
 
