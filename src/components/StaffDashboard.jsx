@@ -6,7 +6,7 @@ import {
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
-    Skull, BookOpen, Menu, ChevronRight
+    Skull, BookOpen, Menu, ChevronRight, Globe // Aggiunto Globe
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -45,6 +45,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         setIsMenuOpen(false);
     };
 
+    // Configurazione unificata degli elementi della sidebar
     const sidebarItems = [
         { label: 'Master Hub', icon: <LayoutGrid size={18}/>, active: activeTool === 'home', action: () => handleToolSelect('home') },
         ...toolsConfig.map(t => ({
@@ -54,8 +55,47 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
             action: () => handleToolSelect(t.id)
         })),
         { label: '----------------', icon: null, action: () => {} },
+        // Aggiunto Wiki come elemento della lista, ma con proprietà 'link'
+        { label: 'Wiki Pubblica', icon: <Globe size={18}/>, link: '/', active: false },
         { label: 'Vai a Personaggi', icon: <Users size={18}/>, action: onSwitchToPlayer, active: false }
     ];
+
+    // Funzione helper per renderizzare un singolo item della sidebar
+    const renderSidebarItem = (item, idx) => {
+        if (item.label.includes('---')) return <div key={idx} className="h-px bg-gray-900 my-2 mx-4"></div>;
+        
+        const baseClasses = `w-full flex items-center justify-between p-3 rounded-xl font-bold transition-all group ${
+            item.active 
+            ? 'bg-indigo-600 text-white shadow-lg' 
+            : 'text-gray-400 hover:bg-gray-900 hover:text-white'
+        }`;
+
+        const content = (
+            <>
+                <div className="flex items-center gap-3">
+                    <div className={`transition-transform duration-200 ${item.active ? '' : 'group-hover:scale-110'}`}>
+                        {item.icon}
+                    </div>
+                    <span className="text-xs uppercase tracking-wide truncate">{item.label}</span>
+                </div>
+                {item.active && <ChevronRight size={14} className="opacity-50"/>}
+            </>
+        );
+
+        if (item.link) {
+            return (
+                <Link key={idx} to={item.link} className={baseClasses} title={item.label}>
+                    {content}
+                </Link>
+            );
+        }
+
+        return (
+            <button key={idx} onClick={item.action} className={baseClasses}>
+                {content}
+            </button>
+        );
+    };
 
     return (
         <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
@@ -70,38 +110,9 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                 </div>
                 
                 <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                    {sidebarItems.map((item, idx) => {
-                        if (item.label.includes('---')) return <div key={idx} className="h-px bg-gray-900 my-2 mx-4"></div>;
-                        return (
-                            <button 
-                                key={idx}
-                                onClick={item.action}
-                                className={`w-full flex items-center justify-between p-3 rounded-xl font-bold transition-all group ${
-                                    item.active 
-                                    ? 'bg-indigo-600 text-white shadow-lg' 
-                                    : 'text-gray-400 hover:bg-gray-900 hover:text-white'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`transition-transform duration-200 ${item.active ? '' : 'group-hover:scale-110'}`}>
-                                        {item.icon}
-                                    </div>
-                                    <span className="text-xs uppercase tracking-wide truncate">{item.label}</span>
-                                </div>
-                                {item.active && <ChevronRight size={14} className="opacity-50"/>}
-                            </button>
-                        );
-                    })}
+                    {sidebarItems.map((item, idx) => renderSidebarItem(item, idx))}
                 </nav>
-                <div className="flex gap-2">
-                    <Link 
-                        to="/" 
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded shadow text-sm flex items-center gap-2"
-                        title="Torna al sito pubblico"
-                    >
-                        <span>📖</span> Wiki Pubblica
-                    </Link>
-                </div>
+
                 <div className="p-4 border-t border-gray-900 bg-gray-950">
                     <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 rounded-xl font-bold text-red-500 hover:bg-red-500/10 transition-all mb-2">
                         <LogOut size={18} /><span className="text-xs uppercase tracking-wide">Logout</span>
@@ -113,7 +124,6 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
             </aside>
 
             {/* === SIDEBAR MOBILE (Overlay a DESTRA) === */}
-            {/* Renderizzata sempre, gestita via CSS/State interno */}
             <Sidebar 
                 isOpen={isMenuOpen} 
                 onClose={() => setIsMenuOpen(false)} 
