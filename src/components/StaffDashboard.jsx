@@ -186,6 +186,14 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                                     <Users size={40} className="text-gray-600 group-hover:text-gray-300 transition-colors" />
                                     <span className="font-bold text-gray-500 group-hover:text-white uppercase tracking-wider text-xs text-center">Vai a Personaggi</span>
                                 </button>
+
+                                <Link 
+                                    to="/" 
+                                    className="bg-gray-800 border-2 border-dashed border-gray-700 p-6 rounded-2xl hover:bg-gray-750 hover:border-gray-500 transition-all flex flex-col items-center justify-center gap-4 aspect-square group"
+                                >
+                                    <BookOpen size={40} className="text-gray-600 group-hover:text-gray-300 transition-colors" />
+                                    <span className="font-bold text-gray-500 group-hover:text-white uppercase tracking-wider text-xs text-center">Vai alla Wiki</span>
+                                </Link>
                             </div>
                         </div>
                     )}
