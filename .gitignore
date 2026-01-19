@@ -26,3 +26,29 @@ dist-ssr
 # chiavi
 deploy_key.pub
 deploy_key
+
+# --- Vite & PWA ---
+dev-dist/
+dist/
+public/sw.js
+public/workbox-*.js
+*-stats.json
+
+# --- Sicurezza (Certificati SSL Locali) ---
+# Dato che usi @vitejs/plugin-basic-ssl e mkcert
+*.pem
+*.key
+.cert/
+
+# --- Capacitor Android ---
+# Build locali e cache
+android/app/build/
+android/.gradle/
+android/build/
+
+# File di configurazione locale (IMPORTANTE: contiene i percorsi del TUO pc)
+android/local.properties
+
+# File generati dall'IDE Android Studio
+android/.idea/
+android/*.iml
