@@ -1,13 +1,12 @@
-import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { useCharacter } from './CharacterContext';
 import { 
     ShoppingBag, Box, Shield, Zap, Loader2, Wrench, 
     Info, ChevronUp, ChevronDown, Activity, Power, Battery, 
-    Clock, RefreshCw, Sparkles, Swords, Lock, User, AlertTriangle
+    Clock, RefreshCw, Sparkles, Swords, Lock, User
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
-import PunteggioDisplay from './PunteggioDisplay'; // <--- NUOVO IMPORT RICHIESTO
 import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
 // --- UTILS ---
@@ -23,15 +22,6 @@ const formatDuration = (seconds) => {
     if (s > 0 || parts.length === 0) parts.push(`${s}s`);
     
     return parts.join(' ');
-};
-
-// Helper per recuperare valori statistica sicuri
-const getStatValueFromChar = (charData, sigla) => {
-    if (!charData || !charData.punteggi) return 0;
-    const stat = charData.punteggi.find(p => 
-        (p.caratteristica && p.caratteristica.sigla === sigla) || p.sigla === sigla
-    );
-    return stat ? (stat.valore_totale || stat.valore || 0) : 0;
 };
 
 const LazyList = ({ items, renderItem, batchSize = 10 }) => {
@@ -111,26 +101,23 @@ const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
 };
 
 // --- COMPONENTE CARD INVENTARIO (MEMOIZED PER PERFORMANCE) ---
+// Usa memo per evitare re-render dell'intera lista quando cambia lo stato di un solo elemento
 const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onRecharge, onAssembly }) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
     const canBeModified = (isPhysical || ['INN', 'MUT'].includes(item.tipo_oggetto)) && (item.classe_oggetto_nome || item.tipo_oggetto === 'INN');
     const isActive = item.is_active;
 
-    // Rileva se è speciale (Mod o Innesti)
-    const isSpecial = (item.mods && item.mods.length > 0) || (item.innesti && item.innesti.length > 0);
-    
-    // Recupera punteggi aggiuntivi (Aure, ecc)
-    const extraScores = item.punteggi || item.modificatori || [];
-
     // Render Statistiche (Solo != 0)
     const renderStats = (statistiche) => {
         if (!statistiche || statistiche.length === 0) return null;
+        // Filtra statistiche con valore 0 (inutile mostrarle come +0)
         const activeStats = statistiche.filter(s => s.valore !== 0);
         if (activeStats.length === 0) return null;
 
         return (
             <div className="flex flex-wrap gap-2 mt-2">
                 {activeStats.map((stat, idx) => {
+                    // Costruisce la condizione se presente
                     const hasCondition = stat.usa_limitazione_aura || stat.usa_limitazione_elemento || stat.usa_condizione_text;
                     const conditionTitle = stat.condizione_text || "Condizionale";
                     
@@ -254,8 +241,6 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                             <div className="text-[10px] text-gray-500 uppercase tracking-wider flex gap-2">
                                 <span>{item.tipo_oggetto_display}</span>
                                 {item.classe_oggetto_nome && <span>• {item.classe_oggetto_nome}</span>}
-                                {item.is_pesante && <span className="text-red-400 font-bold ml-1">(PESANTE)</span>}
-                                {isSpecial && <span className="text-amber-400 font-bold ml-1">(MOD)</span>}
                             </div>
                             
                             {/* Icona Espandi */}
@@ -282,23 +267,6 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                     {/* Statistiche Base e Modificatori */}
                     {renderStats(item.statistiche)}
 
-                    {/* --- NUOVO: Punteggi Caricati (PunteggioDisplay) --- */}
-                    {extraScores.length > 0 && (
-                        <div className="flex flex-wrap gap-2 bg-black/30 p-2 rounded-md border border-gray-700/30">
-                            {extraScores.map((punteggio, idx) => (
-                                <div key={idx} className="scale-90 origin-left">
-                                    <PunteggioDisplay 
-                                        sigla={punteggio.sigla || punteggio.caratteristica?.sigla} 
-                                        valore={punteggio.valore} 
-                                        size="sm"
-                                        showLabel={true}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    {/* -------------------------------------------------- */}
-
                     {/* Descrizione */}
                     <div className="text-xs text-gray-300 prose prose-invert prose-sm max-w-none leading-relaxed bg-black/10 p-2 rounded border border-gray-700/30">
                          <div dangerouslySetInnerHTML={{ __html: item.testo_formattato_personaggio || item.testo || item.descrizione || "Nessun dato disponibile." }} />
@@ -315,7 +283,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                     {/* Potenziamenti Installati */}
                     {item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
                         <div className="pl-2 border-l-2 border-indigo-500/30 mt-2 bg-indigo-900/5 p-2 rounded">
-                            <p className="text--[10px] font-bold text-indigo-400 uppercase mb-2 flex items-center gap-1">
+                            <p className="text-[10px] font-bold text-indigo-400 uppercase mb-2 flex items-center gap-1">
                                 <Zap size={12} /> Moduli Installati:
                             </p>
                             <div className="space-y-2">
@@ -349,7 +317,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                         )}
                         {isPhysical && (
                             <button 
-                                onClick={(e) => { e.stopPropagation(); onEquip(item.id); }} // onEquip riceve ID qui
+                                onClick={(e) => { e.stopPropagation(); onEquip(item.id); }}
                                 className={`flex-1 py-2 rounded text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm ${
                                     item.is_equipaggiato
                                     ? 'bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-700'
@@ -369,7 +337,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
 
 // --- MAIN INVENTORY TAB ---
 const InventoryTab = ({ onLogout }) => {
-  const { selectedCharacterData: characterData, isLoading: isContextLoading, api } = useCharacter();
+  const { selectedCharacterData: characterData, isLoading: isContextLoading } = useCharacter();
   
   const [items, setItems] = useState([]);
   const [showShop, setShowShop] = useState(false);
@@ -386,69 +354,7 @@ const InventoryTab = ({ onLogout }) => {
     else setItems([]);
   }, [characterData]);
 
-  // --- LOGICA LIMITI (NUOVA) ---
-  const maxPesanti = useMemo(() => getStatValueFromChar(characterData, 'OGP'), [characterData]);
-  const maxSpeciali = useMemo(() => getStatValueFromChar(characterData, 'COG'), [characterData]);
-  
-  const isOggettoSpeciale = useCallback((item) => {
-    const hasMods = item.mods && item.mods.length > 0;
-    const hasInnesti = item.innesti && item.innesti.length > 0;
-    return hasMods || hasInnesti;
-  }, []);
-
-  const currentPesanti = useMemo(() => items.filter(i => i.is_pesante).length, [items]);
-  
-  const currentSpecialiEquipaggiati = useMemo(() => items.filter(i => 
-    i.is_equipaggiato && isOggettoSpeciale(i)
-  ).length, [items, isOggettoSpeciale]);
-
-  // --- WRAPPER HANDLERS CON CONTROLLI ---
-
-  // Controllo Equipaggiamento
-  const handleSafeEquip = useCallback((itemId) => {
-      const itemToEquip = items.find(i => i.id === itemId);
-      if (!itemToEquip) return;
-
-      // Se NON è equipaggiato e stiamo provando a equipaggiarlo
-      if (!itemToEquip.is_equipaggiato) {
-          if (isOggettoSpeciale(itemToEquip)) {
-              if (currentSpecialiEquipaggiati >= maxSpeciali) {
-                  alert("Attenzione: raggiunto il limite massimo di oggetti speciali equipaggiabili!");
-                  return; // BLOCCA
-              }
-          }
-      }
-      // Procedi con la mutazione originale
-      equipMutation.mutate({ itemId, charId: characterData.id });
-  }, [items, currentSpecialiEquipaggiati, maxSpeciali, isOggettoSpeciale, equipMutation, characterData]);
-
-  // Controllo Acquisto (Passato al ShopModal)
-  const handleSafeBuy = useCallback(async (shopItem) => {
-      const isItemPesante = shopItem.is_pesante || (shopItem.oggetto_base && shopItem.oggetto_base.is_pesante);
-      
-      if (isItemPesante) {
-          if (currentPesanti >= maxPesanti) {
-              alert("Attenzione: raggiunto il limite massimo di oggetti pesanti trasportabili!");
-              return; // BLOCCA
-          }
-      }
-
-      // Esegue acquisto (Nota: questo presuppone che tu abbia accesso all'API qui o passi la funzione di acquisto)
-      // Se ShopModal gestisce l'acquisto internamente, dovrai modificare ShopModal per accettare una prop "onBeforeBuy" 
-      // o spostare la logica di acquisto qui. 
-      // Qui assumo che ShopModal accetti `onBuy` custom.
-      if (api && api.buyShopItem) {
-        try {
-            await api.buyShopItem(characterData.id, shopItem.id);
-            // Reload o gestione stato fatta dal context
-            alert("Oggetto acquistato!");
-        } catch (e) {
-            console.error(e);
-            alert("Errore acquisto");
-        }
-      }
-  }, [currentPesanti, maxPesanti, api, characterData]);
-
+  const handleToggleEquip = (itemId) => equipMutation.mutate({ itemId, charId: characterData.id });
 
   const handleRecharge = (item) => {
       const costo = item.costo_ricarica || 0;
@@ -461,6 +367,7 @@ const InventoryTab = ({ onLogout }) => {
   const handleOpenAssembly = (item) => { setAssemblyHost(item); setShowAssembly(true); };
   const handleAssemblyComplete = () => { setShowAssembly(false); setAssemblyHost(null); };
   
+  // Toggle ottimizzato
   const toggleExpand = useCallback((itemId) => {
       setExpandedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
   }, []);
@@ -472,18 +379,18 @@ const InventoryTab = ({ onLogout }) => {
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
 
-  // Render Helper per liste (aggiornato con handleSafeEquip)
+  // Render Helper per liste (utilizza il componente Memoizzato)
     const renderList = (list) => (
         <LazyList 
             items={list} 
-            batchSize={10} 
+            batchSize={10} // Carica 10 elementi alla volta per fluidità immediata
             renderItem={(item) => (
                 <InventoryItemCard 
                     key={item.id} 
                     item={item} 
                     isExpanded={!!expandedItems[item.id]}
                     onToggleExpand={toggleExpand}
-                    onEquip={handleSafeEquip} // USA IL SAFE HANDLER
+                    onEquip={handleToggleEquip}
                     onRecharge={handleRecharge}
                     onAssembly={handleOpenAssembly}
                 />
@@ -502,34 +409,11 @@ const InventoryTab = ({ onLogout }) => {
 
   return (
     <div className="pb-24 px-1 space-y-6 animate-fadeIn">
-      {/* HEADER + BARRA STATISTICHE */}
-      <div className="sticky top-0 z-20 backdrop-blur-md bg-gray-800/90 rounded-lg shadow-sm border border-gray-700 mb-4 overflow-hidden">
-          <div className="flex justify-between items-center p-3">
-             <h2 className="text-xl font-bold text-white flex items-center gap-2"><Box className="text-indigo-400" /> Inventario</h2>
-             <button onClick={() => setShowShop(true)} className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-lg shadow-yellow-900/20 transition-all active:scale-95 text-xs sm:text-sm border border-yellow-500">
-                <ShoppingBag size={16} /><span>Negozio</span>
-             </button>
-          </div>
-          
-          {/* BARRA LIMITI AGGIUNTA QUI */}
-          <div className="px-4 py-2 bg-black/40 border-t border-gray-700 flex justify-between items-center text-xs">
-                <div className="flex items-center gap-2">
-                    <span className="text-gray-400 font-bold">CARICO (OGP):</span>
-                    <span className={`font-mono font-bold px-2 py-0.5 rounded ${
-                        currentPesanti > maxPesanti ? "bg-red-900 text-red-100" : "bg-gray-800 text-green-400"
-                    }`}>
-                        {currentPesanti} / {maxPesanti}
-                    </span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-gray-400 font-bold">SLOT SPECIALI (COG):</span>
-                    <span className={`font-mono font-bold px-2 py-0.5 rounded ${
-                        currentSpecialiEquipaggiati >= maxSpeciali ? "bg-orange-900 text-orange-100" : "bg-gray-800 text-blue-400"
-                    }`}>
-                        {currentSpecialiEquipaggiati} / {maxSpeciali}
-                    </span>
-                </div>
-          </div>
+      <div className="flex justify-between items-center p-3 rounded-lg border border-gray-700 shadow-sm mb-4 sticky top-0 z-20 backdrop-blur-md bg-gray-800/90">
+         <h2 className="text-xl font-bold text-white flex items-center gap-2"><Box className="text-indigo-400" /> Inventario</h2>
+         <button onClick={() => setShowShop(true)} className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-lg shadow-yellow-900/20 transition-all active:scale-95 text-xs sm:text-sm border border-yellow-500">
+            <ShoppingBag size={16} /><span>Negozio</span>
+         </button>
       </div>
 
       <section>
@@ -552,7 +436,7 @@ const InventoryTab = ({ onLogout }) => {
                                     item={selectedBodyItem} 
                                     isExpanded={true} 
                                     onToggleExpand={()=>{}} 
-                                    onEquip={handleSafeEquip}
+                                    onEquip={handleToggleEquip}
                                     onRecharge={handleRecharge}
                                     onAssembly={handleOpenAssembly}
                                 />
@@ -581,9 +465,7 @@ const InventoryTab = ({ onLogout }) => {
         {zainoItems.length > 0 ? renderList(zainoItems) : <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">Zaino vuoto.</p>}
       </section>
 
-      {/* SHOP MODAL: Assicurati che ShopModal accetti onBuy per l'override, altrimenti usa props standard */}
-      {showShop && <ShopModal onClose={() => setShowShop(false)} onBuy={handleSafeBuy} credits={characterData.crediti} />}
-      
+      {showShop && <ShopModal onClose={() => setShowShop(false)} />}
       {showAssembly && assemblyHost && <ItemAssemblyModal hostItem={assemblyHost} inventory={items} onClose={() => { setShowAssembly(false); setAssemblyHost(null); }} onRefresh={handleAssemblyComplete} />}
     </div>
   );

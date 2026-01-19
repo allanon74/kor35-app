@@ -26,5 +26,3 @@ dist-ssr
 # chiavi
 deploy_key.pub
 deploy_key
-
-contesto_*.txt
