@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
+// Assicurati che questo import sia corretto in base alla tua struttura file
 import PunteggioDisplay from './PunteggioDisplay'; 
 import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
@@ -29,7 +30,6 @@ const LazyList = ({ items, renderItem, batchSize = 10 }) => {
     const [displayedItems, setDisplayedItems] = useState([]);
     
     useEffect(() => {
-        // Reset quando cambiano gli items
         setDisplayedItems(items.slice(0, batchSize));
     }, [items, batchSize]);
 
@@ -53,8 +53,7 @@ const LazyList = ({ items, renderItem, batchSize = 10 }) => {
     );
 };
 
-// --- COMPONENTE VISUALE CORPO (SVG ORGANICO 8 SLOT) ---
-// RIPRISTINATO COMPLETAMENTE
+// --- COMPONENTE VISUALE CORPO (Invariato) ---
 const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
     const paths = {
         'HD1': { d: "M75,35 C75,20 85,10 100,10 C115,10 125,20 125,35 C125,45 100,48 75,35 Z", name: "Cranio (HD1)" },
@@ -102,71 +101,36 @@ const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
     );
 };
 
-// --- COMPONENTE CARD INVENTARIO (MEMOIZED PER PERFORMANCE) ---
-// Usa memo per evitare re-render dell'intera lista quando cambia lo stato di un solo elemento
+// --- COMPONENTE CARD INVENTARIO (MEMOIZED) ---
 const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onRecharge, onAssembly }) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
     const canBeModified = (isPhysical || ['INN', 'MUT'].includes(item.tipo_oggetto)) && (item.classe_oggetto_nome || item.tipo_oggetto === 'INN');
     const isActive = item.is_active;
 
-    // --- LOGICA MODIFICATA PER RECUPERO DATI BACKEND ---
+    // Rileva se è speciale (Mod o Innesti)
     const isSpecial = (item.mods && item.mods.length > 0) || (item.innesti && item.innesti.length > 0);
     
-    // Uniamo i modificatori dell'oggetto e le statistiche base per visualizzare le icone
-    // Nel backend: item.modificatori -> FK(Statistica) -> icona_url
-    const itemStats = item.modificatori || []; 
-    const baseStats = item.statistiche || [];
-    const allScores = [...itemStats, ...baseStats];
+    // Recupera punteggi aggiuntivi (Aure, Statistiche speciali conferite dall'oggetto)
+    // Backend DRF di solito li mette in 'punteggi' o 'modificatori' come Nested Serializer
+    const extraScores = item.punteggi || item.modificatori || [];
 
-    // Helper per estrarre dati icona/sigla da strutture eterogenee
-    const getIconData = (obj) => {
-        // Caso A: Oggetto Modificatore (ha campo 'statistica')
-        if (obj.statistica) {
-            return {
-                url: obj.statistica.icona_url || obj.statistica.icona,
-                sigla: obj.statistica.sigla || "ST",
-                nome: obj.statistica.nome
-            };
-        }
-        // Caso B: Oggetto Componente (ha campo 'caratteristica')
-        if (obj.caratteristica) {
-            return {
-                url: obj.caratteristica.icona_url || obj.caratteristica.icona,
-                sigla: obj.caratteristica.sigla || "CA",
-                nome: obj.caratteristica.nome
-            };
-        }
-        // Caso C: Struttura piatta
-        return {
-            url: obj.icona_url || obj.icona,
-            sigla: obj.sigla || "?",
-            nome: obj.nome
-        };
-    };
-
-    // Render Statistiche Testuali (Solo quelle senza icona o puramente numeriche)
+    // Render Statistiche Testuali (Solo != 0)
     const renderStats = (statistiche) => {
         if (!statistiche || statistiche.length === 0) return null;
-        
-        // Filtriamo: mostriamo come testo se NON ha un URL icona valido, oppure se vogliamo duplicare l'info
-        // Qui mostriamo come testo le stats che sono "bonus" (+1)
         const activeStats = statistiche.filter(s => s.valore !== 0);
         if (activeStats.length === 0) return null;
 
         return (
             <div className="flex flex-wrap gap-2 mt-2">
                 {activeStats.map((stat, idx) => {
-                    const data = getIconData(stat);
+                    // Navigazione sicura per campi nidificati
+                    const nomeStat = stat.statistica?.nome || stat.nome_statistica || "Stat";
                     const hasCondition = stat.usa_limitazione_aura || stat.usa_limitazione_elemento || stat.usa_condizione_text;
                     const conditionTitle = stat.condizione_text || "Condizionale";
                     
-                    // Se ha l'icona, verrà renderizzato nel blocco icone. 
-                    // Se vuoi vederlo ANCHE qui, togli questo check.
-                    // Per ora lo lasciamo per avere il dettaglio "+1 Forza" scritto esplicitamente.
-                    
                     return (
                         <div key={idx} className="flex items-center bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs shadow-sm">
-                            <span className="font-bold text-gray-300 mr-1">{data.nome || stat.nome_statistica}</span>
+                            <span className="font-bold text-gray-300 mr-1">{nomeStat}</span>
                             <span className={`font-mono font-bold ${stat.valore > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {stat.valore > 0 ? '+' : ''}{stat.valore}
                             </span>
@@ -189,16 +153,19 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
             <div className="flex flex-wrap gap-1 items-center justify-end">
                 {componenti.map((comp, idx) => {
                     const val = comp.valore || 1;
-                    const data = getIconData(comp);
-                    
+                    // Accesso sicuro ai dati della caratteristica nidificata
+                    const iconaUrl = comp.caratteristica?.icona_url;
+                    const sigla = comp.caratteristica?.sigla || "?";
+                    const nome = comp.caratteristica?.nome || "";
+
                     const icons = [];
                     for(let i=0; i<val; i++) {
                         icons.push(
-                            <div key={`${idx}-${i}`} className="w-5 h-5 rounded bg-gray-800 border border-gray-600 flex items-center justify-center p-0.5 shadow-sm" title={data.nome}>
-                                {data.url ? (
-                                    <img src={data.url} alt={data.sigla} className="w-full h-full object-contain" />
+                            <div key={`${idx}-${i}`} className="w-5 h-5 rounded bg-gray-800 border border-gray-600 flex items-center justify-center p-0.5 shadow-sm" title={nome}>
+                                {iconaUrl ? (
+                                    <img src={iconaUrl} alt={sigla} className="w-full h-full object-contain" />
                                 ) : (
-                                    <span className="text-[9px] font-bold text-gray-300">{data.sigla}</span>
+                                    <span className="text-[9px] font-bold text-gray-300">{sigla}</span>
                                 )}
                             </div>
                         );
@@ -249,9 +216,6 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
         return 'border border-gray-700 bg-gray-800 hover:border-gray-600'; 
     };
 
-    // Flag PESANTE: Controlla sia l'item che l'oggetto base (ereditarietà DRF)
-    const isPesante = item.is_pesante || (item.oggetto_base && item.oggetto_base.is_pesante);
-
     return (
         <div className={`relative p-3 mb-3 rounded-lg flex flex-col transition-all ${getStatusStyle()}`}>
             
@@ -289,7 +253,8 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                             <div className="text-[10px] text-gray-500 uppercase tracking-wider flex gap-2">
                                 <span>{item.tipo_oggetto_display}</span>
                                 {item.classe_oggetto_nome && <span>• {item.classe_oggetto_nome}</span>}
-                                {isPesante && (
+                                {/* Controllo flag pesante (in oggetti o in oggetto_base) */}
+                                {(item.is_pesante || (item.oggetto_base && item.oggetto_base.is_pesante)) && (
                                     <span className="text-red-400 font-bold ml-1 flex items-center gap-0.5">
                                         <AlertTriangle size={10} />(PESANTE)
                                     </span>
@@ -318,26 +283,27 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                         </div>
                     )}
 
-                    {/* Statistiche Testuali */}
-                    {renderStats(allScores)}
+                    {/* Statistiche Base e Modificatori */}
+                    {renderStats(item.statistiche)}
 
-                    {/* --- NUOVA SEZIONE: ICONE PUNTEGGI (Aure, ecc.) --- */}
-                    {allScores.length > 0 && (
+                    {/* --- VISUALIZZAZIONE PUNTEGGI CARICATI (ICONE) --- */}
+                    {extraScores.length > 0 && (
                         <div className="flex flex-wrap gap-2 bg-black/30 p-2 rounded-md border border-gray-700/30">
-                            {allScores.map((score, idx) => {
-                                // Estraiamo i dati dell'icona (url, sigla)
-                                const data = getIconData(score);
-                                
-                                // Renderizziamo PunteggioDisplay SOLO se abbiamo un URL immagine valido
-                                // (Altrimenti la statistica è già stata mostrata come testo sopra)
-                                if (!data.url) return null;
+                            {extraScores.map((punteggio, idx) => {
+                                // Recupero sicuro dei dati per PunteggioDisplay
+                                // Il backend restituisce 'caratteristica' come oggetto nidificato
+                                const sigla = punteggio.caratteristica?.sigla || punteggio.sigla || "??";
+                                const valore = punteggio.valore;
+                                // CRUCIALE: Recupero icona_url
+                                const iconaUrl = punteggio.caratteristica?.icona_url || punteggio.icona_url;
 
                                 return (
                                     <div key={idx} className="scale-90 origin-left">
                                         <PunteggioDisplay 
-                                            sigla={data.sigla} 
-                                            valore={score.valore} 
-                                            iconaUrl={data.url} // Passiamo l'URL normalizzato
+                                            sigla={sigla} 
+                                            valore={valore} 
+                                            // Passiamo l'URL se esiste, il componente PunteggioDisplay deve gestirlo
+                                            iconaUrl={iconaUrl}
                                             size="sm"
                                             showLabel={true}
                                         />
@@ -346,6 +312,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                             })}
                         </div>
                     )}
+                    {/* -------------------------------------------------- */}
 
                     {/* Descrizione */}
                     <div className="text-xs text-gray-300 prose prose-invert prose-sm max-w-none leading-relaxed bg-black/10 p-2 rounded border border-gray-700/30">
@@ -378,7 +345,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                                             {renderComponents(mod.componenti)}
                                         </div>
                                         {/* Statistiche Mod */}
-                                        {renderStats(mod.statistiche || [])}
+                                        {renderStats(mod.statistiche)}
                                     </div>
                                 ))}
                             </div>
@@ -397,7 +364,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                         )}
                         {isPhysical && (
                             <button 
-                                onClick={(e) => { e.stopPropagation(); onEquip(item.id); }}
+                                onClick={(e) => { e.stopPropagation(); onEquip(item.id); }} // onEquip riceve ID qui
                                 className={`flex-1 py-2 rounded text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm ${
                                     item.is_equipaggiato
                                     ? 'bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-700'
@@ -430,53 +397,31 @@ const InventoryTab = ({ onLogout }) => {
   const rechargeMutation = useOptimisticRecharge();
 
   useEffect(() => {
-    // --- DEBUG PER IL CLIENTE ---
-    if (characterData) {
-        console.log("DEBUG: Dati Personaggio caricati", characterData);
-    }
     if (characterData?.oggetti) setItems(characterData.oggetti);
     else setItems([]);
   }, [characterData]);
 
-  const handleToggleEquip = (itemId) => equipMutation.mutate({ itemId, charId: characterData.id });
-
-  const handleRecharge = (item) => {
-      const costo = item.costo_ricarica || 0;
-      const metodo = item.testo_ricarica || "Standard";
-      if (window.confirm(`Ricaricare ${item.nome}?\nCosto: ${costo} CR\nMetodo: ${metodo}`)) {
-          rechargeMutation.mutate({ oggetto_id: item.id, charId: characterData.id });
-      }
-  };
-
-  const handleOpenAssembly = (item) => { setAssemblyHost(item); setShowAssembly(true); };
-  const handleAssemblyComplete = () => { setShowAssembly(false); setAssemblyHost(null); };
-  
-  const toggleExpand = useCallback((itemId) => {
-      setExpandedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
-  }, []);
-
   // --- LOGICA LIMITI E STATISTICHE (CORRETTA) ---
   
-  // 1. Funzione Helper per estrarre valori da struttura complessa Django
+  // 1. Funzione Helper per estrarre valori da struttura complessa DRF
   const getStatValueFromChar = useCallback((charData, siglaTarget) => {
     if (!charData || !charData.punteggi) return 0;
     
     const target = siglaTarget.toUpperCase();
-    // Il backend restituisce 'punteggi' che sono oggetti Punteggio -> ForeignKey(Caratteristica)
     const stat = charData.punteggi.find(p => {
-        // Navigazione sicura: p.caratteristica potrebbe essere null in casi strani, o un oggetto
-        const s = p.caratteristica?.sigla;
+        // Cerca la sigla dentro l'oggetto nidificato 'caratteristica'
+        const s = p.caratteristica?.sigla || p.sigla; 
         return s && s.toUpperCase() === target;
     });
 
-    // Se trovata, restituisce valore_totale (che include i bonus/modificatori lato server)
+    // Se trovata, restituisce valore_totale (bonus inclusi)
     if (stat) {
         return stat.valore_totale !== undefined ? stat.valore_totale : (stat.valore || 0);
     }
     return 0;
   }, []);
 
-  // 2. Calcolo Massimali
+  // 2. Calcolo Massimali (Memoizzato)
   const maxPesanti = useMemo(() => getStatValueFromChar(characterData, 'OGP'), [characterData, getStatValueFromChar]);
   const maxSpeciali = useMemo(() => getStatValueFromChar(characterData, 'COG'), [characterData, getStatValueFromChar]);
   
@@ -487,7 +432,8 @@ const InventoryTab = ({ onLogout }) => {
     return hasMods || hasInnesti;
   }, []);
 
-  // 4. Calcolo Totali Correnti (con controllo ereditarietà per is_pesante)
+  // 4. Calcolo Totali Correnti
+  // Nota: controlliamo is_pesante sia sulla root (se serializzato flat) sia su oggetto_base
   const currentPesanti = useMemo(() => items.filter(i => 
     i.is_pesante || (i.oggetto_base && i.oggetto_base.is_pesante)
   ).length, [items]);
@@ -495,7 +441,6 @@ const InventoryTab = ({ onLogout }) => {
   const currentSpecialiEquipaggiati = useMemo(() => items.filter(i => 
     i.is_equipaggiato && isOggettoSpeciale(i)
   ).length, [items, isOggettoSpeciale]);
-
 
   // --- WRAPPER HANDLERS CON CONTROLLI ---
 
@@ -513,7 +458,7 @@ const InventoryTab = ({ onLogout }) => {
               }
           }
       }
-      // Procedi con la mutazione originale
+      // Procedi con la mutazione
       equipMutation.mutate({ itemId, charId: characterData.id });
   }, [items, currentSpecialiEquipaggiati, maxSpeciali, isOggettoSpeciale, equipMutation, characterData]);
 
@@ -531,6 +476,7 @@ const InventoryTab = ({ onLogout }) => {
       if (api && api.buyShopItem) {
         try {
             await api.buyShopItem(characterData.id, shopItem.id);
+            // Il context ricaricherà i dati
             alert("Oggetto acquistato con successo!");
         } catch (e) {
             console.error(e);
@@ -539,6 +485,20 @@ const InventoryTab = ({ onLogout }) => {
       }
   }, [currentPesanti, maxPesanti, api, characterData]);
 
+  const handleRecharge = (item) => {
+      const costo = item.costo_ricarica || 0;
+      const metodo = item.testo_ricarica || "Standard";
+      if (window.confirm(`Ricaricare ${item.nome}?\nCosto: ${costo} CR\nMetodo: ${metodo}`)) {
+          rechargeMutation.mutate({ oggetto_id: item.id, charId: characterData.id });
+      }
+  };
+
+  const handleOpenAssembly = (item) => { setAssemblyHost(item); setShowAssembly(true); };
+  const handleAssemblyComplete = () => { setShowAssembly(false); setAssemblyHost(null); };
+  
+  const toggleExpand = useCallback((itemId) => {
+      setExpandedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+  }, []);
 
   if (isContextLoading) return <div className="p-8 text-center text-gray-500 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (!characterData) return <div className="p-4 text-center text-red-400">Nessun personaggio selezionato.</div>;
@@ -547,24 +507,23 @@ const InventoryTab = ({ onLogout }) => {
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
 
-  // Render Helper per liste (utilizza il componente Memoizzato)
   const renderList = (list) => (
-        <LazyList 
-            items={list} 
-            batchSize={10} 
-            renderItem={(item) => (
-                <InventoryItemCard 
-                    key={item.id} 
-                    item={item} 
-                    isExpanded={!!expandedItems[item.id]}
-                    onToggleExpand={toggleExpand}
-                    onEquip={handleSafeEquip} // USA IL SAFE HANDLER
-                    onRecharge={handleRecharge}
-                    onAssembly={handleOpenAssembly}
-                />
-            )}
-        />
-    );
+      <LazyList 
+          items={list} 
+          batchSize={10} 
+          renderItem={(item) => (
+              <InventoryItemCard 
+                  key={item.id} 
+                  item={item} 
+                  isExpanded={!!expandedItems[item.id]}
+                  onToggleExpand={toggleExpand}
+                  onEquip={handleSafeEquip} // USA IL SAFE HANDLER
+                  onRecharge={handleRecharge}
+                  onAssembly={handleOpenAssembly}
+              />
+          )}
+      />
+  );
   
   const slots = {};
   const genericItems = [];
@@ -668,6 +627,7 @@ const InventoryTab = ({ onLogout }) => {
       </section>
 
       {showShop && <ShopModal onClose={() => setShowShop(false)} onBuy={handleSafeBuy} credits={characterData.crediti} />}
+      
       {showAssembly && assemblyHost && <ItemAssemblyModal hostItem={assemblyHost} inventory={items} onClose={() => { setShowAssembly(false); setAssemblyHost(null); }} onRefresh={handleAssemblyComplete} />}
     </div>
   );
