@@ -7,8 +7,7 @@ import {
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
-// Assicurati che questo import sia corretto in base alla tua struttura file
-import PunteggioDisplay from './PunteggioDisplay'; 
+import PunteggioDisplay from './PunteggioDisplay'; // <--- NUOVO IMPORT RICHIESTO
 import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
 // --- UTILS ---
@@ -26,10 +25,20 @@ const formatDuration = (seconds) => {
     return parts.join(' ');
 };
 
+// Helper per recuperare valori statistica sicuri
+const getStatValueFromChar = (charData, sigla) => {
+    if (!charData || !charData.punteggi) return 0;
+    const stat = charData.punteggi.find(p => 
+        (p.caratteristica && p.caratteristica.sigla === sigla) || p.sigla === sigla
+    );
+    return stat ? (stat.valore_totale || stat.valore || 0) : 0;
+};
+
 const LazyList = ({ items, renderItem, batchSize = 10 }) => {
     const [displayedItems, setDisplayedItems] = useState([]);
     
     useEffect(() => {
+        // Reset quando cambiano gli items
         setDisplayedItems(items.slice(0, batchSize));
     }, [items, batchSize]);
 
@@ -53,7 +62,7 @@ const LazyList = ({ items, renderItem, batchSize = 10 }) => {
     );
 };
 
-// --- COMPONENTE VISUALE CORPO (Invariato) ---
+// --- COMPONENTE VISUALE CORPO (SVG ORGANICO 8 SLOT) ---
 const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
     const paths = {
         'HD1': { d: "M75,35 C75,20 85,10 100,10 C115,10 125,20 125,35 C125,45 100,48 75,35 Z", name: "Cranio (HD1)" },
@@ -101,7 +110,7 @@ const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
     );
 };
 
-// --- COMPONENTE CARD INVENTARIO (MEMOIZED) ---
+// --- COMPONENTE CARD INVENTARIO (MEMOIZED PER PERFORMANCE) ---
 const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onRecharge, onAssembly }) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
     const canBeModified = (isPhysical || ['INN', 'MUT'].includes(item.tipo_oggetto)) && (item.classe_oggetto_nome || item.tipo_oggetto === 'INN');
@@ -110,11 +119,10 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
     // Rileva se è speciale (Mod o Innesti)
     const isSpecial = (item.mods && item.mods.length > 0) || (item.innesti && item.innesti.length > 0);
     
-    // Recupera punteggi aggiuntivi (Aure, Statistiche speciali conferite dall'oggetto)
-    // Backend DRF di solito li mette in 'punteggi' o 'modificatori' come Nested Serializer
+    // Recupera punteggi aggiuntivi (Aure, ecc)
     const extraScores = item.punteggi || item.modificatori || [];
 
-    // Render Statistiche Testuali (Solo != 0)
+    // Render Statistiche (Solo != 0)
     const renderStats = (statistiche) => {
         if (!statistiche || statistiche.length === 0) return null;
         const activeStats = statistiche.filter(s => s.valore !== 0);
@@ -123,14 +131,12 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
         return (
             <div className="flex flex-wrap gap-2 mt-2">
                 {activeStats.map((stat, idx) => {
-                    // Navigazione sicura per campi nidificati
-                    const nomeStat = stat.statistica?.nome || stat.nome_statistica || "Stat";
                     const hasCondition = stat.usa_limitazione_aura || stat.usa_limitazione_elemento || stat.usa_condizione_text;
                     const conditionTitle = stat.condizione_text || "Condizionale";
                     
                     return (
                         <div key={idx} className="flex items-center bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs shadow-sm">
-                            <span className="font-bold text-gray-300 mr-1">{nomeStat}</span>
+                            <span className="font-bold text-gray-300 mr-1">{stat.statistica.nome}</span>
                             <span className={`font-mono font-bold ${stat.valore > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {stat.valore > 0 ? '+' : ''}{stat.valore}
                             </span>
@@ -153,19 +159,14 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
             <div className="flex flex-wrap gap-1 items-center justify-end">
                 {componenti.map((comp, idx) => {
                     const val = comp.valore || 1;
-                    // Accesso sicuro ai dati della caratteristica nidificata
-                    const iconaUrl = comp.caratteristica?.icona_url;
-                    const sigla = comp.caratteristica?.sigla || "?";
-                    const nome = comp.caratteristica?.nome || "";
-
                     const icons = [];
                     for(let i=0; i<val; i++) {
                         icons.push(
-                            <div key={`${idx}-${i}`} className="w-5 h-5 rounded bg-gray-800 border border-gray-600 flex items-center justify-center p-0.5 shadow-sm" title={nome}>
-                                {iconaUrl ? (
-                                    <img src={iconaUrl} alt={sigla} className="w-full h-full object-contain" />
+                            <div key={`${idx}-${i}`} className="w-5 h-5 rounded bg-gray-800 border border-gray-600 flex items-center justify-center p-0.5 shadow-sm" title={comp.caratteristica.nome}>
+                                {comp.caratteristica.icona_url ? (
+                                    <img src={comp.caratteristica.icona_url} alt={comp.caratteristica.sigla} className="w-full h-full object-contain" />
                                 ) : (
-                                    <span className="text-[9px] font-bold text-gray-300">{sigla}</span>
+                                    <span className="text-[9px] font-bold text-gray-300">{comp.caratteristica.sigla}</span>
                                 )}
                             </div>
                         );
@@ -253,12 +254,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                             <div className="text-[10px] text-gray-500 uppercase tracking-wider flex gap-2">
                                 <span>{item.tipo_oggetto_display}</span>
                                 {item.classe_oggetto_nome && <span>• {item.classe_oggetto_nome}</span>}
-                                {/* Controllo flag pesante (in oggetti o in oggetto_base) */}
-                                {(item.is_pesante || (item.oggetto_base && item.oggetto_base.is_pesante)) && (
-                                    <span className="text-red-400 font-bold ml-1 flex items-center gap-0.5">
-                                        <AlertTriangle size={10} />(PESANTE)
-                                    </span>
-                                )}
+                                {item.is_pesante && <span className="text-red-400 font-bold ml-1">(PESANTE)</span>}
                                 {isSpecial && <span className="text-amber-400 font-bold ml-1">(MOD)</span>}
                             </div>
                             
@@ -286,30 +282,19 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                     {/* Statistiche Base e Modificatori */}
                     {renderStats(item.statistiche)}
 
-                    {/* --- VISUALIZZAZIONE PUNTEGGI CARICATI (ICONE) --- */}
+                    {/* --- NUOVO: Punteggi Caricati (PunteggioDisplay) --- */}
                     {extraScores.length > 0 && (
                         <div className="flex flex-wrap gap-2 bg-black/30 p-2 rounded-md border border-gray-700/30">
-                            {extraScores.map((punteggio, idx) => {
-                                // Recupero sicuro dei dati per PunteggioDisplay
-                                // Il backend restituisce 'caratteristica' come oggetto nidificato
-                                const sigla = punteggio.caratteristica?.sigla || punteggio.sigla || "??";
-                                const valore = punteggio.valore;
-                                // CRUCIALE: Recupero icona_url
-                                const iconaUrl = punteggio.caratteristica?.icona_url || punteggio.icona_url;
-
-                                return (
-                                    <div key={idx} className="scale-90 origin-left">
-                                        <PunteggioDisplay 
-                                            sigla={sigla} 
-                                            valore={valore} 
-                                            // Passiamo l'URL se esiste, il componente PunteggioDisplay deve gestirlo
-                                            iconaUrl={iconaUrl}
-                                            size="sm"
-                                            showLabel={true}
-                                        />
-                                    </div>
-                                );
-                            })}
+                            {extraScores.map((punteggio, idx) => (
+                                <div key={idx} className="scale-90 origin-left">
+                                    <PunteggioDisplay 
+                                        sigla={punteggio.sigla || punteggio.caratteristica?.sigla} 
+                                        valore={punteggio.valore} 
+                                        size="sm"
+                                        showLabel={true}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     )}
                     {/* -------------------------------------------------- */}
@@ -330,7 +315,7 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                     {/* Potenziamenti Installati */}
                     {item.potenziamenti_installati && item.potenziamenti_installati.length > 0 && (
                         <div className="pl-2 border-l-2 border-indigo-500/30 mt-2 bg-indigo-900/5 p-2 rounded">
-                            <p className="text-[10px] font-bold text-indigo-400 uppercase mb-2 flex items-center gap-1">
+                            <p className="text--[10px] font-bold text-indigo-400 uppercase mb-2 flex items-center gap-1">
                                 <Zap size={12} /> Moduli Installati:
                             </p>
                             <div className="space-y-2">
@@ -401,42 +386,17 @@ const InventoryTab = ({ onLogout }) => {
     else setItems([]);
   }, [characterData]);
 
-  // --- LOGICA LIMITI E STATISTICHE (CORRETTA) ---
+  // --- LOGICA LIMITI (NUOVA) ---
+  const maxPesanti = useMemo(() => getStatValueFromChar(characterData, 'OGP'), [characterData]);
+  const maxSpeciali = useMemo(() => getStatValueFromChar(characterData, 'COG'), [characterData]);
   
-  // 1. Funzione Helper per estrarre valori da struttura complessa DRF
-  const getStatValueFromChar = useCallback((charData, siglaTarget) => {
-    if (!charData || !charData.punteggi) return 0;
-    
-    const target = siglaTarget.toUpperCase();
-    const stat = charData.punteggi.find(p => {
-        // Cerca la sigla dentro l'oggetto nidificato 'caratteristica'
-        const s = p.caratteristica?.sigla || p.sigla; 
-        return s && s.toUpperCase() === target;
-    });
-
-    // Se trovata, restituisce valore_totale (bonus inclusi)
-    if (stat) {
-        return stat.valore_totale !== undefined ? stat.valore_totale : (stat.valore || 0);
-    }
-    return 0;
-  }, []);
-
-  // 2. Calcolo Massimali (Memoizzato)
-  const maxPesanti = useMemo(() => getStatValueFromChar(characterData, 'OGP'), [characterData, getStatValueFromChar]);
-  const maxSpeciali = useMemo(() => getStatValueFromChar(characterData, 'COG'), [characterData, getStatValueFromChar]);
-  
-  // 3. Helper Oggetto Speciale
   const isOggettoSpeciale = useCallback((item) => {
     const hasMods = item.mods && item.mods.length > 0;
     const hasInnesti = item.innesti && item.innesti.length > 0;
     return hasMods || hasInnesti;
   }, []);
 
-  // 4. Calcolo Totali Correnti
-  // Nota: controlliamo is_pesante sia sulla root (se serializzato flat) sia su oggetto_base
-  const currentPesanti = useMemo(() => items.filter(i => 
-    i.is_pesante || (i.oggetto_base && i.oggetto_base.is_pesante)
-  ).length, [items]);
+  const currentPesanti = useMemo(() => items.filter(i => i.is_pesante).length, [items]);
   
   const currentSpecialiEquipaggiati = useMemo(() => items.filter(i => 
     i.is_equipaggiato && isOggettoSpeciale(i)
@@ -449,41 +409,46 @@ const InventoryTab = ({ onLogout }) => {
       const itemToEquip = items.find(i => i.id === itemId);
       if (!itemToEquip) return;
 
-      // Se stiamo cercando di equipaggiare (attualmente non lo è)
+      // Se NON è equipaggiato e stiamo provando a equipaggiarlo
       if (!itemToEquip.is_equipaggiato) {
           if (isOggettoSpeciale(itemToEquip)) {
               if (currentSpecialiEquipaggiati >= maxSpeciali) {
-                  alert(`ATTENZIONE: LIMITE RAGGIUNTO!\nHai equipaggiato ${currentSpecialiEquipaggiati} oggetti speciali su un massimo di ${maxSpeciali} (COG).`);
+                  alert("Attenzione: raggiunto il limite massimo di oggetti speciali equipaggiabili!");
                   return; // BLOCCA
               }
           }
       }
-      // Procedi con la mutazione
+      // Procedi con la mutazione originale
       equipMutation.mutate({ itemId, charId: characterData.id });
   }, [items, currentSpecialiEquipaggiati, maxSpeciali, isOggettoSpeciale, equipMutation, characterData]);
 
-  // Controllo Acquisto (per ShopModal)
+  // Controllo Acquisto (Passato al ShopModal)
   const handleSafeBuy = useCallback(async (shopItem) => {
       const isItemPesante = shopItem.is_pesante || (shopItem.oggetto_base && shopItem.oggetto_base.is_pesante);
       
       if (isItemPesante) {
           if (currentPesanti >= maxPesanti) {
-              alert(`ATTENZIONE: LIMITE DI CARICO RAGGIUNTO!\nStai trasportando ${currentPesanti} oggetti pesanti su un massimo di ${maxPesanti} (OGP).`);
+              alert("Attenzione: raggiunto il limite massimo di oggetti pesanti trasportabili!");
               return; // BLOCCA
           }
       }
 
+      // Esegue acquisto (Nota: questo presuppone che tu abbia accesso all'API qui o passi la funzione di acquisto)
+      // Se ShopModal gestisce l'acquisto internamente, dovrai modificare ShopModal per accettare una prop "onBeforeBuy" 
+      // o spostare la logica di acquisto qui. 
+      // Qui assumo che ShopModal accetti `onBuy` custom.
       if (api && api.buyShopItem) {
         try {
             await api.buyShopItem(characterData.id, shopItem.id);
-            // Il context ricaricherà i dati
-            alert("Oggetto acquistato con successo!");
+            // Reload o gestione stato fatta dal context
+            alert("Oggetto acquistato!");
         } catch (e) {
             console.error(e);
-            alert("Errore durante l'acquisto: " + (e.message || "Crediti insufficienti o errore server"));
+            alert("Errore acquisto");
         }
       }
   }, [currentPesanti, maxPesanti, api, characterData]);
+
 
   const handleRecharge = (item) => {
       const costo = item.costo_ricarica || 0;
@@ -507,23 +472,24 @@ const InventoryTab = ({ onLogout }) => {
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
 
-  const renderList = (list) => (
-      <LazyList 
-          items={list} 
-          batchSize={10} 
-          renderItem={(item) => (
-              <InventoryItemCard 
-                  key={item.id} 
-                  item={item} 
-                  isExpanded={!!expandedItems[item.id]}
-                  onToggleExpand={toggleExpand}
-                  onEquip={handleSafeEquip} // USA IL SAFE HANDLER
-                  onRecharge={handleRecharge}
-                  onAssembly={handleOpenAssembly}
-              />
-          )}
-      />
-  );
+  // Render Helper per liste (aggiornato con handleSafeEquip)
+    const renderList = (list) => (
+        <LazyList 
+            items={list} 
+            batchSize={10} 
+            renderItem={(item) => (
+                <InventoryItemCard 
+                    key={item.id} 
+                    item={item} 
+                    isExpanded={!!expandedItems[item.id]}
+                    onToggleExpand={toggleExpand}
+                    onEquip={handleSafeEquip} // USA IL SAFE HANDLER
+                    onRecharge={handleRecharge}
+                    onAssembly={handleOpenAssembly}
+                />
+            )}
+        />
+    );
   
   const slots = {};
   const genericItems = [];
@@ -545,31 +511,20 @@ const InventoryTab = ({ onLogout }) => {
              </button>
           </div>
           
-          {/* BARRA LIMITI */}
+          {/* BARRA LIMITI AGGIUNTA QUI */}
           <div className="px-4 py-2 bg-black/40 border-t border-gray-700 flex justify-between items-center text-xs">
-                {/* Contatore PESANTI */}
-                <div className="flex items-center gap-2" title="Limite Oggetti Pesanti (Statistica: OGP)">
-                    <span className="text-gray-400 font-bold flex items-center gap-1">
-                        <Box size={14} /> CARICO (OGP):
-                    </span>
-                    <span className={`font-mono font-bold px-2 py-0.5 rounded border ${
-                        currentPesanti > maxPesanti 
-                        ? "bg-red-900/50 text-red-100 border-red-700 animate-pulse" 
-                        : "bg-gray-800 text-green-400 border-gray-600"
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-400 font-bold">CARICO (OGP):</span>
+                    <span className={`font-mono font-bold px-2 py-0.5 rounded ${
+                        currentPesanti > maxPesanti ? "bg-red-900 text-red-100" : "bg-gray-800 text-green-400"
                     }`}>
                         {currentPesanti} / {maxPesanti}
                     </span>
                 </div>
-
-                {/* Contatore SPECIALI */}
-                <div className="flex items-center gap-2" title="Limite Oggetti Speciali/Modificati Equipaggiabili (Statistica: COG)">
-                    <span className="text-gray-400 font-bold flex items-center gap-1">
-                        <Sparkles size={14} /> SLOT SPECIALI (COG):
-                    </span>
-                    <span className={`font-mono font-bold px-2 py-0.5 rounded border ${
-                        currentSpecialiEquipaggiati >= maxSpeciali 
-                        ? "bg-orange-900/50 text-orange-100 border-orange-700" 
-                        : "bg-gray-800 text-blue-400 border-gray-600"
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-400 font-bold">SLOT SPECIALI (COG):</span>
+                    <span className={`font-mono font-bold px-2 py-0.5 rounded ${
+                        currentSpecialiEquipaggiati >= maxSpeciali ? "bg-orange-900 text-orange-100" : "bg-gray-800 text-blue-400"
                     }`}>
                         {currentSpecialiEquipaggiati} / {maxSpeciali}
                     </span>
@@ -626,6 +581,7 @@ const InventoryTab = ({ onLogout }) => {
         {zainoItems.length > 0 ? renderList(zainoItems) : <p className="text-gray-600 italic text-sm p-4 text-center border border-dashed border-gray-700 rounded-lg bg-gray-800/30">Zaino vuoto.</p>}
       </section>
 
+      {/* SHOP MODAL: Assicurati che ShopModal accetti onBuy per l'override, altrimenti usa props standard */}
       {showShop && <ShopModal onClose={() => setShowShop(false)} onBuy={handleSafeBuy} credits={characterData.crediti} />}
       
       {showAssembly && assemblyHost && <ItemAssemblyModal hostItem={assemblyHost} inventory={items} onClose={() => { setShowAssembly(false); setAssemblyHost(null); }} onRefresh={handleAssemblyComplete} />}
