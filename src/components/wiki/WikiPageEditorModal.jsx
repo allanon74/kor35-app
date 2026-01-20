@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getWikiTierList, createWikiPage, updateWikiPage } from '../../api';
 import RichTextEditor from '../RichTextEditor';
+import { Lock, Eye } from 'lucide-react'; // Assicurati di avere queste icone o rimuovile se non usi lucide
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -9,6 +10,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     parent: '',
     contenuto: '',
     public: false,
+    visibile_solo_staff: false, // <--- NUOVO CAMPO
     ordine: 0,
     ...initialData
   });
@@ -58,7 +60,9 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         data.append('titolo', formData.titolo);
         data.append('contenuto', formData.contenuto || ''); 
         data.append('public', formData.public);
-        
+        data.append('visibile_solo_staff', formData.visibile_solo_staff); // <--- INVIO AL BACKEND
+        data.append('ordine', formData.ordine); // Assicuriamoci che l'ordine sia inviato
+
         if (formData.slug) data.append('slug', formData.slug);
         if (formData.parent) data.append('parent', formData.parent);
         
@@ -73,8 +77,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
              response = await createWikiPage(data);
         }
 
-        alert("Salvataggio completato!");
-        
         // Se la risposta contiene i dati aggiornati (es. slug), li usiamo
         const newSlug = response.slug || formData.slug; 
         onSuccess(newSlug);
@@ -88,8 +90,8 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   };
 
   return (
-    // CONTENITORE PRINCIPALE: Padding ridotto su mobile (p-0) per usare tutto lo schermo
-    <div className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center p-0 md:p-4">
+    // CONTENITORE PRINCIPALE
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-0 md:p-4">
       <div className="bg-white md:rounded-lg shadow-xl w-full max-w-6xl h-full md:h-auto md:max-h-[95vh] flex flex-col">
         
         {/* HEADER */}
@@ -100,7 +102,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
             <button onClick={onClose} className="text-gray-500 hover:text-red-600 font-bold text-xl px-2">✕</button>
         </div>
 
-        {/* BODY SCROLLABILE: Layout a colonna su mobile, riga su desktop */}
+        {/* BODY SCROLLABILE */}
         <div className="p-4 overflow-y-auto flex-1 flex flex-col md:flex-row gap-6">
             
             {/* COLONNA SINISTRA: IMPOSTAZIONI */}
@@ -165,21 +167,44 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     </div>
                 </div>
 
-                {/* 3. Visibilità */}
-                <div className="flex items-center gap-3 bg-yellow-50 p-3 rounded border border-yellow-200">
-                    <input 
-                        type="checkbox" 
-                        id="is_public"
-                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                        checked={formData.public} 
-                        onChange={e => setFormData({...formData, public: e.target.checked})}
-                    />
-                    <label htmlFor="is_public" className="text-sm font-bold text-gray-800 cursor-pointer">
-                        Pubblica Online
-                    </label>
+                {/* 3. Visibilità (AGGIORNATA) */}
+                <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
+                    <label className="block text-xs font-bold text-gray-700">Impostazioni di Visibilità</label>
+                    
+                    {/* Checkbox Pubblica */}
+                    <div className={`flex items-center gap-3 p-2 rounded border transition-colors ${formData.public ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                        <input 
+                            type="checkbox" 
+                            id="is_public"
+                            className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
+                            checked={formData.public} 
+                            onChange={e => setFormData({...formData, public: e.target.checked})}
+                        />
+                        <label htmlFor="is_public" className="text-sm font-bold text-gray-800 cursor-pointer flex items-center gap-2">
+                            <Eye size={16} className="text-gray-500"/> Pubblica Online
+                        </label>
+                    </div>
+
+                    {/* Checkbox Staff Only */}
+                    <div className={`flex items-center gap-3 p-2 rounded border transition-colors ${formData.visibile_solo_staff ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200'}`}>
+                        <input 
+                            type="checkbox" 
+                            id="is_staff"
+                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                            checked={formData.visibile_solo_staff} 
+                            onChange={e => setFormData({...formData, visibile_solo_staff: e.target.checked})}
+                        />
+                        <label htmlFor="is_staff" className="text-sm font-bold text-indigo-900 cursor-pointer flex items-center gap-2">
+                            <Lock size={16} /> Visibile solo allo Staff
+                        </label>
+                    </div>
+                    
+                    <p className="text-[10px] text-gray-500 leading-tight">
+                        Nota: Se "Solo Staff" è attivo, i giocatori non vedranno la pagina anche se "Pubblica" è selezionato.
+                    </p>
                 </div>
 
-                {/* 4. Widget Helper (Ripristinato testo e loader) */}
+                {/* 4. Widget Helper */}
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
                     <button 
                         type="button"
@@ -192,7 +217,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     
                     {showWidgetHelper && (
                         <div className="mt-2 max-h-40 md:max-h-60 overflow-y-auto bg-white rounded border border-gray-300 shadow-inner">
-                            {/* RIPRISTINATO: Messaggio di caricamento */}
                             {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
                             
                             {availableTiers.map(tier => (
@@ -208,7 +232,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             ))}
                         </div>
                     )}
-                    {/* RIPRISTINATO: Testo esplicativo */}
                     <p className="text-[10px] text-gray-500 mt-2 leading-tight">
                         Cliccando su un widget, verrà aggiunto in fondo all'editor.
                     </p>
