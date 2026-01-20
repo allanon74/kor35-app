@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getWikiTierList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api'; // Aggiunto getWikiImageUrl
 import RichTextEditor from '../RichTextEditor';
-import { Lock, Eye } from 'lucide-react'; // Assicurati di avere queste icone o rimuovile se non usi lucide
+import { Lock, Eye, GripVertical } from 'lucide-react'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -10,51 +10,19 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     parent: '',
     contenuto: '',
     public: false,
-    visibile_solo_staff: false, // <--- NUOVO CAMPO
+    visibile_solo_staff: false,
     ordine: 0,
-    banner_y: 50,
+    banner_y: 50, // Default centro verticale
     ...initialData
   });
-
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStartY, setDragStartY] = useState(0);
-    const [initialBannerY, setInitialBannerY] = useState(50);
-
-    const handleMouseDown = (e) => {
-        e.preventDefault();
-        setIsDragging(true);
-        setDragStartY(e.clientY);
-        setInitialBannerY(formData.banner_y);
-    };
-
-    const handleMouseMove = (e) => {
-        if (!isDragging) return;
-        const deltaY = e.clientY - dragStartY;
-        // Sensibilità del drag: dividiamo per un fattore (es. 2 o 3) per renderlo più controllabile
-        // Il segno meno o più dipende da come "senti" lo spostamento. 
-        // Spostare il mouse GIÙ dovrebbe mostrare la parte ALTA dell'immagine (quindi decrementare object-position?)
-        // Standard CSS object-position: 0% = Top, 100% = Bottom.
-        // Se trascino giù, voglio vedere la parte sopra, quindi devo abbassare la percentuale? No, è visivo.
-        // Facciamo un calcolo diretto della percentuale.
-        
-        // Simplificazione: 1px di mouse = 0.5% di spostamento
-        const sensitivity = 0.5; 
-        let newY = initialBannerY - (deltaY * sensitivity);
-        
-        // Clamp tra 0 e 100
-        if (newY < 0) newY = 0;
-        if (newY > 100) newY = 100;
-        
-        setFormData(prev => ({ ...prev, banner_y: Math.round(newY) }));
-    };
-
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
   
   // Gestione file immagine
   const [imageFile, setImageFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(initialData?.immagine ? getWikiImageUrl(initialData.slug) : null);
+  
+  // Inizializza URL anteprima: se c'è un'immagine salvata, usa l'helper, altrimenti null
+  const [previewUrl, setPreviewUrl] = useState(
+      initialData?.immagine ? getWikiImageUrl(initialData.slug) : null
+  );
 
   const isEditing = !!initialData?.id;
   const [loading, setLoading] = useState(false);
@@ -62,6 +30,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // Widget Helper logic
   const [showWidgetHelper, setShowWidgetHelper] = useState(false);
   const [availableTiers, setAvailableTiers] = useState([]);
+
+  // Dragging Logic
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [initialBannerY, setInitialBannerY] = useState(50);
 
   useEffect(() => {
     if (showWidgetHelper) {
@@ -85,7 +58,34 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
       if (file) {
           setImageFile(file);
           setPreviewUrl(URL.createObjectURL(file));
+          // Reset posizione al centro su nuova immagine
+          setFormData(prev => ({ ...prev, banner_y: 50 })); 
       }
+  };
+
+  // --- GESTIONE DRAG MOUSE ---
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStartY(e.clientY);
+    setInitialBannerY(formData.banner_y || 50);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    const deltaY = e.clientY - dragStartY;
+    const sensitivity = 0.5; // 1px = 0.5% movimento
+    let newY = initialBannerY - (deltaY * sensitivity);
+    
+    // Limita tra 0 e 100
+    if (newY < 0) newY = 0;
+    if (newY > 100) newY = 100;
+    
+    setFormData(prev => ({ ...prev, banner_y: Math.round(newY) }));
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   const handleSubmit = async (e) => {
@@ -97,9 +97,9 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         data.append('titolo', formData.titolo);
         data.append('contenuto', formData.contenuto || ''); 
         data.append('public', formData.public);
-        data.append('visibile_solo_staff', formData.visibile_solo_staff); // <--- INVIO AL BACKEND
-        data.append('ordine', formData.ordine); // Assicuriamoci che l'ordine sia inviato
-        data.append('banner_y', formData.banner_y);
+        data.append('visibile_solo_staff', formData.visibile_solo_staff);
+        data.append('ordine', formData.ordine);
+        data.append('banner_y', formData.banner_y); // Invio posizione
 
         if (formData.slug) data.append('slug', formData.slug);
         if (formData.parent) data.append('parent', formData.parent);
@@ -115,7 +115,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
              response = await createWikiPage(data);
         }
 
-        // Se la risposta contiene i dati aggiornati (es. slug), li usiamo
         const newSlug = response.slug || formData.slug; 
         onSuccess(newSlug);
 
@@ -128,7 +127,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   };
 
   return (
-    // CONTENITORE PRINCIPALE
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-0 md:p-4">
       <div className="bg-white md:rounded-lg shadow-xl w-full max-w-6xl h-full md:h-auto md:max-h-[95vh] flex flex-col">
         
@@ -158,45 +156,43 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             required 
                         />
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Slug URL <span className="font-normal text-gray-400 text-xs">(Opzionale)</span></label>
-                        <input 
-                            type="text" 
-                            className="w-full border border-gray-300 p-2 rounded bg-gray-50 text-gray-600 text-sm" 
-                            value={formData.slug}
-                            onChange={e => setFormData({...formData, slug: e.target.value})}
-                            placeholder="es: combattimento-avanzato"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">
-                            Ordine nel Menu
-                        </label>
-                        <input 
-                            type="number" 
-                            className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                            value={formData.ordine || 0}
-                            onChange={(e) => setFormData({...formData, ordine: parseInt(e.target.value) || 0})}
-                            placeholder="0"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            Minore è il numero, più in alto appare (es. 0, 10, 20).
-                        </p>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Slug URL</label>
+                            <input 
+                                type="text" 
+                                className="w-full border border-gray-300 p-2 rounded bg-gray-50 text-gray-600 text-sm" 
+                                value={formData.slug}
+                                onChange={e => setFormData({...formData, slug: e.target.value})}
+                                placeholder="auto-generato"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Ordine</label>
+                            <input 
+                                type="number" 
+                                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
+                                value={formData.ordine || 0}
+                                onChange={(e) => setFormData({...formData, ordine: parseInt(e.target.value) || 0})}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* 2. Immagine di Copertina e Posizionamento */} 
-
+                {/* 2. Immagine con Drag & Drop Visuale */}
                 <div className="border rounded-lg p-3 bg-gray-50">
-                    <label className="block text-xs font-bold text-gray-700 mb-2">
-                        Copertina e Posizionamento 
-                        <span className="font-normal text-gray-500 ml-2">(Trascina l'immagine per centrarla)</span>
+                    <label className="block text-xs font-bold text-gray-700 mb-2 flex justify-between items-center">
+                        <span>Copertina</span>
+                        <span className="text-[10px] font-normal text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                            ↕ Trascina l'immagine
+                        </span>
                     </label>
                     
                     <div className="space-y-3">
-                        {/* AREA PREVIEW INTERATTIVA */}
+                        {/* ANTEPRIMA TAGLIO (CROP BOX) */}
                         <div 
-                            className="w-full h-32 md:h-48 bg-gray-900 rounded overflow-hidden border border-gray-300 relative group cursor-ns-resize"
+                            className="w-full h-40 bg-gray-900 rounded overflow-hidden border border-gray-400 relative group cursor-ns-resize shadow-inner select-none"
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
@@ -207,24 +203,46 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                     <img 
                                         src={previewUrl} 
                                         alt="Anteprima" 
-                                        className="w-full h-full object-cover transition-none select-none pointer-events-none"
+                                        className="w-full h-full object-cover pointer-events-none"
                                         style={{ objectPosition: `center ${formData.banner_y}%` }} 
                                     />
-                                    {/* Overlay suggerimento */}
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                        <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">
-                                            ↕ Trascina per spostare ({formData.banner_y}%)
-                                        </span>
+                                    
+                                    {/* GRIGLIA DI RIFERIMENTO (RULE OF THIRDS) */}
+                                    <div className="absolute inset-0 pointer-events-none opacity-30">
+                                        <div className="w-full h-1/3 border-b border-white"></div>
+                                        <div className="w-full h-1/3 border-b border-white top-1/3 absolute"></div>
+                                        <div className="h-full w-1/3 border-r border-white absolute left-0"></div>
+                                        <div className="h-full w-1/3 border-r border-white absolute left-1/3"></div>
+                                    </div>
+
+                                    {/* INDICATORE VERTICALE (SIDEBAR) */}
+                                    <div className="absolute right-2 top-2 bottom-2 w-1.5 bg-black/40 rounded-full border border-white/20 backdrop-blur-sm">
+                                        {/* Il cursore che si muove */}
+                                        <div 
+                                            className="absolute w-3 h-3 bg-white border-2 border-indigo-600 rounded-full -left-[3px] shadow-md transition-all duration-75 ease-linear"
+                                            style={{ top: `${formData.banner_y}%`, transform: 'translateY(-50%)' }}
+                                        ></div>
+                                    </div>
+
+                                    {/* Badge Overlay */}
+                                    <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded pointer-events-none">
+                                        Posizione Y: {formData.banner_y}%
+                                    </div>
+                                    
+                                    {/* Icona Overlay al centro */}
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                        <div className="bg-black/50 p-2 rounded-full text-white">
+                                            <GripVertical size={24} />
+                                        </div>
                                     </div>
                                 </>
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                                    Nessuna Immagine
+                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs">
+                                    <span>Nessuna Immagine</span>
                                 </div>
                             )}
                         </div>
 
-                        {/* INPUT FILE */}
                         <input 
                             type="file" 
                             accept="image/*"
@@ -234,11 +252,10 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     </div>
                 </div>
 
-                {/* 3. Visibilità (AGGIORNATA) */}
+                {/* 3. Visibilità */}
                 <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
                     <label className="block text-xs font-bold text-gray-700">Impostazioni di Visibilità</label>
                     
-                    {/* Checkbox Pubblica */}
                     <div className={`flex items-center gap-3 p-2 rounded border transition-colors ${formData.public ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-200'}`}>
                         <input 
                             type="checkbox" 
@@ -252,7 +269,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                         </label>
                     </div>
 
-                    {/* Checkbox Staff Only */}
                     <div className={`flex items-center gap-3 p-2 rounded border transition-colors ${formData.visibile_solo_staff ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200'}`}>
                         <input 
                             type="checkbox" 
@@ -265,10 +281,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             <Lock size={16} /> Visibile solo allo Staff
                         </label>
                     </div>
-                    
-                    <p className="text-[10px] text-gray-500 leading-tight">
-                        Nota: Se "Solo Staff" è attivo, i giocatori non vedranno la pagina anche se "Pubblica" è selezionato.
-                    </p>
                 </div>
 
                 {/* 4. Widget Helper */}
@@ -299,9 +311,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             ))}
                         </div>
                     )}
-                    <p className="text-[10px] text-gray-500 mt-2 leading-tight">
-                        Cliccando su un widget, verrà aggiunto in fondo all'editor.
-                    </p>
                 </div>
             </div>
 
