@@ -1199,14 +1199,34 @@ export const updateFase = (id, data, onLogout) => fetchAuthenticated(`/plot/api/
 
 
 
-export const getWikiMenu = () => {
-  // Nota: Assicurati che l'URL coincida con quello definito in urls.py
-  return fetchPublic('/plot/api/public/wiki-menu/');
+// --- WIKI PAGINE REGOLAMENTO ---
+
+export const getWikiMenu = async () => {
+  const token = localStorage.getItem('kor35_token');
+  // Puntiamo all'endpoint "smart" definito nelle urlpatterns di gestione_plot/urls.py
+  const endpoint = '/plot/api/wiki/menu/'; 
+
+  if (token) {
+    // Se c'è il token, usiamo fetchAuthenticated: il backend riconoscerà lo Staff 
+    // e restituirà anche bozze e pagine riservate.
+    return fetchAuthenticated(endpoint, { method: 'GET' });
+  } else {
+    // Se non c'è token, usiamo fetchPublic: il backend applicherà i filtri di sicurezza.
+    return fetchPublic(endpoint);
+  }
 };
 
-export const getWikiPage = (slug) => {
-  return fetchPublic(`/plot/api/public/wiki-page/${slug}/`);
+export const getWikiPage = async (slug) => {
+  const token = localStorage.getItem('kor35_token');
+  const endpoint = `/plot/api/wiki/pagina/${slug}/`;
+
+  if (token) {
+    return fetchAuthenticated(endpoint, { method: 'GET' });
+  } else {
+    return fetchPublic(endpoint);
+  }
 };
+
 
 export const getWikiTable = (id) => {
   return fetchPublic(`/plot/api/public/wiki-tabelle/${id}/`);

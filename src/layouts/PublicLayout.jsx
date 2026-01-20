@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useCharacter } from '../components/CharacterContext';
 import { getWikiMenu } from '../api';
@@ -6,7 +6,8 @@ import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal';
 import { 
     Menu, X, Search, 
     Folder, FolderOpen, FileText, 
-    ChevronRight, ChevronDown, Plus 
+    ChevronRight, ChevronDown, Plus,
+    Lock, EyeOff 
 } from 'lucide-react';
 
 export default function PublicLayout({ token }) {
@@ -20,29 +21,25 @@ export default function PublicLayout({ token }) {
   const [menuTree, setMenuTree] = useState([]); 
   const [searchTerm, setSearchTerm] = useState(''); 
   const [loadingMenu, setLoadingMenu] = useState(true);
-
-  // --- NUOVO STATO: Gestione apertura nodi globale (per auto-expand) ---
+  
+  // Gestione apertura nodi (Set di ID)
   const [openNodes, setOpenNodes] = useState(new Set());
 
   const { character, isStaff, isMaster } = useCharacter();
   const canEdit = isStaff || isMaster;
   const location = useLocation();
 
-  // --- 1. CARICAMENTO DATI CON FILTRO BOZZE ---
+  // --- 1. CARICAMENTO DATI ---
   useEffect(() => {
     const fetchMenu = async () => {
+      setLoadingMenu(true);
       try {
+        // L'API (src/api.js) ora decide se mandare il token.
+        // Il Backend filtra i dati. Se riceviamo dati, li mostriamo.
         const rawList = await getWikiMenu();
         
-        // FILTRO: Se non sei staff, vedi solo le pagine pubbliche
-        const visibleList = rawList.filter(item => {
-            if (canEdit) return true; 
-            return item.public !== false; 
-        });
-
-        setFlatMenu(visibleList); 
-        const tree = buildTree(visibleList);
-        setMenuTree(tree);
+        setFlatMenu(rawList); 
+        setMenuTree(buildTree(rawList));
       } catch (error) {
         console.error("Errore caricamento menu:", error);
       } finally {
@@ -50,13 +47,12 @@ export default function PublicLayout({ token }) {
       }
     };
     fetchMenu();
-  }, [canEdit]); // Ricarica se cambiano i permessi (es. login/logout)
+  }, [token]); // Ricarica se cambia il token (login/logout)
 
   // --- 2. LOGICA AUTO-EXPAND (Mantiene aperto il percorso corrente) ---
   useEffect(() => {
     if (flatMenu.length === 0) return;
 
-    // Recupera lo slug dalla URL
     const currentSlug = location.pathname.startsWith('/regolamento/') 
         ? location.pathname.split('/')[2] 
         : 'home';
@@ -64,10 +60,7 @@ export default function PublicLayout({ token }) {
     const currentPage = flatMenu.find(p => p.slug === currentSlug);
     
     if (currentPage) {
-        // Trova tutti i genitori della pagina corrente
         const parents = getAllParents(currentPage.id, flatMenu);
-        
-        // Aggiorna lo stato delle cartelle aperte
         setOpenNodes(prev => {
             const next = new Set(prev);
             parents.forEach(id => next.add(id));
@@ -76,7 +69,6 @@ export default function PublicLayout({ token }) {
     }
   }, [location.pathname, flatMenu]);
 
-  // Helper per trovare i genitori
   const getAllParents = (nodeId, allItems) => {
       const parents = [];
       let current = allItems.find(i => i.id === nodeId);
@@ -87,7 +79,6 @@ export default function PublicLayout({ token }) {
       return parents;
   };
 
-  // Helper per aprire/chiudere manualmente una cartella
   const toggleNode = (id) => {
       setOpenNodes(prev => {
           const next = new Set(prev);
@@ -113,7 +104,7 @@ export default function PublicLayout({ token }) {
       }
     });
 
-    // Ordinamento: Ordine numerico > Alfabetico
+    // Ordinamento: 1. Ordine (numerico), 2. Titolo (Alfabetico)
     const sortRecursive = (nodes) => {
         nodes.sort((a, b) => {
             const ordA = a.ordine !== undefined ? a.ordine : 999;
@@ -142,14 +133,15 @@ export default function PublicLayout({ token }) {
   const handleCreateRoot = () => { setNewParentId(null); setEditorOpen(true); };
   const handleCreateNested = () => { setNewParentId(getCurrentPageId()); setEditorOpen(true); };
 
-  // --- COMPONENTE MENU ITEM (Aggiornato allo Stile "Modern Block") ---
+  // --- COMPONENTE VOCE MENU (STILE MODERNO A BLOCCHI) ---
   const WikiSidebarItem = ({ item, level = 0 }) => {
     const hasChildren = item.children && item.children.length > 0;
     const isActive = location.pathname.includes(item.slug) || (item.slug === 'home' && location.pathname === '/');
-    
-    // Usa lo stato globale invece di quello locale
     const isOpen = openNodes.has(item.id);
+    
+    // Flag di stato
     const isDraft = item.public === false;
+    const isStaffOnly = item.visibile_solo_staff === true;
 
     return (
       <li className="mb-1 select-none">
@@ -158,19 +150,21 @@ export default function PublicLayout({ token }) {
                 group flex items-center justify-between
                 py-2 px-3 mr-2 rounded-lg cursor-pointer transition-all duration-200
                 ${isActive 
-                    ? 'bg-red-900 text-white shadow-md transform scale-[1.01]' // Stile Attivo "Blocco"
-                    : 'text-gray-300 hover:bg-gray-700/50 hover:text-white' // Stile Inattivo
+                    ? 'bg-red-900 text-white shadow-md transform scale-[1.01]' 
+                    : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
                 }
-                ${isDraft ? 'border-l-4 border-yellow-500 bg-gray-800/60' : ''} // Stile Bozza
+                ${isDraft ? 'border-l-4 border-yellow-500 bg-gray-800/40' : ''}
+                ${!isDraft && isStaffOnly ? 'border-l-4 border-indigo-500 bg-gray-800/40' : ''}
             `}
             style={{ marginLeft: `${level * 16}px` }}
         >
-          {/* Link Principale */}
+          {/* Link Pagina */}
           <Link 
             to={item.slug === 'home' ? '/' : `/regolamento/${item.slug}`}
             className="flex-1 flex items-center gap-3 truncate"
             onClick={() => setSidebarOpen(false)}
           >
+             {/* Icona Cartella/File */}
              {hasChildren 
                 ? (isOpen 
                     ? <FolderOpen size={18} className={isActive ? "text-yellow-300" : "text-yellow-500"} /> 
@@ -178,13 +172,28 @@ export default function PublicLayout({ token }) {
                 : <FileText size={18} className={isActive ? "text-red-200" : "text-gray-500"} />
              }
              
-             <span className={`truncate font-medium ${isDraft ? 'italic text-yellow-500' : ''}`}>
-                {item.titolo}
-                {isDraft && <span className="ml-2 text-[10px] uppercase bg-yellow-600 text-black px-1.5 py-0.5 rounded font-bold shadow-sm">Bozza</span>}
-             </span>
+             <div className="flex flex-col truncate">
+                 <span className={`truncate font-medium ${isDraft ? 'italic text-yellow-500' : ''} ${!isDraft && isStaffOnly ? 'text-indigo-300' : ''}`}>
+                    {item.titolo}
+                 </span>
+                 
+                 {/* Badges Visivi */}
+                 <div className="flex gap-1 mt-0.5">
+                    {isDraft && (
+                        <span className="text-[9px] uppercase bg-yellow-600 text-black px-1.5 py-0.5 rounded font-bold flex items-center gap-1 w-fit">
+                            <EyeOff size={8}/> Bozza
+                        </span>
+                    )}
+                    {isStaffOnly && (
+                        <span className="text-[9px] uppercase bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-1 w-fit">
+                            <Lock size={8}/> Staff
+                        </span>
+                    )}
+                 </div>
+             </div>
           </Link>
 
-          {/* Pulsante Espansione Separato */}
+          {/* Pulsante Espansione (Solo se ha figli) */}
           {hasChildren && (
             <div 
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleNode(item.id); }}
@@ -195,10 +204,10 @@ export default function PublicLayout({ token }) {
           )}
         </div>
 
-        {/* Figli */}
+        {/* Rendering Figli */}
         {hasChildren && isOpen && (
             <ul className="mt-1 relative">
-                {/* Linea guida verticale più sottile e discreta */}
+                {/* Linea guida verticale */}
                 <div 
                     className="absolute top-0 bottom-0 w-px bg-gray-700" 
                     style={{ left: `${(level * 16) + 12}px` }} 
@@ -212,7 +221,7 @@ export default function PublicLayout({ token }) {
     );
   };
 
-  // --- RENDER ---
+  // --- RENDER LAYOUT ---
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-900 font-sans overflow-hidden">
       
@@ -279,7 +288,7 @@ export default function PublicLayout({ token }) {
               </div>
           </div>
 
-          {/* CONTENUTO MENU (Scrollable) */}
+          {/* CONTENUTO MENU */}
           <nav className="overflow-y-auto flex-1 px-3 pb-20 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
              {loadingMenu ? (
                <div className="p-6 text-center text-gray-500 text-sm animate-pulse">Caricamento indice...</div>
@@ -300,7 +309,11 @@ export default function PublicLayout({ token }) {
                                     >
                                         <div className="font-bold text-gray-200">{item.titolo}</div>
                                         {item.parent && <div className="text-xs text-gray-500">in {flatMenu.find(p => p.id === item.parent)?.titolo}</div>}
-                                        {item.public === false && <span className="text-[10px] text-yellow-500 font-bold uppercase mt-1 inline-block">Bozza</span>}
+                                        
+                                        <div className="flex gap-1 mt-1">
+                                            {item.public === false && <span className="text-[9px] bg-yellow-600 text-black px-1 rounded font-bold uppercase">Bozza</span>}
+                                            {item.visibile_solo_staff && <span className="text-[9px] bg-indigo-600 text-white px-1 rounded font-bold uppercase">Staff</span>}
+                                        </div>
                                     </Link>
                                 </li>
                              ))
@@ -316,7 +329,7 @@ export default function PublicLayout({ token }) {
              )}
           </nav>
 
-          {/* BOTTONE "NUOVA PAGINA ROOT" */}
+          {/* FOOTER SIDEBAR: NUOVA PAGINA */}
           {canEdit && !searchTerm && (
              <div className="p-3 border-t border-gray-800 bg-gray-900">
                 <button 
