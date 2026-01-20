@@ -4,6 +4,7 @@ import WikiRenderer from '../components/WikiRenderer';
 import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal'; // Importiamo il modale
 import { getWikiPage } from '../api';
 import { useCharacter } from '../components/CharacterContext'; // Per i permessi
+import { EyeOff } from 'lucide-react';
 
 export default function WikiPage({ slug: propSlug }) {
   const { slug } = useParams();
@@ -83,6 +84,14 @@ export default function WikiPage({ slug: propSlug }) {
 
   return (
     <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-sm md:rounded-lg overflow-hidden relative group">
+
+        {/* --- BANNER BOZZA (NUOVO) --- */}
+        {pageData?.public === false && (
+            <div className="bg-yellow-100 border-b border-yellow-300 text-yellow-800 px-4 py-2 flex items-center justify-center gap-2 font-bold text-sm">
+                <EyeOff size={16} />
+                <span>QUESTA PAGINA È UNA BOZZA (Visibile solo allo Staff)</span>
+            </div>
+        )}
         
         {/* PULSANTE MODIFICA (Visibile solo a Staff/Master) */}
         {canEdit && (
