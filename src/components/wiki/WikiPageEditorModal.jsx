@@ -182,7 +182,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
                 {/* 2. Immagine con Drag & Drop Visuale */}
                 <div className="border rounded-lg p-3 bg-gray-50">
-                    <label className="block text-xs font-bold text-gray-700 mb-2 flex justify-between items-center">
+                    <label className="text-xs font-bold text-gray-700 mb-2 flex justify-between items-center">
                         <span>Copertina</span>
                         <span className="text-[10px] font-normal text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
                             ↕ Trascina l'immagine
