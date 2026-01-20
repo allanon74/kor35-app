@@ -9,6 +9,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     parent: '',
     contenuto: '',
     public: false,
+    ordine: 0,
     ...initialData
   });
   
@@ -88,7 +89,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
   return (
     // CONTENITORE PRINCIPALE: Padding ridotto su mobile (p-0) per usare tutto lo schermo
-    <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-0 md:p-4">
+    <div className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center p-0 md:p-4">
       <div className="bg-white md:rounded-lg shadow-xl w-full max-w-6xl h-full md:h-auto md:max-h-[95vh] flex flex-col">
         
         {/* HEADER */}
@@ -126,6 +127,21 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             onChange={e => setFormData({...formData, slug: e.target.value})}
                             placeholder="es: combattimento-avanzato"
                         />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                            Ordine nel Menu
+                        </label>
+                        <input 
+                            type="number" 
+                            className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            value={formData.ordine || 0}
+                            onChange={(e) => setFormData({...formData, ordine: parseInt(e.target.value) || 0})}
+                            placeholder="0"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Minore è il numero, più in alto appare (es. 0, 10, 20).
+                        </p>
                     </div>
                 </div>
 
