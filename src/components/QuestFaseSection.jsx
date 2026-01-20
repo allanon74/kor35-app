@@ -330,14 +330,6 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                         </div>
                                     )}
 
-                                    {/* CAMPO DESCRIZIONE (AGGIUNTO) */}
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Descrizione / Flavor (Opzionale)</label>
-                                        <div className="h-24 border border-gray-700 rounded-lg overflow-hidden bg-gray-900 shadow-inner">
-                                            <RichTextEditor value={form.descrizione} onChange={(val) => setForm({...form, descrizione: val})} placeholder="Descrizione narrativa per lo staffer..." />
-                                        </div>
-                                    </div>
-
                                     {/* CAMPO ISTRUZIONI */}
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Istruzioni Operative</label>
