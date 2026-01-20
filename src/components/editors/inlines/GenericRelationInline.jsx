@@ -1,12 +1,13 @@
 import React from 'react';
 import { Trash2, Plus } from 'lucide-react';
+import SearchableSelect from '../SearchableSelect'; // <--- IMPORTA IL NUOVO COMPONENTE
 
 const GenericRelationInline = ({ 
     title, 
     items, 
     options, 
     valueKey = 'valore', 
-    targetKey, // Chiave dell'oggetto target (es. 'punteggio', 'requisito')
+    targetKey, 
     onChange, 
     labelFinder = (opt) => opt.nome 
 }) => {
@@ -40,28 +41,30 @@ const GenericRelationInline = ({
             <div className="space-y-2">
                 {items.map((item, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
-                        <select 
-                            value={item[targetKey] || ""} 
-                            onChange={(e) => handleChange(idx, targetKey, parseInt(e.target.value))}
-                            className="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1 text-sm text-white"
-                        >
-                            <option value="">- Seleziona -</option>
-                            {options.map(opt => (
-                                <option key={opt.id} value={opt.id}>{labelFinder(opt)}</option>
-                            ))}
-                        </select>
                         
-                        {/* Se esiste la chiave valore, mostra l'input numerico */}
+                        {/* SOSTITUZIONE SELECT CON SEARCHABLE SELECT */}
+                        <div className="flex-1 min-w-[150px]">
+                            <SearchableSelect 
+                                options={options}
+                                value={item[targetKey]}
+                                onChange={(val) => handleChange(idx, targetKey, val ? parseInt(val) : null)}
+                                placeholder="- Seleziona -"
+                                labelKey="nome" // Assicurati che le opzioni abbiano la proprietà 'nome'
+                                valueKey="id"
+                            />
+                        </div>
+                        
+                        {/* Input Valore (es. Quantità o Livello) */}
                         {valueKey && (
                             <input 
                                 type="number" 
                                 value={item[valueKey]} 
                                 onChange={(e) => handleChange(idx, valueKey, parseInt(e.target.value))}
-                                className="w-20 bg-gray-950 border border-gray-700 rounded px-2 py-1 text-sm text-white text-right"
+                                className="w-20 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white text-right focus:border-indigo-500 outline-none"
                             />
                         )}
 
-                        <button onClick={() => handleRemove(idx)} className="text-red-500 hover:text-red-400">
+                        <button onClick={() => handleRemove(idx)} className="text-red-500 hover:text-red-400 p-1 hover:bg-gray-800 rounded">
                             <Trash2 size={14} />
                         </button>
                     </div>

@@ -3,6 +3,7 @@ import { staffCreateAbilita, staffUpdateAbilita, getPunteggiList, getAbilitaOpti
 import RichTextEditor from '../RichTextEditor';
 import StatModInline from './inlines/StatModInline';
 import GenericRelationInline from './inlines/GenericRelationInline';
+import SearchableSelect from './SearchableSelect';
 
 const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     const [punteggi, setPunteggi] = useState([]); 
