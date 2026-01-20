@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { registerUser } from '../api'; // Assicurati che questa funzione esista in api.js
+import { registerUser } from '../api'; // Assicurati che api.js esporti questa funzione
 
 const LoginPage = ({ onLoginSuccess }) => {
-  const [isRegistering, setIsRegistering] = useState(false); // Toggle Login/Registrazione
-  
-  // Stato unificato per il form
+  // Stato Toggle
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // Stato Form Unificato
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -13,17 +14,14 @@ const LoginPage = ({ onLoginSuccess }) => {
     last_name: ''
   });
 
-  const [message, setMessage] = useState({ text: '', type: '' }); // Per errori o successi
+  const [message, setMessage] = useState({ text: '', type: '' });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Gestione cambio input generico
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.id]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
+  // Logica Login
   const handleLogin = async (e) => {
     e.preventDefault();
     setMessage({ text: '', type: '' });
@@ -52,10 +50,12 @@ const LoginPage = ({ onLoginSuccess }) => {
         localStorage.setItem('kor35_is_staff', data.is_staff);
         localStorage.setItem('kor35_is_master', data.is_superuser);
         
-        if (typeof onLoginSuccess === 'function') {
+        // Controllo robusto per onLoginSuccess
+        if (onLoginSuccess && typeof onLoginSuccess === 'function') {
             onLoginSuccess(data.token);
         } else {
-            console.error("onLoginSuccess non è una funzione!");
+            // Fallback se la prop non è passata correttamente da App.jsx
+            window.location.reload();
         }
       } else {
          throw new Error('Token non ricevuto.');
@@ -67,36 +67,38 @@ const LoginPage = ({ onLoginSuccess }) => {
     }
   };
 
+  // Logica Registrazione
   const handleRegister = async (e) => {
-    e.preventDefault();
-    setMessage({ text: '', type: '' });
-    setIsLoading(true);
+      e.preventDefault();
+      setMessage({ text: '', type: '' });
+      setIsLoading(true);
 
-    try {
-        // Chiama la funzione di registrazione importata da api.js
-        await registerUser(formData);
-        
-        setMessage({ 
-            text: 'Registrazione completata! Il tuo account è in attesa di approvazione da parte dello staff.', 
-            type: 'success' 
-        });
-        // Reset form o torna al login dopo un po' se vuoi
-        setTimeout(() => setIsRegistering(false), 3000);
-        
-    } catch (err) {
-        // Gestione errori backend (es. username già esistente)
-        let errorMsg = "Errore durante la registrazione.";
-        if (err.message) errorMsg = err.message;
-        // Se l'API restituisce un oggetto errori JSON complesso, potresti doverlo parsare qui
-        setMessage({ text: errorMsg, type: 'error' });
-    } finally {
-        setIsLoading(false);
-    }
+      try {
+          // Chiama l'API di registrazione che (lato server) crea l'utente inattivo e il messaggio staff
+          await registerUser(formData);
+          
+          setMessage({ 
+              text: 'Registrazione completata! Il tuo account è in attesa di approvazione da parte dello staff.', 
+              type: 'success' 
+          });
+          
+          // Reset e ritorno al login dopo 3 secondi
+          setTimeout(() => {
+              setIsRegistering(false);
+              setMessage({ text: '', type: '' });
+              setFormData({ ...formData, password: '' }); 
+          }, 3000);
+          
+      } catch (err) {
+          setMessage({ text: err.message || "Errore durante la registrazione.", type: 'error' });
+      } finally {
+          setIsLoading(false);
+      }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-2xl">
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 px-4">
+      <div className="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-xl border border-gray-700">
         <h2 className="text-3xl font-bold text-center text-white">
           {isRegistering ? 'Nuovo Account' : 'Login Kor35'}
         </h2>
@@ -111,43 +113,43 @@ const LoginPage = ({ onLoginSuccess }) => {
           
           {/* Campi visibili solo in registrazione */}
           {isRegistering && (
-            <>
+            <div className="space-y-4 animate-fadeIn">
                 <div className="flex gap-2">
                     <div className="w-1/2">
                         <label htmlFor="first_name" className="block text-sm font-medium text-gray-300">Nome</label>
                         <input
-                        id="first_name"
-                        type="text"
-                        value={formData.first_name}
-                        onChange={handleChange}
-                        required={isRegistering}
-                        className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            id="first_name"
+                            type="text"
+                            value={formData.first_name}
+                            onChange={handleChange}
+                            required={isRegistering}
+                            className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
                     <div className="w-1/2">
                         <label htmlFor="last_name" className="block text-sm font-medium text-gray-300">Cognome</label>
                         <input
-                        id="last_name"
-                        type="text"
-                        value={formData.last_name}
-                        onChange={handleChange}
-                        required={isRegistering}
-                        className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            id="last_name"
+                            type="text"
+                            value={formData.last_name}
+                            onChange={handleChange}
+                            required={isRegistering}
+                            className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
                 </div>
                 <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email</label>
                     <input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required={isRegistering}
-                    className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required={isRegistering}
+                        className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                 </div>
-            </>
+            </div>
           )}
 
           <div>
@@ -179,19 +181,22 @@ const LoginPage = ({ onLoginSuccess }) => {
             disabled={isLoading}
             className="w-full px-4 py-2 font-bold text-white bg-indigo-600 rounded-md shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50"
           >
-            {isLoading ? 'Elaborazione...' : (isRegistering ? 'Registrati' : 'Accedi')}
+            {isLoading ? 'Attendere...' : (isRegistering ? 'Registrati' : 'Accedi')}
           </button>
         </form>
 
-        <div className="text-center mt-4">
+        <div className="text-center mt-4 border-t border-gray-700 pt-4">
+            <p className="text-sm text-gray-400 mb-2">
+                {isRegistering ? 'Hai già un account?' : 'Non hai un account?'}
+            </p>
             <button
                 onClick={() => {
                     setIsRegistering(!isRegistering);
-                    setMessage({text:'', type:''});
+                    setMessage({ text: '', type: '' });
                 }}
-                className="text-sm text-indigo-400 hover:text-indigo-300 underline bg-transparent border-0 cursor-pointer"
+                className="text-sm font-bold text-indigo-400 hover:text-indigo-300 hover:underline bg-transparent border-0 cursor-pointer"
             >
-                {isRegistering ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati'}
+                {isRegistering ? 'Accedi qui' : 'Registrati ora'}
             </button>
         </div>
       </div>
