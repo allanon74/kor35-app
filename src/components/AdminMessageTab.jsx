@@ -18,6 +18,9 @@ function classNames(...classes) {
 
 const AdminMessageTab = ({ onLogout }) => {
     const { selectedCharacterData } = useCharacter();
+
+    const isUserStaff = localStorage.getItem('kor35_is_staff') === 'true';
+    const isCharStaff = selectedCharacterData?.is_staff === true;
     
     // --- STATI TAB 1: INBOX (Posta in arrivo) ---
     const [inboxMessages, setInboxMessages] = useState([]);
@@ -150,7 +153,23 @@ const AdminMessageTab = ({ onLogout }) => {
         return <div className="p-4 text-red-400 font-bold text-center">Accesso Negato. Area riservata allo Staff.</div>;
     }
 
+    if (!isUserStaff && !isCharStaff) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 text-red-400 space-y-2">
+                <ShieldAlert size={48} />
+                <h3 className="text-xl font-bold">Accesso Negato</h3>
+                <p>Questa area è riservata ai membri dello Staff.</p>
+                <p className="text-xs text-gray-500">
+                    (Debug: UserStaff: {isUserStaff ? 'Sì' : 'No'}, 
+                     CharStaff: {isCharStaff ? 'Sì' : 'No'})
+                </p>
+            </div>
+        );
+    }
+
     return (
+
+
         <div className="w-full h-full flex flex-col bg-gray-900 rounded-lg shadow-xl overflow-hidden">
             <Tab.Group>
                 <div className="bg-gray-800 p-2 border-b border-gray-700">
