@@ -1299,3 +1299,12 @@ export const updateTierAbilita = (tierId, abilitaList, onLogout) => {
         body: JSON.stringify({ abilita_list: abilitaList })
     }, onLogout);
 };
+
+// Helper per ottenere l'URL dell'immagine ottimizzata
+// width = 0 ritorna l'originale
+export const getWikiImageUrl = (slug, width = 0) => {
+    // Nota: API_BASE_URL deve essere la root del backend (es. http://localhost:8000)
+    // Se usi il proxy di Vite, potrebbe essere solo ''
+    const baseUrl = 'https://tuo-dominio-backend.com'; // Sostituisci con la tua URL vera o variabile env
+    return `${baseUrl}/plot/api/wiki/image/${slug}/?w=${width}`;
+};

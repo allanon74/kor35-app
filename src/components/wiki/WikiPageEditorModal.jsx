@@ -12,8 +12,45 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     public: false,
     visibile_solo_staff: false, // <--- NUOVO CAMPO
     ordine: 0,
+    banner_y: 50,
     ...initialData
   });
+
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStartY, setDragStartY] = useState(0);
+    const [initialBannerY, setInitialBannerY] = useState(50);
+
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+        setDragStartY(e.clientY);
+        setInitialBannerY(formData.banner_y);
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        const deltaY = e.clientY - dragStartY;
+        // Sensibilità del drag: dividiamo per un fattore (es. 2 o 3) per renderlo più controllabile
+        // Il segno meno o più dipende da come "senti" lo spostamento. 
+        // Spostare il mouse GIÙ dovrebbe mostrare la parte ALTA dell'immagine (quindi decrementare object-position?)
+        // Standard CSS object-position: 0% = Top, 100% = Bottom.
+        // Se trascino giù, voglio vedere la parte sopra, quindi devo abbassare la percentuale? No, è visivo.
+        // Facciamo un calcolo diretto della percentuale.
+        
+        // Simplificazione: 1px di mouse = 0.5% di spostamento
+        const sensitivity = 0.5; 
+        let newY = initialBannerY - (deltaY * sensitivity);
+        
+        // Clamp tra 0 e 100
+        if (newY < 0) newY = 0;
+        if (newY > 100) newY = 100;
+        
+        setFormData(prev => ({ ...prev, banner_y: Math.round(newY) }));
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
   
   // Gestione file immagine
   const [imageFile, setImageFile] = useState(null);
@@ -62,6 +99,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         data.append('public', formData.public);
         data.append('visibile_solo_staff', formData.visibile_solo_staff); // <--- INVIO AL BACKEND
         data.append('ordine', formData.ordine); // Assicuriamoci che l'ordine sia inviato
+        data.append('banner_y', formData.banner_y);
 
         if (formData.slug) data.append('slug', formData.slug);
         if (formData.parent) data.append('parent', formData.parent);
@@ -147,17 +185,46 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     </div>
                 </div>
 
-                {/* 2. Immagine */}
+                {/* 2. Immagine di Copertina e Posizionamento */} 
+                
                 <div className="border rounded-lg p-3 bg-gray-50">
-                    <label className="block text-xs font-bold text-gray-700 mb-2">Immagine Copertina</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-2">
+                        Copertina e Posizionamento 
+                        <span className="font-normal text-gray-500 ml-2">(Trascina l'immagine per centrarla)</span>
+                    </label>
+                    
                     <div className="space-y-3">
-                        <div className="w-full h-24 md:h-32 bg-gray-200 rounded overflow-hidden border border-gray-300 relative group">
+                        {/* AREA PREVIEW INTERATTIVA */}
+                        <div 
+                            className="w-full h-32 md:h-48 bg-gray-900 rounded overflow-hidden border border-gray-300 relative group cursor-ns-resize"
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                        >
                             {previewUrl ? (
-                                <img src={previewUrl} alt="Anteprima" className="w-full h-full object-cover" />
+                                <>
+                                    <img 
+                                        src={previewUrl} 
+                                        alt="Anteprima" 
+                                        className="w-full h-full object-cover transition-none select-none pointer-events-none"
+                                        style={{ objectPosition: `center ${formData.banner_y}%` }} 
+                                    />
+                                    {/* Overlay suggerimento */}
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                        <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">
+                                            ↕ Trascina per spostare ({formData.banner_y}%)
+                                        </span>
+                                    </div>
+                                </>
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">Nessuna Immagine</div>
+                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                                    Nessuna Immagine
+                                </div>
                             )}
                         </div>
+
+                        {/* INPUT FILE */}
                         <input 
                             type="file" 
                             accept="image/*"

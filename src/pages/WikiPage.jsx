@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import WikiRenderer from '../components/WikiRenderer';
 import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal'; // Importiamo il modale
-import { getWikiPage } from '../api';
+import { getWikiPage, getWikiImageUrl } from '../api';
 import { useCharacter } from '../components/CharacterContext'; // Per i permessi
 import { EyeOff } from 'lucide-react';
 
@@ -107,10 +107,27 @@ export default function WikiPage({ slug: propSlug }) {
 
         {/* Immagine Copertina */}
         {pageData.immagine && (
-            <div className="w-full h-48 md:h-64 overflow-hidden relative">
-                <img src={pageData.immagine} alt={pageData.titolo} className="w-full h-full object-cover"/>
-                <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent"></div>
-                <h1 className="absolute bottom-4 left-4 text-3xl md:text-5xl font-bold text-white drop-shadow-lg">{pageData.titolo}</h1>
+            <div className="relative w-full h-48 md:h-64 lg:h-80 overflow-hidden shadow-md">
+                <img 
+                    // Richiedi larghezza 1200px (buon compromesso desktop/mobile)
+                    src={getWikiImageUrl(pageData.slug, 1200)} 
+                    
+                    // Fallback: se l'API custom fallisce per qualche motivo, usa l'url originale
+                    onError={(e) => { e.target.onerror = null; e.target.src = pageData.immagine; }}
+                    
+                    alt={pageData.titolo}
+                    className="w-full h-full object-cover"
+                    
+                    // Applica la posizione salvata (default 50% se manca)
+                    style={{ objectPosition: `center ${pageData.banner_y ?? 50}%` }}
+                />
+                
+                {/* Gradiente per leggere il titolo */}
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent"></div>
+                
+                <div className="absolute bottom-0 left-0 p-4 md:p-8 text-white">
+                    <h1 className="text-3xl md:text-5xl font-bold drop-shadow-lg">{pageData.titolo}</h1>
+                </div>
             </div>
         )}
 
