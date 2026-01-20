@@ -15,7 +15,8 @@ import {
     Home, QrCode, Zap, TestTube2, Scroll, LogOut, Mail, Backpack, 
     Menu, X, UserCog, RefreshCw, Filter, DownloadCloud, ScrollText, 
     ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users,
-    Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight
+    Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight,
+    Key // <--- [MODIFICA] Aggiunta icona Key
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -30,6 +31,9 @@ import TransazioniViewer from './TransazioniViewer.jsx';
 import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; 
 import PersonaggiTab from './PersonaggiTab.jsx';
+
+// --- [MODIFICA] Import Modale Password
+import PasswordChangeModal from './PasswordChangeModal.jsx';
 
 // VERSIONE APP
 const APP_VERSION = packageInfo.version;
@@ -54,6 +58,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // --- [MODIFICA] Stato per il modale password
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   
   // STATO SHORTCUTS (Default salvagente)
   const [userShortcuts, setUserShortcuts] = useState(DEFAULT_SHORTCUTS);
@@ -365,6 +372,18 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                 </button>
             )}
 
+            {/* --- [MODIFICA] PULSANTE CAMBIO PASSWORD (NEL MENU) --- */}
+            <button 
+                onClick={() => {
+                    setIsPasswordModalOpen(true);
+                    setIsMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors border border-gray-700/50 rounded mb-2"
+            >
+                <Key size={18} />
+                <span className="font-bold text-sm">CAMBIA PASSWORD</span>
+            </button>
+
             <button 
                 onClick={onLogout} 
                 className="w-full flex items-center justify-center gap-2 p-2 rounded bg-red-900/20 text-red-400 hover:bg-red-900/40 border border-red-900/50 transition-colors text-sm font-bold"
@@ -487,6 +506,13 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       {qrResultData && (
         <QrResultModal data={qrResultData} onClose={closeQrModal} onLogout={onLogout} onStealSuccess={handleStealSuccess} />
       )}
+
+      {/* --- [MODIFICA] Modale Cambio Password --- */}
+      <PasswordChangeModal 
+          isOpen={isPasswordModalOpen} 
+          onClose={() => setIsPasswordModalOpen(false)} 
+          onLogout={onLogout}
+      />
     </div>
   );
 };

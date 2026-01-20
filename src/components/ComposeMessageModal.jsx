@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
-import { searchPersonaggi, sendPrivateMessage } from '../api';
+import { searchPersonaggi, fetchAuthenticated } from '../api';
+import RichTextEditor from './RichTextEditor'; // <-- Editor Rich Text
 
 const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSent, onLogout }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [selectedRecipient, setSelectedRecipient] = useState(null); // Null = Staff se non si cerca
   const [titolo, setTitolo] = useState('');
-  const [testo, setTesto] = useState('');
+  const [testo, setTesto] = useState(''); // Contiene HTML
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Gestione ricerca debounce
+  // Reset campi alla chiusura
+  useEffect(() => {
+    if (!isOpen) {
+        setQuery('');
+        setResults([]);
+        setSelectedRecipient(null);
+        setTitolo('');
+        setTesto('');
+        setError('');
+    }
+  }, [isOpen]);
+
+  // Gestione ricerca destinatario (opzionale se scrivi solo allo staff)
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (query.length >= 2 && !selectedRecipient) {
@@ -36,15 +49,18 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
   };
 
   const handleResetRecipient = () => {
-    setSelectedRecipient(null);
-    setQuery('');
-    setResults([]);
+      setSelectedRecipient(null);
+      setQuery('');
+      setResults([]);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!selectedRecipient || !titolo || !testo) {
-        setError("Tutti i campi sono obbligatori.");
+    
+    // Pulizia HTML base per evitare invio di stringhe vuote formattate (es <p><br></p>)
+    const cleanText = testo.replace(/<[^>]+>/g, '').trim();
+    if (!cleanText && !testo.includes('<img')) {
+        setError("Il messaggio non può essere vuoto.");
         return;
     }
 
@@ -52,68 +68,80 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
     setError('');
 
     try {
-      await sendPrivateMessage({
-        destinatario_id: selectedRecipient.id,
-        titolo: titolo,
-        testo: testo
-      }, onLogout);
-      
-      // Reset form
-      setTitolo('');
-      setTesto('');
-      handleResetRecipient();
-      onMessageSent(); // Callback per aggiornare lista o chiudere
-      onClose();
+        const payload = {
+            destinatario_personaggio: selectedRecipient ? selectedRecipient.id : null, // Null = Staff
+            titolo: titolo || 'Nuovo Messaggio',
+            testo: testo, // HTML dal RichTextEditor
+            tipo_messaggio: selectedRecipient ? 'IND' : 'STAFF'
+        };
+
+        await fetchAuthenticated('/personaggi/api/messaggi/', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        }, onLogout);
+
+        if (onMessageSent) onMessageSent();
+        onClose();
     } catch (err) {
-      setError("Errore nell'invio del messaggio: " + err.message);
+        setError('Errore invio: ' + err.message);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="w-full max-w-lg rounded-xl bg-gray-800 border border-gray-700 p-6 text-white shadow-xl">
-          <Dialog.Title className="text-xl font-bold mb-4 text-indigo-400">Scrivi Messaggio</Dialog.Title>
+    <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <Dialog.Overlay className="fixed inset-0 bg-black opacity-80" />
 
-          {error && <div className="mb-4 p-2 bg-red-900/50 border border-red-500 rounded text-sm text-red-200">{error}</div>}
+        <div className="relative bg-gray-800 text-white rounded-lg max-w-2xl w-full p-6 shadow-2xl border border-gray-600">
+          <Dialog.Title className="text-xl font-bold mb-4 flex justify-between items-center">
+             <span>Nuovo Messaggio</span>
+             <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
+          </Dialog.Title>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="bg-red-900 text-red-200 p-2 rounded mb-4 text-sm">{error}</div>}
+
+          <form onSubmit={handleSendMessage} className="space-y-4">
             
-            {/* Campo Destinatario con Autocomplete */}
+            {/* Destinatario (Opzionale: se vuoto = Staff) */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-400 mb-1">A chi vuoi scrivere?</label>
-              {selectedRecipient ? (
-                <div className="flex items-center justify-between bg-indigo-900/30 border border-indigo-500/50 rounded p-2">
-                    <span className="font-bold text-indigo-300">{selectedRecipient.nome}</span>
-                    <button type="button" onClick={handleResetRecipient} className="text-gray-400 hover:text-white px-2">✕</button>
-                </div>
-              ) : (
-                <>
-                  <input
-                    type="text"
-                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="Digita le iniziali (min 2 caratteri)..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                  {results.length > 0 && (
-                    <ul className="absolute z-10 w-full bg-gray-700 border border-gray-600 rounded mt-1 max-h-40 overflow-y-auto shadow-lg">
-                      {results.map((pg) => (
-                        <li 
-                          key={pg.id} 
-                          className="p-2 hover:bg-gray-600 cursor-pointer border-b border-gray-600 last:border-0"
-                          onClick={() => handleSelect(pg)}
+                <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Destinatario <span className="text-xs text-gray-500">(Lascia vuoto per scrivere allo Staff)</span>
+                </label>
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="Cerca personaggio..."
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        disabled={!!selectedRecipient}
+                    />
+                    {selectedRecipient && (
+                        <button 
+                            type="button" 
+                            onClick={handleResetRecipient}
+                            className="text-red-400 hover:text-red-300 px-2"
                         >
-                          {pg.nome}
-                        </li>
-                      ))}
+                            Cambia
+                        </button>
+                    )}
+                </div>
+                {/* Dropdown Risultati */}
+                {results.length > 0 && !selectedRecipient && (
+                    <ul className="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded mt-1 max-h-40 overflow-auto shadow-lg">
+                        {results.map(pg => (
+                            <li 
+                                key={pg.id} 
+                                onClick={() => handleSelect(pg)}
+                                className="p-2 hover:bg-indigo-600 cursor-pointer text-sm border-b border-gray-600 last:border-0"
+                            >
+                                {pg.nome}
+                            </li>
+                        ))}
                     </ul>
-                  )}
-                </>
-              )}
+                )}
             </div>
 
             {/* Titolo */}
@@ -125,37 +153,40 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
                 value={titolo}
                 onChange={(e) => setTitolo(e.target.value)}
                 maxLength={100}
+                placeholder="Oggetto del messaggio"
               />
             </div>
 
-            {/* Testo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Messaggio</label>
-              <textarea
-                className="w-full bg-gray-900 border border-gray-700 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none h-32"
-                value={testo}
-                onChange={(e) => setTesto(e.target.value)}
-              />
+            {/* Editor Rich Text */}
+            <div className="h-64 sm:h-80">
+                <RichTextEditor 
+                    label="Testo Messaggio"
+                    value={testo} 
+                    onChange={setTesto} 
+                    placeholder="Scrivi qui il tuo messaggio..."
+                />
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            {/* Footer Bottoni */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-700 mt-4">
               <button 
                 type="button" 
                 onClick={onClose}
-                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-sm"
               >
                 Annulla
               </button>
               <button 
                 type="submit" 
-                disabled={loading || !selectedRecipient}
-                className={`px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 font-bold transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={loading}
+                className={`px-6 py-2 rounded bg-indigo-600 hover:bg-indigo-500 font-bold transition-colors text-sm flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {loading ? 'Invio...' : 'Invia Messaggio'}
               </button>
             </div>
+
           </form>
-        </Dialog.Panel>
+        </div>
       </div>
     </Dialog>
   );

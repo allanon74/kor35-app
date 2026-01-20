@@ -1315,3 +1315,36 @@ export const getMediaUrl = (path) => {
     if (path.startsWith('http')) return path;
     return `${API_BASE_URL}${path}`;
 }
+
+/**
+ * Registra un nuovo utente.
+ */
+export const registerUser = async (userData) => {
+    // userData deve contenere: username, password, email, first_name, last_name
+    return fetchPublic('/personaggi/api/user/register/', {
+        method: 'POST',
+        body: JSON.stringify(userData)
+    });
+};
+
+/**
+ * Cambia la password dell'utente loggato.
+ */
+export const changePassword = async (oldPassword, newPassword, onLogout) => {
+    return fetchAuthenticated('/personaggi/api/user/change-password/', {
+        method: 'POST',
+        body: JSON.stringify({
+            old_password: oldPassword,
+            new_password: newPassword
+        })
+    }, onLogout);
+};
+
+/**
+ * Attiva un utente (Solo Staff).
+ */
+export const activateUser = async (userIdToActivate, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/staff/activate-user/${userIdToActivate}/`, {
+        method: 'POST'
+    }, onLogout);
+};

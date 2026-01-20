@@ -1,101 +1,163 @@
 import React, { useRef, useEffect } from 'react';
-import { Bold, Italic, List, ListOrdered, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { 
+    Bold, Italic, Underline, 
+    List, ListOrdered, 
+    AlignLeft, AlignCenter, AlignRight,
+    Eraser, Palette, Type
+} from 'lucide-react';
+
+const ToolbarButton = ({ icon: Icon, onClick, active, title }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        title={title}
+        className={`p-1.5 rounded hover:bg-gray-600 transition-colors ${
+            active ? 'bg-indigo-600 text-white' : 'text-gray-300'
+        }`}
+    >
+        <Icon size={16} />
+    </button>
+);
 
 const RichTextEditor = ({ value, onChange, placeholder, label }) => {
     const editorRef = useRef(null);
+    const colorInputRef = useRef(null);
 
-    // Sincronizza il contenuto solo se diverso per evitare loop o reset del cursore
+    // Sincronizza il contenuto iniziale o esterno
     useEffect(() => {
         if (editorRef.current && editorRef.current.innerHTML !== value) {
-            // Se il valore è vuoto o null, pulisci l'editor
             if (!value) {
                 editorRef.current.innerHTML = '';
             } else {
-                // Attenzione: qui potresti voler gestire la posizione del cursore se necessario,
-                // ma per aggiornamenti esterni semplici questo va bene.
                 editorRef.current.innerHTML = value;
             }
         }
     }, [value]);
 
+    // Gestione input utente
     const handleInput = (e) => {
         const html = e.currentTarget.innerHTML;
         onChange(html); 
     };
 
-    // --- FIX CRASH COPIA/INCOLLA ---
+    // Sanificazione incolla (Paste) per evitare HTML sporco
     const handlePaste = (e) => {
-        e.preventDefault(); // Impedisce al browser di incollare l'HTML sporco
-        
-        // Recupera solo il testo semplice dagli appunti
+        e.preventDefault();
         const text = e.clipboardData.getData('text/plain');
-        
-        // Inserisce il testo pulito nella posizione del cursore
-        // execCommand è deprecato ma è ancora l'unico modo affidabile per contentEditable 
-        // per inserire testo mantenendo la history (undo/redo) funzionante.
-        document.execCommand("insertText", false, text);
+        document.execCommand('insertText', false, text);
     };
-    // -------------------------------
 
+    // Esegue i comandi di formattazione
     const execCommand = (command, value = null) => {
+        document.execCommand('styleWithCSS', false, true); // Usa CSS invece di tag <font> deprecati dove possibile
         document.execCommand(command, false, value);
+        
+        // Forza l'aggiornamento dello stato React
         if (editorRef.current) {
             onChange(editorRef.current.innerHTML);
-            editorRef.current.focus();
+            editorRef.current.focus(); // Rimette il focus sull'editor
         }
     };
 
-    const ToolbarButton = ({ icon: Icon, command, arg, title }) => (
-        <button
-            type="button" // Importante: impedisce il submit del form se dentro un form
-            onClick={(e) => { e.preventDefault(); execCommand(command, arg); }}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-            title={title}
-        >
-            <Icon size={14} />
-        </button>
-    );
-
     return (
-        <>
-            <label className="block text-xs text-gray-500 mb-1">{label}</label>
-            <div className="flex flex-col h-full bg-gray-900 border border-gray-700 rounded-lg overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+        <div className="flex flex-col gap-1 w-full">
+            {label && <label className="text-sm font-medium text-gray-300 ml-1">{label}</label>}
+            
+            <div className="border border-gray-600 rounded-md bg-gray-800 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
+                
                 {/* Toolbar */}
-                <div className="flex items-center gap-1 bg-gray-800/50 p-1 border-b border-gray-700">
-                    <ToolbarButton icon={Bold} command="bold" title="Grassetto" />
-                    <ToolbarButton icon={Italic} command="italic" title="Corsivo" />
-                    <div className="w-px h-4 bg-gray-700 mx-1"></div>
-                    <ToolbarButton icon={List} command="insertUnorderedList" title="Elenco Puntato" />
-                    <ToolbarButton icon={ListOrdered} command="insertOrderedList" title="Elenco Numerato" />
-                    <div className="w-px h-4 bg-gray-700 mx-1"></div>
-                    <ToolbarButton icon={AlignLeft} command="justifyLeft" title="Allinea Sinistra" />
-                    <ToolbarButton icon={AlignCenter} command="justifyCenter" title="Allinea Centro" />
-                    {/* <ToolbarButton icon={AlignRight} command="justifyRight" title="Allinea Destra" /> */}
+                <div className="flex flex-wrap items-center gap-1 p-2 bg-gray-700 border-b border-gray-600">
+                    
+                    {/* Gruppo Base */}
+                    <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
+                        <ToolbarButton icon={Bold} onClick={() => execCommand('bold')} title="Grassetto" />
+                        <ToolbarButton icon={Italic} onClick={() => execCommand('italic')} title="Corsivo" />
+                        <ToolbarButton icon={Underline} onClick={() => execCommand('underline')} title="Sottolineato" />
+                    </div>
+
+                    {/* Gruppo Liste & Allineamento */}
+                    <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
+                        <ToolbarButton icon={List} onClick={() => execCommand('insertUnorderedList')} title="Lista Puntata" />
+                        <ToolbarButton icon={ListOrdered} onClick={() => execCommand('insertOrderedList')} title="Lista Numerata" />
+                        <ToolbarButton icon={AlignLeft} onClick={() => execCommand('justifyLeft')} title="Allinea Sinistra" />
+                        <ToolbarButton icon={AlignCenter} onClick={() => execCommand('justifyCenter')} title="Allinea Centro" />
+                    </div>
+
+                    {/* Gruppo Stile Avanzato */}
+                    <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
+                        {/* Selettore Dimensione Font */}
+                        <div className="relative group">
+                            <button title="Dimensione Testo" className="text-gray-300 hover:text-white p-1">
+                                <Type size={16} />
+                            </button>
+                            <select 
+                                className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={(e) => execCommand('fontSize', e.target.value)}
+                                defaultValue="3"
+                            >
+                                <option value="1">Molto Piccolo</option>
+                                <option value="2">Piccolo</option>
+                                <option value="3">Normale</option>
+                                <option value="4">Medio</option>
+                                <option value="5">Grande</option>
+                                <option value="6">Molto Grande</option>
+                                <option value="7">Enorme</option>
+                            </select>
+                        </div>
+
+                        {/* Selettore Colore */}
+                        <div className="relative">
+                            <ToolbarButton 
+                                icon={Palette} 
+                                onClick={() => colorInputRef.current?.click()} 
+                                title="Colore Testo" 
+                            />
+                            <input 
+                                type="color" 
+                                ref={colorInputRef}
+                                className="absolute opacity-0 w-0 h-0" 
+                                onChange={(e) => execCommand('foreColor', e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Gruppo Utility */}
+                    <div className="flex gap-0.5 ml-auto">
+                        <ToolbarButton 
+                            icon={Eraser} 
+                            onClick={() => execCommand('removeFormat')} 
+                            title="Rimuovi Formattazione" 
+                        />
+                    </div>
                 </div>
 
-                {/* Editor Area */}
+                {/* Area di Editazione */}
                 <div
                     ref={editorRef}
                     contentEditable
                     onInput={handleInput}
-                    onPaste={handlePaste} // <--- AGGIUNTO L'HANDLER QUI
-                    className="flex-1 p-3 text-[11px] text-gray-200 outline-none overflow-y-auto custom-scrollbar leading-relaxed"
-                    style={{ minHeight: '100px' }}
+                    onPaste={handlePaste}
+                    className="p-3 text-sm text-gray-200 outline-none overflow-y-auto min-h-[120px] max-h-[300px] leading-relaxed custom-scrollbar"
+                    style={{ whiteSpace: 'pre-wrap' }}
                     data-placeholder={placeholder}
                 />
                 
-                {/* Placeholder visivo simulato con CSS se vuoto */}
-                <style jsx>{`
+                <style>{`
                     [contenteditable]:empty:before {
                         content: attr(data-placeholder);
-                        color: #6b7280;
+                        color: #9ca3af;
                         font-style: italic;
                         pointer-events: none;
-                        display: block; /* For Firefox */
+                        display: block;
                     }
+                    /* Scrollbar personalizzata per l'editor */
+                    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                    .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+                    .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+                    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
                 `}</style>
             </div>
-        </>
+        </div>
     );
 };
 
