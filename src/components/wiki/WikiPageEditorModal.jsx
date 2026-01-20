@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { getWikiTierList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api'; // Aggiunto getWikiImageUrl
+import React, { useState, useEffect, useRef } from 'react';
+import { getWikiTierList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
-import { Lock, Eye, GripVertical } from 'lucide-react'; 
+import { Lock, Eye, GripVertical, Image as ImageIcon } from 'lucide-react'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -12,14 +12,12 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     public: false,
     visibile_solo_staff: false,
     ordine: 0,
-    banner_y: 50, // Default centro verticale
+    banner_y: 50, // Default centro verticale (0-100)
     ...initialData
   });
   
   // Gestione file immagine
   const [imageFile, setImageFile] = useState(null);
-  
-  // Inizializza URL anteprima: se c'è un'immagine salvata, usa l'helper, altrimenti null
   const [previewUrl, setPreviewUrl] = useState(
       initialData?.immagine ? getWikiImageUrl(initialData.slug) : null
   );
@@ -35,6 +33,9 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [initialBannerY, setInitialBannerY] = useState(50);
+
+  // Refs per calcolo visivo
+  const previewRef = useRef(null);
 
   useEffect(() => {
     if (showWidgetHelper) {
@@ -58,12 +59,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
       if (file) {
           setImageFile(file);
           setPreviewUrl(URL.createObjectURL(file));
-          // Reset posizione al centro su nuova immagine
           setFormData(prev => ({ ...prev, banner_y: 50 })); 
       }
   };
 
-  // --- GESTIONE DRAG MOUSE ---
+  // --- GESTIONE DRAG MAIN PREVIEW ---
   const handleMouseDown = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -74,10 +74,15 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
     const deltaY = e.clientY - dragStartY;
-    const sensitivity = 0.5; // 1px = 0.5% movimento
+    // Sensibilità: più bassa per essere precisi
+    const sensitivity = 0.4; 
+    
+    // NOTA: Se trascino il mouse GIÙ, voglio vedere la parte SOPRA dell'immagine.
+    // CSS object-position 0% = Top, 100% = Bottom.
+    // Quindi Drag Giù (delta positivo) -> deve diminuire la percentuale.
     let newY = initialBannerY - (deltaY * sensitivity);
     
-    // Limita tra 0 e 100
+    // Clamp tra 0 e 100
     if (newY < 0) newY = 0;
     if (newY > 100) newY = 100;
     
@@ -86,6 +91,20 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  // --- GESTIONE CLICK SU MINI-MAPPA ---
+  const handleMiniMapClick = (e) => {
+      // Calcola click relativo alla barra laterale
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickY = e.clientY - rect.top;
+      const percentage = (clickY / rect.height) * 100;
+      
+      // Aggiorna posizione
+      setFormData(prev => ({ 
+          ...prev, 
+          banner_y: Math.max(0, Math.min(100, Math.round(percentage))) 
+      }));
   };
 
   const handleSubmit = async (e) => {
@@ -99,7 +118,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         data.append('public', formData.public);
         data.append('visibile_solo_staff', formData.visibile_solo_staff);
         data.append('ordine', formData.ordine);
-        data.append('banner_y', formData.banner_y); // Invio posizione
+        data.append('banner_y', formData.banner_y);
 
         if (formData.slug) data.append('slug', formData.slug);
         if (formData.parent) data.append('parent', formData.parent);
@@ -180,19 +199,17 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     </div>
                 </div>
 
-                {/* 2. Immagine con Drag & Drop Visuale */}
+                {/* 2. Immagine con MINI MAPPA */}
                 <div className="border rounded-lg p-3 bg-gray-50">
                     <label className="text-xs font-bold text-gray-700 mb-2 flex justify-between items-center">
-                        <span>Copertina</span>
-                        <span className="text-[10px] font-normal text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                            ↕ Trascina l'immagine
-                        </span>
+                        <span>Copertina & Posizionamento</span>
                     </label>
                     
-                    <div className="space-y-3">
-                        {/* ANTEPRIMA TAGLIO (CROP BOX) */}
+                    <div className="flex gap-2 h-40">
+                        {/* A. ANTEPRIMA PRINCIPALE (CROP) */}
                         <div 
-                            className="w-full h-40 bg-gray-900 rounded overflow-hidden border border-gray-400 relative group cursor-ns-resize shadow-inner select-none"
+                            ref={previewRef}
+                            className="flex-1 bg-gray-900 rounded overflow-hidden border border-gray-400 relative group cursor-ns-resize shadow-inner select-none"
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
@@ -207,48 +224,70 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                         style={{ objectPosition: `center ${formData.banner_y}%` }} 
                                     />
                                     
-                                    {/* GRIGLIA DI RIFERIMENTO (RULE OF THIRDS) */}
+                                    {/* GRIGLIA TERZI (Statico, mostra dove cadono gli elementi) */}
                                     <div className="absolute inset-0 pointer-events-none opacity-30">
-                                        <div className="w-full h-1/3 border-b border-white"></div>
-                                        <div className="w-full h-1/3 border-b border-white top-1/3 absolute"></div>
+                                        <div className="w-full h-1/3 border-b border-white absolute top-0"></div>
+                                        <div className="w-full h-1/3 border-b border-white absolute top-1/3"></div>
                                         <div className="h-full w-1/3 border-r border-white absolute left-0"></div>
                                         <div className="h-full w-1/3 border-r border-white absolute left-1/3"></div>
                                     </div>
 
-                                    {/* INDICATORE VERTICALE (SIDEBAR) */}
-                                    <div className="absolute right-2 top-2 bottom-2 w-1.5 bg-black/40 rounded-full border border-white/20 backdrop-blur-sm">
-                                        {/* Il cursore che si muove */}
-                                        <div 
-                                            className="absolute w-3 h-3 bg-white border-2 border-indigo-600 rounded-full -left-[3px] shadow-md transition-all duration-75 ease-linear"
-                                            style={{ top: `${formData.banner_y}%`, transform: 'translateY(-50%)' }}
-                                        ></div>
-                                    </div>
-
-                                    {/* Badge Overlay */}
-                                    <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded pointer-events-none">
-                                        Posizione Y: {formData.banner_y}%
-                                    </div>
-                                    
-                                    {/* Icona Overlay al centro */}
+                                    {/* Icona Grip */}
                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                        <div className="bg-black/50 p-2 rounded-full text-white">
-                                            <GripVertical size={24} />
+                                        <div className="bg-black/50 p-1 rounded-full text-white">
+                                            <GripVertical size={20} />
                                         </div>
                                     </div>
                                 </>
                             ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs">
-                                    <span>Nessuna Immagine</span>
+                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-1">
+                                    <ImageIcon size={24}/>
+                                    <span className="text-[10px]">No Img</span>
                                 </div>
                             )}
                         </div>
 
+                        {/* B. MINI MAPPA (INTERA) */}
+                        <div 
+                            className="w-12 bg-gray-200 rounded border border-gray-300 relative overflow-hidden cursor-pointer"
+                            onClick={handleMiniMapClick}
+                            title="Clicca per posizionare"
+                        >
+                            {previewUrl && (
+                                <>
+                                    {/* Immagine intera fittata in verticale */}
+                                    <img 
+                                        src={previewUrl} 
+                                        alt="Minimap" 
+                                        className="w-full h-full object-cover opacity-50"
+                                    />
+                                    
+                                    {/* RETTANGOLO SELEZIONE (Il taglio visibile) */}
+                                    {/* Nota: Non sapendo l'altezza esatta del viewport rispetto all'immagine, 
+                                        usiamo un box di altezza fissa o percentuale approssimativa che si muove */}
+                                    <div 
+                                        className="absolute w-full h-1/4 border-2 border-yellow-500 bg-yellow-500/20 box-border transition-all duration-75"
+                                        style={{ 
+                                            // Centriamo il box sulla percentuale scelta
+                                            top: `${formData.banner_y}%`, 
+                                            transform: 'translateY(-50%)' 
+                                        }}
+                                    ></div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-3">
                         <input 
                             type="file" 
                             accept="image/*"
                             onChange={handleImageChange}
                             className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-indigo-100 file:text-indigo-700"
                         />
+                        <p className="text-[10px] text-gray-500 mt-1">
+                            Trascina l'immagine a sinistra o clicca sulla barra a destra per regolare il taglio.
+                        </p>
                     </div>
                 </div>
 
