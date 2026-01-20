@@ -6,26 +6,22 @@ import RichTextDisplay from './RichTextDisplay';
 // --- SOTTO-COMPONENTE PER LA CARD DEL TASK ---
 const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => {
     
-    // 1. LOGICA "IS MINE" ROBUSTA
+    // 1. LOGICA "IS MINE"
     const isMine = useMemo(() => {
         if (!currentUserId || !task.staffer) return false;
-        
-        // Gestisce sia il caso in cui staffer è un ID (int/string) sia un Oggetto {id: 1, ...}
         const taskStafferId = typeof task.staffer === 'object' && 'id' in task.staffer 
             ? task.staffer.id 
             : task.staffer;
-
         return String(taskStafferId) === String(currentUserId);
     }, [task.staffer, currentUserId]);
 
-    // Stato apertura: aperto di default se è mio, altrimenti chiuso
     const [expanded, setExpanded] = useState(false);
 
     useEffect(() => {
         if (isMine) setExpanded(true);
     }, [isMine]);
 
-    // 2. COLORI SFONDO DIFFERENZIATI
+    // 2. STILI RUOLO
     const getRoleStyles = () => {
         switch (task.ruolo) {
             case 'MOSTRO': return 'bg-gradient-to-br from-red-950/60 to-black border-red-900/50 hover:border-red-500/50';
@@ -34,7 +30,6 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
         }
     };
 
-    // Stile Bordo ed Evidenziazione (AMBER se mio)
     const baseClasses = getRoleStyles();
     const highlightClasses = isMine 
         ? "border-amber-500 shadow-[0_0_15px_-3px_rgba(245,158,11,0.3)] ring-1 ring-amber-500/50" 
@@ -44,11 +39,9 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
         || task.mostro_details?.nome 
         || (task.compito_offgame === 'REG' ? 'Gestione Regole' : task.compito_offgame === 'AIU' ? 'Aiuto Master' : 'Allestimento');
 
-    // 3. FIX CRASH ATTACCHI: Renderizza array o stringa
+    // Render Attacchi
     const renderAttacchi = (attacchi) => {
         if (!attacchi) return <span className="text-gray-500 italic">Nessun attacco specificato</span>;
-        
-        // Se è un array di oggetti (dal backend Django)
         if (Array.isArray(attacchi)) {
             if (attacchi.length === 0) return <span className="text-gray-500 italic">Nessun attacco specificato</span>;
             return (
@@ -62,22 +55,18 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
                 </div>
             );
         }
-        // Se è una stringa (vecchi dati o HTML)
         return <RichTextDisplay content={attacchi} />;
     };
 
     return (
         <div className={`rounded-xl border p-3 transition-all duration-300 ${baseClasses} ${highlightClasses}`}>
-            {/* --- HEADER (Sempre Visibile) --- */}
+            {/* --- HEADER --- */}
             <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-start gap-2 cursor-pointer select-none" onClick={() => setExpanded(!expanded)}>
                     <div className="flex items-center gap-3 overflow-hidden">
-                        {/* Icona Ruolo */}
                         <div className={`p-2 rounded-lg shrink-0 shadow-inner ${task.ruolo === 'MOSTRO' ? 'bg-red-500/20 text-red-400' : task.ruolo === 'PNG' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-500/20 text-slate-400'}`}>
                             {task.ruolo === 'MOSTRO' ? <Swords size={20}/> : task.ruolo === 'PNG' ? <Users size={20}/> : <Monitor size={20}/>}
                         </div>
-                        
-                        {/* Info Principali */}
                         <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className={`text-sm font-black uppercase tracking-tight ${isMine ? 'text-amber-100' : 'text-gray-100'}`}>
@@ -94,7 +83,6 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
                             </div>
                         </div>
                     </div>
-
                     <div className="flex items-center gap-1">
                         <div className={`transition-transform duration-300 ${expanded ? 'rotate-180' : ''} text-gray-500`}>
                             <ChevronDown size={20}/>
@@ -107,28 +95,24 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
                     </div>
                 </div>
 
-                {/* Counters Mostri (Visibili sempre) - FIX: aggiunto flex-wrap e Schermo */}
                 {task.ruolo === 'MOSTRO' && (
                     <div className="flex flex-wrap gap-2 mt-2 justify-start bg-black/40 p-2 rounded-lg border border-white/5 shadow-inner">
                         <StatMini icon={<Heart size={12}/>} label="PV" value={task.punti_vita} onUp={() => onStatChange(task.id, 'punti_vita', 1)} onDown={() => onStatChange(task.id, 'punti_vita', -1)} color="text-red-500" />
-                        
-                        {/* 4. CAMPO GUSCIO (SCHERMO) AGGIUNTO */}
                         <StatMini icon={<SquareActivity size={12}/>} label="SC" value={task.guscio || 0} onUp={() => onStatChange(task.id, 'guscio', 1)} onDown={() => onStatChange(task.id, 'guscio', -1)} color="text-cyan-400" />
-                        
                         <StatMini icon={<Shield size={12}/>} label="ARM" value={task.armatura} onUp={() => onStatChange(task.id, 'armatura', 1)} onDown={() => onStatChange(task.id, 'armatura', -1)} color="text-gray-300" />
                     </div>
                 )}
             </div>
 
-            {/* --- BODY (Collapsible) --- */}
+            {/* --- BODY --- */}
             {expanded && (
                 <div className="mt-3 pt-3 border-t border-white/10 space-y-3 animation-fade-in-down origin-top">
                     
-                    {/* Descrizione Task (NUOVO BLOCCO) */}
+                    {/* DESCRIZIONE TASK (Se presente) */}
                     {task.descrizione && (
                         <div className="bg-black/30 p-3 rounded-lg border border-white/5 text-gray-300 shadow-sm">
                             <div className="text-[9px] font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
-                                <ScrollText size={10}/> Descrizione
+                                <ScrollText size={10}/> Descrizione Narrativa
                             </div>
                             <div className="scale-100 origin-top-left">
                                 <RichTextDisplay content={task.descrizione} />
@@ -136,7 +120,7 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
                         </div>
                     )}
 
-                    {/* Istruzioni */}
+                    {/* ISTRUZIONI */}
                     {task.istruzioni && (
                         <div className="bg-black/30 p-3 rounded-lg border border-white/5 text-gray-300 shadow-sm">
                             <div className="text-[9px] font-bold text-gray-500 uppercase mb-1 flex items-center gap-1"><Edit2 size={10}/> Istruzioni Operative</div>
@@ -146,10 +130,9 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
                         </div>
                     )}
 
-                    {/* Dettagli Extra per Mostri */}
+                    {/* DETTAGLI MOSTRO */}
                     {task.ruolo === 'MOSTRO' && task.mostro_details && (
                         <div className="grid grid-cols-1 gap-2 text-xs">
-                            {/* Costume */}
                             {(task.mostro_details.costume || task.costume) && (
                                 <div className="flex items-start gap-2 bg-black/30 p-2 rounded text-gray-300 border border-purple-500/20">
                                     <Shirt size={14} className="mt-0.5 text-purple-400 shrink-0"/>
@@ -160,7 +143,6 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
                                 </div>
                             )}
                             
-                            {/* Note Generali */}
                             {task.mostro_details.note_generali && (
                                 <div className="flex items-start gap-2 bg-black/30 p-2 rounded text-gray-300 border border-yellow-500/20">
                                     <ScrollText size={14} className="mt-0.5 text-yellow-500 shrink-0"/>
@@ -171,7 +153,6 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
                                 </div>
                             )}
 
-                            {/* Attacchi - FIX CRASH APPLICATO */}
                             <div className="bg-red-950/20 border border-red-900/30 p-2.5 rounded">
                                 <div className="flex items-center gap-1 font-bold text-red-400 text-[9px] uppercase mb-1 border-b border-red-900/30 pb-1">
                                     <Zap size={10}/> Elenco Attacchi & Capacità
@@ -191,9 +172,18 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
 // --- COMPONENTE PRINCIPALE ---
 const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, onStatChange, onEdit, onDelete }) => {
     const [formOpen, setFormOpen] = useState(false);
-    const [form, setForm] = useState({ ruolo: 'PNG', staffer: '', personaggio: '', mostro_template: '', compito_offgame: 'REG', istruzioni: '' });
+    
+    // STATO DEL FORM AGGIORNATO CON 'descrizione'
+    const [form, setForm] = useState({ 
+        ruolo: 'PNG', 
+        staffer: '', 
+        personaggio: '', 
+        mostro_template: '', 
+        compito_offgame: 'REG', 
+        descrizione: '', // <--- Campo mancante aggiunto
+        istruzioni: '' 
+    });
 
-    // Recupera ID utente corrente
     const currentUserId = useMemo(() => {
         try {
             const userParams = JSON.parse(localStorage.getItem('user'));
@@ -228,6 +218,8 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
 
     return (
         <div className="bg-gray-900/60 rounded-xl border border-gray-700/50 overflow-hidden mb-6 shadow-lg">
+            
+            {/* HEADER FASE */}
             <div className="bg-gray-800/80 px-4 py-3 flex justify-between items-center border-b border-gray-700 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex items-center gap-3 overflow-hidden">
                     <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg shrink-0">FASE {fase.ordine}</span>
@@ -243,59 +235,35 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                 )}
             </div>
 
+            {/* DESCRIZIONE FASE (AGGIUNTA) */}
+            {fase.descrizione && (
+                <div className="bg-gray-900/40 px-4 py-3 border-b border-gray-700/50">
+                    <div className="text-gray-300 text-xs leading-relaxed">
+                        <RichTextDisplay content={fase.descrizione} />
+                    </div>
+                </div>
+            )}
+
             <div className="p-3 space-y-6">
                 
-                {/* Gruppo PNG */}
-                {groupedTasks.PNG.length > 0 && (
-                    <div>
-                        <div className="text-[10px] font-black text-indigo-400 uppercase mb-2 flex items-center gap-2 ml-1">
-                            <Users size={12}/> Personaggi Non Giocanti
-                            <div className="h-px bg-indigo-500/20 flex-1"></div>
+                {/* Liste Task */}
+                {[ ['PNG', 'Personaggi Non Giocanti', <Users size={12}/>, 'indigo'], ['MOSTRO', 'Minacce & Mostri', <Swords size={12}/>, 'red'], ['OFF', 'Gestione Off-Game', <Monitor size={12}/>, 'gray'] ].map(([key, label, icon, color]) => (
+                    groupedTasks[key].length > 0 && (
+                        <div key={key}>
+                            <div className={`text-[10px] font-black text-${color}-400 uppercase mb-2 flex items-center gap-2 ml-1`}>
+                                {icon} {label}
+                                <div className={`h-px bg-${color}-500/20 flex-1`}></div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {groupedTasks[key].map(task => (
+                                    <TaskCard key={task.id} task={task} isMaster={isMaster} currentUserId={currentUserId} onRemove={onRemoveTask} onStatChange={onStatChange} />
+                                ))}
+                            </div>
                         </div>
-                        {/* 5. LAYOUT RESPONSIVE: 1 col (mobile) -> 2 col (md+) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {groupedTasks.PNG.map(task => (
-                                <TaskCard key={task.id} task={task} isMaster={isMaster} currentUserId={currentUserId} onRemove={onRemoveTask} onStatChange={onStatChange} />
-                            ))}
-                        </div>
-                    </div>
-                )}
+                    )
+                ))}
 
-                {/* Gruppo MOSTRI */}
-                {groupedTasks.MOSTRO.length > 0 && (
-                    <div>
-                        <div className="text-[10px] font-black text-red-400 uppercase mb-2 flex items-center gap-2 mt-4 ml-1">
-                            <Swords size={12}/> Minacce & Mostri
-                            <div className="h-px bg-red-500/20 flex-1"></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {groupedTasks.MOSTRO.map(task => (
-                                <TaskCard key={task.id} task={task} isMaster={isMaster} currentUserId={currentUserId} onRemove={onRemoveTask} onStatChange={onStatChange} />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Gruppo OFF-GAME */}
-                {groupedTasks.OFF.length > 0 && (
-                    <div>
-                        <div className="text-[10px] font-black text-gray-400 uppercase mb-2 flex items-center gap-2 mt-4 ml-1">
-                            <Monitor size={12}/> Gestione Off-Game
-                            <div className="h-px bg-gray-600/30 flex-1"></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {groupedTasks.OFF.map(task => (
-                                <TaskCard key={task.id} task={task} isMaster={isMaster} currentUserId={currentUserId} onRemove={onRemoveTask} onStatChange={onStatChange} />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {tasks.length === 0 && (
-                    <div className="text-center py-8 text-gray-600 text-xs italic border-2 border-dashed border-gray-800 rounded-xl bg-black/20">
-                        Nessun incarico assegnato in questa fase.
-                    </div>
-                )}
+                {tasks.length === 0 && <div className="text-center py-8 text-gray-600 text-xs italic border-2 border-dashed border-gray-800 rounded-xl bg-black/20">Nessun incarico assegnato in questa fase.</div>}
 
                 {/* Form Inserimento */}
                 {isMaster && (
@@ -331,6 +299,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                         </div>
                                     </div>
 
+                                    {/* Selettori Dinamici in base al ruolo */}
                                     {form.ruolo === 'PNG' && (
                                         <div className="space-y-1">
                                             <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Personaggio PnG</label>
@@ -361,13 +330,25 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                         </div>
                                     )}
 
-                                    <div className="h-64 border border-gray-700 rounded-lg overflow-hidden bg-gray-900 shadow-inner">
-                                        <RichTextEditor value={form.istruzioni} onChange={(val) => setForm({...form, istruzioni: val})} placeholder="Istruzioni dettagliate per lo staffer..." />
+                                    {/* CAMPO DESCRIZIONE (AGGIUNTO) */}
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Descrizione / Flavor (Opzionale)</label>
+                                        <div className="h-24 border border-gray-700 rounded-lg overflow-hidden bg-gray-900 shadow-inner">
+                                            <RichTextEditor value={form.descrizione} onChange={(val) => setForm({...form, descrizione: val})} placeholder="Descrizione narrativa per lo staffer..." />
+                                        </div>
+                                    </div>
+
+                                    {/* CAMPO ISTRUZIONI */}
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Istruzioni Operative</label>
+                                        <div className="h-32 border border-gray-700 rounded-lg overflow-hidden bg-gray-900 shadow-inner">
+                                            <RichTextEditor value={form.istruzioni} onChange={(val) => setForm({...form, istruzioni: val})} placeholder="Dettagli tecnici e regole..." />
+                                        </div>
                                     </div>
                                     
                                     <div className="flex gap-3 pt-2">
                                         <button onClick={() => setFormOpen(false)} className="flex-1 py-3 rounded-lg border border-gray-700 text-gray-400 text-[10px] font-bold hover:bg-gray-800 transition-colors uppercase">Annulla</button>
-                                        <button onClick={() => { onAddTask({ fase: fase.id, ...form }); setForm({...form, personaggio: '', mostro_template: '', istruzioni: ''}); setFormOpen(false); }} className="flex-2 bg-indigo-600 hover:bg-indigo-500 py-3 rounded-lg font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/30 transition-all transform active:scale-95">Conferma Incarico</button>
+                                        <button onClick={() => { onAddTask({ fase: fase.id, ...form }); setForm({...form, personaggio: '', mostro_template: '', istruzioni: '', descrizione: ''}); setFormOpen(false); }} className="flex-2 bg-indigo-600 hover:bg-indigo-500 py-3 rounded-lg font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/30 transition-all transform active:scale-95">Conferma Incarico</button>
                                     </div>
                                 </div>
                             </div>
