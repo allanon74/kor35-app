@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getWikiTierList, createWikiPage, updateWikiPage } from '../../api';
+import { getWikiTierList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import { Lock, Eye } from 'lucide-react'; // Assicurati di avere queste icone o rimuovile se non usi lucide
 
@@ -54,7 +54,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   
   // Gestione file immagine
   const [imageFile, setImageFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(initialData?.immagine || null);
+  const [previewUrl, setPreviewUrl] = useState(initialData?.immagine ? getWikiImageUrl(initialData.slug) : null);
 
   const isEditing = !!initialData?.id;
   const [loading, setLoading] = useState(false);
@@ -186,7 +186,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                 </div>
 
                 {/* 2. Immagine di Copertina e Posizionamento */} 
-                
+
                 <div className="border rounded-lg p-3 bg-gray-50">
                     <label className="block text-xs font-bold text-gray-700 mb-2">
                         Copertina e Posizionamento 

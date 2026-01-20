@@ -1305,6 +1305,13 @@ export const updateTierAbilita = (tierId, abilitaList, onLogout) => {
 export const getWikiImageUrl = (slug, width = 0) => {
     // Nota: API_BASE_URL deve essere la root del backend (es. http://localhost:8000)
     // Se usi il proxy di Vite, potrebbe essere solo ''
-    const baseUrl = 'https://tuo-dominio-backend.com'; // Sostituisci con la tua URL vera o variabile env
+    const baseUrl = API_BASE_URL; // Sostituisci con la tua URL vera o variabile env
     return `${baseUrl}/plot/api/wiki/image/${slug}/?w=${width}`;
 };
+
+// Funzione helper extra per le immagini "grezze" (es. se servono fuori dal resize)
+export const getMediaUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    return `${API_BASE_URL}${path}`;
+}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import WikiRenderer from '../components/WikiRenderer';
 import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal'; // Importiamo il modale
-import { getWikiPage, getWikiImageUrl } from '../api';
+import { getWikiPage, getWikiImageUrl, getMediaUrl } from '../api';
 import { useCharacter } from '../components/CharacterContext'; // Per i permessi
 import { EyeOff } from 'lucide-react';
 
@@ -113,7 +113,7 @@ export default function WikiPage({ slug: propSlug }) {
                     src={getWikiImageUrl(pageData.slug, 1200)} 
                     
                     // Fallback: se l'API custom fallisce per qualche motivo, usa l'url originale
-                    onError={(e) => { e.target.onerror = null; e.target.src = pageData.immagine; }}
+                    onError={(e) => { e.target.onerror = null; e.target.src = getMediaUrl(pageData.immagine); }}
                     
                     alt={pageData.titolo}
                     className="w-full h-full object-cover"
