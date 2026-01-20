@@ -1,33 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { searchPersonaggi, fetchAuthenticated } from '../api';
-import RichTextEditor from './RichTextEditor'; // <-- Editor Rich Text
+import RichTextEditor from './RichTextEditor';
+import { ShieldAlert, User, X } from 'lucide-react';
 
 const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSent, onLogout }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [selectedRecipient, setSelectedRecipient] = useState(null); // Null = Staff se non si cerca
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  
+  // NUOVO: Toggle per invio staff
+  const [isStaffMessage, setIsStaffMessage] = useState(false);
+  
   const [titolo, setTitolo] = useState('');
-  const [testo, setTesto] = useState(''); // Contiene HTML
+  const [testo, setTesto] = useState(''); // HTML content
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Reset campi alla chiusura
+  // Reset stato all'apertura
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
         setQuery('');
         setResults([]);
         setSelectedRecipient(null);
+        setIsStaffMessage(false);
         setTitolo('');
         setTesto('');
         setError('');
     }
   }, [isOpen]);
 
-  // Gestione ricerca destinatario (opzionale se scrivi solo allo staff)
+  // Logica di ricerca (Disabilitata se è messaggio staff)
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
-      if (query.length >= 2 && !selectedRecipient) {
+      if (!isStaffMessage && query.length >= 2 && !selectedRecipient) {
         try {
           const data = await searchPersonaggi(query, currentCharacterId);
           setResults(data);
@@ -40,7 +46,7 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [query, currentCharacterId, selectedRecipient]);
+  }, [query, currentCharacterId, selectedRecipient, isStaffMessage]);
 
   const handleSelect = (pg) => {
     setSelectedRecipient(pg);
@@ -48,16 +54,16 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
     setResults([]);
   };
 
-  const handleResetRecipient = () => {
-      setSelectedRecipient(null);
-      setQuery('');
-      setResults([]);
-  };
-
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
-    // Pulizia HTML base per evitare invio di stringhe vuote formattate (es <p><br></p>)
+    // Validazione
+    if (!isStaffMessage && !selectedRecipient) {
+        setError("Devi selezionare un destinatario o spuntare 'Scrivi allo Staff'.");
+        return;
+    }
+
+    // Pulizia HTML vuoto
     const cleanText = testo.replace(/<[^>]+>/g, '').trim();
     if (!cleanText && !testo.includes('<img')) {
         setError("Il messaggio non può essere vuoto.");
@@ -69,10 +75,11 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
 
     try {
         const payload = {
-            destinatario_personaggio: selectedRecipient ? selectedRecipient.id : null, // Null = Staff
-            titolo: titolo || 'Nuovo Messaggio',
-            testo: testo, // HTML dal RichTextEditor
-            tipo_messaggio: selectedRecipient ? 'IND' : 'STAFF'
+            // Se Staff Message è true, destinatario è NULL
+            destinatario_personaggio: isStaffMessage ? null : selectedRecipient.id,
+            titolo: titolo,
+            testo: testo,
+            is_staff_message: isStaffMessage // Flag per il backend
         };
 
         await fetchAuthenticated('/personaggi/api/messaggi/', {
@@ -95,54 +102,81 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
         <Dialog.Overlay className="fixed inset-0 bg-black opacity-80" />
 
         <div className="relative bg-gray-800 text-white rounded-lg max-w-2xl w-full p-6 shadow-2xl border border-gray-600">
-          <Dialog.Title className="text-xl font-bold mb-4 flex justify-between items-center">
-             <span>Nuovo Messaggio</span>
-             <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
-          </Dialog.Title>
+          <div className="flex justify-between items-center mb-4">
+             <Dialog.Title className="text-xl font-bold">Nuovo Messaggio</Dialog.Title>
+             <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={24}/></button>
+          </div>
 
           {error && <div className="bg-red-900 text-red-200 p-2 rounded mb-4 text-sm">{error}</div>}
 
           <form onSubmit={handleSendMessage} className="space-y-4">
             
-            {/* Destinatario (Opzionale: se vuoto = Staff) */}
-            <div className="relative">
-                <label className="block text-sm font-medium text-gray-400 mb-1">
-                    Destinatario <span className="text-xs text-gray-500">(Lascia vuoto per scrivere allo Staff)</span>
+            {/* OPZIONE STAFF */}
+            <div className="flex items-center gap-3 p-3 bg-gray-700/50 rounded border border-gray-600">
+                <input 
+                    type="checkbox" 
+                    id="chk_staff"
+                    checked={isStaffMessage}
+                    onChange={(e) => {
+                        setIsStaffMessage(e.target.checked);
+                        if(e.target.checked) {
+                            setSelectedRecipient(null);
+                            setQuery('');
+                        }
+                    }}
+                    className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                <label htmlFor="chk_staff" className="cursor-pointer flex items-center gap-2 font-bold text-indigo-300">
+                    <ShieldAlert size={18} />
+                    Invia messaggio allo Staff
                 </label>
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        placeholder="Cerca personaggio..."
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        disabled={!!selectedRecipient}
-                    />
-                    {selectedRecipient && (
-                        <button 
-                            type="button" 
-                            onClick={handleResetRecipient}
-                            className="text-red-400 hover:text-red-300 px-2"
-                        >
-                            Cambia
-                        </button>
+            </div>
+
+            {/* RICERCA DESTINATARIO (Nascosta se Staff è attivo) */}
+            {!isStaffMessage && (
+                <div className="relative">
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Destinatario</label>
+                    <div className="flex gap-2">
+                        <div className="relative w-full">
+                            <input
+                                type="text"
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-2 pl-9 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="Cerca personaggio..."
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                disabled={!!selectedRecipient}
+                            />
+                            <User size={16} className="absolute left-3 top-3 text-gray-500"/>
+                        </div>
+                        
+                        {selectedRecipient && (
+                            <button 
+                                type="button" 
+                                onClick={() => { setSelectedRecipient(null); setQuery(''); }}
+                                className="text-red-400 hover:text-red-300 px-3 border border-red-900/50 rounded bg-red-900/10"
+                            >
+                                Cambia
+                            </button>
+                        )}
+                    </div>
+                    
+                    {/* Lista Risultati */}
+                    {results.length > 0 && !selectedRecipient && (
+                        <ul className="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded mt-1 max-h-40 overflow-auto shadow-lg">
+                            {results.map(pg => (
+                                <li 
+                                    key={pg.id} 
+                                    onClick={() => handleSelect(pg)}
+                                    className="p-2 hover:bg-indigo-600 cursor-pointer text-sm border-b border-gray-600 flex justify-between"
+                                >
+                                    <span>{pg.nome}</span>
+                                    {pg.user_username && <span className="text-gray-400 text-xs">@{pg.user_username}</span>}
+                                </li>
+                            ))}
+                        </ul>
                     )}
                 </div>
-                {/* Dropdown Risultati */}
-                {results.length > 0 && !selectedRecipient && (
-                    <ul className="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded mt-1 max-h-40 overflow-auto shadow-lg">
-                        {results.map(pg => (
-                            <li 
-                                key={pg.id} 
-                                onClick={() => handleSelect(pg)}
-                                className="p-2 hover:bg-indigo-600 cursor-pointer text-sm border-b border-gray-600 last:border-0"
-                            >
-                                {pg.nome}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
+            )}
 
             {/* Titolo */}
             <div>
@@ -153,35 +187,28 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
                 value={titolo}
                 onChange={(e) => setTitolo(e.target.value)}
                 maxLength={100}
-                placeholder="Oggetto del messaggio"
+                required
               />
             </div>
 
-            {/* Editor Rich Text */}
-            <div className="h-64 sm:h-80">
+            {/* Editor */}
+            <div className="h-64 sm:h-80 text-black rounded overflow-hidden">
                 <RichTextEditor 
-                    label="Testo Messaggio"
+                    label="Testo"
                     value={testo} 
                     onChange={setTesto} 
-                    placeholder="Scrivi qui il tuo messaggio..."
+                    placeholder="Scrivi qui..."
                 />
             </div>
 
-            {/* Footer Bottoni */}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-700 mt-4">
-              <button 
-                type="button" 
-                onClick={onClose}
-                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors text-sm"
-              >
-                Annulla
-              </button>
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors">Annulla</button>
               <button 
                 type="submit" 
                 disabled={loading}
-                className={`px-6 py-2 rounded bg-indigo-600 hover:bg-indigo-500 font-bold transition-colors text-sm flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`px-6 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors ${loading ? 'opacity-50' : ''}`}
               >
-                {loading ? 'Invio...' : 'Invia Messaggio'}
+                {loading ? 'Invio...' : 'Invia'}
               </button>
             </div>
 

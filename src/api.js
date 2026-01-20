@@ -1348,3 +1348,13 @@ export const activateUser = async (userIdToActivate, onLogout) => {
         method: 'POST'
     }, onLogout);
 };
+
+/**
+ * Recupera i messaggi indirizzati allo staff (is_staff_message=True)
+ */
+export const fetchStaffMessages = async (onLogout) => {
+    // Chiama l'endpoint backend filtrando per is_staff_message
+    return fetchAuthenticated('/personaggi/api/messaggi/?is_staff_message=true', {
+        method: 'GET'
+    }, onLogout);
+};

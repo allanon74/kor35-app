@@ -8,7 +8,7 @@ import QrTab from './QrTab.jsx';
 import QrResultModal from './QrResultModal.jsx';
 import { useCharacter } from './CharacterContext';
 import { TimerOverlay } from './TimerOverlay';
-import { fetchAuthenticated } from '../api'; 
+import { fetchAuthenticated, fetchStaffMessages } from '../api'; // <-- [MODIFICA] Import fetchStaffMessages
 import packageInfo from '../../package.json';
 
 import { 
@@ -16,7 +16,7 @@ import {
     Menu, X, UserCog, RefreshCw, Filter, DownloadCloud, ScrollText, 
     ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users,
     Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight,
-    Key // <--- [MODIFICA] Aggiunta icona Key
+    Key // <-- [MODIFICA] Icona Key aggiunta
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -32,7 +32,7 @@ import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; 
 import PersonaggiTab from './PersonaggiTab.jsx';
 
-// --- [MODIFICA] Import Modale Password
+// --- [MODIFICA] Import Modale Password ---
 import PasswordChangeModal from './PasswordChangeModal.jsx';
 
 // VERSIONE APP
@@ -59,8 +59,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // --- [MODIFICA] Stato per il modale password
+  // --- [MODIFICA] Stato per Modale Password e Notifiche Staff ---
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [staffUnreadCount, setStaffUnreadCount] = useState(0);
   
   // STATO SHORTCUTS (Default salvagente)
   const [userShortcuts, setUserShortcuts] = useState(DEFAULT_SHORTCUTS);
@@ -70,6 +71,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW Registered: ' + r);
+    },
     onRegisterError(error) {
       console.log('SW registration error', error);
     },
@@ -121,6 +125,31 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   useEffect(() => {
     if (token) fetchPersonaggi();
   }, [token, fetchPersonaggi]);
+
+  // --- [MODIFICA] POLLING MESSAGGI STAFF (Solo per Staff) ---
+  useEffect(() => {
+    let interval;
+    if (isStaff) {
+        const checkStaffMessages = async () => {
+            try {
+                // Recupera messaggi staff e conta quelli non letti (assumendo che l'API restituisca una lista)
+                // Se l'API supporta il conteggio diretto è meglio, altrimenti filtriamo lato client
+                const msgs = await fetchStaffMessages(onLogout);
+                if (Array.isArray(msgs)) {
+                    const unread = msgs.filter(m => !m.letto).length;
+                    setStaffUnreadCount(unread);
+                }
+            } catch (e) {
+                console.error("Errore check messaggi staff", e);
+            }
+        };
+        
+        checkStaffMessages();
+        // Controllo ogni 60 secondi
+        interval = setInterval(checkStaffMessages, 60000);
+    }
+    return () => clearInterval(interval);
+  }, [isStaff, onLogout]);
 
   // --- EFFETTO REINDIRIZZAMENTO ---
   useEffect(() => {
@@ -195,6 +224,8 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const hasMsgNotif = unreadCount > 0;
   const jobsCount = selectedCharacterData?.lavori_pendenti_count || 0; 
   const hasJobNotif = jobsCount > 0; 
+  // [MODIFICA] Notifica Staff
+  const hasStaffMsgNotif = isStaff && staffUnreadCount > 0;
 
   const renderTabContent = () => {
     if (activeTab === 'home') return <HomeTab />;
@@ -282,7 +313,17 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                     const isActive = activeTab === tab.id;
                     let badgeCount = 0;
                     let badgeColor = 'bg-gray-600';
-                    if (tab.id === 'messaggi') { badgeCount = unreadCount; badgeColor = 'bg-purple-600'; }
+                    
+                    // Logica Badge
+                    if (tab.id === 'messaggi') {
+                        if (hasStaffMsgNotif) { // Priorità al verde staff
+                            badgeCount = staffUnreadCount;
+                            badgeColor = 'bg-green-500';
+                        } else {
+                            badgeCount = unreadCount; 
+                            badgeColor = 'bg-purple-600';
+                        }
+                    }
 
                     return (
                         <div key={tab.id} className={`flex items-center justify-between p-2 rounded-lg transition-colors group ${isActive ? 'bg-indigo-900/40 border border-indigo-500/30' : 'hover:bg-gray-700/50 border border-transparent'}`}>
@@ -441,7 +482,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                     {/* PALLINI NOTIFICHE HEADER */}
                     <div className="absolute top-1 right-1 flex flex-col gap-0.5 pointer-events-none">
                         {hasAdminNotif && <span className="block h-2.5 w-2.5 rounded-full ring-1 ring-gray-900 bg-red-600 animate-pulse shadow-sm" title="Admin Pending" />}
-                        {hasMsgNotif && <span className="block h-2.5 w-2.5 rounded-full ring-1 ring-gray-900 bg-purple-500 shadow-sm" title="Messaggi" />}
+                        {/* [MODIFICA] Pallino verde se staff msg */}
+                        {hasStaffMsgNotif && <span className="block h-2.5 w-2.5 rounded-full ring-1 ring-gray-900 bg-green-500 animate-pulse shadow-sm" title="Staff Msg" />}
+                        {(!hasStaffMsgNotif && hasMsgNotif) && <span className="block h-2.5 w-2.5 rounded-full ring-1 ring-gray-900 bg-purple-500 shadow-sm" title="Messaggi" />}
                         {hasJobNotif && <span className="block h-2.5 w-2.5 rounded-full ring-1 ring-gray-900 bg-amber-500 shadow-sm" title="Lavori" />}
                         {needRefresh && <span className="block h-2.5 w-2.5 rounded-full ring-1 ring-gray-900 bg-blue-500 animate-bounce shadow-sm" title="Update" />}
                     </div>
@@ -486,7 +529,17 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                 
                 let showDot = false;
                 let dotColor = 'bg-red-500';
-                if (tab.id === 'messaggi' && hasMsgNotif) { showDot = true; dotColor = 'bg-purple-500'; }
+                
+                // [MODIFICA] Gestione bollino verde prioritario
+                if (tab.id === 'messaggi') {
+                    if (hasStaffMsgNotif) {
+                        showDot = true;
+                        dotColor = 'bg-green-500';
+                    } else if (hasMsgNotif) {
+                        showDot = true;
+                        dotColor = 'bg-purple-500';
+                    }
+                }
                 
                 return (
                     <TabButton 
@@ -507,7 +560,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
         <QrResultModal data={qrResultData} onClose={closeQrModal} onLogout={onLogout} onStealSuccess={handleStealSuccess} />
       )}
 
-      {/* --- [MODIFICA] Modale Cambio Password --- */}
+      {/* --- [MODIFICA] MODALE CAMBIO PASSWORD --- */}
       <PasswordChangeModal 
           isOpen={isPasswordModalOpen} 
           onClose={() => setIsPasswordModalOpen(false)} 
