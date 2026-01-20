@@ -124,6 +124,18 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
             {expanded && (
                 <div className="mt-3 pt-3 border-t border-white/10 space-y-3 animation-fade-in-down origin-top">
                     
+                    {/* Descrizione Task (NUOVO BLOCCO) */}
+                    {task.descrizione && (
+                        <div className="bg-black/30 p-3 rounded-lg border border-white/5 text-gray-300 shadow-sm">
+                            <div className="text-[9px] font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                                <ScrollText size={10}/> Descrizione
+                            </div>
+                            <div className="scale-100 origin-top-left">
+                                <RichTextDisplay content={task.descrizione} />
+                            </div>
+                        </div>
+                    )}
+
                     {/* Istruzioni */}
                     {task.istruzioni && (
                         <div className="bg-black/30 p-3 rounded-lg border border-white/5 text-gray-300 shadow-sm">
