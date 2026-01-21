@@ -1353,8 +1353,8 @@ export const activateUser = async (userIdToActivate, onLogout) => {
  * Recupera i messaggi indirizzati allo staff (is_staff_message=True)
  */
 export const fetchStaffMessages = async (onLogout) => {
-    // Chiama l'endpoint backend filtrando per is_staff_message
-    return fetchAuthenticated('/personaggi/api/messaggi/?is_staff_message=true', {
+    // --- CORREZIONE: Usa l'endpoint specifico per lo staff invece di quello generico ---
+    return fetchAuthenticated('/personaggi/api/staff/messages/', {
         method: 'GET'
     }, onLogout);
 };
