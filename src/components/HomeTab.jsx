@@ -47,7 +47,8 @@ const CharacterSheet = memo(({ data }) => {
     nome,
     crediti,
     punti_caratteristica,
-    punteggi_base, 
+    punteggi_base,
+    statistiche_base_dict,
     modificatori_calcolati, 
     abilita_possedute, 
     oggetti,
@@ -70,9 +71,9 @@ const CharacterSheet = memo(({ data }) => {
   }, [oggetti]);
 
   // Calcolo Statistiche
-  const { stat_primarie, caratteristiche, aure_possedute } = useMemo(() => {
+  const { stat_primarie, stat_secondarie, caratteristiche, aure_possedute } = useMemo(() => {
     if (!punteggiList || punteggiList.length === 0 || !punteggi_base) { 
-      return { stat_primarie: [], caratteristiche: [], aure_possedute: [] };
+      return { stat_primarie: [], stat_secondarie: [], caratteristiche: [], aure_possedute: [] };
     }
 
     const sortByOrdine = (a, b) => (a.ordine || 0) - (b.ordine || 0);
@@ -80,6 +81,10 @@ const CharacterSheet = memo(({ data }) => {
 
     const primarie = punteggiList
         .filter(p => p.tipo === 'ST' && p.is_primaria)
+        .sort(sortByOrdine);
+
+    const secondarie = punteggiList
+        .filter(p => p.tipo === 'ST' && !p.is_primaria)
         .sort(sortByOrdine);
 
     const punteggiMappati = Object.entries(punteggi_base) 
@@ -98,7 +103,7 @@ const CharacterSheet = memo(({ data }) => {
         .filter(item => item.punteggio.tipo === 'AU')
         .sort(sortByPunteggioOrdine);
 
-    return { stat_primarie: primarie, caratteristiche: chars, aure_possedute: aure };
+    return { stat_primarie: primarie, stat_secondarie: secondarie, caratteristiche: chars, aure_possedute: aure };
 
   }, [punteggiList, punteggi_base]);
 
@@ -298,18 +303,28 @@ const CharacterSheet = memo(({ data }) => {
          <TransazioniViewer />
       </div> */}
 
-      {/* Modificatori (Accordion) */}
-      {modificatori_calcolati && (
+      {/* Statistiche Secondarie (Accordion) */}
+      {stat_secondarie && stat_secondarie.length > 0 && (
         <details className="mt-4 bg-gray-800 rounded-lg shadow-inner">
           <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer select-none">
-            Statistiche Secondarie (Dettagli)
+            Statistiche Secondarie
           </summary>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border-t border-gray-700">
-            {Object.entries(modificatori_calcolati).map(([parametro, mods]) => {
-              const punteggio = punteggiList.find(p => p.parametro === parametro);
-              if (!punteggio || punteggio.is_primaria) return null;
+            {stat_secondarie.map((punteggio) => {
+              if (!punteggio.parametro) return null;
               
-              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+              // Recupera il valore base del personaggio (da statistiche_base_dict) o usa il valore predefinito
+              const valore_base = (statistiche_base_dict && statistiche_base_dict[punteggio.parametro]) 
+                                  || punteggio.valore_predefinito 
+                                  || 0;
+              
+              // Applica i modificatori se presenti
+              const mods = modificatori_calcolati && modificatori_calcolati[punteggio.parametro] 
+                          ? modificatori_calcolati[punteggio.parametro] 
+                          : {add: 0, mol: 1.0};
+              
+              const valore_finale = (valore_base + mods.add) * mods.mol;
+              
               return (
                 <PunteggioDisplay
                   key={punteggio.id}
