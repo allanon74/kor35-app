@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect } from 'react';
+import React, { Fragment, useEffect, memo } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import PlayerMessageTab from './PlayerMessageTab';
@@ -80,4 +80,4 @@ const MessaggiTab = ({ onLogout }) => {
   );
 };
 
-export default MessaggiTab;
+export default memo(MessaggiTab);

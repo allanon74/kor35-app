@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { useCharacter } from './CharacterContext';
 import { Coins, Star, Bell, Backpack, Zap } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay';
@@ -12,15 +12,17 @@ import TransazioniViewer from './TransazioniViewer';
 
 // --- Componenti Helper ---
 
-const StatRow = ({ label, value, icon }) => (
-  <div className="flex justify-between items-center p-2 bg-gray-800 rounded-md">
+const StatRow = memo(({ label, value, icon }) => (
+  <div className="flex justify-between items-center p-2 bg-gray-800 rounded-md hover:bg-gray-750 transition-colors">
     <div className="flex items-center">
       {icon}
       <span className="ml-2 font-semibold text-gray-300 capitalize">{label}</span>
     </div>
     <span className="text-xl font-bold text-white">{value}</span>
   </div>
-);
+));
+
+StatRow.displayName = 'StatRow';
 
 // (ItemList commentato come nel tuo originale)
 // const ItemList = ({ title, items, keyField = 'id', nameField = 'nome' }) => (
@@ -38,7 +40,7 @@ const LoadingComponent = () => (
 
 // --- Componente Scheda ---
 
-const CharacterSheet = ({ data }) => {
+const CharacterSheet = memo(({ data }) => {
   const { punteggiList, subscribeToPush, fetchCharacterData } = useCharacter(); // <--- AGGIUNTO fetchCharacterData
 
   const {
@@ -172,7 +174,7 @@ const CharacterSheet = ({ data }) => {
          </div>
       )}
 
-      <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center">{nome}</h2>
+      <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center animate-fadeIn drop-shadow-lg">{nome}</h2>
       
       {/* --- NUOVA SEZIONE: DISPOSITIVI ATTIVI --- */}
       {activeItems && activeItems.length > 0 && (
@@ -195,7 +197,7 @@ const CharacterSheet = ({ data }) => {
 
       {/* Valute */}
       <div className="grid grid-cols-2 gap-4 mb-6 max-w-lg mx-auto"> 
-        <StatRow label="CR" value={crediti || 0} icon={<Coins className="text-yellow-400" />} />
+        <StatRow label="CR" value={crediti || 0} icon={<Coins className="text-yellow-400 animate-pulse" />} />
         <StatRow label="PC" value={punti_caratteristica || 0} icon={<Star className="text-blue-400" />} />
       </div>
 
@@ -324,9 +326,11 @@ const CharacterSheet = ({ data }) => {
       )}
     </div>
   );
-};
+});
 
-const HomeTab = () => {
+CharacterSheet.displayName = 'CharacterSheet';
+
+const HomeTab = memo(() => {
   const { 
     selectedCharacterData, 
     isLoadingDetail,
@@ -341,6 +345,8 @@ const HomeTab = () => {
   if (!selectedCharacterData) return <div className="p-8 text-center text-gray-400"><p>Nessun dato trovato.</p></div>;
 
   return <CharacterSheet data={selectedCharacterData} />;
-};
+});
+
+HomeTab.displayName = 'HomeTab';
 
 export default HomeTab;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
     createPersonaggio, 
@@ -212,18 +212,20 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
 
             <div className="flex-1 overflow-y-auto space-y-4 pb-20 custom-scrollbar">
                 {/* Controllo di sicurezza: mappa solo se è un array */}
-                {Array.isArray(personaggiList) && personaggiList.map(char => (
+                {Array.isArray(personaggiList) && personaggiList.map(char => {
+                    const isSelected = selectedCharacterId === String(char.id);
+                    return (
                     <div 
                         key={char.id} 
                         onClick={() => handleSelect(char.id)}
-                        className={`relative group p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between
-                            ${selectedCharacterId === String(char.id) 
-                                ? 'bg-indigo-900/30 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]' 
+                        className={`relative group p-4 rounded-xl border transition-all duration-200 cursor-pointer flex items-center justify-between transform hover:scale-[1.02] active:scale-[0.98]
+                            ${isSelected
+                                ? 'bg-indigo-900/30 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)] ring-2 ring-indigo-500/20' 
                                 : 'bg-gray-800 border-gray-700 hover:border-gray-500 hover:bg-gray-750'
                             }`}
                     >
                         <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl uppercase bg-gray-700 text-gray-300`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl uppercase transition-all ${isSelected ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-500/30' : 'bg-gray-700 text-gray-300 group-hover:bg-gray-600'}`}>
                                 {char.nome ? char.nome.charAt(0) : '?'}
                             </div>
                             
@@ -256,7 +258,8 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                             )}
                         </div>
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* MODALE CREATE/EDIT */}
@@ -377,4 +380,4 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     );
 };
 
-export default PersonaggiTab;
+export default memo(PersonaggiTab);

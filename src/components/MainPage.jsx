@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 // --- LOGICA PWA ---
 import { useRegisterSW } from 'virtual:pwa-register/react'; 
 import { Link } from 'react-router-dom';
@@ -211,23 +211,28 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       }
   };
 
-  const handleScanSuccess = (jsonData) => setQrResultData(jsonData);
-  const closeQrModal = () => setQrResultData(null);
+  const handleScanSuccess = useCallback((jsonData) => setQrResultData(jsonData), []);
+  const closeQrModal = useCallback(() => setQrResultData(null), []);
   
-  const handleMenuNavigation = (tabName) => {
+  const handleMenuNavigation = useCallback((tabName) => {
     setActiveTab(tabName);
     setIsMenuOpen(false);
-  };
+  }, []);
 
-  // --- NOTIFICHE ---
-  const hasAdminNotif = isAdmin && adminPendingCount > 0;
-  const hasMsgNotif = unreadCount > 0;
-  const jobsCount = selectedCharacterData?.lavori_pendenti_count || 0; 
-  const hasJobNotif = jobsCount > 0; 
-  // [MODIFICA] Notifica Staff
-  const hasStaffMsgNotif = isStaff && staffUnreadCount > 0;
+  // --- NOTIFICHE (Memoized) ---
+  const notificationState = useMemo(() => {
+    const hasAdminNotif = isAdmin && adminPendingCount > 0;
+    const hasMsgNotif = unreadCount > 0;
+    const jobsCount = selectedCharacterData?.lavori_pendenti_count || 0; 
+    const hasJobNotif = jobsCount > 0; 
+    const hasStaffMsgNotif = isStaff && staffUnreadCount > 0;
+    
+    return { hasAdminNotif, hasMsgNotif, hasJobNotif, hasStaffMsgNotif, jobsCount };
+  }, [isAdmin, adminPendingCount, unreadCount, selectedCharacterData?.lavori_pendenti_count, isStaff, staffUnreadCount]);
+  
+  const { hasAdminNotif, hasMsgNotif, hasJobNotif, hasStaffMsgNotif } = notificationState;
 
-  const renderTabContent = () => {
+  const renderTabContent = useCallback(() => {
     if (activeTab === 'home') return <HomeTab />;
     if (activeTab === 'game') return <GameTab onNavigate={handleMenuNavigation} />;
     if (activeTab === 'admin_msg') return <AdminMessageTab onLogout={onLogout} />;
@@ -241,12 +246,12 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
         
         if (!selectedCharacterId && tabDef.id !== 'personaggi') {
             return (
-                <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4">
-                    <Users size={64} className="opacity-20"/>
+                <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4 animate-fadeIn">
+                    <Users size={64} className="opacity-20 animate-pulse"/>
                     <p className="text-lg font-bold">Nessun Personaggio Selezionato</p>
                     <button 
                         onClick={() => setActiveTab('personaggi')}
-                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold uppercase text-xs"
+                        className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold uppercase text-xs transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95"
                     >
                         Vai alla selezione
                     </button>
@@ -254,15 +259,15 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
             );
         }
         if (tabDef.id === 'qr') return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
-        if (tabDef.id === 'logs' || tabDef.id === 'transazioni') return <div className="p-4 h-full overflow-y-auto"><Component charId={selectedCharacterId} /></div>;
+        if (tabDef.id === 'logs' || tabDef.id === 'transazioni') return <div className="p-4 h-full overflow-y-auto animate-fadeIn"><Component charId={selectedCharacterId} /></div>;
         
         return <Component onLogout={onLogout} />;
     }
     return <HomeTab />;
-  };
+  }, [activeTab, selectedCharacterId, isStealingOnCooldown, cooldownTimer, handleMenuNavigation, handleScanSuccess, onLogout]);
 
   // --- COMPONENTE INTERNO PER IL CONTENUTO DEL MENU (RIUTILIZZABILE) ---
-  const MenuContent = () => (
+  const MenuContent = memo(() => (
     <div className="flex flex-col h-full overflow-hidden">
         {/* SELETTORE PERSONAGGIO E TAB */}
         <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
@@ -433,7 +438,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
             </button>
         </div>
     </div>
-  );
+  ));
+  
+  MenuContent.displayName = 'MenuContent';
 
   return (
     <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
@@ -457,7 +464,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       <div className="flex-1 flex flex-col min-w-0 relative">
           
           {/* --- HEADER --- */}
-          <header className="relative flex justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 border-b border-gray-700 z-10 h-16">
+          <header className="relative flex justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 border-b border-gray-700 z-10 h-16 backdrop-blur-sm bg-gray-800/95">
               <div className="flex items-center gap-3 z-20">
                   <img src="/pwa-512x512.png" alt="Logo" className="w-9 h-9 object-contain drop-shadow-lg" />
                   <h1 className="text-xl font-black italic hidden sm:block text-blue-400">KOR-35</h1>
@@ -465,11 +472,11 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
 
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none z-10">
                 {selectedCharacterData ? (
-                    <div className="flex flex-col items-center justify-center">
+                    <div className="flex flex-col items-center justify-center animate-fadeIn">
                         <span className="text-xs text-gray-500 uppercase tracking-widest leading-none mb-0.5">Operativo</span>
                         <span className="font-bold text-white text-base tracking-wide drop-shadow-md">{selectedCharacterData.nome}</span>
                     </div>
-                ) : <span className="text-gray-500 italic text-sm">Seleziona Personaggio</span>}
+                ) : <span className="text-gray-500 italic text-sm animate-pulse">Seleziona Personaggio</span>}
               </div>
 
               <div className="flex items-center gap-3 z-20">
@@ -570,23 +577,27 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   );
 };
 
-// Componente TabButton (Invariato)
-const TabButton = ({ icon, label, isActive, onClick, notificationDot, dotColor }) => (
-  <button onClick={onClick} className={`flex flex-col items-center justify-center p-1 min-w-14 h-full transition-all duration-200 ${isActive ? 'text-indigo-400' : 'text-gray-500 hover:text-gray-300'} focus:outline-none relative group`}>
-    
+// Componente TabButton (Memoized per performance)
+const TabButton = memo(({ icon, label, isActive, onClick, notificationDot, dotColor }) => (
+  <button 
+    onClick={onClick} 
+    className={`flex flex-col items-center justify-center p-1 min-w-14 h-full transition-all duration-200 ${isActive ? 'text-indigo-400' : 'text-gray-500 hover:text-gray-300'} focus:outline-none relative group`}
+  >
     <div className={`transition-transform duration-200 ${isActive ? '-translate-y-1 scale-110' : 'group-active:scale-95'}`}>
         {icon}
         {notificationDot && (
-            <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-gray-800 ${dotColor}`}></span>
+            <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-gray-800 animate-pulse ${dotColor}`}></span>
         )}
     </div>
     
-    <span className={`text-[10px] font-medium tracking-tight mt-0.5 truncate max-w-16 ${isActive ? 'text-indigo-400' : 'text-gray-500'}`}>{label}</span>
+    <span className={`text-[10px] font-medium tracking-tight mt-0.5 truncate max-w-16 transition-colors ${isActive ? 'text-indigo-400' : 'text-gray-500'}`}>{label}</span>
     
     {isActive && (
-        <div className="absolute bottom-0 w-8 h-0.5 bg-indigo-400 rounded-t-full shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
+        <div className="absolute bottom-0 w-8 h-0.5 bg-indigo-400 rounded-t-full shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse"></div>
     )}
   </button>
-);
+));
 
-export default MainPage;
+TabButton.displayName = 'TabButton';
+
+export default memo(MainPage);
