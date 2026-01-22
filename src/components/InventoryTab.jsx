@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
+import PunteggioDisplay from './PunteggioDisplay';
 import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
 // --- UTILS ---
@@ -139,26 +140,25 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
         );
     };
 
-    // Render Componenti (Mattoni) con Icone
+    // Render Componenti (Mattoni) con PunteggioDisplay
     const renderComponents = (componenti) => {
         if (!componenti || componenti.length === 0) return null;
         return (
             <div className="flex flex-wrap gap-1 items-center justify-end">
                 {componenti.map((comp, idx) => {
-                    const val = comp.valore || 1;
-                    const icons = [];
-                    for(let i=0; i<val; i++) {
-                        icons.push(
-                            <div key={`${idx}-${i}`} className="w-5 h-5 rounded bg-gray-800 border border-gray-600 flex items-center justify-center p-0.5 shadow-sm" title={comp.caratteristica.nome}>
-                                {comp.caratteristica.icona_url ? (
-                                    <img src={comp.caratteristica.icona_url} alt={comp.caratteristica.sigla} className="w-full h-full object-contain" />
-                                ) : (
-                                    <span className="text-[9px] font-bold text-gray-300">{comp.caratteristica.sigla}</span>
-                                )}
-                            </div>
-                        );
-                    }
-                    return icons;
+                    if (!comp.caratteristica) return null;
+                    return (
+                        <PunteggioDisplay
+                            key={idx}
+                            punteggio={comp.caratteristica}
+                            value={comp.valore || 1}
+                            displayText="abbr"
+                            iconType="inv_circle"
+                            size="badge"
+                            readOnly={true}
+                            className="shrink-0"
+                        />
+                    );
                 })}
             </div>
         );
@@ -210,14 +210,23 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
             {/* HEADER CARD */}
             <div className="flex items-start justify-between cursor-pointer" onClick={() => onToggleExpand(item.id)}>
                 <div className="flex items-center gap-3 w-full">
-                    {/* Icona Aura (con fallback) */}
-                    <div className="w-10 h-10 rounded bg-gray-900 border border-gray-600 flex items-center justify-center shrink-0 overflow-hidden shadow-inner" title={item.aura?.nome || "Oggetto"}>
-                         {item.aura?.icona_url ? (
-                             <img src={item.aura.icona_url} className="w-7 h-7 object-contain" alt={item.aura.nome}/>
-                         ) : (
-                             <Sparkles size={20} color={item.aura?.colore || '#888'}/>
-                         )}
-                    </div>
+                    {/* Icona Aura con PunteggioDisplay */}
+                    {item.aura ? (
+                        <div className="shrink-0 flex items-center" title={item.aura.nome || "Oggetto"}>
+                            <PunteggioDisplay
+                                punteggio={item.aura}
+                                value={null}
+                                displayText="none"
+                                iconType="inv_circle"
+                                size="s"
+                                readOnly={true}
+                            />
+                        </div>
+                    ) : (
+                        <div className="w-10 h-10 rounded bg-gray-900 border border-gray-600 flex items-center justify-center shrink-0 overflow-hidden shadow-inner" title="Oggetto">
+                            <Sparkles size={20} color="#888"/>
+                        </div>
+                    )}
                     
                     <div className="flex flex-col w-full">
                         <div className="flex items-center justify-between w-full">
