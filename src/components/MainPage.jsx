@@ -233,7 +233,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const { hasAdminNotif, hasMsgNotif, hasJobNotif, hasStaffMsgNotif } = notificationState;
 
   const renderTabContent = useCallback(() => {
-    if (activeTab === 'home') return <HomeTab />;
+    if (activeTab === 'home') return <HomeTab onLogout={onLogout} />;
     if (activeTab === 'game') return <GameTab onNavigate={handleMenuNavigation} />;
     if (activeTab === 'admin_msg') return <AdminMessageTab onLogout={onLogout} />;
 
@@ -263,7 +263,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
         
         return <Component onLogout={onLogout} />;
     }
-    return <HomeTab />;
+    return <HomeTab onLogout={onLogout} />;
   }, [activeTab, selectedCharacterId, isStealingOnCooldown, cooldownTimer, handleMenuNavigation, handleScanSuccess, onLogout]);
 
   // --- COMPONENTE INTERNO PER IL CONTENUTO DEL MENU (RIUTILIZZABILE) ---

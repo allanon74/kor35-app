@@ -1,10 +1,11 @@
-import React, { useMemo, memo } from 'react';
+import React, { useMemo, memo, useState } from 'react';
 import { useCharacter } from './CharacterContext';
 import { Coins, Star, Bell, Backpack, Zap } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay';
 import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
 import ActiveItemWidget from './ActiveItemWidget'; // <--- IMPORT WIDGET
+import StatisticaModificatoriModal from './StatisticaModificatoriModal'; // <--- IMPORT MODAL
 
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
@@ -40,10 +41,14 @@ const LoadingComponent = () => (
 
 // --- Componente Scheda ---
 
-const CharacterSheet = memo(({ data }) => {
+const CharacterSheet = memo(({ data, onLogout }) => {
   const { punteggiList, subscribeToPush, fetchCharacterData } = useCharacter(); // <--- AGGIUNTO fetchCharacterData
+  
+  // State per la modal dei modificatori
+  const [modalStatistica, setModalStatistica] = useState(null);
 
   const {
+    id: personaggioId,
     nome,
     crediti,
     punti_caratteristica,
@@ -217,14 +222,23 @@ const CharacterSheet = memo(({ data }) => {
               const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
               
               return (
-                <PunteggioDisplay
+                <div 
                   key={punteggio.id}
-                  punteggio={punteggio}
-                  value={Math.round(valore_finale)} 
-                  displayText="name"
-                  iconType="inv_circle"
-                  size="m"
-                />
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setModalStatistica(punteggio);
+                  }}
+                  className="cursor-context-menu"
+                  title="Click destro per dettagli"
+                >
+                  <PunteggioDisplay
+                    punteggio={punteggio}
+                    value={Math.round(valore_finale)} 
+                    displayText="name"
+                    iconType="inv_circle"
+                    size="m"
+                  />
+                </div>
               );
             })}
           </div>
@@ -326,18 +340,37 @@ const CharacterSheet = memo(({ data }) => {
               const valore_finale = (valore_base + mods.add) * mods.mol;
               
               return (
-                <PunteggioDisplay
+                <div 
                   key={punteggio.id}
-                  punteggio={punteggio}
-                  value={Math.round(valore_finale)} 
-                  displayText="name"
-                  iconType="inv_circle"
-                  size="m"
-                />
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setModalStatistica(punteggio);
+                  }}
+                  className="cursor-context-menu"
+                  title="Click destro per dettagli"
+                >
+                  <PunteggioDisplay
+                    punteggio={punteggio}
+                    value={Math.round(valore_finale)} 
+                    displayText="name"
+                    iconType="inv_circle"
+                    size="m"
+                  />
+                </div>
               );
             })}
           </div>
         </details>
+      )}
+
+      {/* Modal Modificatori */}
+      {modalStatistica && (
+        <StatisticaModificatoriModal 
+          punteggio={modalStatistica}
+          personaggioId={personaggioId}
+          onClose={() => setModalStatistica(null)}
+          onLogout={onLogout}
+        />
       )}
     </div>
   );
@@ -345,7 +378,7 @@ const CharacterSheet = memo(({ data }) => {
 
 CharacterSheet.displayName = 'CharacterSheet';
 
-const HomeTab = memo(() => {
+const HomeTab = memo(({ onLogout }) => {
   const { 
     selectedCharacterData, 
     isLoadingDetail,
@@ -359,7 +392,7 @@ const HomeTab = memo(() => {
   if (!selectedCharacterId) return <div className="p-8 text-center text-gray-400"><h2 className="text-2xl font-bold mb-4">Benvenuto!</h2><p>Seleziona un personaggio.</p></div>;
   if (!selectedCharacterData) return <div className="p-8 text-center text-gray-400"><p>Nessun dato trovato.</p></div>;
 
-  return <CharacterSheet data={selectedCharacterData} />;
+  return <CharacterSheet data={selectedCharacterData} onLogout={onLogout} />;
 });
 
 HomeTab.displayName = 'HomeTab';
