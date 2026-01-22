@@ -32,7 +32,18 @@ const PlotTab = ({ onLogout }) => {
 
     const loadInitialData = useCallback(async () => {
         try {
+            console.log("PlotTab: Inizio caricamento dati...");
             const [evData, risData] = await Promise.all([getEventi(onLogout), getRisorseEditor(onLogout)]);
+            
+            console.log("PlotTab: Dati ricevuti - eventi:", evData?.length || 0, "risorse:", risData);
+            
+            // Verifica che evData sia un array
+            if (!Array.isArray(evData)) {
+                console.error("PlotTab: evData non è un array:", evData);
+                setEventi([]);
+                setLoading(false);
+                return;
+            }
             
             // Ordina eventi per data e trova il primo futuro
             const sortedEvents = evData.sort((a, b) => new Date(a.data_inizio) - new Date(b.data_inizio));
@@ -40,9 +51,21 @@ const PlotTab = ({ onLogout }) => {
             const nextEvent = sortedEvents.find(ev => new Date(ev.data_inizio) >= today) || sortedEvents[0];
             
             setEventi(sortedEvents);
-            setRisorse(risData);
-            if (nextEvent) setSelectedEvento(nextEvent);
-        } catch (e) { console.error("Errore caricamento plot:", e); } finally { setLoading(false); }
+            setRisorse(risData || { png: [], templates: [], manifesti: [], inventari: [], staff: [] });
+            if (nextEvent) {
+                console.log("PlotTab: Evento selezionato:", nextEvent.id, nextEvent.titolo);
+                setSelectedEvento(nextEvent);
+            } else {
+                console.warn("PlotTab: Nessun evento trovato");
+            }
+        } catch (e) { 
+            console.error("PlotTab: Errore caricamento plot:", e);
+            alert(`Errore nel caricamento dei dati plot: ${e.message || e}`);
+            setEventi([]);
+            setRisorse({ png: [], templates: [], manifesti: [], inventari: [], staff: [] });
+        } finally { 
+            setLoading(false); 
+        }
     }, [onLogout]);
 
     useEffect(() => { loadInitialData(); }, [loadInitialData]);
@@ -366,8 +389,13 @@ const PlotTab = ({ onLogout }) => {
                         const found = eventi.find(ev => ev.id === parseInt(e.target.value));
                         if (found) setSelectedEvento(found);
                     }}
+                    disabled={eventi.length === 0}
                 >
-                    {eventi.map(ev => <option key={ev.id} value={ev.id}>{ev.titolo.toUpperCase()}</option>)}
+                    {eventi.length === 0 ? (
+                        <option value="">Nessun evento disponibile</option>
+                    ) : (
+                        eventi.map(ev => <option key={ev.id} value={ev.id}>{ev.titolo?.toUpperCase() || 'Senza titolo'}</option>)
+                    )}
                 </select>
                 {isMaster && (
                     <button onClick={() => startEdit('evento')} className="p-3 bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-colors shadow-lg"><Plus size={24}/></button>
@@ -471,35 +499,56 @@ const PlotTab = ({ onLogout }) => {
             )}
 
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {selectedEvento && (
-                    <EventoSection 
-                        evento={selectedEvento} 
-                        isMaster={isMaster} 
-                        risorse={risorse}
-                        onEdit={startEdit} 
-                        onDelete={handleDeleteEvento}
-                        onUpdateEvento={useMemo(() => (id, data) => { 
-                            updateEvento(id, data, onLogout); 
-                            refreshData(); 
-                        }, [onLogout, refreshData])}
-                        onAddGiorno={useMemo(() => () => startEdit('giorno'), [startEdit])}
-                    />
+                {eventi.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                        <p className="text-xl font-bold text-gray-400 mb-4">Nessun evento disponibile</p>
+                        <p className="text-sm text-gray-500 mb-6">
+                            {isMaster 
+                                ? "Crea un nuovo evento utilizzando il pulsante + sopra" 
+                                : "Non hai eventi assegnati. Contatta un Master per essere assegnato a un evento."}
+                        </p>
+                        {isMaster && (
+                            <button 
+                                onClick={() => startEdit('evento')} 
+                                className="px-6 py-3 bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-colors shadow-lg font-bold uppercase"
+                            >
+                                Crea Primo Evento
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        {selectedEvento && (
+                            <EventoSection 
+                                evento={selectedEvento} 
+                                isMaster={isMaster} 
+                                risorse={risorse}
+                                onEdit={startEdit} 
+                                onDelete={handleDeleteEvento}
+                                onUpdateEvento={useMemo(() => (id, data) => { 
+                                    updateEvento(id, data, onLogout); 
+                                    refreshData(); 
+                                }, [onLogout, refreshData])}
+                                onAddGiorno={useMemo(() => () => startEdit('giorno'), [startEdit])}
+                            />
+                        )}
+                        <div className="p-4 space-y-16">
+                            {selectedEvento?.giorni?.map((giorno, gIdx) => (
+                                <GiornoSection 
+                                    key={giorno.id} 
+                                    giorno={giorno} 
+                                    gIdx={gIdx} 
+                                    isMaster={isMaster} 
+                                    risorse={risorse}
+                                    onEdit={startEdit} 
+                                    onDelete={handleDeleteGiorno} 
+                                    onAddQuest={useMemo(() => (gid) => startEdit('quest', { giorno: gid }), [startEdit])}
+                                    questHandlers={questHandlers} 
+                                />
+                            ))}
+                        </div>
+                    </>
                 )}
-                <div className="p-4 space-y-16">
-                    {selectedEvento?.giorni?.map((giorno, gIdx) => (
-                        <GiornoSection 
-                            key={giorno.id} 
-                            giorno={giorno} 
-                            gIdx={gIdx} 
-                            isMaster={isMaster} 
-                            risorse={risorse}
-                            onEdit={startEdit} 
-                            onDelete={handleDeleteGiorno} 
-                            onAddQuest={useMemo(() => (gid) => startEdit('quest', { giorno: gid }), [startEdit])}
-                            questHandlers={questHandlers} 
-                        />
-                    ))}
-                </div>
             </div>
 
             {scanningForVista && (
