@@ -49,7 +49,7 @@ const TabellaManager = ({ onLogout }) => {
         } catch (error) {
             alert("Errore durante l'eliminazione");
         }
-    };
+    }, [onLogout]);
 
     const handleSave = useCallback(async (formData, connectedSkills) => {
         try {
