@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, getWikiImageList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiImageList, createWikiImage, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
-import { Lock, Eye, GripVertical, Image as ImageIcon } from 'lucide-react'; 
+import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X } from 'lucide-react'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -30,6 +30,18 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   const [availableTiers, setAvailableTiers] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
   const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier' o 'image'
+  
+  // Upload Image form state
+  const [showUploadImage, setShowUploadImage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [newImageData, setNewImageData] = useState({
+    titolo: '',
+    descrizione: '',
+    immagine: null,
+    larghezza_max: 800,
+    allineamento: 'center'
+  });
+  const [newImagePreview, setNewImagePreview] = useState(null);
 
   // Dragging Logic
   const [isDragging, setIsDragging] = useState(false);
@@ -60,6 +72,58 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         contenuto: (prev.contenuto || '') + widgetHtml
     }));
     setShowWidgetHelper(false);
+  };
+
+  const handleNewImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewImageData(prev => ({ ...prev, immagine: file }));
+      setNewImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleUploadImage = async (e) => {
+    e.preventDefault();
+    if (!newImageData.immagine || !newImageData.titolo.trim()) {
+      alert('Inserisci almeno un titolo e seleziona un\'immagine');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('titolo', newImageData.titolo);
+      formData.append('descrizione', newImageData.descrizione || '');
+      formData.append('immagine', newImageData.immagine);
+      formData.append('larghezza_max', newImageData.larghezza_max);
+      formData.append('allineamento', newImageData.allineamento);
+
+      const response = await createWikiImage(formData);
+      
+      // Aggiorna la lista delle immagini
+      const updatedList = await getWikiImageList();
+      setAvailableImages(updatedList);
+      
+      // Inserisci automaticamente il widget della nuova immagine
+      insertWidget(`{{WIDGET_IMAGE:${response.id}}}`);
+      
+      // Reset form
+      setNewImageData({
+        titolo: '',
+        descrizione: '',
+        immagine: null,
+        larghezza_max: 800,
+        allineamento: 'center'
+      });
+      setNewImagePreview(null);
+      setShowUploadImage(false);
+      
+    } catch (error) {
+      console.error("Errore caricamento immagine:", error);
+      alert("Errore durante il caricamento dell'immagine. Controlla la console.");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleImageChange = (e) => {
@@ -390,7 +454,25 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                 
                                 {widgetHelperTab === 'image' && (
                                     <>
-                                        {availableImages.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
+                                        {/* Pulsante Carica Nuova Immagine */}
+                                        <div className="p-2 border-b border-gray-200 bg-green-50">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setWidgetHelperTab('image');
+                                                    setShowUploadImage(true);
+                                                }}
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                <Upload size={14} />
+                                                Carica Nuova Immagine
+                                            </button>
+                                        </div>
+                                        
+                                        {/* Lista Immagini */}
+                                        {availableImages.length === 0 && !showUploadImage && (
+                                            <p className="p-2 text-xs text-gray-500">Nessuna immagine disponibile</p>
+                                        )}
                                         {availableImages.map(img => (
                                             <button 
                                                 key={img.id}
@@ -449,6 +531,161 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         </div>
 
       </div>
+
+      {/* MODAL CARICAMENTO IMMAGINE */}
+      {showUploadImage && (
+        <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b flex justify-between items-center bg-green-50 rounded-t-lg">
+              <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <Upload size={20} className="text-green-600" />
+                Carica Nuova Immagine Wiki
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowUploadImage(false);
+                  setNewImageData({
+                    titolo: '',
+                    descrizione: '',
+                    immagine: null,
+                    larghezza_max: 800,
+                    allineamento: 'center'
+                  });
+                  setNewImagePreview(null);
+                }}
+                className="text-gray-500 hover:text-red-600 font-bold text-xl px-2"
+                disabled={uploadingImage}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleUploadImage} className="p-4 overflow-y-auto flex-1 space-y-4">
+              {/* Titolo */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Titolo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newImageData.titolo}
+                  onChange={(e) => setNewImageData(prev => ({ ...prev, titolo: e.target.value }))}
+                  className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                  placeholder="Es: Mappa della città"
+                  required
+                  disabled={uploadingImage}
+                />
+              </div>
+
+              {/* Descrizione */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Descrizione (opzionale)
+                </label>
+                <textarea
+                  value={newImageData.descrizione}
+                  onChange={(e) => setNewImageData(prev => ({ ...prev, descrizione: e.target.value }))}
+                  className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                  rows="3"
+                  placeholder="Descrizione dell'immagine..."
+                  disabled={uploadingImage}
+                />
+              </div>
+
+              {/* File Upload */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Immagine <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleNewImageFileChange}
+                  className="block w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded file:border-0 file:bg-green-100 file:text-green-700 file:font-bold hover:file:bg-green-200"
+                  required
+                  disabled={uploadingImage}
+                />
+                {newImagePreview && (
+                  <div className="mt-2 border border-gray-300 rounded p-2 bg-gray-50">
+                    <img 
+                      src={newImagePreview} 
+                      alt="Anteprima" 
+                      className="max-w-full h-auto max-h-48 mx-auto rounded"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Larghezza Max e Allineamento */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Larghezza Max (px)
+                  </label>
+                  <input
+                    type="number"
+                    value={newImageData.larghezza_max}
+                    onChange={(e) => setNewImageData(prev => ({ ...prev, larghezza_max: parseInt(e.target.value) || 0 }))}
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                    min="0"
+                    placeholder="0 = originale"
+                    disabled={uploadingImage}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Allineamento
+                  </label>
+                  <select
+                    value={newImageData.allineamento}
+                    onChange={(e) => setNewImageData(prev => ({ ...prev, allineamento: e.target.value }))}
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                    disabled={uploadingImage}
+                  >
+                    <option value="left">Sinistra</option>
+                    <option value="center">Centro</option>
+                    <option value="right">Destra</option>
+                    <option value="full">Larghezza piena</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Bottoni */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUploadImage(false);
+                    setNewImageData({
+                      titolo: '',
+                      descrizione: '',
+                      immagine: null,
+                      larghezza_max: 800,
+                      allineamento: 'center'
+                    });
+                    setNewImagePreview(null);
+                  }}
+                  disabled={uploadingImage}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded font-medium disabled:opacity-50"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadingImage || !newImageData.immagine || !newImageData.titolo.trim()}
+                  className="px-5 py-2 text-sm bg-green-600 text-white font-bold rounded hover:bg-green-700 shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {uploadingImage && <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></div>}
+                  {uploadingImage ? 'Caricamento...' : 'Carica Immagine'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

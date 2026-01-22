@@ -1255,6 +1255,14 @@ export const getWikiImageList = () => {
   return fetchPublic('/plot/api/public/wiki-immagini/');
 };
 
+// Crea una nuova immagine wiki (Staff) - Supporta FormData per immagini
+export const createWikiImage = (formData, onLogout) => {
+  return fetchAuthenticated('/plot/api/staff/wiki-immagini/', {
+    method: 'POST',
+    body: formData // fetchAuthenticated gestisce automaticamente il Content-Type per FormData
+  }, onLogout);
+};
+
 // Crea una nuova pagina (Staff) - Supporta FormData per immagini
 export const createWikiPage = (formData, onLogout) => {
   return fetchAuthenticated('/plot/api/staff/pagine-regolamento/', {
