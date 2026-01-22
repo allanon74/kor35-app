@@ -30,8 +30,6 @@ const PlotTab = ({ onLogout }) => {
     const [formData, setFormData] = useState({});
     const [scanningForVista, setScanningForVista] = useState(null);
 
-    useEffect(() => { loadInitialData(); }, []);
-
     const loadInitialData = useCallback(async () => {
         try {
             const [evData, risData] = await Promise.all([getEventi(onLogout), getRisorseEditor(onLogout)]);
@@ -46,6 +44,8 @@ const PlotTab = ({ onLogout }) => {
             if (nextEvent) setSelectedEvento(nextEvent);
         } catch (e) { console.error("Errore caricamento plot:", e); } finally { setLoading(false); }
     }, [onLogout]);
+
+    useEffect(() => { loadInitialData(); }, [loadInitialData]);
 
     const refreshData = useCallback(async () => {
         const data = await getEventi(onLogout);

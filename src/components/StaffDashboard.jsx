@@ -11,8 +11,10 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+// Import diretto di PlotTab per debug
+import PlotTab from './PlotTab';
+
 // Lazy loading dei componenti per migliorare le performance iniziali
-const PlotTab = lazy(() => import('./PlotTab'));
 const AdminMessageTab = lazy(() => import('./AdminMessageTab'));
 const CerimonialeManager = lazy(() => import('./editors/CerimonialeManager'));
 const InfusioneManager = lazy(() => import('./editors/InfusioneManager'));
@@ -209,6 +211,14 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         const tool = toolsConfig.find(t => t.id === activeTool);
                         if (!tool) return null;
                         const Component = tool.component;
+                        // PlotTab è importato direttamente, non ha bisogno di Suspense
+                        if (activeTool === 'plot') {
+                            return (
+                                <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
+                                    <Component onLogout={onLogout} />
+                                </div>
+                            );
+                        }
                         return (
                             <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
                                 <Suspense fallback={<LoadingSpinner />}>
