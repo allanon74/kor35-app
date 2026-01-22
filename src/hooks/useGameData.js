@@ -366,3 +366,159 @@ export const useOptimisticForgingCollect = () => {
         }
     });
 };
+
+// G. ACQUISTO ABILITÀ (Optimistic Update)
+export const useOptimisticAcquireAbilita = () => {
+    return useOptimisticAction(
+        ['personaggio'],
+        async ({ abilitaId, charId }) => {
+            const { acquireAbilita } = await import('../api');
+            return acquireAbilita(abilitaId, charId);
+        },
+        (oldData, { abilitaId }) => {
+            if (!oldData) return oldData;
+            // Rimuovi l'abilità dalla lista acquistabili e aggiungila a quelle possedute
+            const abilita = oldData.abilita_acquistabili?.find(a => a.id === abilitaId);
+            if (!abilita) return oldData;
+            
+            return {
+                ...oldData,
+                abilita_possedute: [...(oldData.abilita_possedute || []), abilita],
+                abilita_acquistabili: (oldData.abilita_acquistabili || []).filter(a => a.id !== abilitaId),
+                // Aggiorna crediti e PC se disponibili
+                crediti: oldData.crediti - (abilita.costo_crediti_calc || 0),
+                punti_caratteristica: oldData.punti_caratteristica - (abilita.costo_pc_calc || 0),
+            };
+        }
+    );
+};
+
+// H. ACQUISTO INFUSIONE (Optimistic Update)
+export const useOptimisticAcquireInfusione = () => {
+    return useOptimisticAction(
+        ['personaggio'],
+        async ({ infusioneId, charId }) => {
+            const { acquireInfusione } = await import('../api');
+            return acquireInfusione(infusioneId, charId);
+        },
+        (oldData, { infusioneId }) => {
+            if (!oldData) return oldData;
+            const infusione = oldData.infusioni_acquistabili?.find(i => i.id === infusioneId);
+            if (!infusione) return oldData;
+            
+            return {
+                ...oldData,
+                infusioni_possedute: [...(oldData.infusioni_possedute || []), infusione],
+                infusioni_acquistabili: (oldData.infusioni_acquistabili || []).filter(i => i.id !== infusioneId),
+                crediti: oldData.crediti - (infusione.costo_crediti_calc || 0),
+                punti_caratteristica: oldData.punti_caratteristica - (infusione.costo_pc_calc || 0),
+            };
+        }
+    );
+};
+
+// I. ACQUISTO TESSITURA (Optimistic Update)
+export const useOptimisticAcquireTessitura = () => {
+    return useOptimisticAction(
+        ['personaggio'],
+        async ({ tessituraId, charId }) => {
+            const { acquireTessitura } = await import('../api');
+            return acquireTessitura(tessituraId, charId);
+        },
+        (oldData, { tessituraId }) => {
+            if (!oldData) return oldData;
+            const tessitura = oldData.tessiture_acquistabili?.find(t => t.id === tessituraId);
+            if (!tessitura) return oldData;
+            
+            return {
+                ...oldData,
+                tessiture_possedute: [...(oldData.tessiture_possedute || []), tessitura],
+                tessiture_acquistabili: (oldData.tessiture_acquistabili || []).filter(t => t.id !== tessituraId),
+                crediti: oldData.crediti - (tessitura.costo_crediti_calc || 0),
+                punti_caratteristica: oldData.punti_caratteristica - (tessitura.costo_pc_calc || 0),
+            };
+        }
+    );
+};
+
+// J. ACQUISTO CERIMONIALE (Optimistic Update)
+export const useOptimisticAcquireCerimoniale = () => {
+    return useOptimisticAction(
+        ['personaggio'],
+        async ({ cerimonialeId, charId, onLogout }) => {
+            const { fetchAuthenticated } = await import('../api');
+            return fetchAuthenticated('/personaggi/api/personaggio/me/acquisisci_cerimoniale/', {
+                method: 'POST',
+                body: JSON.stringify({ personaggio_id: charId, cerimoniale_id: cerimonialeId })
+            }, onLogout);
+        },
+        (oldData, { cerimonialeId }) => {
+            if (!oldData) return oldData;
+            const cerimoniale = oldData.cerimoniali_acquistabili?.find(c => c.id === cerimonialeId);
+            if (!cerimoniale) return oldData;
+            
+            return {
+                ...oldData,
+                cerimoniali_posseduti: [...(oldData.cerimoniali_posseduti || []), cerimoniale],
+                cerimoniali_acquistabili: (oldData.cerimoniali_acquistabili || []).filter(c => c.id !== cerimonialeId),
+                crediti: oldData.crediti - (cerimoniale.costo_crediti || 0),
+            };
+        }
+    );
+};
+
+// K. ACQUISTO NEGOZIO (Optimistic Update)
+export const useOptimisticBuyShopItem = () => {
+    return useOptimisticAction(
+        ['personaggio'],
+        async ({ oggettoId, charId }) => {
+            const { buyShopItem } = await import('../api');
+            return buyShopItem(oggettoId, charId);
+        },
+        (oldData, { oggettoId, costo }) => {
+            if (!oldData || !oldData.oggetti) return oldData;
+            // Aggiungi l'oggetto all'inventario (il backend lo farà, qui simuliamo)
+            return {
+                ...oldData,
+                crediti: oldData.crediti - (costo || 0),
+                // L'oggetto verrà aggiunto dal backend dopo la risposta
+            };
+        }
+    );
+};
+
+// L. MESSAGGI - MARK AS READ (Optimistic Update)
+export const useOptimisticMarkMessageRead = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ messageId, charId, onLogout }) => {
+            const { markMessageAsRead } = require('../api');
+            return markMessageAsRead(messageId, charId, onLogout);
+        },
+        onMutate: async ({ messageId }) => {
+            // Non abbiamo una query key specifica per i messaggi nel context
+            // ma possiamo aggiornare direttamente lo stato locale
+            return { messageId };
+        },
+        onError: (err, vars, context) => {
+            console.error("Errore mark as read:", err);
+        },
+    });
+};
+
+// M. MESSAGGI - DELETE (Optimistic Update)
+export const useOptimisticDeleteMessage = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ messageId, charId, onLogout }) => {
+            const { deleteMessage } = require('../api');
+            return deleteMessage(messageId, charId, onLogout);
+        },
+        onMutate: async ({ messageId }) => {
+            return { messageId };
+        },
+        onError: (err, vars, context) => {
+            console.error("Errore delete message:", err);
+        },
+    });
+};

@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useMemo } from 'react';
+import React, { useState, Fragment, useMemo, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Users } from 'lucide-react';
@@ -11,7 +11,7 @@ import ProposalManager from './ProposalManager';
 import ProposalEditorModal from './ProposalEditorModal';
 
 // --- API & HOOKS ---
-import { fetchAuthenticated } from '../api.js';
+import { useOptimisticAcquireCerimoniale } from '../hooks/useGameData';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -28,8 +28,8 @@ const CerimonialiTab = ({ onLogout }) => {
   } = useCharacter();
   
   const [modalItem, setModalItem] = useState(null);
-  const [isAcquiring, setIsAcquiring] = useState(null);
   const [showProposals, setShowProposals] = useState(false);
+  const acquireMutation = useOptimisticAcquireCerimoniale();
 
   // Recupero Valore Coralità (CCO)
   const ccoValue = useMemo(() => {
@@ -47,24 +47,22 @@ const CerimonialiTab = ({ onLogout }) => {
     });
   }, [acquirableCerimoniali, char, ccoValue]);
 
-  const handleAcquire = async (item, e) => {
+  const handleAcquire = useCallback(async (item, e) => {
     e.stopPropagation();
-    if (isAcquiring || !selectedCharacterId) return;
+    if (acquireMutation.isPending || !selectedCharacterId) return;
     if (!window.confirm(`Apprendere il Cerimoniale "${item.nome}" per ${item.costo_crediti} Crediti?`)) return;
     
-    setIsAcquiring(item.id);
     try {
-      await fetchAuthenticated('/personaggi/api/personaggio/me/acquisisci_cerimoniale/', {
-        method: 'POST',
-        body: JSON.stringify({ personaggio_id: selectedCharacterId, cerimoniale_id: item.id })
-      }, onLogout);
+      await acquireMutation.mutateAsync({ 
+        cerimonialeId: item.id, 
+        charId: selectedCharacterId,
+        onLogout 
+      });
       await refreshCharacterData(); 
     } catch (error) {
       alert(`Errore: ${error.message}`);
-    } finally {
-      setIsAcquiring(null);
     }
-  };
+  }, [acquireMutation, selectedCharacterId, onLogout, refreshCharacterData]);
 
   if (isLoadingAcquirable || isLoadingDetail || !char) {
     return (
@@ -103,10 +101,10 @@ const CerimonialiTab = ({ onLogout }) => {
         {!isOwned && (
           <button
             onClick={(e) => handleAcquire(item, e)}
-            disabled={char.crediti < item.costo_crediti || isAcquiring === item.id}
+            disabled={char.crediti < item.costo_crediti || acquireMutation.isPending}
             className="p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white rounded-lg transition-all"
           >
-            {isAcquiring === item.id ? <Loader2 size={16} className="animate-spin"/> : <ShoppingCart size={16} />}
+            {acquireMutation.isPending ? <Loader2 size={16} className="animate-spin"/> : <ShoppingCart size={16} />}
           </button>
         )}
         <button onClick={() => setModalItem(item)} className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full">

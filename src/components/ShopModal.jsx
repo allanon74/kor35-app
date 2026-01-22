@@ -1,16 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Dialog } from '@headlessui/react';
 import { X, ShoppingBag, Loader2, Info } from 'lucide-react';
-import { useShopItems } from '../hooks/useGameData';
-import { buyShopItem } from '../api';
+import { useShopItems, useOptimisticBuyShopItem } from '../hooks/useGameData';
 import { useCharacter } from './CharacterContext';
 
 const ShopModal = ({ onClose }) => {
   const { data: items, isLoading } = useShopItems();
   const { selectedCharacterData: char, refreshCharacterData } = useCharacter();
-  const [buyingId, setBuyingId] = useState(null);
+  const buyMutation = useOptimisticBuyShopItem();
 
-  const handleBuy = async (item) => {
+  const handleBuy = useCallback(async (item) => {
     // Nota: OggettoBase usa 'costo', non 'costo_acquisto'
     if (char.crediti < item.costo) {
         alert("Crediti insufficienti!");
@@ -18,18 +17,19 @@ const ShopModal = ({ onClose }) => {
     }
     if (!window.confirm(`Acquistare ${item.nome} per ${item.costo} CR?`)) return;
 
-    setBuyingId(item.id);
     try {
         // L'API si aspetta 'oggetto_id' che qui è l'ID del template OggettoBase
-        await buyShopItem(item.id, char.id);
+        await buyMutation.mutateAsync({ 
+            oggettoId: item.id, 
+            charId: char.id,
+            costo: item.costo
+        });
         await refreshCharacterData(); // Ricarica inventario e crediti
         // Non chiudiamo il modale per permettere acquisti multipli
     } catch (error) {
         alert("Errore acquisto: " + error.message);
-    } finally {
-        setBuyingId(null);
     }
-  };
+  }, [buyMutation, char, refreshCharacterData]);
 
   return (
     <Dialog open={true} onClose={onClose} className="relative z-50">
@@ -87,14 +87,14 @@ const ShopModal = ({ onClose }) => {
                                     <span className="font-mono font-bold text-yellow-500">{item.costo} CR</span>
                                     <button
                                         onClick={() => handleBuy(item)}
-                                        disabled={buyingId === item.id || char.crediti < item.costo}
+                                        disabled={buyMutation.isPending || char.crediti < item.costo}
                                         className={`px-3 py-1.5 rounded text-sm font-bold flex items-center gap-2 transition-all ${
                                             char.crediti >= item.costo
-                                            ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
-                                            : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                                                ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
+                                                : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
                                         }`}
                                     >
-                                        {buyingId === item.id ? <Loader2 className="animate-spin" size={16} /> : "Compra"}
+                                        {buyMutation.isPending ? <Loader2 className="animate-spin" size={16} /> : "Compra"}
                                     </button>
                                 </div>
                             </div>

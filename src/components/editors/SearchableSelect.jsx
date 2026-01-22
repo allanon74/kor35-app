@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { ChevronDown, X, Check } from 'lucide-react';
+import { useDebounce } from '../../hooks/useDebounce';
 
-const SearchableSelect = ({ 
+const SearchableSelect = memo(({ 
     options = [], 
     value, 
     onChange, 
@@ -13,19 +14,25 @@ const SearchableSelect = ({
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const wrapperRef = useRef(null);
+    
+    // Debounce del search term per migliorare le performance
+    const debouncedSearchTerm = useDebounce(searchTerm, 200);
 
-    // 1. Trova l'oggetto selezionato attualmente
-    const selectedItem = options.find(opt => String(opt[valueKey]) === String(value));
+    // 1. Trova l'oggetto selezionato attualmente (memoized)
+    const selectedItem = useMemo(() => 
+        options.find(opt => String(opt[valueKey]) === String(value)),
+        [options, value, valueKey]
+    );
 
-    // 2. Filtra e Ordina le opzioni
+    // 2. Filtra e Ordina le opzioni (con debounce)
     const filteredOptions = useMemo(() => {
         return options
             .filter(opt => {
                 const label = opt[labelKey] || "";
-                return label.toLowerCase().includes(searchTerm.toLowerCase());
+                return label.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
             })
             .sort((a, b) => (a[labelKey] || "").localeCompare(b[labelKey] || ""));
-    }, [options, searchTerm, labelKey]);
+    }, [options, debouncedSearchTerm, labelKey]);
 
     // Gestione click fuori per chiudere
     useEffect(() => {
@@ -119,6 +126,8 @@ const SearchableSelect = ({
             )}
         </div>
     );
-};
+});
+
+SearchableSelect.displayName = 'SearchableSelect';
 
 export default SearchableSelect;

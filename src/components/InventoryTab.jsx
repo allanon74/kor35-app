@@ -480,4 +480,4 @@ const InventoryTab = ({ onLogout }) => {
   );
 };
 
-export default InventoryTab;
+export default memo(InventoryTab);

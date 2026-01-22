@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useMemo, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle } from 'lucide-react'; 
@@ -6,7 +6,8 @@ import AbilitaDetailModal from './AbilitaDetailModal.jsx';
 import { acquireAbilita } from '../api.js';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
-import IconaPunteggio from './IconaPunteggio';         
+import IconaPunteggio from './IconaPunteggio';
+import { useOptimisticAcquireAbilita } from '../hooks/useGameData';         
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -24,13 +25,13 @@ const AbilitaTab = ({ onLogout }) => {
   } = useCharacter();
   
   const [modalSkill, setModalSkill] = useState(null);
-  const [isAcquiring, setIsAcquiring] = useState(null);
+  const acquireMutation = useOptimisticAcquireAbilita();
 
-  const handleOpenModal = (skill) => setModalSkill(skill);
+  const handleOpenModal = useCallback((skill) => setModalSkill(skill), []);
 
-  const handleAcquire = async (skill, e) => {
+  const handleAcquire = useCallback(async (skill, e) => {
     e.stopPropagation(); 
-    if (isAcquiring || !selectedCharacterId) return;
+    if (acquireMutation.isPending || !selectedCharacterId) return;
     
     const pcCostString = skill.costo_pc_calc > 0 ? `${skill.costo_pc_calc} PC` : '';
     const creditCostString = skill.costo_crediti_calc > 0 ? `${skill.costo_crediti_calc} Crediti` : '';
@@ -42,25 +43,29 @@ const AbilitaTab = ({ onLogout }) => {
       return;
     }
     
-    setIsAcquiring(skill.id);
     try {
-      await acquireAbilita(skill.id, selectedCharacterId, onLogout);
+      await acquireMutation.mutateAsync({ 
+        abilitaId: skill.id, 
+        charId: selectedCharacterId 
+      });
+      // Refresh opzionale - l'optimistic update ha già aggiornato l'UI
       await refreshCharacterData(); 
     } catch (error) {
       console.error("Errore acquisto:", error);
       alert(`Errore durante l'acquisto: ${error.message}`);
-    } finally {
-      setIsAcquiring(null);
     }
-  };
+  }, [acquireMutation, selectedCharacterId, refreshCharacterData]);
 
-  const possessedSkills = char?.abilita_possedute || [];
+  const possessedSkills = useMemo(() => char?.abilita_possedute || [], [char?.abilita_possedute]);
 
   // --- FILTRO MODIFICA: Rimuovo i tratti speciali dalla lista acquistabili ---
   // Questi verranno gestiti tramite il modale in PunteggioDisplay
-  const filteredAcquirableSkills = acquirableSkills 
-    ? acquirableSkills.filter(skill => !skill.is_tratto_aura) 
-    : [];
+  const filteredAcquirableSkills = useMemo(() => 
+    acquirableSkills 
+      ? acquirableSkills.filter(skill => !skill.is_tratto_aura) 
+      : [],
+    [acquirableSkills]
+  );
   // --------------------------------------------------------------------------
 
   if (isLoadingAcquirable || isLoadingDetail || !char) {
@@ -194,14 +199,14 @@ const AbilitaTab = ({ onLogout }) => {
 
             <button
               onClick={(e) => handleAcquire(skill, e)}
-              disabled={!canAfford || isAcquiring === skill.id}
+              disabled={!canAfford || acquireMutation.isPending}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all shadow-md ml-auto sm:ml-0 ${
                 !canAfford 
                   ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50' 
                   : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/20'
               }`}
             >
-              {isAcquiring === skill.id ? (
+              {acquireMutation.isPending ? (
                 <Loader2 className="animate-spin" size={16} />
               ) : (
                 <>
