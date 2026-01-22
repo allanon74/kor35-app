@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { 
     getEventi, associaQrAVista, getRisorseEditor,
     createEvento, updateEvento, deleteEvento,
@@ -32,7 +32,7 @@ const PlotTab = ({ onLogout }) => {
 
     useEffect(() => { loadInitialData(); }, []);
 
-    const loadInitialData = async () => {
+    const loadInitialData = useCallback(async () => {
         try {
             const [evData, risData] = await Promise.all([getEventi(onLogout), getRisorseEditor(onLogout)]);
             
@@ -45,28 +45,30 @@ const PlotTab = ({ onLogout }) => {
             setRisorse(risData);
             if (nextEvent) setSelectedEvento(nextEvent);
         } catch (e) { console.error("Errore caricamento plot:", e); } finally { setLoading(false); }
-    };
+    }, [onLogout]);
 
-    const refreshData = async () => {
+    const refreshData = useCallback(async () => {
         const data = await getEventi(onLogout);
         const sorted = data.sort((a, b) => new Date(a.data_inizio) - new Date(b.data_inizio));
         setEventi(sorted);
-        if (selectedEvento) {
-            const updated = sorted.find(e => e.id === selectedEvento.id);
-            setSelectedEvento(updated || sorted[0]);
-        }
-    };
+        setSelectedEvento(prev => {
+            if (!prev) return sorted[0];
+            const updated = sorted.find(e => e.id === prev.id);
+            return updated || sorted[0];
+        });
+    }, [onLogout]);
 
-    const formatDateForInput = (iso) => iso ? iso.split('T')[0] : '';
-    const formatDateTimeForInput = (iso) => iso ? iso.slice(0, 16) : '';
-    const formatTimeForInput = (time) => time ? time.slice(0, 5) : '';
+    // Formatters memoized
+    const formatDateForInput = useCallback((iso) => iso ? iso.split('T')[0] : '', []);
+    const formatDateTimeForInput = useCallback((iso) => iso ? iso.slice(0, 16) : '', []);
+    const formatTimeForInput = useCallback((time) => time ? time.slice(0, 5) : '', []);
 
-    const startEdit = (tipo, oggetto = {}) => {
+    const startEdit = useCallback((tipo, oggetto = {}) => {
         setEditMode(tipo);
         setFormData({ ...oggetto });
-    };
+    }, []);
 
-    const handleSaveMain = async () => {
+    const handleSaveMain = useCallback(async () => {
         try {
             if (editMode === 'evento') {
                 if (formData.id) await updateEvento(formData.id, formData, onLogout);
@@ -86,12 +88,23 @@ const PlotTab = ({ onLogout }) => {
             setEditMode(null);
             refreshData();
         } catch (e) { alert("Errore durante il salvataggio."); console.error(e); }
-    };
+    }, [editMode, formData, selectedEvento, onLogout, refreshData]);
 
-    const handleDeleteEvento = async (id) => { if(window.confirm("Eliminare intero evento?")) { await deleteEvento(id, onLogout); refreshData(); } };
-    const handleDeleteGiorno = async (id) => { if(window.confirm("Eliminare giorno?")) { await deleteGiorno(id, onLogout); refreshData(); } };
+    const handleDeleteEvento = useCallback(async (id) => { 
+        if(window.confirm("Eliminare intero evento?")) { 
+            await deleteEvento(id, onLogout); 
+            refreshData(); 
+        } 
+    }, [onLogout, refreshData]);
+    
+    const handleDeleteGiorno = useCallback(async (id) => { 
+        if(window.confirm("Eliminare giorno?")) { 
+            await deleteGiorno(id, onLogout); 
+            refreshData(); 
+        } 
+    }, [onLogout, refreshData]);
 
-    const questHandlers = {
+    const questHandlers = useMemo(() => ({
     onAddSub: async (tipo, payload) => {
         try {
             if (tipo === 'fase') await addFaseToQuest(payload, onLogout);
@@ -135,11 +148,11 @@ const PlotTab = ({ onLogout }) => {
         refreshData();
     },
     onScanQr: (id) => setScanningForVista(id)
-};
+}), [selectedEvento, onLogout, refreshData]);
 
     if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
 
-    const handlePrintEvent = () => {
+    const handlePrintEvent = useCallback(() => {
         if (!selectedEvento || !selectedEvento.giorni) return;
 
         const printWindow = window.open('', '_blank');
@@ -341,13 +354,19 @@ const PlotTab = ({ onLogout }) => {
 
         printWindow.document.write(content);
         printWindow.document.close();
-    };
+    }, [selectedEvento]);
 
     return (
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
-            <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40 shadow-xl">
-                <select className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none cursor-pointer"
-                    value={selectedEvento?.id || ''} onChange={(e) => setSelectedEvento(eventi.find(ev => ev.id === parseInt(e.target.value)))}>
+            <div className="p-4 bg-gray-950 border-b border-gray-800 flex gap-2 z-40 shadow-xl sticky top-0">
+                <select 
+                    className="flex-1 bg-gray-900 p-3 rounded-xl border border-gray-800 font-black text-indigo-400 outline-none cursor-pointer transition-all hover:border-indigo-500"
+                    value={selectedEvento?.id || ''} 
+                    onChange={(e) => {
+                        const found = eventi.find(ev => ev.id === parseInt(e.target.value));
+                        if (found) setSelectedEvento(found);
+                    }}
+                >
                     {eventi.map(ev => <option key={ev.id} value={ev.id}>{ev.titolo.toUpperCase()}</option>)}
                 </select>
                 {isMaster && (
@@ -459,16 +478,26 @@ const PlotTab = ({ onLogout }) => {
                         risorse={risorse}
                         onEdit={startEdit} 
                         onDelete={handleDeleteEvento}
-                        onUpdateEvento={(id, data) => { updateEvento(id, data, onLogout); refreshData(); }}
-                        onAddGiorno={() => startEdit('giorno')}
+                        onUpdateEvento={useMemo(() => (id, data) => { 
+                            updateEvento(id, data, onLogout); 
+                            refreshData(); 
+                        }, [onLogout, refreshData])}
+                        onAddGiorno={useMemo(() => () => startEdit('giorno'), [startEdit])}
                     />
                 )}
                 <div className="p-4 space-y-16">
-                    {selectedEvento?.giorni.map((giorno, gIdx) => (
-                        <GiornoSection key={giorno.id} giorno={giorno} gIdx={gIdx} isMaster={isMaster} risorse={risorse}
-                            onEdit={startEdit} onDelete={handleDeleteGiorno} 
-                            onAddQuest={(gid) => startEdit('quest', { giorno: gid })}
-                            questHandlers={questHandlers} />
+                    {selectedEvento?.giorni?.map((giorno, gIdx) => (
+                        <GiornoSection 
+                            key={giorno.id} 
+                            giorno={giorno} 
+                            gIdx={gIdx} 
+                            isMaster={isMaster} 
+                            risorse={risorse}
+                            onEdit={startEdit} 
+                            onDelete={handleDeleteGiorno} 
+                            onAddQuest={useMemo(() => (gid) => startEdit('quest', { giorno: gid }), [startEdit])}
+                            questHandlers={questHandlers} 
+                        />
                     ))}
                 </div>
             </div>
@@ -491,4 +520,4 @@ const PlotTab = ({ onLogout }) => {
     );
 };
 
-export default PlotTab;
+export default memo(PlotTab);

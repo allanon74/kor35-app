@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Plus, Loader2, RefreshCw } from 'lucide-react';
 import TabellaList from './TabellaList';
 import TabellaEditor from './TabellaEditor';
@@ -13,7 +13,7 @@ const TabellaManager = ({ onLogout }) => {
     // RIMOSSO: const token = localStorage.getItem('access_token'); 
     // fetchAuthenticated gestisce il token internamente ('kor35_token')
 
-    const fetchTiers = async () => {
+    const fetchTiers = useCallback(async () => {
         setIsLoading(true);
         try {
             // CORRETTO: Passiamo onLogout, non il token
@@ -25,23 +25,23 @@ const TabellaManager = ({ onLogout }) => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [onLogout]);
 
     useEffect(() => {
         fetchTiers();
-    }, []);
+    }, [fetchTiers]);
 
-    const handleCreate = () => {
+    const handleCreate = useCallback(() => {
         setCurrentTier(null);
         setIsEditing(true);
-    };
+    }, []);
 
-    const handleEdit = (tier) => {
+    const handleEdit = useCallback((tier) => {
         setCurrentTier(tier);
         setIsEditing(true);
-    };
+    }, []);
 
-    const handleDelete = async (id) => {
+    const handleDelete = useCallback(async (id) => {
         if (!window.confirm("Sei sicuro di voler eliminare questa tabella?")) return;
         try {
             await deleteTier(id, onLogout);
@@ -51,7 +51,7 @@ const TabellaManager = ({ onLogout }) => {
         }
     };
 
-    const handleSave = async (formData, connectedSkills) => {
+    const handleSave = useCallback(async (formData, connectedSkills) => {
         try {
             let savedTier;
             if (currentTier) {
@@ -72,7 +72,9 @@ const TabellaManager = ({ onLogout }) => {
             console.error("Errore salvataggio", error);
             alert("Errore durante il salvataggio: " + error.message);
         }
-    };
+    }, [currentTier, onLogout, fetchTiers]);
+
+    const handleCancel = useCallback(() => setIsEditing(false), []);
 
     if (isEditing) {
         return (
@@ -80,7 +82,7 @@ const TabellaManager = ({ onLogout }) => {
                 <TabellaEditor 
                     tier={currentTier} 
                     onSave={handleSave} 
-                    onCancel={() => setIsEditing(false)} 
+                    onCancel={handleCancel} 
                     onLogout={onLogout} // Passiamo onLogout anche all'editor
                 />
             </div>
@@ -130,4 +132,4 @@ const TabellaManager = ({ onLogout }) => {
     );
 };
 
-export default TabellaManager;
+export default memo(TabellaManager);

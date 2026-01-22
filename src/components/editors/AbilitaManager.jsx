@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import AbilitaList from './AbilitaList';
 import AbilitaEditor from './AbilitaEditor';
@@ -7,20 +7,20 @@ const AbilitaManager = ({ onBack, onLogout }) => {
   const [view, setView] = useState('list'); // 'list' | 'editor'
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     setSelectedItem(null);
     setView('editor');
-  };
+  }, []);
 
-  const handleEdit = (item) => {
+  const handleEdit = useCallback((item) => {
     setSelectedItem(item);
     setView('editor');
-  };
+  }, []);
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     setView('list');
     setSelectedItem(null);
-  };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -41,4 +41,4 @@ const AbilitaManager = ({ onBack, onLogout }) => {
   );
 };
 
-export default AbilitaManager;
+export default memo(AbilitaManager);

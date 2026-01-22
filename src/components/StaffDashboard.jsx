@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo, lazy, Suspense } from 'react';
 import GenericHeader from './GenericHeader';
 import Sidebar from './Sidebar';
 import versionData from '../../package.json'; 
@@ -11,45 +11,52 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-// Importazione dei Sotto-Componenti (Tools)
-import PlotTab from './PlotTab';
-import AdminMessageTab from './AdminMessageTab';
-import CerimonialeManager from './editors/CerimonialeManager'; 
-import InfusioneManager from './editors/InfusioneManager';
-import TessituraManager from './editors/TessituraManager';
-import OggettoBaseManager from './editors/OggettoBaseManager';
-import OggettoManager from './editors/OggettoManager';
-import StaffProposalTab from './editors/StaffProposalTab';
-import MostroManager from './editors/MostroManager'; 
-import AbilitaManager from './editors/AbilitaManager';
-import TabellaManager from './editors/TabellaManager';
+// Lazy loading dei componenti per migliorare le performance iniziali
+const PlotTab = lazy(() => import('./PlotTab'));
+const AdminMessageTab = lazy(() => import('./AdminMessageTab'));
+const CerimonialeManager = lazy(() => import('./editors/CerimonialeManager'));
+const InfusioneManager = lazy(() => import('./editors/InfusioneManager'));
+const TessituraManager = lazy(() => import('./editors/TessituraManager'));
+const OggettoBaseManager = lazy(() => import('./editors/OggettoBaseManager'));
+const OggettoManager = lazy(() => import('./editors/OggettoManager'));
+const StaffProposalTab = lazy(() => import('./editors/StaffProposalTab'));
+const MostroManager = lazy(() => import('./editors/MostroManager'));
+const AbilitaManager = lazy(() => import('./editors/AbilitaManager'));
+const TabellaManager = lazy(() => import('./editors/TabellaManager'));
+
+// Loading component
+const LoadingSpinner = () => (
+    <div className="h-full flex items-center justify-center bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+    </div>
+);
 
 const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) => {
     const [activeTool, setActiveTool] = useState(initialTool); 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    // Configurazione dei Tools disponibili
-    const toolsConfig = [
-        { id: 'plot', label: 'Gestione Plot', icon: <Map size={24} />, color: 'bg-indigo-600', component: <PlotTab onLogout={onLogout} /> },
-        { id: 'mostri', label: 'Database Mostri', icon: <Skull size={24} />, color: 'bg-red-700', component: <MostroManager onLogout={onLogout} /> }, 
-        { id: 'abilita', label: 'Database Abilità', icon: <BookOpen size={24} />, color: 'bg-blue-700', component: <AbilitaManager onLogout={onLogout} /> },
-        { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={24} />, color: 'bg-amber-700', component: <CerimonialeManager onLogout={onLogout} /> },
-        { id: 'tessiture', label: 'Tessiture', icon: <Feather size={24} />, color: 'bg-cyan-700', component: <TessituraManager onLogout={onLogout} /> },
-        { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={24} />, color: 'bg-purple-700', component: <InfusioneManager onLogout={onLogout} /> },
-        { id: 'proposte', label: 'Valutazione Proposte', icon: <ClipboardCheck size={24} />, color: 'bg-orange-600', component: <StaffProposalTab onLogout={onLogout} /> },
-        { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={24} />, color: 'bg-stone-600', component: <OggettoManager onLogout={onLogout} /> },
-        { id: 'oggetti-base', label: 'Oggetti Base', icon: <Shield size={24} />, color: 'bg-stone-800', component: <OggettoBaseManager onLogout={onLogout} /> },
-        { id: 'tabelle', label: 'Gestione Tabelle', icon: <Layers size={24} />, color: 'bg-pink-700', component: <TabellaManager onLogout={onLogout} /> },
-        { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: <AdminMessageTab onLogout={onLogout} /> },        
-    ];
+    // Configurazione dei Tools disponibili (Memoized)
+    const toolsConfig = useMemo(() => [
+        { id: 'plot', label: 'Gestione Plot', icon: <Map size={24} />, color: 'bg-indigo-600', component: PlotTab },
+        { id: 'mostri', label: 'Database Mostri', icon: <Skull size={24} />, color: 'bg-red-700', component: MostroManager }, 
+        { id: 'abilita', label: 'Database Abilità', icon: <BookOpen size={24} />, color: 'bg-blue-700', component: AbilitaManager },
+        { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={24} />, color: 'bg-amber-700', component: CerimonialeManager },
+        { id: 'tessiture', label: 'Tessiture', icon: <Feather size={24} />, color: 'bg-cyan-700', component: TessituraManager },
+        { id: 'infusioni', label: 'Infusioni', icon: <FlaskConical size={24} />, color: 'bg-purple-700', component: InfusioneManager },
+        { id: 'proposte', label: 'Valutazione Proposte', icon: <ClipboardCheck size={24} />, color: 'bg-orange-600', component: StaffProposalTab },
+        { id: 'oggetti', label: 'Database Oggetti', icon: <Gavel size={24} />, color: 'bg-stone-600', component: OggettoManager },
+        { id: 'oggetti-base', label: 'Oggetti Base', icon: <Shield size={24} />, color: 'bg-stone-800', component: OggettoBaseManager },
+        { id: 'tabelle', label: 'Gestione Tabelle', icon: <Layers size={24} />, color: 'bg-pink-700', component: TabellaManager },
+        { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: AdminMessageTab },        
+    ], []);
 
-    const handleToolSelect = (id) => {
+    const handleToolSelect = useCallback((id) => {
         setActiveTool(id);
         setIsMenuOpen(false);
-    };
+    }, []);
 
-    // Configurazione unificata degli elementi della sidebar
-    const sidebarItems = [
+    // Configurazione unificata degli elementi della sidebar (Memoized)
+    const sidebarItems = useMemo(() => [
         { label: 'Master Hub', icon: <LayoutGrid size={18}/>, active: activeTool === 'home', action: () => handleToolSelect('home') },
         ...toolsConfig.map(t => ({
             label: t.label,
@@ -61,10 +68,10 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         // Aggiunto Wiki come elemento della lista, ma con proprietà 'link'
         { label: 'Wiki Pubblica', icon: <Globe size={18}/>, link: '/', active: false },
         { label: 'Vai a Personaggi', icon: <Users size={18}/>, action: onSwitchToPlayer, active: false }
-    ];
+    ], [activeTool, toolsConfig, handleToolSelect, onSwitchToPlayer]);
 
-    // Funzione helper per renderizzare un singolo item della sidebar
-    const renderSidebarItem = (item, idx) => {
+    // Funzione helper per renderizzare un singolo item della sidebar (Memoized)
+    const renderSidebarItem = useCallback((item, idx) => {
         if (item.label.includes('---')) return <div key={idx} className="h-px bg-gray-900 my-2 mx-4"></div>;
         
         const baseClasses = `w-full flex items-center justify-between p-3 rounded-xl font-bold transition-all group ${
@@ -95,10 +102,10 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
 
         return (
             <button key={idx} onClick={item.action} className={baseClasses}>
-                {content}
-            </button>
-        );
-    };
+            {content}
+        </button>
+    );
+}, []);
 
     return (
         <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
@@ -162,17 +169,17 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
 
                 <main className="flex-1 overflow-y-auto overflow-x-hidden relative p-0 custom-scrollbar">
                     {activeTool === 'home' && (
-                        <div className="min-h-full p-6 animate-in fade-in duration-300">
+                        <div className="min-h-full p-6 animate-fadeIn">
                             <h2 className="text-2xl font-black text-gray-700 uppercase italic mb-6 tracking-widest text-center md:text-left">Strumenti Staff</h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                 {toolsConfig.map(tool => (
                                     <button 
                                         key={tool.id}
                                         onClick={() => setActiveTool(tool.id)}
-                                        className={`${tool.color} p-6 rounded-2xl shadow-xl hover:scale-[1.02] hover:shadow-2xl transition-all flex flex-col items-center justify-center gap-4 aspect-square border-t border-white/10 group relative overflow-hidden`}
+                                        className={`${tool.color} p-6 rounded-2xl shadow-xl hover:scale-[1.02] hover:shadow-2xl transition-all duration-200 flex flex-col items-center justify-center gap-4 aspect-square border-t border-white/10 group relative overflow-hidden active:scale-95`}
                                     >
-                                        <div className="absolute inset-0 bg-linear-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"/>
-                                        <div className="text-white drop-shadow-md transform group-hover:-translate-y-1 transition-transform duration-300">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
+                                        <div className="text-white drop-shadow-md transform group-hover:-translate-y-1 transition-transform duration-300 z-10">
                                             {React.cloneElement(tool.icon, { size: 40 })}
                                         </div>
                                         <span className="font-black text-white uppercase tracking-wider text-xs text-center z-10">{tool.label}</span>
@@ -198,15 +205,22 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         </div>
                     )}
 
-                    {activeTool !== 'home' && (
-                        <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
-                            {toolsConfig.find(t => t.id === activeTool)?.component}
-                        </div>
-                    )}
+                    {activeTool !== 'home' && (() => {
+                        const tool = toolsConfig.find(t => t.id === activeTool);
+                        if (!tool) return null;
+                        const Component = tool.component;
+                        return (
+                            <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
+                                <Suspense fallback={<LoadingSpinner />}>
+                                    <Component onLogout={onLogout} />
+                                </Suspense>
+                            </div>
+                        );
+                    })()}
                 </main>
             </div>
         </div>
     );
 };
 
-export default StaffDashboard;
+export default memo(StaffDashboard);

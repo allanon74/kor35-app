@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { 
     MapPin, Edit2, Trash2, Calendar, 
     Users, Star, UserPlus, X, ChevronDown, ChevronUp, ShieldCheck 
@@ -9,10 +9,13 @@ const EventoSection = ({ evento, isMaster, risorse, onEdit, onDelete, onUpdateEv
 
     if (!evento) return null;
 
-    // Filtriamo i personaggi per mostrare solo i GIOCANTI (flag giocante: true) per le iscrizioni
-    const personaggiGiocanti = risorse.png?.filter(p => p.giocante === true) || [];
+    // Filtriamo i personaggi per mostrare solo i GIOCANTI (flag giocante: true) per le iscrizioni (Memoized)
+    const personaggiGiocanti = useMemo(() => 
+        risorse.png?.filter(p => p.giocante === true) || [], 
+        [risorse.png]
+    );
 
-    const handleListChange = async (fieldName, targetId, action) => {
+    const handleListChange = useCallback(async (fieldName, targetId, action) => {
         let currentList = evento[fieldName] || [];
         // Estraiamo gli ID se la lista contiene oggetti
         const currentIds = currentList.map(item => typeof item === 'object' ? item.id : item);
@@ -29,7 +32,7 @@ const EventoSection = ({ evento, isMaster, risorse, onEdit, onDelete, onUpdateEv
 
         // Chiamata al backend per aggiornare la lista Many-to-Many
         onUpdateEvento(evento.id, { [fieldName]: newIds });
-    };
+    }, [evento.id, evento, onUpdateEvento]);
 
     return (
         <div className="bg-indigo-900/10 border-b border-gray-800 p-6 space-y-6 shadow-inner">
@@ -153,4 +156,4 @@ const EventoSection = ({ evento, isMaster, risorse, onEdit, onDelete, onUpdateEv
     );
 };
 
-export default EventoSection;
+export default memo(EventoSection);

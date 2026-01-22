@@ -1,5 +1,5 @@
 // src/components/QuestItem.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { Edit2, Trash, Plus, Package, List, User as UserIcon, QrCode as QrIcon, X } from 'lucide-react';
 import RichTextDisplay from './RichTextDisplay';
 import QuestFaseSection from './QuestFaseSection';
@@ -135,4 +135,4 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
     );
 };
 
-export default QuestItem;
+export default memo(QuestItem);

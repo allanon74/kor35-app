@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { staffGetProposteInValutazione, staffRifiutaProposta, staffApprovaProposta } from '../../api';
 import GenericHeader from '../GenericHeader';
 import { Eye, X, Check, ClipboardCheck, AlertCircle } from 'lucide-react';
@@ -18,9 +18,9 @@ const StaffProposalTab = ({ onLogout }) => {
 
     useEffect(() => {
         loadProposals();
-    }, []);
+    }, [loadProposals]);
 
-    const loadProposals = async () => {
+    const loadProposals = useCallback(async () => {
         setLoading(true);
         try {
             const data = await staffGetProposteInValutazione(onLogout);
@@ -30,18 +30,18 @@ const StaffProposalTab = ({ onLogout }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [onLogout]);
 
-    const handleOpenDetail = (prop) => {
+    const handleOpenDetail = useCallback((prop) => {
         setSelectedProposal(prop);
         setStaffNotes(prop.note_staff || "");
         setViewMode('detail');
-    };
+    }, []);
 
-    const handleBack = () => {
+    const handleBack = useCallback(() => {
         setSelectedProposal(null);
         setViewMode('list');
-    };
+    }, []);
 
     const handleRifiuta = async () => {
         if (!confirm("Confermi il rifiuto? La proposta tornerà in Bozza al giocatore.")) return;
@@ -351,4 +351,4 @@ const StaffProposalTab = ({ onLogout }) => {
     );
 };
 
-export default StaffProposalTab;
+export default memo(StaffProposalTab);

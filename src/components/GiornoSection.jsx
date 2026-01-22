@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; 
+import React, { useState, useMemo, useCallback, memo } from 'react'; 
 import { Calendar, Clock, Edit2, Trash, ChevronDown, ChevronUp, BookOpen, Plus } from 'lucide-react';
 import QuestItem from './QuestItem';
 import RichTextDisplay from './RichTextDisplay';
@@ -6,17 +6,19 @@ import RichTextDisplay from './RichTextDisplay';
 const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAddQuest, questHandlers }) => {
     const [showDettagli, setShowDettagli] = useState(false);
 
-    // LOGICA DI ORDINAMENTO AGGIUNTA
+    // LOGICA DI ORDINAMENTO AGGIUNTA (Memoized)
     // Crea una copia dell'array e ordina per orario_indicativo
-    const sortedQuests = [...(giorno.quests || [])].sort((a, b) => {
-        // Se manca l'orario, considera come fine giornata ("23:59:59") per metterlo in fondo
-        const timeA = a.orario_indicativo || "23:59:59";
-        const timeB = b.orario_indicativo || "23:59:59";
-        return timeA.localeCompare(timeB);
-    });
+    const sortedQuests = useMemo(() => {
+        return [...(giorno.quests || [])].sort((a, b) => {
+            // Se manca l'orario, considera come fine giornata ("23:59:59") per metterlo in fondo
+            const timeA = a.orario_indicativo || "23:59:59";
+            const timeB = b.orario_indicativo || "23:59:59";
+            return timeA.localeCompare(timeB);
+        });
+    }, [giorno.quests]);
     
-    const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--";
-    const formatDate = (iso) => iso ? new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' }) : "";
+    const formatTime = useCallback((iso) => iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--", []);
+    const formatDate = useCallback((iso) => iso ? new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' }) : "", []);
 
     return (
         <div className="space-y-6 w-full max-w-full">
@@ -101,4 +103,4 @@ const GiornoSection = ({ giorno, gIdx, isMaster, risorse, onEdit, onDelete, onAd
     );
 };
 
-export default GiornoSection;
+export default memo(GiornoSection);

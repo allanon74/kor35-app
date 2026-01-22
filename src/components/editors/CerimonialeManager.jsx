@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import CerimonialeList from './CerimonialeList';
 import CerimonialeEditor from './CerimonialeEditor';
 
@@ -6,20 +6,20 @@ const CerimonialeManager = ({ onBack, onLogout }) => {
   const [view, setView] = useState('list'); // 'list' o 'edit'
   const [editingItem, setEditingItem] = useState(null);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     setEditingItem(null);
     setView('edit');
-  };
+  }, []);
 
-  const handleEdit = (item) => {
+  const handleEdit = useCallback((item) => {
     setEditingItem(item);
     setView('edit');
-  };
+  }, []);
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     setEditingItem(null);
     setView('list');
-  };
+  }, []);
 
   if (view === 'edit') {
     return (
@@ -49,4 +49,4 @@ const CerimonialeManager = ({ onBack, onLogout }) => {
   );
 };
 
-export default CerimonialeManager;
+export default memo(CerimonialeManager);

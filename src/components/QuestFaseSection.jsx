@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { Swords, Users, Monitor, Trash, Heart, Shield, Edit2, Plus, ChevronDown, ChevronUp, UserCheck, Shirt, ScrollText, Zap, SquareActivity } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import RichTextDisplay from './RichTextDisplay';
 
-// --- SOTTO-COMPONENTE PER LA CARD DEL TASK ---
-const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => {
+// --- SOTTO-COMPONENTE PER LA CARD DEL TASK --- (Memoized)
+const TaskCard = memo(({ task, isMaster, currentUserId, onRemove, onStatChange }) => {
     
     // 1. LOGICA "IS MINE"
     const isMine = useMemo(() => {
@@ -167,10 +167,30 @@ const TaskCard = ({ task, isMaster, currentUserId, onRemove, onStatChange }) => 
             )}
         </div>
     );
-};
+});
+
+TaskCard.displayName = 'TaskCard';
+
+const StatMini = memo(({ icon, label, value, onUp, onDown, color }) => (
+    <div className={`flex items-center gap-2 bg-black/60 px-2 py-1.5 rounded-lg border border-gray-800 ${color} shadow-sm min-w-[75px] justify-between`}>
+        <div className="flex items-center gap-1.5">
+            {icon} 
+            <div className="flex flex-col leading-none">
+                <span className="text-[7px] font-bold opacity-60 uppercase">{label}</span>
+                <span className="text-xs font-black text-white">{value}</span>
+            </div>
+        </div>
+        <div className="flex flex-col ml-1 gap-px">
+            <button onClick={onUp} className="text-[8px] leading-none text-gray-500 hover:text-white hover:bg-gray-700 px-1 py-px rounded transition-colors">▲</button>
+            <button onClick={onDown} className="text-[8px] leading-none text-gray-500 hover:text-white hover:bg-gray-700 px-1 py-px rounded transition-colors">▼</button>
+        </div>
+    </div>
+));
+
+StatMini.displayName = 'StatMini';
 
 // --- COMPONENTE PRINCIPALE ---
-const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, onStatChange, onEdit, onDelete }) => {
+const QuestFaseSection = memo(({ fase, isMaster, risorse, onAddTask, onRemoveTask, onStatChange, onEdit, onDelete }) => {
     const [formOpen, setFormOpen] = useState(false);
     
     // STATO DEL FORM AGGIORNATO CON 'descrizione'
@@ -180,7 +200,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
         personaggio: '', 
         mostro_template: '', 
         compito_offgame: 'REG', 
-        descrizione: '', // <--- Campo mancante aggiunto
+        descrizione: '',
         istruzioni: '' 
     });
 
@@ -210,11 +230,17 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
     }, [form.staffer, risorse.png, risorse.staff]);
 
     const tasks = fase.tasks || [];
-    const groupedTasks = {
+    const groupedTasks = useMemo(() => ({
         PNG: tasks.filter(t => t.ruolo === 'PNG'),
         MOSTRO: tasks.filter(t => t.ruolo === 'MOSTRO'),
         OFF: tasks.filter(t => !['PNG', 'MOSTRO'].includes(t.ruolo))
-    };
+    }), [tasks]);
+
+    const handleFormSubmit = useCallback(() => {
+        onAddTask({ fase: fase.id, ...form });
+        setForm({ ruolo: 'PNG', staffer: '', personaggio: '', mostro_template: '', compito_offgame: 'REG', descrizione: '', istruzioni: '' });
+        setFormOpen(false);
+    }, [form, fase.id, onAddTask]);
 
     return (
         <div className="bg-gray-900/60 rounded-xl border border-gray-700/50 overflow-hidden mb-6 shadow-lg">
@@ -235,7 +261,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                 )}
             </div>
 
-            {/* DESCRIZIONE FASE (AGGIUNTA) */}
+            {/* DESCRIZIONE FASE */}
             {fase.descrizione && (
                 <div className="bg-gray-900/40 px-4 py-3 border-b border-gray-700/50">
                     <div className="text-gray-300 text-xs leading-relaxed">
@@ -282,7 +308,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-1">
                                             <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Membro Staff</label>
-                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-white border border-gray-700 focus:border-indigo-500 outline-none shadow-inner" 
+                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-white border border-gray-700 focus:border-indigo-500 outline-none shadow-inner transition-colors" 
                                                 value={form.staffer} onChange={e => setForm({...form, staffer: e.target.value, personaggio: ''})}>
                                                 <option value="">Seleziona Staffer...</option>
                                                 {risorse.staff?.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
@@ -290,7 +316,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Ruolo / Tipo</label>
-                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-indigo-400 border border-gray-700 font-black focus:border-indigo-500 outline-none shadow-inner" 
+                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-indigo-400 border border-gray-700 font-black focus:border-indigo-500 outline-none shadow-inner transition-colors" 
                                                 value={form.ruolo} onChange={e => setForm({...form, ruolo: e.target.value})}>
                                                 <option value="PNG">RUOLO: PnG</option>
                                                 <option value="MOSTRO">RUOLO: Mostro</option>
@@ -303,7 +329,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                     {form.ruolo === 'PNG' && (
                                         <div className="space-y-1">
                                             <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Personaggio PnG</label>
-                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-white border border-gray-700 focus:border-indigo-500 outline-none shadow-inner" 
+                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-white border border-gray-700 focus:border-indigo-500 outline-none shadow-inner transition-colors" 
                                                 value={form.personaggio} onChange={e => setForm({...form, personaggio: e.target.value})} disabled={!form.staffer}>
                                                 <option value="">{form.staffer ? "Seleziona PnG dello Staffer..." : "Prima seleziona un membro dello Staff"}</option>
                                                 {pngFiltrati.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -313,7 +339,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                     {form.ruolo === 'MOSTRO' && (
                                         <div className="space-y-1">
                                             <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Template Mostro</label>
-                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-white border border-gray-700 focus:border-indigo-500 outline-none shadow-inner" 
+                                            <select className="w-full bg-gray-900 p-2.5 rounded-lg text-xs text-white border border-gray-700 focus:border-indigo-500 outline-none shadow-inner transition-colors" 
                                                 value={form.mostro_template} onChange={e => setForm({...form, mostro_template: e.target.value})}>
                                                 <option value="">Seleziona Template Mostro...</option>
                                                 {risorse.templates?.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -340,7 +366,7 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
                                     
                                     <div className="flex gap-3 pt-2">
                                         <button onClick={() => setFormOpen(false)} className="flex-1 py-3 rounded-lg border border-gray-700 text-gray-400 text-[10px] font-bold hover:bg-gray-800 transition-colors uppercase">Annulla</button>
-                                        <button onClick={() => { onAddTask({ fase: fase.id, ...form }); setForm({...form, personaggio: '', mostro_template: '', istruzioni: '', descrizione: ''}); setFormOpen(false); }} className="flex-2 bg-indigo-600 hover:bg-indigo-500 py-3 rounded-lg font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/30 transition-all transform active:scale-95">Conferma Incarico</button>
+                                        <button onClick={handleFormSubmit} className="flex-2 bg-indigo-600 hover:bg-indigo-500 py-3 rounded-lg font-black text-[10px] uppercase text-white shadow-lg shadow-indigo-900/30 transition-all transform active:scale-95">Conferma Incarico</button>
                                     </div>
                                 </div>
                             </div>
@@ -350,22 +376,8 @@ const QuestFaseSection = ({ fase, isMaster, risorse, onAddTask, onRemoveTask, on
             </div>
         </div>
     );
-};
+});
 
-const StatMini = ({ icon, label, value, onUp, onDown, color }) => (
-    <div className={`flex items-center gap-2 bg-black/60 px-2 py-1.5 rounded-lg border border-gray-800 ${color} shadow-sm min-w-[75px] justify-between`}>
-        <div className="flex items-center gap-1.5">
-            {icon} 
-            <div className="flex flex-col leading-none">
-                <span className="text-[7px] font-bold opacity-60 uppercase">{label}</span>
-                <span className="text-xs font-black text-white">{value}</span>
-            </div>
-        </div>
-        <div className="flex flex-col ml-1 gap-px">
-            <button onClick={onUp} className="text-[8px] leading-none text-gray-500 hover:text-white hover:bg-gray-700 px-1 py-px rounded transition-colors">▲</button>
-            <button onClick={onDown} className="text-[8px] leading-none text-gray-500 hover:text-white hover:bg-gray-700 px-1 py-px rounded transition-colors">▼</button>
-        </div>
-    </div>
-);
+QuestFaseSection.displayName = 'QuestFaseSection';
 
 export default QuestFaseSection;

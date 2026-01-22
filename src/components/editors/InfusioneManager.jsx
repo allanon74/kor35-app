@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import InfusioneList from './InfusioneList';
 import InfusioneEditor from './InfusioneEditor';
 
@@ -6,20 +6,20 @@ const InfusioneManager = ({ onBack, onLogout }) => {
   const [view, setView] = useState('list'); // 'list' o 'edit'
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const handleEdit = (item) => {
+  const handleEdit = useCallback((item) => {
     setSelectedItem(item);
     setView('edit');
-  };
+  }, []);
 
-  const handleNew = () => {
+  const handleNew = useCallback(() => {
     setSelectedItem(null);
     setView('edit');
-  };
+  }, []);
 
-  const handleEditorBack = () => {
+  const handleEditorBack = useCallback(() => {
     setView('list');
     setSelectedItem(null);
-  };
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -46,4 +46,4 @@ const InfusioneManager = ({ onBack, onLogout }) => {
   );
 };
 
-export default InfusioneManager;
+export default memo(InfusioneManager);

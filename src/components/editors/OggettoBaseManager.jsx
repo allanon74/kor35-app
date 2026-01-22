@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import OggettoBaseList from './OggettoBaseList';
 import OggettoBaseEditor from './OggettoBaseEditor';
@@ -7,20 +7,20 @@ const OggettoBaseManager = ({ onBack, onLogout }) => {
   const [view, setView] = useState('list');
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     setSelectedItem(null);
     setView('editor');
-  };
+  }, []);
 
-  const handleEdit = (item) => {
+  const handleEdit = useCallback((item) => {
     setSelectedItem(item);
     setView('editor');
-  };
+  }, []);
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     setView('list');
     setSelectedItem(null);
-  };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -49,4 +49,4 @@ const OggettoBaseManager = ({ onBack, onLogout }) => {
   );
 };
 
-export default OggettoBaseManager;
+export default memo(OggettoBaseManager);

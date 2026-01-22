@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
+import { useDebounce } from '../../hooks/useDebounce';
 import { Search, Pencil, Trash2, Plus, FilterX } from 'lucide-react';
 
 const MasterGenericList = ({ 
@@ -16,26 +17,29 @@ const MasterGenericList = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState({});
+  
+  // Debounce del search term per migliorare le performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const toggleFilter = (key, val) => {
+  const toggleFilter = useCallback((key, val) => {
     setActiveFilters(prev => {
       const current = prev[key] || [];
       const updated = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
       return { ...prev, [key]: updated };
     });
-  };
+  }, []);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setActiveFilters({});
     setSearchTerm('');
-  };
+  }, []);
 
   const filteredItems = useMemo(() => {
     const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
-    if (!searchTerm && !hasActiveFilters && filterConfig.length > 0) return []; 
+    if (!debouncedSearchTerm && !hasActiveFilters && filterConfig.length > 0) return []; 
 
     let filtered = items.filter(item => {
-      const matchSearch = (item.nome || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = (item.nome || "").toLowerCase().includes(debouncedSearchTerm.toLowerCase());
       if (!matchSearch) return false;
       
       return Object.entries(activeFilters).every(([key, values]) => {
@@ -48,7 +52,7 @@ const MasterGenericList = ({
     });
 
     return sortLogic ? [...filtered].sort(sortLogic) : filtered;
-  }, [items, searchTerm, activeFilters, sortLogic, filterConfig]);
+  }, [items, debouncedSearchTerm, activeFilters, sortLogic, filterConfig]);
 
   return (
     // H-FULL e FLEX-COL sono cruciali per bloccare l'altezza e scrollare dentro
@@ -191,4 +195,4 @@ const MasterGenericList = ({
   );
 };
 
-export default MasterGenericList;
+export default memo(MasterGenericList);
