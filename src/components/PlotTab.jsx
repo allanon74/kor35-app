@@ -19,12 +19,44 @@ import GiornoSection from './GiornoSection';
 import QrTab from './QrTab'; 
 import RichTextEditor from './RichTextEditor';
 
+// Cache per le risorse (persiste per la sessione)
+const RISORSE_CACHE_KEY = 'plot_risorse_cache';
+const RISORSE_CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minuti
+
 const PlotTab = ({ onLogout }) => {
     const { isMaster } = useCharacter();
     const [eventi, setEventi] = useState([]);
     const [selectedEvento, setSelectedEvento] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [risorse, setRisorse] = useState({ png: [], templates: [], manifesti: [], inventari: [], staff: [] });
+    const [risorse, setRisorse] = useState(() => {
+        // Prova a caricare dalla cache
+        try {
+            const cached = sessionStorage.getItem(RISORSE_CACHE_KEY);
+            if (cached) {
+                const { data, timestamp } = JSON.parse(cached);
+                if (Date.now() - timestamp < RISORSE_CACHE_TIMEOUT) {
+                    console.log("PlotTab: Risorse caricate dalla cache");
+                    return data;
+                }
+            }
+        } catch (e) {
+            console.warn("PlotTab: Errore lettura cache:", e);
+        }
+        return { png: [], templates: [], manifesti: [], inventari: [], staff: [] };
+    });
+    const [risorseLoaded, setRisorseLoaded] = useState(() => {
+        // Verifica se le risorse sono state caricate dalla cache
+        try {
+            const cached = sessionStorage.getItem(RISORSE_CACHE_KEY);
+            if (cached) {
+                const { timestamp } = JSON.parse(cached);
+                return Date.now() - timestamp < RISORSE_CACHE_TIMEOUT;
+            }
+        } catch (e) {
+            // Ignora errori
+        }
+        return false;
+    });
     
     const [editMode, setEditMode] = useState(null); 
     const [formData, setFormData] = useState({});
@@ -32,10 +64,10 @@ const PlotTab = ({ onLogout }) => {
 
     const loadInitialData = useCallback(async () => {
         try {
-            console.log("PlotTab: Inizio caricamento dati...");
-            const [evData, risData] = await Promise.all([getEventi(onLogout), getRisorseEditor(onLogout)]);
+            console.log("PlotTab: Inizio caricamento eventi...");
             
-            console.log("PlotTab: Dati ricevuti - eventi:", evData?.length || 0, "risorse:", risData);
+            // Carica prima gli eventi (più importante, più veloce)
+            const evData = await getEventi(onLogout);
             
             // Verifica che evData sia un array
             if (!Array.isArray(evData)) {
@@ -51,22 +83,50 @@ const PlotTab = ({ onLogout }) => {
             const nextEvent = sortedEvents.find(ev => new Date(ev.data_inizio) >= today) || sortedEvents[0];
             
             setEventi(sortedEvents);
-            setRisorse(risData || { png: [], templates: [], manifesti: [], inventari: [], staff: [] });
             if (nextEvent) {
                 console.log("PlotTab: Evento selezionato:", nextEvent.id, nextEvent.titolo);
                 setSelectedEvento(nextEvent);
             } else {
                 console.warn("PlotTab: Nessun evento trovato");
             }
+            
+            // Ora che gli eventi sono caricati, possiamo mostrare l'interfaccia
+            setLoading(false);
+            
+            // Carica le risorse in background (lazy loading) solo se non in cache
+            if (!risorseLoaded) {
+                console.log("PlotTab: Caricamento risorse in background...");
+                try {
+                    const risData = await getRisorseEditor(onLogout);
+                    console.log("PlotTab: Risorse caricate:", risData);
+                    const risorseData = risData || { png: [], templates: [], manifesti: [], inventari: [], staff: [] };
+                    setRisorse(risorseData);
+                    setRisorseLoaded(true);
+                    
+                    // Salva in cache
+                    try {
+                        sessionStorage.setItem(RISORSE_CACHE_KEY, JSON.stringify({
+                            data: risorseData,
+                            timestamp: Date.now()
+                        }));
+                    } catch (e) {
+                        console.warn("PlotTab: Errore salvataggio cache:", e);
+                    }
+                } catch (risError) {
+                    console.error("PlotTab: Errore caricamento risorse (non critico):", risError);
+                    // Le risorse non sono critiche, possiamo continuare senza
+                }
+            } else {
+                console.log("PlotTab: Risorse già in cache, skip caricamento");
+            }
         } catch (e) { 
             console.error("PlotTab: Errore caricamento plot:", e);
             alert(`Errore nel caricamento dei dati plot: ${e.message || e}`);
             setEventi([]);
             setRisorse({ png: [], templates: [], manifesti: [], inventari: [], staff: [] });
-        } finally { 
-            setLoading(false); 
+            setLoading(false);
         }
-    }, [onLogout]);
+    }, [onLogout, risorseLoaded]);
 
     useEffect(() => { loadInitialData(); }, [loadInitialData]);
 
