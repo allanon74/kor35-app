@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiImageList, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import { Lock, Eye, GripVertical, Image as ImageIcon } from 'lucide-react'; 
 
@@ -28,6 +28,8 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // Widget Helper logic
   const [showWidgetHelper, setShowWidgetHelper] = useState(false);
   const [availableTiers, setAvailableTiers] = useState([]);
+  const [availableImages, setAvailableImages] = useState([]);
+  const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier' o 'image'
 
   // Dragging Logic
   const [isDragging, setIsDragging] = useState(false);
@@ -39,9 +41,15 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
   useEffect(() => {
     if (showWidgetHelper) {
+        // Carica Tier
         getWikiTierList()
             .then(data => setAvailableTiers(data))
             .catch(err => console.error("Err loading tiers", err));
+        
+        // Carica Immagini
+        getWikiImageList()
+            .then(data => setAvailableImages(data))
+            .catch(err => console.error("Err loading images", err));
     }
   }, [showWidgetHelper]);
 
@@ -334,20 +342,72 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                     </button>
                     
                     {showWidgetHelper && (
-                        <div className="mt-2 max-h-40 md:max-h-60 overflow-y-auto bg-white rounded border border-gray-300 shadow-inner">
-                            {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
-                            
-                            {availableTiers.map(tier => (
-                                <button 
-                                    key={tier.id}
+                        <div className="mt-2 bg-white rounded border border-gray-300 shadow-inner">
+                            {/* Tab Selector */}
+                            <div className="flex border-b border-gray-200">
+                                <button
                                     type="button"
-                                    onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
-                                    className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
+                                    onClick={() => setWidgetHelperTab('tier')}
+                                    className={`flex-1 px-3 py-2 text-xs font-bold transition-colors ${
+                                        widgetHelperTab === 'tier'
+                                            ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
                                 >
-                                    <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2">{tier.nome}</span>
-                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{tier.id}</span>
+                                    📊 Tier
                                 </button>
-                            ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setWidgetHelperTab('image')}
+                                    className={`flex-1 px-3 py-2 text-xs font-bold transition-colors ${
+                                        widgetHelperTab === 'image'
+                                            ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    🖼️ Immagini
+                                </button>
+                            </div>
+                            
+                            {/* Content Area */}
+                            <div className="max-h-40 md:max-h-60 overflow-y-auto">
+                                {widgetHelperTab === 'tier' && (
+                                    <>
+                                        {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
+                                        {availableTiers.map(tier => (
+                                            <button 
+                                                key={tier.id}
+                                                type="button"
+                                                onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
+                                                className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
+                                            >
+                                                <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2">{tier.nome}</span>
+                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{tier.id}</span>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
+                                
+                                {widgetHelperTab === 'image' && (
+                                    <>
+                                        {availableImages.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
+                                        {availableImages.map(img => (
+                                            <button 
+                                                key={img.id}
+                                                type="button"
+                                                onClick={() => insertWidget(`{{WIDGET_IMAGE:${img.id}}}`)}
+                                                className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
+                                            >
+                                                <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2 flex items-center gap-2">
+                                                    <ImageIcon size={14} className="text-gray-400" />
+                                                    {img.titolo || `Immagine #${img.id}`}
+                                                </span>
+                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{img.id}</span>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

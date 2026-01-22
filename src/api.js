@@ -1246,6 +1246,15 @@ export const getWikiTierList = () => {
   return fetchPublic('/plot/api/public/wiki-tiers/');
 };
 
+// --- WIDGET IMMAGINI WIKI ---
+export const getWikiImage = (id) => {
+  return fetchPublic(`/plot/api/public/wiki-immagini/${id}/`);
+};
+
+export const getWikiImageList = () => {
+  return fetchPublic('/plot/api/public/wiki-immagini/');
+};
+
 // Crea una nuova pagina (Staff) - Supporta FormData per immagini
 export const createWikiPage = (formData, onLogout) => {
   return fetchAuthenticated('/plot/api/staff/pagine-regolamento/', {
