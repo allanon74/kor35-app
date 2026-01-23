@@ -16,7 +16,7 @@ import {
     Menu, X, UserCog, RefreshCw, Filter, DownloadCloud, ScrollText, 
     ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users,
     Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight,
-    Key // <-- [MODIFICA] Icona Key aggiunta
+    Key, HelpCircle // <-- [MODIFICA] Icona HelpCircle aggiunta
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
@@ -34,6 +34,9 @@ import PersonaggiTab from './PersonaggiTab.jsx';
 
 // --- [MODIFICA] Import Modale Password ---
 import PasswordChangeModal from './PasswordChangeModal.jsx';
+
+// --- [MODIFICA] Import Modale Wiki Help ---
+import WikiHelpModal from './WikiHelpModal.jsx';
 
 // VERSIONE APP
 const APP_VERSION = packageInfo.version;
@@ -54,6 +57,23 @@ const AVAILABLE_TABS = [
 
 const DEFAULT_SHORTCUTS = ['inventario', 'abilita', 'messaggi', 'qr'];
 
+// Mappatura tab -> slug pagina wiki
+// Nota: gli slug sono unici nel database, le pagine sono organizzate gerarchicamente tramite parent
+const TAB_TO_WIKI_SLUG = {
+    'inventario': 'inventario',
+    'abilita': 'abilita',
+    'tessiture': 'tessiture',
+    'infusioni': 'infusioni',
+    'cerimoniali': 'cerimoniali',
+    'messaggi': 'messaggi',
+    'qr': 'scanner-qr',
+    'logs': 'diario',
+    'transazioni': 'transazioni',
+    'personaggi': 'gestione-personaggio',
+    'home': 'gestione-personaggio',
+    'game': 'navigazione-app',
+};
+
 const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
@@ -62,6 +82,10 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   // --- [MODIFICA] Stato per Modale Password e Notifiche Staff ---
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [staffUnreadCount, setStaffUnreadCount] = useState(0);
+  
+  // --- [MODIFICA] Stato per Modale Wiki Help ---
+  const [isWikiHelpOpen, setIsWikiHelpOpen] = useState(false);
+  const [currentWikiSlug, setCurrentWikiSlug] = useState(null);
   
   // STATO SHORTCUTS (Default salvagente)
   const [userShortcuts, setUserShortcuts] = useState(DEFAULT_SHORTCUTS);
@@ -217,6 +241,20 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const handleMenuNavigation = useCallback((tabName) => {
     setActiveTab(tabName);
     setIsMenuOpen(false);
+  }, []);
+
+  // --- [MODIFICA] Funzione per aprire il modal di aiuto ---
+  const openWikiHelp = useCallback(() => {
+    const wikiSlug = TAB_TO_WIKI_SLUG[activeTab];
+    if (wikiSlug) {
+      setCurrentWikiSlug(wikiSlug);
+      setIsWikiHelpOpen(true);
+    }
+  }, [activeTab]);
+
+  const closeWikiHelp = useCallback(() => {
+    setIsWikiHelpOpen(false);
+    setCurrentWikiSlug(null);
   }, []);
 
   // --- NOTIFICHE (Memoized) ---
@@ -482,6 +520,18 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
               <div className="flex items-center gap-3 z-20">
                   {isLoading && <Loader2 size={20} className="text-indigo-400 animate-spin" />}
                   
+                  {/* --- [MODIFICA] PULSANTE AIUTO (?) --- */}
+                  {TAB_TO_WIKI_SLUG[activeTab] && (
+                    <button
+                      onClick={openWikiHelp}
+                      className="p-2 rounded-full hover:bg-indigo-600/20 transition-colors text-indigo-400 hover:text-indigo-300 border border-indigo-500/30 hover:border-indigo-400/50"
+                      title="Guida e Istruzioni"
+                      aria-label="Apri guida"
+                    >
+                      <HelpCircle size={20} />
+                    </button>
+                  )}
+                  
                   {/* HAMBURGER VISIBILE SOLO SU MOBILE */}
                   <button onClick={() => setIsMenuOpen(true)} className="md:hidden relative p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-200">
                     <Menu size={28} />
@@ -572,6 +622,13 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
           isOpen={isPasswordModalOpen} 
           onClose={() => setIsPasswordModalOpen(false)} 
           onLogout={onLogout}
+      />
+
+      {/* --- [MODIFICA] MODALE WIKI HELP --- */}
+      <WikiHelpModal
+          isOpen={isWikiHelpOpen}
+          onClose={closeWikiHelp}
+          wikiSlug={currentWikiSlug}
       />
     </div>
   );
