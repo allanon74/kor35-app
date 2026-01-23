@@ -1367,11 +1367,38 @@ export const activateUser = async (userIdToActivate, onLogout) => {
 };
 
 /**
+ * Elimina un utente (Solo Staff).
+ */
+export const deleteUser = async (userIdToDelete, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/staff/delete-user/${userIdToDelete}/`, {
+        method: 'DELETE'
+    }, onLogout);
+};
+
+/**
  * Recupera i messaggi indirizzati allo staff (is_staff_message=True)
  */
 export const fetchStaffMessages = async (onLogout) => {
     // --- CORREZIONE: Usa l'endpoint specifico per lo staff invece di quello generico ---
     return fetchAuthenticated('/personaggi/api/staff/messages/', {
         method: 'GET'
+    }, onLogout);
+};
+
+/**
+ * Marca un messaggio staff come letto.
+ */
+export const markStaffMessageAsRead = async (messageId, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/staff/messages/${messageId}/leggi/`, {
+        method: 'POST'
+    }, onLogout);
+};
+
+/**
+ * Elimina un messaggio staff.
+ */
+export const deleteStaffMessage = async (messageId, onLogout) => {
+    return fetchAuthenticated(`/personaggi/api/staff/messages/${messageId}/cancella/`, {
+        method: 'POST'
     }, onLogout);
 };

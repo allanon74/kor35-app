@@ -6,11 +6,13 @@ import {
     getAdminSentMessages, 
     fetchStaffMessages, 
     searchPersonaggi,
-    fetchAuthenticated // Assicurati che api.js esporti questo per l'invio singolo standard
+    fetchAuthenticated, // Assicurati che api.js esporti questo per l'invio singolo standard
+    markStaffMessageAsRead,
+    deleteStaffMessage
 } from '../api';
 import RichTextEditor from './RichTextEditor';
 import RichTextDisplay from './RichTextDisplay';
-import { Mail, Users, Radio, Clock, Shield, CheckCircle, Search, X, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Mail, Users, Radio, Clock, Shield, CheckCircle, Search, X, RefreshCw, ShieldAlert, Trash2, Eye, EyeOff } from 'lucide-react';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -61,6 +63,37 @@ const AdminMessageTab = ({ onLogout }) => {
             console.error("Errore caricamento inbox:", err);
         } finally {
             setIsLoadingInbox(false);
+        }
+    };
+
+    // Marca messaggio come letto/non letto
+    const handleToggleRead = async (messageId, currentStatus) => {
+        try {
+            if (!currentStatus) {
+                // Se non è letto, marcalo come letto
+                await markStaffMessageAsRead(messageId, onLogout);
+            }
+            // Ricarica i messaggi per aggiornare lo stato
+            loadInbox();
+        } catch (err) {
+            console.error("Errore marcatura messaggio:", err);
+            alert('Errore nel marcare il messaggio: ' + err.message);
+        }
+    };
+
+    // Elimina messaggio
+    const handleDeleteMessage = async (messageId) => {
+        if (!window.confirm('Sei sicuro di voler eliminare questo messaggio?')) {
+            return;
+        }
+        
+        try {
+            await deleteStaffMessage(messageId, onLogout);
+            // Ricarica i messaggi dopo l'eliminazione
+            loadInbox();
+        } catch (err) {
+            console.error("Errore eliminazione messaggio:", err);
+            alert('Errore nell\'eliminazione: ' + err.message);
         }
     };
 
@@ -237,7 +270,7 @@ const AdminMessageTab = ({ onLogout }) => {
                             inboxMessages.map(msg => (
                                 <div key={msg.id} className={`bg-gray-800 border-l-4 ${msg.letto ? 'border-gray-600' : 'border-green-500'} rounded-lg p-4 shadow-md transition-all hover:bg-gray-750`}>
                                     <div className="flex justify-between items-start mb-2 border-b border-gray-700 pb-2">
-                                        <div>
+                                        <div className="flex-1">
                                             <span className="font-bold text-green-300 block text-sm">
                                                 Da: {msg.mittente_nome || 'Utente Sconosciuto / Sistema'}
                                             </span>
@@ -245,14 +278,34 @@ const AdminMessageTab = ({ onLogout }) => {
                                                 {new Date(msg.data_creazione).toLocaleString()}
                                             </span>
                                         </div>
-                                        {!msg.letto && <span className="bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wide">Nuovo</span>}
+                                        <div className="flex items-center gap-2">
+                                            {!msg.letto && <span className="bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wide">Nuovo</span>}
+                                            
+                                            {/* Pulsante Marca come Letto */}
+                                            <button
+                                                onClick={() => handleToggleRead(msg.id, msg.letto)}
+                                                className={`p-1.5 rounded transition-colors ${msg.letto ? 'bg-gray-700 hover:bg-gray-600 text-gray-400' : 'bg-green-900/50 hover:bg-green-800 text-green-300'}`}
+                                                title={msg.letto ? 'Già letto' : 'Segna come letto'}
+                                            >
+                                                {msg.letto ? <EyeOff size={14} /> : <Eye size={14} />}
+                                            </button>
+                                            
+                                            {/* Pulsante Elimina */}
+                                            <button
+                                                onClick={() => handleDeleteMessage(msg.id)}
+                                                className="p-1.5 bg-red-900/50 hover:bg-red-800 text-red-300 rounded transition-colors"
+                                                title="Elimina messaggio"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </div>
                                     
                                     <h4 className="font-bold text-white text-sm mb-2">{msg.titolo}</h4>
                                     
-                                    {/* RichTextDisplay gestisce i bottoni di attivazione */}
+                                    {/* RichTextDisplay gestisce i bottoni di attivazione e eliminazione utente */}
                                     <div className="bg-gray-900/60 p-3 rounded text-sm text-gray-300 border border-gray-700/50">
-                                        <RichTextDisplay content={msg.testo} />
+                                        <RichTextDisplay content={msg.testo} onUpdate={loadInbox} />
                                     </div>
                                 </div>
                             ))
