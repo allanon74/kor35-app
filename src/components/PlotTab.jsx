@@ -233,6 +233,17 @@ const PlotTab = ({ onLogout }) => {
     onScanQr: (id) => setScanningForVista(id)
 }), [selectedEvento, onLogout, refreshData]);
 
+    // Callbacks per EventoSection (spostati fuori dal JSX)
+    const handleUpdateEvento = useCallback((id, data) => { 
+        updateEvento(id, data, onLogout); 
+        refreshData(); 
+    }, [onLogout, refreshData]);
+
+    const handleAddGiorno = useCallback(() => startEdit('giorno'), [startEdit]);
+    
+    // Callback per GiornoSection (spostato fuori dal JSX)
+    const handleAddQuest = useCallback((gid) => startEdit('quest', { giorno: gid }), [startEdit]);
+
     if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
 
     const handlePrintEvent = useCallback(() => {
@@ -585,11 +596,8 @@ const PlotTab = ({ onLogout }) => {
                                 risorse={risorse}
                                 onEdit={startEdit} 
                                 onDelete={handleDeleteEvento}
-                                onUpdateEvento={useMemo(() => (id, data) => { 
-                                    updateEvento(id, data, onLogout); 
-                                    refreshData(); 
-                                }, [onLogout, refreshData])}
-                                onAddGiorno={useMemo(() => () => startEdit('giorno'), [startEdit])}
+                                onUpdateEvento={handleUpdateEvento}
+                                onAddGiorno={handleAddGiorno}
                             />
                         )}
                         <div className="p-4 space-y-16">
@@ -602,7 +610,7 @@ const PlotTab = ({ onLogout }) => {
                                     risorse={risorse}
                                     onEdit={startEdit} 
                                     onDelete={handleDeleteGiorno} 
-                                    onAddQuest={useMemo(() => (gid) => startEdit('quest', { giorno: gid }), [startEdit])}
+                                    onAddQuest={handleAddQuest}
                                     questHandlers={questHandlers} 
                                 />
                             ))}
