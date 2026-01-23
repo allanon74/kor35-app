@@ -244,8 +244,7 @@ const PlotTab = ({ onLogout }) => {
     // Callback per GiornoSection (spostato fuori dal JSX)
     const handleAddQuest = useCallback((gid) => startEdit('quest', { giorno: gid }), [startEdit]);
 
-    if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
-
+    // IMPORTANTE: handlePrintEvent deve essere definito PRIMA del return condizionale
     const handlePrintEvent = useCallback(() => {
         if (!selectedEvento || !selectedEvento.giorni) return;
 
@@ -449,6 +448,9 @@ const PlotTab = ({ onLogout }) => {
         printWindow.document.write(content);
         printWindow.document.close();
     }, [selectedEvento]);
+
+    // Check di loading DOPO tutti gli hook
+    if (loading) return <div className="h-full flex items-center justify-center bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div></div>;
 
     return (
         <div className="flex flex-col h-full bg-gray-900 text-white pb-20 overflow-hidden">
