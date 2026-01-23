@@ -297,7 +297,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
             );
         }
         if (tabDef.id === 'qr') return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
-        if (tabDef.id === 'logs' || tabDef.id === 'transazioni') return <div className="p-4 h-full overflow-y-auto animate-fadeIn"><Component charId={selectedCharacterId} /></div>;
+        if (tabDef.id === 'logs' || tabDef.id === 'transazioni') return <div className="p-4 h-full overflow-y-auto animate-fadeIn"><Component charId={selectedCharacterId} onLogout={onLogout} /></div>;
         
         return <Component onLogout={onLogout} />;
     }

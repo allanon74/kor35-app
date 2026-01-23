@@ -140,7 +140,7 @@ export const getQrCodeData = (qrId, onLogout) => {
 };
 
 /**
- * Richiede un oggetto da un inventario (azione "Prendi").
+ * Richiede un oggetto da un inventario (azione "Prendi") - Sistema legacy
  */
 export const richiediTransazione = (oggettoId, mittenteInventarioId, onLogout) => {
   return fetchAuthenticated(
@@ -151,6 +151,62 @@ export const richiediTransazione = (oggettoId, mittenteInventarioId, onLogout) =
         oggetto_id: oggettoId,
         mittente_id: mittenteInventarioId,
       })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Crea una nuova transazione avanzata con proposta iniziale
+ */
+export const createTransazioneAvanzata = (destinatarioId, proposta, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/transazioni/avanzata/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        destinatario_id: destinatarioId,
+        proposta: proposta
+      })
+    },
+    onLogout
+  );
+};
+
+/**
+ * Recupera il dettaglio di una transazione con tutte le proposte
+ */
+export const getTransazioneDetail = (transazioneId, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/transazioni/${transazioneId}/`,
+    { method: 'GET' },
+    onLogout
+  );
+};
+
+/**
+ * Aggiunge una proposta (controproposta o rilancio) a una transazione
+ */
+export const addPropostaTransazione = (transazioneId, proposta, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/transazioni/${transazioneId}/proposta/`,
+    {
+      method: 'POST',
+      body: JSON.stringify(proposta)
+    },
+    onLogout
+  );
+};
+
+/**
+ * Accetta o rifiuta una transazione
+ */
+export const confermaTransazione = (transazioneId, azione, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/transazioni/${transazioneId}/conferma/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ azione: azione }) // 'accetta' o 'rifiuta'
     },
     onLogout
   );
