@@ -218,8 +218,15 @@ const CharacterSheet = memo(({ data, onLogout }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"> 
             {stat_primarie.map((punteggio) => {
               if (!punteggio.parametro) return null; 
+              
+              // Recupera il valore base del personaggio (da statistiche_base_dict) o usa il valore predefinito
+              const valore_base = (statistiche_base_dict && statistiche_base_dict[punteggio.parametro]) 
+                                  || punteggio.valore_predefinito 
+                                  || 0;
+              
+              // Applica i modificatori se presenti
               const mods = modificatori_calcolati[punteggio.parametro] || {add: 0, mol: 1.0};
-              const valore_finale = (punteggio.valore_predefinito + mods.add) * mods.mol;
+              const valore_finale = (valore_base + mods.add) * mods.mol;
               
               return (
                 <div 
