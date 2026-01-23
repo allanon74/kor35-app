@@ -27,12 +27,14 @@ export default function WidgetImmagine({ id }) {
     return <div className="animate-pulse h-40 bg-gray-200 rounded my-4"></div>;
   }
 
-  // Determina le classi CSS per l'allineamento
+  // Determina le classi CSS per l'allineamento con supporto responsive
   const alignmentClasses = {
-    'left': 'float-left mr-4 mb-4',
-    'right': 'float-right ml-4 mb-4',
-    'center': 'mx-auto block',
-    'full': 'w-full block'
+    // Su mobile (< md), tutte le immagini sono centrate e occupano tutta la larghezza
+    // Su desktop, mantengono l'allineamento specificato
+    'left': 'md:float-left md:mr-4 mb-4 mx-auto md:mx-0',
+    'right': 'md:float-right md:ml-4 mb-4 mx-auto md:mx-0',
+    'center': 'mx-auto block mb-4',
+    'full': 'w-full block mb-4'
   };
 
   const alignmentClass = alignmentClasses[data.allineamento] || alignmentClasses['center'];
@@ -41,6 +43,8 @@ export default function WidgetImmagine({ id }) {
   const imageStyle = {};
   if (data.larghezza_max > 0 && data.allineamento !== 'full') {
     imageStyle.maxWidth = `${data.larghezza_max}px`;
+    // Assicura che l'immagine si adatti al container su schermi piccoli
+    imageStyle.width = '100%';
   }
 
   return (
@@ -48,10 +52,9 @@ export default function WidgetImmagine({ id }) {
       <img 
         src={data.immagine_url || getMediaUrl(data.immagine)}
         alt={data.titolo || 'Immagine wiki'}
-        className={`rounded-lg shadow-md ${
-          data.allineamento === 'full' ? 'w-full' : 'max-w-full h-auto'
+        className={`rounded-lg shadow-md w-full h-auto ${
+          data.allineamento === 'full' ? '' : 'max-w-full'
         }`}
-        style={imageStyle}
       />
       {(data.titolo || data.descrizione) && (
         <figcaption className="mt-2 text-sm text-gray-600 italic text-center">
