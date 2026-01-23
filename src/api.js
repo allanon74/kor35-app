@@ -1098,6 +1098,37 @@ export const staffDeleteOggettoBase = (id, onLogout) =>
 export const staffGetClassiOggetto = (onLogout) => 
     fetchAuthenticated('/personaggi/api/staff/classi-oggetto/', { method: 'GET' }, onLogout);
 
+// --- GESTIONE INVENTARI (Staff) ---
+export const staffGetInventari = (onLogout) => 
+    fetchAuthenticated('/personaggi/api/staff/inventari/', { method: 'GET' }, onLogout);
+
+export const staffCreateInventario = (data, onLogout) => 
+    fetchAuthenticated('/personaggi/api/staff/inventari/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+
+export const staffUpdateInventario = (id, data, onLogout) => 
+    fetchAuthenticated(`/personaggi/api/staff/inventari/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+
+export const staffDeleteInventario = (id, onLogout) => 
+    fetchAuthenticated(`/personaggi/api/staff/inventari/${id}/`, { method: 'DELETE' }, onLogout);
+
+export const staffGetInventarioOggetti = (inventarioId, onLogout) => 
+    fetchAuthenticated(`/personaggi/api/staff/inventari/${inventarioId}/oggetti/`, { method: 'GET' }, onLogout);
+
+export const staffAggiungiOggettoInventario = (inventarioId, oggettoId, onLogout) => 
+    fetchAuthenticated(`/personaggi/api/staff/inventari/${inventarioId}/aggiungi_oggetto/`, { 
+        method: 'POST', 
+        body: JSON.stringify({ oggetto_id: oggettoId }) 
+    }, onLogout);
+
+export const staffRimuoviOggettoInventario = (inventarioId, oggettoId, onLogout) => 
+    fetchAuthenticated(`/personaggi/api/staff/inventari/${inventarioId}/rimuovi_oggetto/`, { 
+        method: 'POST', 
+        body: JSON.stringify({ oggetto_id: oggettoId }) 
+    }, onLogout);
+
+export const staffGetOggettiSenzaPosizione = (onLogout) => 
+    fetchAuthenticated('/personaggi/api/staff/oggetti-senza-posizione/', { method: 'GET' }, onLogout);
+
 // Sezione Personaggi
 
 /**

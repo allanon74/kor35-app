@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Loader, Scan, Eye, Grab, Sparkles, User, FileText, Bot, Timer } from 'lucide-react';
-import { richiediTransazione, rubaOggetto, acquisisciItem } from '../api'; 
+import { X, Loader, Scan, Eye, Grab, Sparkles, User, FileText, Bot, Timer, ArrowRightLeft } from 'lucide-react';
+import { richiediTransazione, rubaOggetto, acquisisciItem, createTransazioneAvanzata } from '../api'; 
 import { useCharacter } from './CharacterContext';
 import { useTimers } from '../hooks/useTimers';
+import PropostaEditorModal from './PropostaEditorModal';
 
 //##################################################################
 // ## COMPONENTE HELPER 1: MODALE "VEDI OGGETTO" ##
@@ -196,6 +197,7 @@ const InventarioView = ({ data, onLogout }) => {
     }
   };
 
+
   const oggettiVisibili = getOggettiVisibili(data.oggetti, selectedCharacterData);
 
   return (
@@ -257,8 +259,10 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [viewingOggetto, setViewingOggetto] = useState(null);
+  const [showScambioModal, setShowScambioModal] = useState(false);
+  const [selectedOggetto, setSelectedOggetto] = useState(null);
 
-  const { selectedCharacterData } = useCharacter();
+  const { selectedCharacterData, selectedCharacterId } = useCharacter();
   
   const handleRuba = async (oggettoId, oggettoNome) => {
      if (isLoading) return;
@@ -277,6 +281,41 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
        setIsLoading(false);
      }
   }
+
+  const handleScambio = (oggetto) => {
+    if (!data.id) {
+      alert("Impossibile determinare il personaggio destinatario.");
+      return;
+    }
+    setSelectedOggetto(oggetto);
+    setShowScambioModal(true);
+  };
+
+  const handleSaveScambio = async (propostaData) => {
+    if (!data.id) {
+      throw new Error("Destinatario non specificato");
+    }
+
+    // Aggiungi l'oggetto selezionato agli oggetti da ricevere se non è già presente
+    const oggettiDaRicevere = propostaData.oggetti_da_ricevere || [];
+    if (selectedOggetto && !oggettiDaRicevere.includes(selectedOggetto.id)) {
+      oggettiDaRicevere.push(selectedOggetto.id);
+    }
+
+    const propostaCompleta = {
+      ...propostaData,
+      oggetti_da_ricevere: oggettiDaRicevere
+    };
+
+    try {
+      await createTransazioneAvanzata(data.id, propostaCompleta, onLogout);
+      setMessage(`Scambio proposto! ${data.nome} riceverà la tua proposta.`);
+      setShowScambioModal(false);
+      setSelectedOggetto(null);
+    } catch (error) {
+      throw error;
+    }
+  };
 
   const oggettiVisibili = getOggettiVisibili(data.oggetti, selectedCharacterData);
 
@@ -317,10 +356,31 @@ const PersonaggioView = ({ data, onLogout, onStealSuccess }) => {
               >
                 {isLoading ? <Loader size={18} className="animate-spin" /> : <Bot size={18} />}
               </button>
+              <button 
+                onClick={() => handleScambio(obj)}
+                disabled={isLoading || selectedCharacterId === data.id}
+                className={`p-2 bg-indigo-600 rounded hover:bg-indigo-700 ${isLoading || selectedCharacterId === data.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title="Proponi Scambio"
+              >
+                <ArrowRightLeft size={18} />
+              </button>
             </div>
           </li>
         ))}
       </ul>
+
+      {/* Modal Scambio */}
+      {showScambioModal && selectedOggetto && data.id && (
+        <PropostaEditorModal
+          transazione={null} // Nuova transazione
+          onClose={() => {
+            setShowScambioModal(false);
+            setSelectedOggetto(null);
+          }}
+          onSave={handleSaveScambio}
+          onLogout={onLogout}
+        />
+      )}
     </div>
   );
 };

@@ -7,7 +7,7 @@ import {
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
     Skull, BookOpen, Menu, ChevronRight, Globe, // Aggiunto Globe
-    Layers, Globe2, Image,
+    Layers, Globe2, Image, Package,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -26,6 +26,7 @@ const MostroManager = lazy(() => import('./editors/MostroManager'));
 const AbilitaManager = lazy(() => import('./editors/AbilitaManager'));
 const TabellaManager = lazy(() => import('./editors/TabellaManager'));
 const ImmagineManager = lazy(() => import('./editors/ImmagineManager'));
+const InventarioManager = lazy(() => import('./editors/InventarioManager'));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -51,6 +52,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         { id: 'oggetti-base', label: 'Oggetti Base', icon: <Shield size={24} />, color: 'bg-stone-800', component: OggettoBaseManager },
         { id: 'tabelle', label: 'Gestione Tabelle', icon: <Layers size={24} />, color: 'bg-pink-700', component: TabellaManager },
         { id: 'immagini', label: 'Immagini Wiki', icon: <Image size={24} />, color: 'bg-teal-700', component: ImmagineManager },
+        { id: 'inventari', label: 'Inventari', icon: <Package size={24} />, color: 'bg-slate-700', component: InventarioManager },
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: AdminMessageTab },        
     ], []);
 
