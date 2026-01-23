@@ -7,7 +7,7 @@ import JobRequestsWidget from './JobRequestsWidget'; // <--- 1. Importa il Widge
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
-}
+} 
 
 const MessaggiTab = ({ onLogout }) => {
   const { selectedCharacterData: char, viewAll, unreadCount, fetchUserMessages, selectedCharacterId } = useCharacter();

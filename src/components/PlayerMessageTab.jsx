@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCharacter } from './CharacterContext';
-import { Trash2, Mail, MailOpen } from 'lucide-react';
+import { Trash2, Mail, MailOpen, MessageCircle, List, Reply } from 'lucide-react';
 import ComposeMessageModal from './ComposeMessageModal';
-import RichTextDisplay from './RichTextDisplay'; // <-- Usa il nuovo display
-import { fetchAuthenticated } from '../api';
+import RichTextDisplay from './RichTextDisplay';
+import ConversazioneView from './ConversazioneView';
+import { fetchAuthenticated, getConversazioni, rispondiMessaggio } from '../api';
 
 const PlayerMessageTab = ({ onLogout }) => {
     const { 
@@ -15,6 +16,10 @@ const PlayerMessageTab = ({ onLogout }) => {
 
     const [isComposeOpen, setIsComposeOpen] = useState(false);
     const [expandedMessages, setExpandedMessages] = useState({}); // Gestione espansione
+    const [viewMode, setViewMode] = useState('list'); // 'list' o 'conversations'
+    const [conversazioni, setConversazioni] = useState([]);
+    const [selectedConversazione, setSelectedConversazione] = useState(null);
+    const [isLoadingConv, setIsLoadingConv] = useState(false);
     const messagesEndRef = useRef(null);
 
     // Scroll automatico in basso all'apertura
@@ -23,6 +28,38 @@ const PlayerMessageTab = ({ onLogout }) => {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [userMessages]);
+
+    // Carica conversazioni quando si passa alla vista conversazioni
+    useEffect(() => {
+        if (viewMode === 'conversations' && selectedCharacterId) {
+            loadConversazioni();
+        }
+    }, [viewMode, selectedCharacterId]);
+
+    const loadConversazioni = async () => {
+        setIsLoadingConv(true);
+        try {
+            const data = await getConversazioni(selectedCharacterId, onLogout);
+            setConversazioni(data);
+        } catch (error) {
+            console.error('Errore caricamento conversazioni:', error);
+        } finally {
+            setIsLoadingConv(false);
+        }
+    };
+
+    const handleRispondi = async (messaggioId, testo) => {
+        try {
+            await rispondiMessaggio(messaggioId, selectedCharacterId, testo, '', onLogout);
+            // Ricarica conversazioni
+            await loadConversazioni();
+            // Ricarica anche la lista messaggi
+            fetchUserMessages(selectedCharacterId);
+        } catch (error) {
+            console.error('Errore risposta:', error);
+            throw error;
+        }
+    };
 
     const toggleMessageExpansion = (msgId) => {
         setExpandedMessages(prev => ({
@@ -48,7 +85,34 @@ const PlayerMessageTab = ({ onLogout }) => {
     return (
         <div className="flex flex-col h-[calc(100vh-200px)] relative">
             
-            {/* --- LISTA MESSAGGI --- */}
+            {/* Toggle View Mode */}
+            <div className="flex gap-2 p-2 bg-gray-800 rounded-lg mb-4">
+                <button
+                    onClick={() => setViewMode('list')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                        viewMode === 'list' 
+                            ? 'bg-indigo-600 text-white' 
+                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                    }`}
+                >
+                    <List className="w-4 h-4" />
+                    Lista
+                </button>
+                <button
+                    onClick={() => setViewMode('conversations')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                        viewMode === 'conversations' 
+                            ? 'bg-indigo-600 text-white' 
+                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                    }`}
+                >
+                    <MessageCircle className="w-4 h-4" />
+                    Conversazioni
+                </button>
+            </div>
+            
+            {/* --- VISTA LISTA MESSAGGI --- */}
+            {viewMode === 'list' && (
             <div className="flex-1 overflow-y-auto p-2 space-y-4 custom-scrollbar mb-16">
                 {userMessages && userMessages.length > 0 ? (
                     userMessages.map((msg) => {
@@ -124,6 +188,58 @@ const PlayerMessageTab = ({ onLogout }) => {
                 )}
                 <div ref={messagesEndRef} />
             </div>
+            )}
+
+            {/* --- VISTA CONVERSAZIONI --- */}
+            {viewMode === 'conversations' && (
+                <div className="flex-1 overflow-y-auto p-2 space-y-3 custom-scrollbar mb-16">
+                    {isLoadingConv ? (
+                        <div className="flex justify-center items-center h-full">
+                            <div className="text-gray-400">Caricamento conversazioni...</div>
+                        </div>
+                    ) : conversazioni.length > 0 ? (
+                        conversazioni.map((conv) => (
+                            <div
+                                key={conv.conversazione_id}
+                                onClick={() => setSelectedConversazione(conv)}
+                                className="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-750 transition-colors border border-gray-700 hover:border-indigo-500"
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <MessageCircle className="w-5 h-5 text-indigo-400" />
+                                        <div>
+                                            <div className="font-bold text-white text-sm">
+                                                {conv.partecipanti.map(p => p.nome).join(' • ')}
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                                {conv.messaggi.length} {conv.messaggi.length === 1 ? 'messaggio' : 'messaggi'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className="text-[10px] text-gray-500">
+                                            {new Date(conv.ultimo_messaggio).toLocaleString()}
+                                        </span>
+                                        {conv.non_letti > 0 && (
+                                            <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                                                {conv.non_letti}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="text-sm text-gray-400 line-clamp-2">
+                                    {conv.messaggi[conv.messaggi.length - 1]?.titolo || 'Nessun titolo'}
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-500 opacity-60">
+                            <MessageCircle className="w-16 h-16 mb-2" />
+                            <p>Nessuna conversazione attiva.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* --- FAB / BUTTON PER NUOVO MESSAGGIO --- */}
             <div className="absolute bottom-4 right-4 z-10">
@@ -141,9 +257,24 @@ const PlayerMessageTab = ({ onLogout }) => {
                 isOpen={isComposeOpen} 
                 onClose={() => setIsComposeOpen(false)}
                 currentCharacterId={selectedCharacterId}
-                onMessageSent={() => fetchUserMessages(selectedCharacterId)}
+                onMessageSent={() => {
+                    fetchUserMessages(selectedCharacterId);
+                    if (viewMode === 'conversations') {
+                        loadConversazioni();
+                    }
+                }}
                 onLogout={onLogout}
             />
+
+            {/* --- MODALE CONVERSAZIONE --- */}
+            {selectedConversazione && (
+                <ConversazioneView
+                    conversazione={selectedConversazione}
+                    onRispondi={handleRispondi}
+                    onClose={() => setSelectedConversazione(null)}
+                    currentPersonaggioId={selectedCharacterId}
+                />
+            )}
         </div>
     );
 };

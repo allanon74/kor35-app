@@ -1402,3 +1402,32 @@ export const deleteStaffMessage = async (messageId, onLogout) => {
         method: 'POST'
     }, onLogout);
 };
+
+/**
+ * Recupera conversazioni organizzate per thread.
+ */
+export const getConversazioni = async (personaggioId, onLogout) => {
+    return fetchAuthenticated(
+        `/personaggi/api/messaggi/conversazioni/?personaggio_id=${personaggioId}`,
+        { method: 'GET' },
+        onLogout
+    );
+};
+
+/**
+ * Risponde a un messaggio creando un thread.
+ */
+export const rispondiMessaggio = async (messaggioId, personaggioId, testo, titolo, onLogout) => {
+    return fetchAuthenticated(
+        `/personaggi/api/messaggi/${messaggioId}/rispondi/`,
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                personaggio_id: personaggioId,
+                testo,
+                titolo
+            })
+        },
+        onLogout
+    );
+};
