@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, X, Check } from 'lucide-react';
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -13,7 +14,9 @@ const SearchableSelect = memo(({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
     const wrapperRef = useRef(null);
+    const triggerRef = useRef(null);
     
     // Debounce del search term per migliorare le performance
     const debouncedSearchTerm = useDebounce(searchTerm, 200);
@@ -50,6 +53,31 @@ const SearchableSelect = memo(({
         if (!isOpen) setSearchTerm("");
     }, [isOpen]);
 
+    // Calcola posizione dropdown quando si apre
+    useEffect(() => {
+        if (isOpen && triggerRef.current) {
+            const updatePosition = () => {
+                const rect = triggerRef.current.getBoundingClientRect();
+                setDropdownPosition({
+                    top: rect.bottom + window.scrollY + 4,
+                    left: rect.left + window.scrollX,
+                    width: rect.width
+                });
+            };
+            
+            updatePosition();
+            
+            // Aggiorna posizione su scroll/resize
+            window.addEventListener('scroll', updatePosition, true);
+            window.addEventListener('resize', updatePosition);
+            
+            return () => {
+                window.removeEventListener('scroll', updatePosition, true);
+                window.removeEventListener('resize', updatePosition);
+            };
+        }
+    }, [isOpen]);
+
     const handleSelect = (item) => {
         onChange(item[valueKey]);
         setIsOpen(false);
@@ -65,6 +93,7 @@ const SearchableSelect = memo(({
         <div className="relative w-full" ref={wrapperRef}>
             {/* INPUT / TRIGGER */}
             <div 
+                ref={triggerRef}
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`
                     w-full bg-gray-950 border rounded px-2 py-1.5 text-sm text-white flex items-center justify-between cursor-pointer transition-colors
@@ -97,9 +126,16 @@ const SearchableSelect = memo(({
                 </div>
             </div>
 
-            {/* DROPDOWN MENU */}
-            {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
+            {/* DROPDOWN MENU - Renderizzato con Portal per evitare overflow issues */}
+            {isOpen && createPortal(
+                <div 
+                    className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
+                    style={{
+                        top: `${dropdownPosition.top}px`,
+                        left: `${dropdownPosition.left}px`,
+                        width: `${dropdownPosition.width}px`
+                    }}
+                >
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map(opt => {
                             const isSelected = String(opt[valueKey]) === String(value);
@@ -122,7 +158,8 @@ const SearchableSelect = memo(({
                             Nessun risultato.
                         </div>
                     )}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
