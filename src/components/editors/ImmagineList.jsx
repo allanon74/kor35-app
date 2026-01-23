@@ -16,7 +16,10 @@ const ImmagineList = ({ onAdd, onEdit, onLogout }) => {
     const loadData = () => {
         setLoading(true);
         staffGetWikiImages(onLogout)
-            .then(data => setItems(data || []))
+            .then(data => {
+                console.log("Dati immagini ricevuti:", data);
+                setItems(data || []);
+            })
             .catch(err => {
                 console.error("Errore caricamento immagini:", err);
                 alert("Errore durante il caricamento delle immagini: " + err.message);

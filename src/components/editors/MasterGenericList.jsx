@@ -36,11 +36,14 @@ const MasterGenericList = ({
 
   const filteredItems = useMemo(() => {
     const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
-    if (!debouncedSearchTerm && !hasActiveFilters && filterConfig.length > 0) return []; 
+    // Rimossa la logica che nasconde i dati quando ci sono filtri configurati
+    // I dati vengono sempre mostrati, i filtri sono opzionali
 
     let filtered = items.filter(item => {
-      const matchSearch = (item.nome || "").toLowerCase().includes(debouncedSearchTerm.toLowerCase());
-      if (!matchSearch) return false;
+      // Cerca in 'nome' o 'titolo' (per supportare sia oggetti che immagini)
+      const searchText = (item.nome || item.titolo || "").toLowerCase();
+      const matchSearch = searchText.includes(debouncedSearchTerm.toLowerCase());
+      if (debouncedSearchTerm && !matchSearch) return false;
       
       return Object.entries(activeFilters).every(([key, values]) => {
         if (values.length === 0) return true;
