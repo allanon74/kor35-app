@@ -1263,6 +1263,29 @@ export const createWikiImage = (formData, onLogout) => {
   }, onLogout);
 };
 
+// Aggiorna un'immagine wiki esistente (Staff) - Supporta FormData per immagini
+// Usa PATCH per aggiornamenti parziali (non sovrascrive l'immagine se non viene passata)
+export const updateWikiImage = (id, formData, onLogout) => {
+  return fetchAuthenticated(`/plot/api/staff/wiki-immagini/${id}/`, {
+    method: 'PATCH',
+    body: formData
+  }, onLogout);
+};
+
+// Elimina un'immagine wiki (Staff)
+export const deleteWikiImage = (id, onLogout) => {
+  return fetchAuthenticated(`/plot/api/staff/wiki-immagini/${id}/`, {
+    method: 'DELETE'
+  }, onLogout);
+};
+
+// Recupera la lista delle immagini wiki (Staff) - versione autenticata
+export const staffGetWikiImages = (onLogout) => {
+  return fetchAuthenticated('/plot/api/staff/wiki-immagini/', {
+    method: 'GET'
+  }, onLogout);
+};
+
 // Crea una nuova pagina (Staff) - Supporta FormData per immagini
 export const createWikiPage = (formData, onLogout) => {
   return fetchAuthenticated('/plot/api/staff/pagine-regolamento/', {
