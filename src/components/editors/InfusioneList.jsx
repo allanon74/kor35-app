@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { staffGetInfusioni, staffDeleteInfusione } from '../../api';
 import MasterTechniqueList from './MasterTechniqueList';
 
-const InfusioneList = ({ onSelect, onNew, onLogout }) => {
+const InfusioneList = ({ onSelect, onNew, onScanQr, onLogout }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +54,7 @@ const InfusioneList = ({ onSelect, onNew, onLogout }) => {
       loading={loading}
       onAdd={onNew}
       onEdit={onSelect}
+      onScanQr={onScanQr}
       onDelete={handleDelete}
     />
   );

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { staffGetCerimoniali, staffDeleteCerimoniale } from '../../api';
 import MasterTechniqueList from './MasterTechniqueList';
 
-const CerimonialeList = ({ onAdd, onEdit, onLogout }) => {
+const CerimonialeList = ({ onAdd, onEdit, onScanQr, onLogout }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +30,7 @@ const CerimonialeList = ({ onAdd, onEdit, onLogout }) => {
       loading={loading}
       onAdd={onAdd}
       onEdit={onEdit}
+      onScanQr={onScanQr}
       onDelete={handleDelete}
     />
   );

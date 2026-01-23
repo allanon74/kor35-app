@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { staffGetInventari, staffDeleteInventario } from '../../api';
 import MasterGenericList from './MasterGenericList';
 
-const InventarioList = ({ onAdd, onEdit, onLogout }) => {
+const InventarioList = ({ onAdd, onEdit, onScanQr, onLogout }) => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -80,6 +80,7 @@ const InventarioList = ({ onAdd, onEdit, onLogout }) => {
             sortLogic={sortLogic}
             onAdd={onAdd} 
             onEdit={onEdit} 
+            onScanQr={onScanQr}
             onDelete={handleDelete}
             loading={loading}
             addLabel="Crea Inventario"

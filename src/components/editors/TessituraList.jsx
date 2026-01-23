@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { staffGetTessiture, staffDeleteTessitura } from '../../api';
 import MasterTechniqueList from './MasterTechniqueList';
 
-const TessituraList = ({ onAdd, onEdit, onLogout }) => {
+const TessituraList = ({ onAdd, onEdit, onScanQr, onLogout }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +30,7 @@ const TessituraList = ({ onAdd, onEdit, onLogout }) => {
       loading={loading}
       onAdd={onAdd}
       onEdit={onEdit}
+      onScanQr={onScanQr}
       onDelete={handleDelete}
     />
   );

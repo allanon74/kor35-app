@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
-import { Search, Pencil, Trash2, Plus, FilterX } from 'lucide-react';
+import { Search, Pencil, Trash2, Plus, FilterX, QrCode } from 'lucide-react';
 
 const MasterGenericList = ({ 
   items = [], 
@@ -8,6 +8,7 @@ const MasterGenericList = ({
   onAdd, 
   onEdit, 
   onDelete, 
+  onScanQr,
   addLabel = "Nuovo",
   loading = false,
   filterConfig = [], 
@@ -159,6 +160,15 @@ const MasterGenericList = ({
                   ))}
                   <td className="px-4 py-3 text-right whitespace-nowrap sticky right-0 bg-gray-800 group-hover:bg-gray-700/30 transition-colors z-10 shadow-[-5px_0px_5px_-2px_rgba(0,0,0,0.3)]">
                       <div className="flex justify-end gap-1 opacity-100 md:opacity-60 md:group-hover:opacity-100 transition-opacity">
+                        {onScanQr && (
+                          <button 
+                            onClick={() => onScanQr(item.id)} 
+                            className="p-2 bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white rounded-lg transition-all"
+                            title="Associa QR"
+                          >
+                            <QrCode size={14} />
+                          </button>
+                        )}
                         <button 
                           onClick={() => onEdit(item)} 
                           className="p-2 bg-amber-600/20 text-amber-500 hover:bg-amber-600 hover:text-white rounded-lg transition-all"

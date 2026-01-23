@@ -3,10 +3,52 @@ import React, { useState, useMemo, useCallback, memo } from 'react';
 import { Edit2, Trash, Plus, Package, List, User as UserIcon, QrCode as QrIcon, X } from 'lucide-react';
 import RichTextDisplay from './RichTextDisplay';
 import QuestFaseSection from './QuestFaseSection';
+import SearchableSelect from './editors/SearchableSelect';
+
+// Mappatura tipi a_vista con codici e labels
+const TIPO_A_VISTA_OPTIONS = [
+    { value: 'PG', label: 'Personaggio (PG)' },
+    { value: 'PNG', label: 'Personaggio Non Giocante (PNG)' },
+    { value: 'INV', label: 'Inventario' },
+    { value: 'OGG', label: 'Oggetto' },
+    { value: 'TES', label: 'Tessitura' },
+    { value: 'INF', label: 'Infusione' },
+    { value: 'CER', label: 'Cerimoniale' },
+    { value: 'MAN', label: 'Manifesto' }
+];
 
 const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChange, onEdit, onScanQr }) => {
     const [viewMode, setViewMode] = useState('FASI'); // 'FASI' o 'STAFF'
     const [newVista, setNewVista] = useState({ tipo: 'MAN', contentId: '' });
+
+    // Filtra le opzioni disponibili in base al tipo selezionato
+    const availableOptions = useMemo(() => {
+        if (!risorse) return [];
+        
+        switch(newVista.tipo) {
+            case 'PG':
+                // Personaggi giocanti (tipologia.giocante=true)
+                return risorse.png?.filter(p => p.tipologia?.giocante !== false) || [];
+            case 'PNG':
+                // Personaggi NON giocanti (tipologia.giocante=false)
+                return risorse.png?.filter(p => p.tipologia?.giocante === false) || [];
+            case 'INV':
+                // Inventari che NON sono personaggi
+                return risorse.inventari?.filter(i => !i.is_personaggio) || [];
+            case 'OGG':
+                return risorse.oggetti || [];
+            case 'TES':
+                return risorse.tessiture || [];
+            case 'INF':
+                return risorse.infusioni || [];
+            case 'CER':
+                return risorse.cerimoniali || [];
+            case 'MAN':
+                return risorse.manifesti || [];
+            default:
+                return [];
+        }
+    }, [newVista.tipo, risorse]);
 
     const tasksByStaff = useMemo(() => {
         const map = {};
@@ -103,29 +145,88 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                 <div className="pt-6 border-t border-gray-700/50">
                     <span className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-2 mb-4 tracking-widest"><QrIcon size={14}/> Elementi di Gioco & QR Code</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {quest.viste_previste.map(v => (
-                            <div key={v.id} className="flex items-center gap-3 bg-gray-950 border border-gray-800 p-2.5 rounded-xl shadow-sm">
-                                <div className={`p-2 rounded-lg ${v.qr_code ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-800 text-gray-600'}`}><QrIcon size={18} /></div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-[11px] font-bold text-gray-200 truncate">{v.manifesto_details?.nome || v.manifesto_details?.titolo || v.inventario_details?.nome || 'OGGETTO'}</div>
-                                    <div className="text-[8px] text-gray-500 uppercase font-black">{v.tipo}</div>
+                        {quest.viste_previste.map(v => {
+                            // Determina nome e tipo display
+                            let nomeElemento = 'Elemento';
+                            let tipoLabel = v.tipo;
+                            
+                            if (v.manifesto_details) nomeElemento = v.manifesto_details.nome || v.manifesto_details.titolo;
+                            else if (v.inventario_details) nomeElemento = v.inventario_details.nome;
+                            else if (v.oggetto_details) nomeElemento = v.oggetto_details.nome;
+                            else if (v.tessitura_details) nomeElemento = v.tessitura_details.nome;
+                            else if (v.infusione_details) nomeElemento = v.infusione_details.nome;
+                            else if (v.cerimoniale_details) nomeElemento = v.cerimoniale_details.nome;
+                            else if (v.personaggio_details) nomeElemento = v.personaggio_details.nome;
+                            
+                            const tipoOpt = TIPO_A_VISTA_OPTIONS.find(t => t.value === v.tipo);
+                            if (tipoOpt) tipoLabel = tipoOpt.label;
+                            
+                            return (
+                                <div key={v.id} className="flex items-center gap-3 bg-gray-950 border border-gray-800 p-2.5 rounded-xl shadow-sm">
+                                    <div className={`p-2 rounded-lg ${v.qr_code ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-800 text-gray-600'}`}>
+                                        <QrIcon size={18} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-[11px] font-bold text-gray-200 truncate">{nomeElemento}</div>
+                                        <div className="text-[8px] text-gray-500 uppercase font-black">{tipoLabel}</div>
+                                    </div>
+                                    <div className="flex gap-1 shrink-0">
+                                        <button 
+                                            onClick={() => onScanQr(v.id)} 
+                                            className="text-indigo-400 p-1.5 hover:bg-gray-800 rounded transition-colors" 
+                                            title="Associa QR"
+                                        >
+                                            <QrIcon size={14}/>
+                                        </button>
+                                        {isMaster && (
+                                            <button 
+                                                onClick={() => onRemoveSub('vista', v.id)} 
+                                                className="text-red-900 hover:text-red-500 p-1.5 hover:bg-gray-800 rounded transition-colors"
+                                            >
+                                                <X size={14}/>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex gap-1 shrink-0">
-                                    <button onClick={() => onScanQr(v.id)} className="text-indigo-400 p-1.5 hover:bg-gray-800 rounded transition-colors" title="Associa QR"><QrIcon size={14}/></button>
-                                    {isMaster && <button onClick={() => onRemoveSub('vista', v.id)} className="text-red-900 hover:text-red-500 p-1.5 hover:bg-gray-800 rounded transition-colors"><X size={14}/></button>}
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                         {isMaster && (
-                            <div className="flex items-center gap-2 bg-emerald-950/20 border border-dashed border-emerald-900/50 p-2 rounded-xl">
-                                <select className="bg-transparent text-[10px] font-black text-emerald-500 outline-none" value={newVista.tipo} onChange={(e) => setNewVista({tipo: e.target.value, contentId: ''})}>
-                                    <option value="MAN">MAN</option><option value="INV">INV</option>
-                                </select>
-                                <select className="bg-transparent text-[10px] text-gray-400 outline-none flex-1 min-w-0" value={newVista.contentId} onChange={(e) => setNewVista({...newVista, contentId: e.target.value})}>
-                                    <option value="">Seleziona...</option>
-                                    {newVista.tipo === 'INV' ? risorse.inventari.map(i => <option key={i.id} value={i.id}>{i.nome}</option>) : risorse.manifesti.map(m => <option key={m.id} value={m.id}>{m.nome || m.titolo}</option>)}
-                                </select>
-                                <button onClick={() => { if(!newVista.contentId) return alert("Seleziona contenuto"); onAddSub('vista', { quest: quest.id, ...newVista }); setNewVista({...newVista, contentId: ''}); }} className="text-emerald-500 hover:scale-110 p-1 transition-transform"><Plus size={18}/></button>
+                            <div className="flex flex-col gap-2 bg-emerald-950/20 border border-dashed border-emerald-900/50 p-3 rounded-xl">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-wider whitespace-nowrap">Tipo:</span>
+                                    <select 
+                                        className="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-[10px] font-bold text-emerald-400 outline-none flex-1"
+                                        value={newVista.tipo} 
+                                        onChange={(e) => setNewVista({tipo: e.target.value, contentId: ''})}
+                                    >
+                                        {TIPO_A_VISTA_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-wider whitespace-nowrap">Elemento:</span>
+                                    <div className="flex-1">
+                                        <SearchableSelect
+                                            options={availableOptions}
+                                            value={newVista.contentId}
+                                            onChange={(val) => setNewVista({...newVista, contentId: val})}
+                                            placeholder="Seleziona elemento..."
+                                            labelKey="nome"
+                                            valueKey="id"
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => { 
+                                            if(!newVista.contentId) return alert("Seleziona un elemento"); 
+                                            onAddSub('vista', { quest: quest.id, ...newVista }); 
+                                            setNewVista({...newVista, contentId: ''}); 
+                                        }} 
+                                        className="text-emerald-500 hover:bg-emerald-900/30 p-1.5 rounded transition-all"
+                                    >
+                                        <Plus size={18}/>
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

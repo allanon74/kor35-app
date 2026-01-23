@@ -2,10 +2,13 @@ import React, { useState, useCallback, memo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import OggettoBaseList from './OggettoBaseList';
 import OggettoBaseEditor from './OggettoBaseEditor';
+import QrTab from '../QrTab';
+import { associaQrDiretto } from '../../api';
 
 const OggettoBaseManager = ({ onBack, onLogout }) => {
   const [view, setView] = useState('list');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [scanningForElement, setScanningForElement] = useState(null);
 
   const handleAdd = useCallback(() => {
     setSelectedItem(null);
@@ -22,6 +25,10 @@ const OggettoBaseManager = ({ onBack, onLogout }) => {
     setSelectedItem(null);
   }, []);
 
+  const handleScanQr = useCallback((elementId) => {
+    setScanningForElement(elementId);
+  }, []);
+
   return (
     <div className="space-y-6">
       <button 
@@ -36,6 +43,7 @@ const OggettoBaseManager = ({ onBack, onLogout }) => {
         <OggettoBaseList 
           onAdd={handleAdd} 
           onEdit={handleEdit} 
+          onScanQr={handleScanQr}
           onLogout={onLogout} 
         />
       ) : (
@@ -44,6 +52,45 @@ const OggettoBaseManager = ({ onBack, onLogout }) => {
           onBack={handleBackToList} 
           onLogout={onLogout} 
         />
+      )}
+
+      {scanningForElement && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="p-4 flex justify-between items-center bg-gray-900 border-b border-gray-800">
+            <span className="font-bold text-white">Associa QR a Oggetto Base</span>
+            <button 
+              onClick={() => setScanningForElement(null)} 
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors"
+            >
+              Annulla
+            </button>
+          </div>
+          <div className="flex-1">
+            <QrTab 
+              onScanSuccess={async (qr_id) => {
+                try {
+                  await associaQrDiretto(scanningForElement, qr_id, onLogout);
+                  setScanningForElement(null);
+                  alert('QR associato con successo!');
+                } catch (error) {
+                  if (error.status === 409 && error.data?.already_associated) {
+                    const conferma = window.confirm(
+                      `⚠️ ATTENZIONE!\n\n${error.data.message}\n\nVuoi procedere comunque e spostare il QR su questo elemento?`
+                    );
+                    if (conferma) {
+                      await associaQrDiretto(scanningForElement, qr_id, onLogout, true);
+                      setScanningForElement(null);
+                      alert('QR riassociato con successo!');
+                    }
+                  } else {
+                    alert('Errore: ' + (error.message || 'Errore sconosciuto'));
+                  }
+                }
+              }} 
+              onLogout={onLogout} 
+            />
+          </div>
+        </div>
       )}
     </div>
   );

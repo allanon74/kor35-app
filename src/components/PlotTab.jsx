@@ -629,8 +629,25 @@ const PlotTab = ({ onLogout }) => {
                     </div>
                     <div className="flex-1">
                         <QrTab onScanSuccess={async (qr_id) => {
-                            await associaQrAVista(scanningForVista, qr_id, onLogout);
-                            setScanningForVista(null); refreshData();
+                            try {
+                                await associaQrAVista(scanningForVista, qr_id, onLogout, false);
+                                setScanningForVista(null); 
+                                refreshData();
+                            } catch (error) {
+                                // Se il QR è già associato (409 Conflict), chiedi conferma
+                                if (error.status === 409 && error.data?.already_associated) {
+                                    const conferma = window.confirm(
+                                        `⚠️ ATTENZIONE!\n\n${error.data.message}\n\nVuoi procedere comunque e spostare il QR su questo elemento?`
+                                    );
+                                    if (conferma) {
+                                        await associaQrAVista(scanningForVista, qr_id, onLogout, true);
+                                        setScanningForVista(null);
+                                        refreshData();
+                                    }
+                                } else {
+                                    throw error;
+                                }
+                            }
                         }} onLogout={onLogout} />
                     </div>
                 </div>

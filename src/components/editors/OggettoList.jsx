@@ -14,7 +14,7 @@ const TIPO_OGGETTO_CHOICES = [
     { id: 'POT', nome: 'Potenziamento' },
 ];
 
-const OggettoList = ({ onAdd, onEdit, onLogout }) => {
+const OggettoList = ({ onAdd, onEdit, onScanQr, onLogout }) => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const { punteggiList } = useCharacter();
@@ -100,6 +100,7 @@ const OggettoList = ({ onAdd, onEdit, onLogout }) => {
             sortLogic={sortLogic}
             onAdd={onAdd} 
             onEdit={onEdit} 
+            onScanQr={onScanQr}
             onDelete={handleDelete}
             loading={loading}
             addLabel="Crea Oggetto"

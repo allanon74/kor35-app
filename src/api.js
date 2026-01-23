@@ -46,21 +46,24 @@ export const fetchAuthenticated = async (endpoint, options = {}, onLogout) => {
         // Leggiamo la risposta come testo *una sola volta*.
         const errorText = await response.text();
         let errorMsg = errorText; // Default all'intero testo
+        let errorData = null;
         
         try {
             // Proviamo a parsare il testo come JSON
-            const errorData = JSON.parse(errorText);
+            errorData = JSON.parse(errorText);
             // Se ci riusciamo, cerchiamo un messaggio di errore più pulito
-            errorMsg = errorData.detail || errorData.error || JSON.stringify(errorData);
+            errorMsg = errorData.detail || errorData.error || errorData.message || JSON.stringify(errorData);
         } catch (e) {
             // Non era JSON, va bene. 'errorMsg' rimane l'HTML/testo
             // (es. la pagina 404 di Django)
         }
         
-        // Ora lanciamo l'errore in modo pulito
+        // Ora lanciamo l'errore con status e data per gestione avanzata (es. 409 Conflict)
         console.error(`Errore API ${response.status} (${response.statusText}) per ${endpoint}:`, errorMsg);
-        throw new Error(`Errore API (${response.status}): ${errorMsg}`);
-        // --- FINE CORREZIONE ---
+        const error = new Error(`Errore API (${response.status}): ${errorMsg}`);
+        error.status = response.status;
+        error.data = errorData;
+        throw error;
     }
 
     if (response.status === 204) { // No Content
@@ -944,12 +947,24 @@ export const updateMostroHp = (mostroId, delta, onLogout) => {
 };
 
 // Associa un QR code scansionato a un oggetto "Vista" della quest
-export const associaQrAVista = (vistaId, qrId, onLogout) => {
+export const associaQrAVista = (vistaId, qrId, onLogout, force = false) => {
   return fetchAuthenticated(
     `/plot/api/viste-setup/${vistaId}/associa_qr/`,
     {
       method: 'POST',
-      body: JSON.stringify({ qr_id: qrId })
+      body: JSON.stringify({ qr_id: qrId, force: force })
+    },
+    onLogout
+  );
+};
+
+// Associa QR direttamente a un elemento derivato da A_vista (Tessitura, Infusione, Cerimoniale, Oggetto, OggettoBase, Inventario)
+export const associaQrDiretto = (aVistaId, qrId, onLogout, force = false) => {
+  return fetchAuthenticated(
+    `/personaggi/api/a-vista/${aVistaId}/associa-qr/`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ qr_id: qrId, force: force })
     },
     onLogout
   );

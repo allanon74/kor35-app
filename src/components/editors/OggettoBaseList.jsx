@@ -12,7 +12,7 @@ const TIPO_OGGETTO_CHOICES = [
     { id: 'POT', nome: 'Potenziamento' },
 ];
 
-const OggettoBaseList = ({ onAdd, onEdit, onLogout }) => {
+const OggettoBaseList = ({ onAdd, onEdit, onScanQr, onLogout }) => {
     const [items, setItems] = useState([]);
     const [classi, setClassi] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -101,6 +101,7 @@ const OggettoBaseList = ({ onAdd, onEdit, onLogout }) => {
             sortLogic={sortLogic}
             onAdd={onAdd} 
             onEdit={onEdit} 
+            onScanQr={onScanQr}
             onDelete={handleDelete}
             loading={loading}
             addLabel="Nuovo Template"

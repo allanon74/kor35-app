@@ -14,6 +14,7 @@ const MasterTechniqueList = ({
   onAdd, 
   onEdit, 
   onDelete, 
+  onScanQr,
   addLabel = "Nuovo",
   loading = false 
 }) => {
@@ -115,6 +116,7 @@ const MasterTechniqueList = ({
       sortLogic={sortLogic}
       onAdd={onAdd} 
       onEdit={onEdit} 
+      onScanQr={onScanQr}
       onDelete={onDelete}
       loading={loading}
       addLabel={addLabel}
