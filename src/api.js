@@ -594,6 +594,18 @@ export const ricaricaOggetto = (oggettoId) => {
 // --- API INVENTARIO & OGGETTI ---
 
 /**
+ * Recupera i dettagli di un oggetto tramite ID
+ * GET /personaggi/api/oggetti/<id>/
+ */
+export const getOggettoDetail = (oggettoId, onLogout) => {
+  return fetchAuthenticated(
+    `/personaggi/api/oggetti/${oggettoId}/`,
+    { method: 'GET' },
+    onLogout
+  );
+};
+
+/**
  * Equipaggia o disequipaggia un oggetto fisico.
  * POST /personaggi/api/oggetti/equipaggia/
  */
