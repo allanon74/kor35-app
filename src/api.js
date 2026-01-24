@@ -988,6 +988,7 @@ export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/quest
 
 // Recupera tutte le liste per i dropdown dell'editor
 export const getRisorseEditor = (onLogout) => fetchAuthenticated('/plot/api/eventi/risorse_editor/', { method: 'GET' }, onLogout);
+export const getAVistaDisponibili = (onLogout) => fetchAuthenticated('/plot/api/eventi/a_vista_disponibili/', { method: 'GET' }, onLogout);
 
 // Operazioni su PnG, Mostri e Viste
 // export const addPngToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(data) }, onLogout);

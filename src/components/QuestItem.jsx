@@ -19,35 +19,12 @@ const TIPO_A_VISTA_OPTIONS = [
 
 const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChange, onEdit, onScanQr }) => {
     const [viewMode, setViewMode] = useState('FASI'); // 'FASI' o 'STAFF'
-    const [newVista, setNewVista] = useState({ tipo: 'MAN', contentId: '' });
+    const [newVista, setNewVista] = useState({ tipo: 'MAN', a_vista_id: '' });
 
-    // Filtra le opzioni disponibili in base al tipo selezionato
+    // Filtra gli a_vista disponibili in base al tipo selezionato
     const availableOptions = useMemo(() => {
-        if (!risorse) return [];
-        
-        switch(newVista.tipo) {
-            case 'PG':
-                // Personaggi giocanti (tipologia.giocante=true)
-                return risorse.png?.filter(p => p.tipologia?.giocante !== false) || [];
-            case 'PNG':
-                // Personaggi NON giocanti (tipologia.giocante=false)
-                return risorse.png?.filter(p => p.tipologia?.giocante === false) || [];
-            case 'INV':
-                // Inventari che NON sono personaggi
-                return risorse.inventari?.filter(i => !i.is_personaggio) || [];
-            case 'OGG':
-                return risorse.oggetti || [];
-            case 'TES':
-                return risorse.tessiture || [];
-            case 'INF':
-                return risorse.infusioni || [];
-            case 'CER':
-                return risorse.cerimoniali || [];
-            case 'MAN':
-                return risorse.manifesti || [];
-            default:
-                return [];
-        }
+        if (!risorse?.a_vista) return [];
+        return risorse.a_vista.filter(av => av.tipo === newVista.tipo);
     }, [newVista.tipo, risorse]);
 
     const tasksByStaff = useMemo(() => {
@@ -197,7 +174,7 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     <select 
                                         className="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-[10px] font-bold text-emerald-400 outline-none flex-1"
                                         value={newVista.tipo} 
-                                        onChange={(e) => setNewVista({tipo: e.target.value, contentId: ''})}
+                                        onChange={(e) => setNewVista({tipo: e.target.value, a_vista_id: ''})}
                                     >
                                         {TIPO_A_VISTA_OPTIONS.map(opt => (
                                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -209,8 +186,8 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     <div className="flex-1">
                                         <SearchableSelect
                                             options={availableOptions}
-                                            value={newVista.contentId}
-                                            onChange={(val) => setNewVista({...newVista, contentId: val})}
+                                            value={newVista.a_vista_id}
+                                            onChange={(val) => setNewVista({...newVista, a_vista_id: val})}
                                             placeholder="Seleziona elemento..."
                                             labelKey="nome"
                                             valueKey="id"
@@ -218,9 +195,9 @@ const QuestItem = ({ quest, isMaster, risorse, onAddSub, onRemoveSub, onStatChan
                                     </div>
                                     <button 
                                         onClick={() => { 
-                                            if(!newVista.contentId) return alert("Seleziona un elemento"); 
-                                            onAddSub('vista', { quest: quest.id, ...newVista }); 
-                                            setNewVista({...newVista, contentId: ''}); 
+                                            if(!newVista.a_vista_id) return alert("Seleziona un elemento"); 
+                                            onAddSub('vista', { quest: quest.id, tipo: newVista.tipo, a_vista_id: newVista.a_vista_id }); 
+                                            setNewVista({tipo: newVista.tipo, a_vista_id: ''}); 
                                         }} 
                                         className="text-emerald-500 hover:bg-emerald-900/30 p-1.5 rounded transition-all"
                                     >

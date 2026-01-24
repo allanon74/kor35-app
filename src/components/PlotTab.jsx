@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { 
-    getEventi, associaQrAVista, getRisorseEditor,
+    getEventi, associaQrAVista, getRisorseEditor, getAVistaDisponibili,
     createEvento, updateEvento, deleteEvento,
     createGiorno, updateGiorno, deleteGiorno,
     createQuest, updateQuest, deleteQuest,
@@ -42,7 +42,7 @@ const PlotTab = ({ onLogout }) => {
         } catch (e) {
             console.warn("PlotTab: Errore lettura cache:", e);
         }
-        return { png: [], templates: [], manifesti: [], inventari: [], staff: [] };
+        return { png: [], templates: [], manifesti: [], inventari: [], staff: [], a_vista: [] };
     });
     const [risorseLoaded, setRisorseLoaded] = useState(() => {
         // Verifica se le risorse sono state caricate dalla cache
@@ -97,9 +97,18 @@ const PlotTab = ({ onLogout }) => {
             if (!risorseLoaded) {
                 console.log("PlotTab: Caricamento risorse in background...");
                 try {
-                    const risData = await getRisorseEditor(onLogout);
+                    // Carica sia risorse che a_vista in parallelo
+                    const [risData, aVistaData] = await Promise.all([
+                        getRisorseEditor(onLogout),
+                        getAVistaDisponibili(onLogout)
+                    ]);
                     console.log("PlotTab: Risorse caricate:", risData);
-                    const risorseData = risData || { png: [], templates: [], manifesti: [], inventari: [], staff: [] };
+                    console.log("PlotTab: A_vista disponibili:", aVistaData);
+                    
+                    const risorseData = {
+                        ...(risData || {}),
+                        a_vista: aVistaData?.a_vista || []
+                    };
                     setRisorse(risorseData);
                     setRisorseLoaded(true);
                     
@@ -123,7 +132,7 @@ const PlotTab = ({ onLogout }) => {
             console.error("PlotTab: Errore caricamento plot:", e);
             alert(`Errore nel caricamento dei dati plot: ${e.message || e}`);
             setEventi([]);
-            setRisorse({ png: [], templates: [], manifesti: [], inventari: [], staff: [] });
+            setRisorse({ png: [], templates: [], manifesti: [], inventari: [], staff: [], a_vista: [] });
             setLoading(false);
         }
     }, [onLogout, risorseLoaded]);
