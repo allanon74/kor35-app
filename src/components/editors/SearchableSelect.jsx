@@ -15,6 +15,7 @@ const SearchableSelect = memo(({
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+    const [uniqueId] = useState(() => `searchable-${Math.random().toString(36).substr(2, 9)}`);
     const wrapperRef = useRef(null);
     const triggerRef = useRef(null);
     
@@ -41,12 +42,16 @@ const SearchableSelect = memo(({
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setIsOpen(false);
+                // Controlla anche se il click è sul dropdown (che è nel portal)
+                const dropdownElement = document.getElementById(`dropdown-${uniqueId}`);
+                if (!dropdownElement || !dropdownElement.contains(event.target)) {
+                    setIsOpen(false);
+                }
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    }, [uniqueId]);
 
     // Reset della ricerca quando si chiude/apre
     useEffect(() => {
@@ -129,6 +134,7 @@ const SearchableSelect = memo(({
             {/* DROPDOWN MENU - Renderizzato con Portal per evitare overflow issues */}
             {isOpen && createPortal(
                 <div 
+                    id={`dropdown-${uniqueId}`}
                     className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
                     style={{
                         top: `${dropdownPosition.top}px`,
