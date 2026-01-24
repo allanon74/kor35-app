@@ -202,11 +202,10 @@ const PlotTab = ({ onLogout }) => {
             if (tipo === 'fase') await addFaseToQuest(payload, onLogout);
             if (tipo === 'task') await addTaskToFase(payload, onLogout);
             if (tipo === 'vista') {
+                // Passa direttamente tipo e a_vista_id
                 const vistaPayload = { 
-                    quest: parseInt(payload.quest), 
                     tipo: payload.tipo, 
-                    manifesto: payload.tipo === 'MAN' ? parseInt(payload.contentId) : null, 
-                    inventario: payload.tipo === 'INV' ? parseInt(payload.contentId) : null 
+                    a_vista_id: payload.a_vista_id
                 };
                 await addVistaToQuest(payload.quest, vistaPayload, onLogout);
             }

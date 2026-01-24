@@ -1023,8 +1023,7 @@ export const addVistaToQuest = (questId, data, onLogout) => {
     const payload = {
         quest: parseInt(questId),
         tipo: data.tipo,
-        manifesto: data.manifesto ? parseInt(data.manifesto) : null,
-        inventario: data.inventario ? parseInt(data.inventario) : null
+        a_vista_id: parseInt(data.a_vista_id)
     };
     return fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };
