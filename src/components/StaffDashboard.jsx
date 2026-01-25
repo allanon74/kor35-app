@@ -7,12 +7,13 @@ import {
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
     Skull, BookOpen, Menu, ChevronRight, Globe, // Aggiunto Globe
-    Layers, Globe2, Image, Package,
+    Layers, Globe2, Image, Package, QrCode,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 // Import diretto di PlotTab per debug
 import PlotTab from './PlotTab';
+import QrDebugTab from './QrDebugTab'; // Import diretto anche per QrDebugTab
 
 // Lazy loading dei componenti per migliorare le performance iniziali
 const AdminMessageTab = lazy(() => import('./AdminMessageTab'));
@@ -42,6 +43,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
     // Configurazione dei Tools disponibili (Memoized)
     const toolsConfig = useMemo(() => [
         { id: 'plot', label: 'Gestione Plot', icon: <Map size={24} />, color: 'bg-indigo-600', component: PlotTab },
+        { id: 'qr-debug', label: 'QR Debug', icon: <QrCode size={24} />, color: 'bg-yellow-600', component: QrDebugTab },
         { id: 'mostri', label: 'Database Mostri', icon: <Skull size={24} />, color: 'bg-red-700', component: MostroManager }, 
         { id: 'abilita', label: 'Database Abilità', icon: <BookOpen size={24} />, color: 'bg-blue-700', component: AbilitaManager },
         { id: 'cerimoniali', label: 'Cerimoniali', icon: <Scroll size={24} />, color: 'bg-amber-700', component: CerimonialeManager },
@@ -215,8 +217,8 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         const tool = toolsConfig.find(t => t.id === activeTool);
                         if (!tool) return null;
                         const Component = tool.component;
-                        // PlotTab è importato direttamente, non ha bisogno di Suspense
-                        if (activeTool === 'plot') {
+                        // PlotTab e QrDebugTab sono importati direttamente, non hanno bisogno di Suspense
+                        if (activeTool === 'plot' || activeTool === 'qr-debug') {
                             return (
                                 <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
                                     <Component onLogout={onLogout} />

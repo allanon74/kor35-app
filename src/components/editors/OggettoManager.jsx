@@ -2,7 +2,7 @@ import React, { useState, useCallback, memo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import OggettoList from './OggettoList';
 import OggettoEditor from './OggettoEditor';
-import QrTab from '../QrTab';
+import StaffQrTab from '../StaffQrTab';
 import { associaQrDiretto } from '../../api';
 
 const OggettoManager = ({ onBack, onLogout }) => {
@@ -66,7 +66,7 @@ const OggettoManager = ({ onBack, onLogout }) => {
             </button>
           </div>
           <div className="flex-1">
-            <QrTab 
+            <StaffQrTab 
               onScanSuccess={async (qr_id) => {
                 try {
                   await associaQrDiretto(scanningForElement, qr_id, onLogout);

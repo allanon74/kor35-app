@@ -1,7 +1,7 @@
 import React, { useState, useCallback, memo } from 'react';
 import CerimonialeList from './CerimonialeList';
 import CerimonialeEditor from './CerimonialeEditor';
-import QrTab from '../QrTab';
+import StaffQrTab from '../StaffQrTab';
 import { associaQrDiretto } from '../../api';
 
 const CerimonialeManager = ({ onBack, onLogout }) => {
@@ -66,7 +66,7 @@ const CerimonialeManager = ({ onBack, onLogout }) => {
             </button>
           </div>
           <div className="flex-1">
-            <QrTab 
+            <StaffQrTab 
               onScanSuccess={async (qr_id) => {
                 try {
                   await associaQrDiretto(scanningForElement, qr_id, onLogout);
