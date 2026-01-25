@@ -135,7 +135,7 @@ const SearchableSelect = memo(({
             {isOpen && createPortal(
                 <div 
                     id={`dropdown-${uniqueId}`}
-                    className="fixed z-[9999] bg-gray-900 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
+                    className="fixed z-50 bg-gray-900 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
                     style={{
                         top: `${dropdownPosition.top}px`,
                         left: `${dropdownPosition.left}px`,

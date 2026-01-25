@@ -4,7 +4,7 @@ import { searchPersonaggi, fetchAuthenticated } from '../api';
 import RichTextEditor from './RichTextEditor';
 import { ShieldAlert, User, X } from 'lucide-react';
 
-const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSent, onLogout }) => {
+const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSent, onLogout, replyToRecipient }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
@@ -15,20 +15,33 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
   const [titolo, setTitolo] = useState('');
   const [testo, setTesto] = useState(''); // HTML content
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(''); 
 
   // Reset stato all'apertura
   useEffect(() => {
     if (isOpen) {
         setQuery('');
         setResults([]);
-        setSelectedRecipient(null);
-        setIsStaffMessage(false);
         setTitolo('');
         setTesto('');
         setError('');
+        
+        // Se c'è un destinatario pre-impostato (risposta)
+        if (replyToRecipient) {
+            if (replyToRecipient.isStaff) {
+                setIsStaffMessage(true);
+                setSelectedRecipient(null);
+            } else {
+                setIsStaffMessage(false);
+                setSelectedRecipient(replyToRecipient);
+                setQuery(replyToRecipient.nome || '');
+            }
+        } else {
+            setSelectedRecipient(null);
+            setIsStaffMessage(false);
+        }
     }
-  }, [isOpen]);
+  }, [isOpen, replyToRecipient]);
 
   // Logica di ricerca (Disabilitata se è messaggio staff)
   useEffect(() => {
@@ -124,7 +137,8 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
                             setQuery('');
                         }
                     }}
-                    className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                    disabled={replyToRecipient?.isStaff} // Disabilita se stiamo rispondendo allo staff
+                    className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
                 />
                 <label htmlFor="chk_staff" className="cursor-pointer flex items-center gap-2 font-bold text-indigo-300">
                     <ShieldAlert size={18} />
@@ -149,7 +163,7 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
                             <User size={16} className="absolute left-3 top-3 text-gray-500"/>
                         </div>
                         
-                        {selectedRecipient && (
+                        {selectedRecipient && !replyToRecipient && (
                             <button 
                                 type="button" 
                                 onClick={() => { setSelectedRecipient(null); setQuery(''); }}

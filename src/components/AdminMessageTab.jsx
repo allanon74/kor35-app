@@ -6,16 +6,13 @@ import {
     getAdminSentMessages, 
     fetchStaffMessages, 
     searchPersonaggi,
-    fetchAuthenticated, // Assicurati che api.js esporti questo per l'invio singolo standard
+    fetchAuthenticated,
     markStaffMessageAsRead,
-    deleteStaffMessage,
-    getConversazioni,
-    rispondiMessaggio
+    deleteStaffMessage
 } from '../api';
 import RichTextEditor from './RichTextEditor';
 import RichTextDisplay from './RichTextDisplay';
-import ConversazioneView from './ConversazioneView';
-import { Mail, Users, Radio, Clock, Shield, CheckCircle, Search, X, RefreshCw, ShieldAlert, Trash2, Eye, EyeOff, MessageCircle } from 'lucide-react';
+import { Mail, Users, Radio, Clock, Shield, CheckCircle, Search, X, RefreshCw, ShieldAlert, Trash2, Eye, EyeOff, Reply } from 'lucide-react';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -26,6 +23,9 @@ const AdminMessageTab = ({ onLogout }) => {
     
     // Controllo permessi (usa localStorage per sicurezza se il PG non è ancora caricato o non è staff nel context)
     const isStaff = selectedCharacterData?.is_staff || localStorage.getItem('kor35_is_staff') === 'true' || localStorage.getItem('kor35_is_master') === 'true';
+
+    // Gestione tab attiva
+    const [selectedTab, setSelectedTab] = useState(0);
 
     // --- STATI TAB INBOX (Posta Staff) ---
     const [inboxMessages, setInboxMessages] = useState([]);
@@ -48,17 +48,13 @@ const AdminMessageTab = ({ onLogout }) => {
     const [history, setHistory] = useState([]); 
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-    // --- STATI TAB CONVERSAZIONI ---
-    const [conversazioni, setConversazioni] = useState([]);
-    const [selectedConversazione, setSelectedConversazione] = useState(null);
-    const [isLoadingConv, setIsLoadingConv] = useState(false);
-
     // --- EFFETTI ---
     useEffect(() => {
         if (isStaff) {
             loadInbox();
             loadHistory();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isStaff]);
 
     // Carica Inbox Staff
@@ -105,6 +101,21 @@ const AdminMessageTab = ({ onLogout }) => {
         }
     };
 
+    // Risponde a un messaggio (prepara invio singolo)
+    const handleReplyToPlayer = (msg) => {
+        // Imposta il destinatario e passa alla tab compose
+        if (msg.mittente_personaggio) {
+            setSingleRecipient({ 
+                id: msg.mittente_personaggio, 
+                nome: msg.mittente_nome 
+            });
+            setTargetType('single');
+            setSearchQuery(msg.mittente_nome);
+            // Cambia alla tab "Nuovo Msg" (index 1)
+            setSelectedTab(1);
+        }
+    };
+
     // Carica Cronologia
     const loadHistory = async () => {
         setIsLoadingHistory(true);
@@ -115,45 +126,6 @@ const AdminMessageTab = ({ onLogout }) => {
             console.error("Errore caricamento cronologia:", err);
         } finally {
             setIsLoadingHistory(false);
-        }
-    };
-
-    // Carica Conversazioni (per staff: usa il primo PG staff disponibile)
-    const loadConversazioni = async () => {
-        if (!selectedCharacterData?.id) return;
-        
-        setIsLoadingConv(true);
-        try {
-            const data = await getConversazioni(selectedCharacterData.id, onLogout);
-            setConversazioni(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error("Errore caricamento conversazioni:", err);
-        } finally {
-            setIsLoadingConv(false);
-        }
-    };
-
-    // Risponde a una conversazione (come staff)
-    const handleRispondiStaff = async (messaggioId, testo) => {
-        if (!selectedCharacterData?.id) return;
-        
-        try {
-            // Crea una risposta staff al messaggio
-            await fetchAuthenticated('/personaggi/api/messaggi/', {
-                method: 'POST',
-                body: JSON.stringify({
-                    testo: testo,
-                    tipo_messaggio: 'STAFF',
-                    mittente_is_staff: true,
-                    in_risposta_a: messaggioId
-                })
-            }, onLogout);
-            
-            // Ricarica conversazioni
-            await loadConversazioni();
-        } catch (error) {
-            console.error('Errore risposta staff:', error);
-            throw error;
         }
     };
 
@@ -243,7 +215,7 @@ const AdminMessageTab = ({ onLogout }) => {
 
     return (
         <div className="w-full h-full flex flex-col bg-gray-900 rounded-lg shadow-xl overflow-hidden border border-gray-800">
-            <Tab.Group>
+            <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
                 <div className="bg-gray-800 p-2 border-b border-gray-700">
                     <Tab.List className="flex space-x-2 rounded-xl bg-gray-900/50 p-1">
                         
@@ -290,22 +262,6 @@ const AdminMessageTab = ({ onLogout }) => {
                                 </button>
                             )}
                         </Tab>
-
-                        {/* TAB 4: CONVERSAZIONI */}
-                        <Tab as={Fragment}>
-                            {({ selected }) => (
-                                <button 
-                                    onClick={loadConversazioni}
-                                    className={classNames(
-                                        'w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-all flex items-center justify-center gap-2',
-                                        selected ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-                                    )}
-                                >
-                                    <MessageCircle size={18} />
-                                    <span>Conversazioni</span>
-                                </button>
-                            )}
-                        </Tab>
                     </Tab.List>
                 </div>
 
@@ -343,6 +299,17 @@ const AdminMessageTab = ({ onLogout }) => {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {!msg.letto && <span className="bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wide">Nuovo</span>}
+                                            
+                                            {/* Pulsante Rispondi */}
+                                            {msg.mittente_personaggio && (
+                                                <button
+                                                    onClick={() => handleReplyToPlayer(msg)}
+                                                    className="p-1.5 bg-blue-900/50 hover:bg-blue-800 text-blue-300 rounded transition-colors"
+                                                    title="Rispondi"
+                                                >
+                                                    <Reply size={14} />
+                                                </button>
+                                            )}
                                             
                                             {/* Pulsante Marca come Letto */}
                                             <button
@@ -544,74 +511,8 @@ const AdminMessageTab = ({ onLogout }) => {
                         )}
                     </Tab.Panel>
 
-                    {/* --- PANEL 4: CONVERSAZIONI (Chat Style) --- */}
-                    <Tab.Panel className="h-full overflow-y-auto custom-scrollbar p-3 space-y-3">
-                        <div className="flex justify-between items-center mb-2 px-1">
-                            <h3 className="text-purple-400 font-bold uppercase text-xs flex items-center gap-2">
-                                <MessageCircle size={14}/> Conversazioni con Giocatori
-                            </h3>
-                            <button onClick={loadConversazioni} className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700 transition-colors" title="Aggiorna">
-                                <RefreshCw size={14}/>
-                            </button>
-                        </div>
-
-                        {isLoadingConv ? (
-                            <div className="flex justify-center p-10"><RefreshCw className="animate-spin text-gray-500"/></div>
-                        ) : conversazioni.length > 0 ? (
-                            conversazioni.map((conv) => (
-                                <div
-                                    key={conv.conversazione_id}
-                                    onClick={() => setSelectedConversazione(conv)}
-                                    className="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-750 transition-colors border border-gray-700 hover:border-purple-500"
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <MessageCircle className="w-5 h-5 text-purple-400" />
-                                            <div>
-                                                <div className="font-bold text-white text-sm">
-                                                    {conv.partecipanti.map(p => p.nome).join(' • ')}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    {conv.messaggi.length} {conv.messaggi.length === 1 ? 'messaggio' : 'messaggi'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className="text-[10px] text-gray-500">
-                                                {new Date(conv.ultimo_messaggio).toLocaleString()}
-                                            </span>
-                                            {conv.non_letti > 0 && (
-                                                <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                                                    {conv.non_letti}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="text-sm text-gray-400 line-clamp-2">
-                                        {conv.messaggi[conv.messaggi.length - 1]?.titolo || 'Nessun titolo'}
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-40 text-gray-500 border border-gray-700 border-dashed rounded-lg">
-                                <MessageCircle size={32} className="mb-2 opacity-50"/>
-                                <p className="text-sm">Nessuna conversazione attiva.</p>
-                            </div>
-                        )}
-                    </Tab.Panel>
-
                 </Tab.Panels>
             </Tab.Group>
-
-            {/* --- MODALE CONVERSAZIONE --- */}
-            {selectedConversazione && (
-                <ConversazioneView
-                    conversazione={selectedConversazione}
-                    onRispondi={handleRispondiStaff}
-                    onClose={() => setSelectedConversazione(null)}
-                    currentPersonaggioId={selectedCharacterData?.id}
-                />
-            )}
         </div>
     );
 };
