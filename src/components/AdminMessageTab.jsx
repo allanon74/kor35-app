@@ -459,7 +459,7 @@ const AdminMessageTab = ({ onLogout }) => {
                                 <button
                                     type="submit"
                                     disabled={isSending}
-                                    className={`px-6 py-2 rounded font-bold text-white transition-all shadow-lg text-sm uppercase tracking-wide ${isSending ? 'bg-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 hover:translate-y-[-1px]'}`}
+                                    className={`px-6 py-2 rounded font-bold text-white transition-all shadow-lg text-sm uppercase tracking-wide ${isSending ? 'bg-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 hover:-translate-y-px'}`}
                                 >
                                     {isSending ? 'Invio in corso...' : 'Invia Messaggio'}
                                 </button>
