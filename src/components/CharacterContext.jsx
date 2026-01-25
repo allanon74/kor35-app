@@ -217,9 +217,14 @@ export const CharacterProvider = ({ children, onLogout }) => {
               method: 'POST',
               body: JSON.stringify({ personaggio_id: selectedCharacterId })
           }, onLogout);
+          
+          // IMPORTANTE: Ricarica dal server per confermare lo stato
+          console.log('Toggle read success, ricaricando messaggi...');
+          await fetchUserMessages(selectedCharacterId);
       } 
       catch (e) { 
           console.error('Errore toggle read:', e);
+          // In caso di errore, ricarica comunque per ripristinare lo stato corretto
           fetchUserMessages(selectedCharacterId); 
       }
   };
