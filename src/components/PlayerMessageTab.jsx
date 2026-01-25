@@ -10,13 +10,14 @@ const PlayerMessageTab = ({ onLogout }) => {
         selectedCharacterData: char, 
         userMessages, 
         fetchUserMessages, 
-        selectedCharacterId 
+        selectedCharacterId,
+        handleToggleRead,
+        handleDeleteMessage: contextDeleteMessage
     } = useCharacter();
 
     const [isComposeOpen, setIsComposeOpen] = useState(false);
     const [replyToRecipient, setReplyToRecipient] = useState(null); // Per pre-compilare destinatario
     const [expandedMessages, setExpandedMessages] = useState({}); // Gestione espansione
-    const [optimisticReadStates, setOptimisticReadStates] = useState({}); // Optimistic UI per stato lettura
     const messagesEndRef = useRef(null);
 
     // Scroll automatico in basso all'apertura
@@ -31,41 +32,6 @@ const PlayerMessageTab = ({ onLogout }) => {
             ...prev,
             [msgId]: !prev[msgId]
         }));
-    };
-
-    const handleDeleteMessage = async (msgId) => {
-        if (!confirm('Vuoi davvero cancellare questo messaggio?')) return;
-        try {
-            await fetchAuthenticated(`/personaggi/api/messaggi/${msgId}/cancella/`, {
-                method: 'POST',
-                body: JSON.stringify({ personaggio_id: selectedCharacterId })
-            }, onLogout);
-            fetchUserMessages(selectedCharacterId);
-        } catch (error) {
-            console.error('Errore cancellazione:', error);
-        }
-    };
-
-    const handleToggleRead = async (msgId, currentStatus) => {
-        // Optimistic update
-        setOptimisticReadStates(prev => ({ ...prev, [msgId]: !currentStatus }));
-        
-        try {
-            await fetchAuthenticated(`/personaggi/api/messaggi/${msgId}/toggle_letto/`, {
-                method: 'POST',
-                body: JSON.stringify({ personaggio_id: selectedCharacterId })
-            }, onLogout);
-            // Ricarica per avere lo stato definitivo dal server
-            fetchUserMessages(selectedCharacterId);
-        } catch (error) {
-            console.error('Errore cambio stato lettura:', error);
-            // Ripristina lo stato precedente in caso di errore
-            setOptimisticReadStates(prev => {
-                const newState = { ...prev };
-                delete newState[msgId];
-                return newState;
-            });
-        }
     };
 
     const handleReply = (msg) => {
@@ -100,10 +66,7 @@ const PlayerMessageTab = ({ onLogout }) => {
                     userMessages.map((msg) => {
                         const isStaff = msg.mittente_is_staff;
                         const isExpanded = expandedMessages[msg.id];
-                        // Usa lo stato ottimistico se presente, altrimenti lo stato dal server
-                        const isRead = optimisticReadStates[msg.id] !== undefined 
-                            ? optimisticReadStates[msg.id] 
-                            : msg.letto;
+                        const isRead = msg.letto;
 
                         return (
                             <div 
@@ -149,7 +112,7 @@ const PlayerMessageTab = ({ onLogout }) => {
                                             
                                             {/* Pulsante Segna come letto/non letto */}
                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); handleToggleRead(msg.id, isRead); }}
+                                                onClick={(e) => { e.stopPropagation(); handleToggleRead(msg.id); }}
                                                 className={`transition-colors p-0.5 rounded ${isRead ? 'text-gray-500 hover:text-blue-400' : 'text-blue-400 hover:text-blue-300'}`}
                                                 title={isRead ? 'Segna come non letto' : 'Segna come letto'}
                                             >
@@ -158,7 +121,7 @@ const PlayerMessageTab = ({ onLogout }) => {
                                             
                                             {/* Pulsante Elimina */}
                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
+                                                onClick={(e) => { e.stopPropagation(); contextDeleteMessage(msg.id); }}
                                                 className="text-gray-400 hover:text-red-400 transition-colors p-0.5 rounded"
                                                 title="Cancella"
                                             >

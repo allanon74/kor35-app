@@ -203,6 +203,27 @@ export const CharacterProvider = ({ children, onLogout }) => {
       catch (e) { fetchUserMessages(selectedCharacterId); }
   };
 
+  const handleToggleRead = async (msgId) => {
+      const msg = userMessages.find(m => m.id === msgId);
+      if (!msg) return;
+      
+      const newStatus = !msg.letto;
+      // Aggiorna ottimisticamente
+      setUserMessages(prev => prev.map(m => m.id === msgId ? { ...m, letto: newStatus } : m)); 
+      setUnreadCount(prev => newStatus ? Math.max(0, prev - 1) : prev + 1);
+      
+      try { 
+          await fetchAuthenticated(`/personaggi/api/messaggi/${msgId}/toggle_letto/`, {
+              method: 'POST',
+              body: JSON.stringify({ personaggio_id: selectedCharacterId })
+          }, onLogout);
+      } 
+      catch (e) { 
+          console.error('Errore toggle read:', e);
+          fetchUserMessages(selectedCharacterId); 
+      }
+  };
+
   const handleDeleteMessage = async (msgId) => {
       if(!window.confirm("Cancellare messaggio?")) return;
       setUserMessages(prev => prev.filter(m => m.id !== msgId)); 
@@ -312,6 +333,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     unreadCount,
     fetchUserMessages,
     handleMarkAsRead,
+    handleToggleRead,
     handleDeleteMessage,
     subscribeToPush,
   };
