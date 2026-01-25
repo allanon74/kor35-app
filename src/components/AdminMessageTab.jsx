@@ -30,6 +30,7 @@ const AdminMessageTab = ({ onLogout }) => {
     // --- STATI TAB INBOX (Posta Staff) ---
     const [inboxMessages, setInboxMessages] = useState([]);
     const [isLoadingInbox, setIsLoadingInbox] = useState(false);
+    const [optimisticReadStates, setOptimisticReadStates] = useState({}); // Optimistic UI
 
     // --- STATI TAB COMPONI ---
     const [targetType, setTargetType] = useState('broadcast'); // 'broadcast', 'group', 'single'
@@ -72,6 +73,9 @@ const AdminMessageTab = ({ onLogout }) => {
 
     // Marca messaggio come letto/non letto
     const handleToggleRead = async (messageId, currentStatus) => {
+        // Optimistic update
+        setOptimisticReadStates(prev => ({ ...prev, [messageId]: !currentStatus }));
+        
         try {
             if (!currentStatus) {
                 // Se non è letto, marcalo come letto
@@ -82,6 +86,12 @@ const AdminMessageTab = ({ onLogout }) => {
         } catch (err) {
             console.error("Errore marcatura messaggio:", err);
             alert('Errore nel marcare il messaggio: ' + err.message);
+            // Ripristina lo stato precedente in caso di errore
+            setOptimisticReadStates(prev => {
+                const newState = { ...prev };
+                delete newState[messageId];
+                return newState;
+            });
         }
     };
 
@@ -103,16 +113,21 @@ const AdminMessageTab = ({ onLogout }) => {
 
     // Risponde a un messaggio (prepara invio singolo)
     const handleReplyToPlayer = (msg) => {
+        console.log('Reply to player message:', msg); // Debug
+        
         // Imposta il destinatario e passa alla tab compose
-        if (msg.mittente_personaggio) {
+        if (msg.mittente_personaggio_id) {
             setSingleRecipient({ 
-                id: msg.mittente_personaggio, 
+                id: msg.mittente_personaggio_id, 
                 nome: msg.mittente_nome 
             });
             setTargetType('single');
-            setSearchQuery(msg.mittente_nome);
+            setSearchQuery(msg.mittente_nome || '');
             // Cambia alla tab "Nuovo Msg" (index 1)
             setSelectedTab(1);
+        } else {
+            console.error('Impossibile rispondere: mittente_personaggio_id non valido', msg);
+            alert('Impossibile rispondere a questo messaggio (no mittente)');
         }
     };
 
@@ -286,22 +301,30 @@ const AdminMessageTab = ({ onLogout }) => {
                                 <p className="text-sm">Nessuna nuova richiesta o messaggio.</p>
                             </div>
                         ) : (
-                            inboxMessages.map(msg => (
-                                <div key={msg.id} className={`bg-gray-800 border-l-4 ${msg.letto ? 'border-gray-600' : 'border-green-500'} rounded-lg p-4 shadow-md transition-all hover:bg-gray-750`}>
+                            inboxMessages.map(msg => {
+                                // Usa lo stato ottimistico se presente, altrimenti lo stato dal server
+                                const isRead = optimisticReadStates[msg.id] !== undefined 
+                                    ? optimisticReadStates[msg.id] 
+                                    : msg.letto_staff;
+                                
+                                return (
+                                <div key={msg.id} className={`rounded-lg p-4 shadow-md transition-all hover:bg-gray-750 border-l-4 ${isRead ? 'bg-gray-850 opacity-75 border-gray-600' : 'bg-gray-800 border-green-500'}`}>
                                     <div className="flex justify-between items-start mb-2 border-b border-gray-700 pb-2">
                                         <div className="flex-1">
-                                            <span className="font-bold text-green-300 block text-sm">
-                                                Da: {msg.mittente_nome || 'Utente Sconosciuto / Sistema'}
-                                            </span>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-green-300 block text-sm">
+                                                    Da: {msg.mittente_nome || 'Utente Sconosciuto / Sistema'}
+                                                </span>
+                                                {!isRead && <span className="bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wide animate-pulse">Nuovo</span>}
+                                            </div>
                                             <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                                                {new Date(msg.data_creazione).toLocaleString()}
+                                                {new Date(msg.data_creazione || msg.data_invio).toLocaleString()}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {!msg.letto && <span className="bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wide">Nuovo</span>}
                                             
                                             {/* Pulsante Rispondi */}
-                                            {msg.mittente_personaggio && (
+                                            {msg.mittente_personaggio_id && (
                                                 <button
                                                     onClick={() => handleReplyToPlayer(msg)}
                                                     className="p-1.5 bg-blue-900/50 hover:bg-blue-800 text-blue-300 rounded transition-colors"
@@ -313,11 +336,11 @@ const AdminMessageTab = ({ onLogout }) => {
                                             
                                             {/* Pulsante Marca come Letto */}
                                             <button
-                                                onClick={() => handleToggleRead(msg.id, msg.letto)}
-                                                className={`p-1.5 rounded transition-colors ${msg.letto ? 'bg-gray-700 hover:bg-gray-600 text-gray-400' : 'bg-green-900/50 hover:bg-green-800 text-green-300'}`}
-                                                title={msg.letto ? 'Già letto' : 'Segna come letto'}
+                                                onClick={() => handleToggleRead(msg.id, isRead)}
+                                                className={`p-1.5 rounded transition-colors ${isRead ? 'bg-gray-700 hover:bg-gray-600 text-gray-400' : 'bg-green-900/50 hover:bg-green-800 text-green-300'}`}
+                                                title={isRead ? 'Già letto' : 'Segna come letto'}
                                             >
-                                                {msg.letto ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                {isRead ? <EyeOff size={14} /> : <Eye size={14} />}
                                             </button>
                                             
                                             {/* Pulsante Elimina */}
@@ -338,7 +361,8 @@ const AdminMessageTab = ({ onLogout }) => {
                                         <RichTextDisplay content={msg.testo} onUpdate={loadInbox} />
                                     </div>
                                 </div>
-                            ))
+                                );
+                            })
                         )}
                     </Tab.Panel>
 

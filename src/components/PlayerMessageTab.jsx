@@ -16,6 +16,7 @@ const PlayerMessageTab = ({ onLogout }) => {
     const [isComposeOpen, setIsComposeOpen] = useState(false);
     const [replyToRecipient, setReplyToRecipient] = useState(null); // Per pre-compilare destinatario
     const [expandedMessages, setExpandedMessages] = useState({}); // Gestione espansione
+    const [optimisticReadStates, setOptimisticReadStates] = useState({}); // Optimistic UI per stato lettura
     const messagesEndRef = useRef(null);
 
     // Scroll automatico in basso all'apertura
@@ -46,28 +47,44 @@ const PlayerMessageTab = ({ onLogout }) => {
     };
 
     const handleToggleRead = async (msgId, currentStatus) => {
+        // Optimistic update
+        setOptimisticReadStates(prev => ({ ...prev, [msgId]: !currentStatus }));
+        
         try {
             await fetchAuthenticated(`/personaggi/api/messaggi/${msgId}/toggle_letto/`, {
                 method: 'POST',
                 body: JSON.stringify({ personaggio_id: selectedCharacterId })
             }, onLogout);
+            // Ricarica per avere lo stato definitivo dal server
             fetchUserMessages(selectedCharacterId);
         } catch (error) {
             console.error('Errore cambio stato lettura:', error);
+            // Ripristina lo stato precedente in caso di errore
+            setOptimisticReadStates(prev => {
+                const newState = { ...prev };
+                delete newState[msgId];
+                return newState;
+            });
         }
     };
 
     const handleReply = (msg) => {
+        console.log('Reply to message:', msg); // Debug
+        
         // Se il messaggio è dallo staff, rispondi allo staff
         if (msg.mittente_is_staff) {
             setReplyToRecipient({ isStaff: true });
-        } else {
-            // Altrimenti rispondi al mittente
+        } else if (msg.mittente_personaggio_id) {
+            // Altrimenti rispondi al mittente (usa mittente_personaggio_id dal serializer)
             setReplyToRecipient({ 
-                id: msg.mittente_personaggio, 
+                id: msg.mittente_personaggio_id, 
                 nome: msg.mittente_nome,
                 isStaff: false 
             });
+        } else {
+            console.error('Impossibile rispondere: mittente non valido', msg);
+            alert('Impossibile rispondere a questo messaggio');
+            return;
         }
         setIsComposeOpen(true);
     };
@@ -83,6 +100,10 @@ const PlayerMessageTab = ({ onLogout }) => {
                     userMessages.map((msg) => {
                         const isStaff = msg.mittente_is_staff;
                         const isExpanded = expandedMessages[msg.id];
+                        // Usa lo stato ottimistico se presente, altrimenti lo stato dal server
+                        const isRead = optimisticReadStates[msg.id] !== undefined 
+                            ? optimisticReadStates[msg.id] 
+                            : msg.letto;
 
                         return (
                             <div 
@@ -93,23 +114,28 @@ const PlayerMessageTab = ({ onLogout }) => {
                                     className={`
                                         relative max-w-[90%] sm:max-w-[80%] rounded-xl p-3 shadow-md transition-all duration-200
                                         ${isStaff 
-                                            ? 'bg-gray-700 text-gray-100 rounded-tl-none border-l-4 border-red-500 hover:bg-gray-600' 
-                                            : 'bg-indigo-900 text-white rounded-tr-none border-r-4 border-indigo-400 hover:bg-indigo-800'
+                                            ? `${isRead ? 'bg-gray-800 opacity-80' : 'bg-gray-700'} text-gray-100 rounded-tl-none border-l-4 border-red-500 hover:bg-gray-600` 
+                                            : `${isRead ? 'bg-indigo-950 opacity-80' : 'bg-indigo-900'} text-white rounded-tr-none border-r-4 border-indigo-400 hover:bg-indigo-800`
                                         }
                                     `}
                                 >
                                     {/* Header Messaggio */}
                                     <div className="flex justify-between items-start mb-2 border-b border-white/10 pb-1 gap-4">
                                         <div className="flex items-center gap-2">
-                                            {msg.letto ? <MailOpen size={14} className="opacity-50"/> : <Mail size={14} className="text-yellow-400"/>}
+                                            {isRead ? <MailOpen size={14} className="opacity-50"/> : <Mail size={14} className="text-yellow-400 animate-pulse"/>}
                                             <span className={`text-xs font-bold uppercase tracking-wider ${isStaff ? 'text-red-300' : 'text-indigo-200'}`}>
                                                 {msg.mittente_nome || 'Sistema'}
                                             </span>
+                                            {!isRead && (
+                                                <span className="text-[9px] bg-yellow-600 text-white px-1.5 py-0.5 rounded-full font-bold uppercase">
+                                                    Nuovo
+                                                </span>
+                                            )}
                                         </div>
                                         
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] text-gray-400">
-                                                {new Date(msg.data_creazione).toLocaleString()}
+                                                {new Date(msg.data_creazione || msg.data_invio).toLocaleString()}
                                             </span>
                                             
                                             {/* Pulsante Rispondi */}
@@ -123,11 +149,11 @@ const PlayerMessageTab = ({ onLogout }) => {
                                             
                                             {/* Pulsante Segna come letto/non letto */}
                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); handleToggleRead(msg.id, msg.letto); }}
-                                                className="text-gray-400 hover:text-blue-400 transition-colors p-0.5 rounded"
-                                                title={msg.letto ? 'Segna come non letto' : 'Segna come letto'}
+                                                onClick={(e) => { e.stopPropagation(); handleToggleRead(msg.id, isRead); }}
+                                                className={`transition-colors p-0.5 rounded ${isRead ? 'text-gray-500 hover:text-blue-400' : 'text-blue-400 hover:text-blue-300'}`}
+                                                title={isRead ? 'Segna come non letto' : 'Segna come letto'}
                                             >
-                                                {msg.letto ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                {isRead ? <EyeOff size={14} /> : <Eye size={14} />}
                                             </button>
                                             
                                             {/* Pulsante Elimina */}
