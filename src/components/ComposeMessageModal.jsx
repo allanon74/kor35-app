@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog } from '@headlessui/react';
+import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from '@headlessui/react';
 import { searchPersonaggi, fetchAuthenticated } from '../api';
 import RichTextEditor from './RichTextEditor';
 import { Shield, User, X } from 'lucide-react';
@@ -110,13 +110,15 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4">
-        <Dialog.Overlay className="fixed inset-0 bg-black opacity-80" />
+    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+      {/* Backdrop */}
+      <DialogBackdrop className="fixed inset-0 bg-black/80" />
 
-        <div className="relative bg-gray-800 text-white rounded-lg max-w-2xl w-full p-6 shadow-2xl border border-gray-600">
+      {/* Container per centrare il panel */}
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="mx-auto max-w-2xl w-full rounded-lg bg-gray-800 text-white p-6 shadow-2xl border border-gray-600">
           <div className="flex justify-between items-center mb-4">
-             <Dialog.Title className="text-xl font-bold">Nuovo Messaggio</Dialog.Title>
+             <DialogTitle className="text-xl font-bold">Nuovo Messaggio</DialogTitle>
              <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={24}/></button>
           </div>
 
@@ -227,7 +229,7 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
             </div>
 
           </form>
-        </div>
+        </DialogPanel>
       </div>
     </Dialog>
   );
