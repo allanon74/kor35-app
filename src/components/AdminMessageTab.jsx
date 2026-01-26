@@ -12,7 +12,7 @@ import {
 } from '../api';
 import RichTextEditor from './RichTextEditor';
 import RichTextDisplay from './RichTextDisplay';
-import { Mail, Users, Shield, Search, X, RefreshCw, Trash2, Eye, EyeOff, Reply } from 'lucide-react';
+import { Mail, Users, Shield, Search, X, RefreshCw, Trash2, Eye, EyeOff, Reply, Send } from 'lucide-react';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -259,7 +259,7 @@ const AdminMessageTab = ({ onLogout }) => {
                                     'w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-all flex items-center justify-center gap-2',
                                     selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
                                 )}>
-                                    <Radio size={18} />
+                                    <Send size={18} />
                                     <span>Nuovo Msg</span>
                                 </button>
                             )}
@@ -272,7 +272,7 @@ const AdminMessageTab = ({ onLogout }) => {
                                     'w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-all flex items-center justify-center gap-2',
                                     selected ? 'bg-gray-600 text-white shadow' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
                                 )}>
-                                    <Clock size={18} />
+                                    <RefreshCw size={18} />
                                     <span>Cronologia</span>
                                 </button>
                             )}
@@ -378,7 +378,7 @@ const AdminMessageTab = ({ onLogout }) => {
                                         className={`flex items-center justify-center gap-2 p-2 rounded cursor-pointer transition-colors text-sm font-bold capitalize ${targetType === type ? 'bg-indigo-600 text-white shadow' : 'hover:bg-gray-700 text-gray-400'}`}
                                     >
                                         <input type="radio" name="target" value={type} checked={targetType === type} onChange={() => setTargetType(type)} className="hidden" />
-                                        {type === 'broadcast' && <Radio size={16} />}
+                                        {type === 'broadcast' && <Send size={16} />}
                                         {type === 'group' && <Users size={16} />}
                                         {type === 'single' && <Mail size={16} />}
                                         {type === 'broadcast' ? 'Tutti' : type === 'group' ? 'Gruppo' : 'Singolo'}
