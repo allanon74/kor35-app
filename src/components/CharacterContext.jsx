@@ -174,6 +174,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   // --- GESTIONE MESSAGGI ---
   const [userMessages, setUserMessages] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const toggleReadInProgress = useRef(new Set()); // Lock per prevenire chiamate duplicate
 
   const fetchUserMessages = useCallback(async (charId) => {
     if (!charId) return;
@@ -181,7 +182,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
       const rawMsgs = await getMessages(charId, onLogout);
       const msgs = (rawMsgs || []).map(msg => ({
           ...msg,
-          letto: msg.is_letto 
+          letto: msg.letto  // Usa direttamente il campo 'letto' dal serializer
       }));
       const sorted = (msgs || []).sort((a, b) => {
         if (a.letto !== b.letto) return a.letto ? 1 : -1;
@@ -204,10 +205,21 @@ export const CharacterProvider = ({ children, onLogout }) => {
   };
 
   const handleToggleRead = async (msgId) => {
+      // Previeni chiamate duplicate
+      if (toggleReadInProgress.current.has(msgId)) {
+          console.log('Toggle già in corso per messaggio', msgId);
+          return;
+      }
+      
       const msg = userMessages.find(m => m.id === msgId);
       if (!msg) return;
       
+      // Aggiungi al set di operazioni in corso
+      toggleReadInProgress.current.add(msgId);
+      
       const newStatus = !msg.letto;
+      console.log(`Toggle read per messaggio ${msgId}: ${msg.letto} -> ${newStatus}`);
+      
       // Aggiorna ottimisticamente
       setUserMessages(prev => prev.map(m => m.id === msgId ? { ...m, letto: newStatus } : m)); 
       setUnreadCount(prev => newStatus ? Math.max(0, prev - 1) : prev + 1);
@@ -218,14 +230,19 @@ export const CharacterProvider = ({ children, onLogout }) => {
               body: JSON.stringify({ personaggio_id: selectedCharacterId })
           }, onLogout);
           
-          // IMPORTANTE: Ricarica dal server per confermare lo stato
-          console.log('Toggle read success, ricaricando messaggi...');
-          await fetchUserMessages(selectedCharacterId);
+          // Ricarica dal server DOPO un breve delay per permettere al DB di aggiornarsi
+          setTimeout(async () => {
+              console.log('Ricaricando messaggi dopo toggle...');
+              await fetchUserMessages(selectedCharacterId);
+              // Rimuovi dal set dopo il reload
+              toggleReadInProgress.current.delete(msgId);
+          }, 300);
       } 
       catch (e) { 
           console.error('Errore toggle read:', e);
-          // In caso di errore, ricarica comunque per ripristinare lo stato corretto
-          fetchUserMessages(selectedCharacterId); 
+          // In caso di errore, ricarica subito per ripristinare lo stato corretto
+          fetchUserMessages(selectedCharacterId);
+          toggleReadInProgress.current.delete(msgId);
       }
   };
 
