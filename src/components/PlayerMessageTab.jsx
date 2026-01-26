@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCharacter } from './CharacterContext';
-import { Trash2, Mail, MailOpen, Reply, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Mail, Reply, Eye, EyeOff } from 'lucide-react';
 import ComposeMessageModal from './ComposeMessageModal';
 import RichTextDisplay from './RichTextDisplay';
 import { fetchAuthenticated } from '../api';
@@ -85,7 +85,7 @@ const PlayerMessageTab = ({ onLogout }) => {
                                     {/* Header Messaggio */}
                                     <div className="flex justify-between items-start mb-2 border-b border-white/10 pb-1 gap-4">
                                         <div className="flex items-center gap-2">
-                                            {isRead ? <MailOpen size={14} className="opacity-50"/> : <Mail size={14} className="text-yellow-400 animate-pulse"/>}
+                                            {isRead ? <Mail size={14} className="opacity-50"/> : <Mail size={14} className="text-yellow-400 animate-pulse"/>}
                                             <span className={`text-xs font-bold uppercase tracking-wider ${isStaff ? 'text-red-300' : 'text-indigo-200'}`}>
                                                 {msg.mittente_nome || 'Sistema'}
                                             </span>

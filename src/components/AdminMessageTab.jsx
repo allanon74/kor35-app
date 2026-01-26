@@ -12,7 +12,7 @@ import {
 } from '../api';
 import RichTextEditor from './RichTextEditor';
 import RichTextDisplay from './RichTextDisplay';
-import { Mail, Users, Radio, Clock, Shield, CheckCircle, Search, X, RefreshCw, ShieldAlert, Trash2, Eye, EyeOff, Reply } from 'lucide-react';
+import { Mail, Users, Shield, Search, X, RefreshCw, Trash2, Eye, EyeOff, Reply } from 'lucide-react';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -221,7 +221,7 @@ const AdminMessageTab = ({ onLogout }) => {
     if (!isStaff) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-red-400 p-4">
-                <ShieldAlert size={48} className="mb-2" />
+                <Shield size={48} className="mb-2" />
                 <h3 className="text-xl font-bold">Accesso Negato</h3>
                 <p>Area riservata allo Staff.</p>
             </div>

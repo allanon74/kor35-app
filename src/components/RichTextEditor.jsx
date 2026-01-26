@@ -2,8 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import { 
     Bold, Italic, Underline, 
     List, ListOrdered, 
-    AlignLeft, AlignCenter, AlignRight,
-    Eraser, Paintbrush, Type
+    AlignLeft, AlignCenter,
+    Trash2, Paintbrush, Type
 } from 'lucide-react';
 
 const ToolbarButton = ({ icon: Icon, onClick, active, title }) => (
@@ -124,7 +124,7 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                     {/* Gruppo Utility */}
                     <div className="flex gap-0.5 ml-auto">
                         <ToolbarButton 
-                            icon={Eraser} 
+                            icon={Trash2} 
                             onClick={() => execCommand('removeFormat')} 
                             title="Rimuovi Formattazione" 
                         />
