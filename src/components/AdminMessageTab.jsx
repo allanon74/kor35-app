@@ -297,7 +297,7 @@ const AdminMessageTab = ({ onLogout }) => {
                             <div className="flex justify-center p-10"><RefreshCw className="animate-spin text-gray-500"/></div>
                         ) : inboxMessages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-40 text-gray-500 border border-gray-700 border-dashed rounded-lg">
-                                <CheckCircle size={32} className="mb-2 opacity-50"/>
+                                <Mail size={32} className="mb-2 opacity-50"/>
                                 <p className="text-sm">Nessuna nuova richiesta o messaggio.</p>
                             </div>
                         ) : (
