@@ -89,7 +89,7 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
     try {
         const payload = {
             // Se Staff Message è true, destinatario è NULL
-            destinatario_personaggio: isStaffMessage ? null : selectedRecipient.id,
+            destinatario_id: isStaffMessage ? null : selectedRecipient.id,
             titolo: titolo,
             testo: testo,
             is_staff_message: isStaffMessage // Flag per il backend
