@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { searchPersonaggi, fetchAuthenticated } from '../api';
 import RichTextEditor from './RichTextEditor';
-import { ShieldAlert, User, X } from 'lucide-react';
+import { Shield, User, X } from 'lucide-react';
 
 const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSent, onLogout, replyToRecipient }) => {
   const [query, setQuery] = useState('');
@@ -141,7 +141,7 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
                     className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
                 />
                 <label htmlFor="chk_staff" className="cursor-pointer flex items-center gap-2 font-bold text-indigo-300">
-                    <ShieldAlert size={18} />
+                    <Shield size={18} />
                     Invia messaggio allo Staff
                 </label>
             </div>
