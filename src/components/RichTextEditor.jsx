@@ -3,7 +3,7 @@ import {
     Bold, Italic, Underline, 
     List, ListOrdered, 
     AlignLeft, AlignCenter, AlignRight,
-    Eraser, Palette, Type
+    Eraser, Paintbrush, Type
 } from 'lucide-react';
 
 const ToolbarButton = ({ icon: Icon, onClick, active, title }) => (
@@ -108,7 +108,7 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                         {/* Selettore Colore */}
                         <div className="relative">
                             <ToolbarButton 
-                                icon={Palette} 
+                                icon={Paintbrush} 
                                 onClick={() => colorInputRef.current?.click()} 
                                 title="Colore Testo" 
                             />
