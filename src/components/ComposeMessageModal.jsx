@@ -95,7 +95,7 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
             is_staff_message: isStaffMessage // Flag per il backend
         };
 
-        await fetchAuthenticated('/personaggi/api/messaggi/', {
+        await fetchAuthenticated('/personaggi/api/messaggi/send/', {
             method: 'POST',
             body: JSON.stringify(payload)
         }, onLogout);
