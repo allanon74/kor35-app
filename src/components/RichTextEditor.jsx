@@ -47,6 +47,38 @@ const FONT_FAMILIES = [
 // Stili personalizzati con definizione CSS completa
 const CUSTOM_STYLES = [
     {
+        id: 'title-general',
+        label: '📋 Titolo Generale',
+        css: {
+            fontSize: '1.75em',
+            fontWeight: '700',
+            color: '#818cf8',
+            borderBottom: '3px solid #6366f1',
+            paddingBottom: '8px',
+            marginTop: '12px',
+            marginBottom: '12px',
+            display: 'block',
+            letterSpacing: '0.5px'
+        }
+    },
+    {
+        id: 'title-section',
+        label: '📑 Titolo Sezione',
+        css: {
+            fontSize: '1.25em',
+            fontWeight: '600',
+            color: '#a5b4fc',
+            borderLeft: '4px solid #6366f1',
+            paddingLeft: '12px',
+            marginTop: '10px',
+            marginBottom: '8px',
+            display: 'block',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            fontSize: '0.95em'
+        }
+    },
+    {
         id: 'highlight-yellow',
         label: '📌 Evidenziato Giallo',
         css: {
