@@ -1401,6 +1401,21 @@ export const staffGetWikiImages = (onLogout) => {
   }, onLogout);
 };
 
+// --- EVENTI PUBBLICI ---
+export const getEventiPubblici = () => {
+  return fetchPublic('/plot/api/public/eventi/');
+};
+
+// --- CONFIGURAZIONE SITO ---
+export const getConfigurazioneSito = () => {
+  return fetchPublic('/plot/api/public/configurazione-sito/1/');
+};
+
+// --- LINK SOCIAL ---
+export const getLinkSocial = () => {
+  return fetchPublic('/plot/api/public/link-social/');
+};
+
 // Crea una nuova pagina (Staff) - Supporta FormData per immagini
 export const createWikiPage = (formData, onLogout) => {
   return fetchAuthenticated('/plot/api/staff/pagine-regolamento/', {

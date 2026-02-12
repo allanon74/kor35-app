@@ -3,6 +3,9 @@ import WidgetTier from './wg/WidgetTier';
 import WidgetAura from './wg/WidgetAura';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
 import WidgetImmagine from './wg/WidgetImmagine';
+import WidgetChiSiamo from './wg/WidgetChiSiamo';
+import WidgetEventi from './wg/WidgetEventi';
+import WidgetSocial from './wg/WidgetSocial';
 
 export default function WikiRenderer({ content }) {
   if (!content) return null;
@@ -130,6 +133,12 @@ export default function WikiRenderer({ content }) {
                   case 'IMAGE':
                   case 'IMMAGINE':
                       return <WidgetImmagine key={index} id={part.id} />;
+                  case 'CHI_SIAMO':
+                      return <WidgetChiSiamo key={index} />;
+                  case 'EVENTI':
+                      return <WidgetEventi key={index} />;
+                  case 'SOCIAL':
+                      return <WidgetSocial key={index} />;
                   default:
                       return (
                           <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import WikiRenderer from '../components/WikiRenderer';
 import WikiPageEditorModal from '../components/wiki/WikiPageEditorModal'; // Importiamo il modale
+import HomePage from '../components/HomePage'; // Importiamo il componente HomePage speciale
 import { getWikiPage, getWikiImageUrl, getMediaUrl } from '../api';
 import { useCharacter } from '../components/CharacterContext'; // Per i permessi
 import { EyeOff } from 'lucide-react';
@@ -82,6 +83,38 @@ export default function WikiPage({ slug: propSlug }) {
     );
   }
 
+  // Se lo slug è "home", usa il layout speciale HomePage
+  if (currentSlug === 'home') {
+    return (
+      <>
+        {/* PULSANTE MODIFICA (Visibile solo a Staff/Master) */}
+        {canEdit && (
+          <div className="fixed top-20 right-4 z-50">
+            <button 
+              onClick={() => setEditorOpen(true)}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded shadow-lg hover:bg-indigo-700 font-bold text-sm opacity-70 hover:opacity-100 transition-opacity"
+            >
+              ✏️ Modifica Pagina Home
+            </button>
+          </div>
+        )}
+
+        {/* Componente HomePage speciale */}
+        <HomePage pageData={pageData} />
+
+        {/* MODALE EDITOR */}
+        {isEditorOpen && (
+          <WikiPageEditorModal 
+            initialData={pageData}
+            onClose={() => setEditorOpen(false)}
+            onSuccess={handleEditSuccess}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Layout standard per tutte le altre pagine
   return (
     <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-sm md:rounded-lg overflow-hidden relative group">
 
