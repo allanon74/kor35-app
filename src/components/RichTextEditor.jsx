@@ -4,8 +4,9 @@ import {
     List, ListOrdered, 
     AlignLeft, AlignCenter,
     Trash2, Paintbrush, Type, Heading, FileText,
-    Minus, Smile, Link as LinkIcon
+    Minus, Smile, Link as LinkIcon, Search
 } from 'lucide-react';
+import { getWikiMenu } from '../api';
 
 // ============================================
 // CONFIGURAZIONE STILI PERSONALIZZATI
@@ -249,6 +250,10 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [linkText, setLinkText] = useState('');
     const [linkUrl, setLinkUrl] = useState('');
+    const [wikiPages, setWikiPages] = useState([]);
+    const [filteredPages, setFilteredPages] = useState([]);
+    const [pageFilter, setPageFilter] = useState('');
+    const [loadingPages, setLoadingPages] = useState(false);
     const savedSelectionRef = useRef(null);
 
     // Sincronizza il contenuto iniziale o esterno
@@ -353,7 +358,7 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
     };
 
     // Apre il modal per inserire un link
-    const openLinkModal = () => {
+    const openLinkModal = async () => {
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
             savedSelectionRef.current = selection.getRangeAt(0);
@@ -361,7 +366,67 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
             setLinkText(selectedText || '');
         }
         setLinkUrl('');
+        setPageFilter('');
         setShowLinkModal(true);
+        
+        // Carica le pagine wiki
+        setLoadingPages(true);
+        try {
+            const menuData = await getWikiMenu();
+            // Flatten della struttura del menu per ottenere tutte le pagine
+            const allPages = flattenMenuPages(menuData);
+            setWikiPages(allPages);
+            setFilteredPages(allPages);
+        } catch (err) {
+            console.error('Errore caricamento pagine wiki:', err);
+            setWikiPages([]);
+            setFilteredPages([]);
+        } finally {
+            setLoadingPages(false);
+        }
+    };
+
+    // Funzione helper per appiattire la struttura del menu wiki
+    const flattenMenuPages = (menuItems) => {
+        let pages = [];
+        const traverse = (items) => {
+            items.forEach(item => {
+                if (item.slug) {
+                    pages.push({
+                        titolo: item.titolo,
+                        slug: item.slug,
+                        path: `/regolamento/${item.slug}`
+                    });
+                }
+                if (item.children && item.children.length > 0) {
+                    traverse(item.children);
+                }
+            });
+        };
+        traverse(menuItems);
+        return pages;
+    };
+
+    // Filtra le pagine in base al testo di ricerca
+    const handlePageFilterChange = (text) => {
+        setPageFilter(text);
+        if (!text.trim()) {
+            setFilteredPages(wikiPages);
+        } else {
+            const filtered = wikiPages.filter(page =>
+                page.titolo.toLowerCase().includes(text.toLowerCase()) ||
+                page.slug.toLowerCase().includes(text.toLowerCase())
+            );
+            setFilteredPages(filtered);
+        }
+    };
+
+    // Seleziona una pagina dalla lista
+    const selectWikiPage = (page) => {
+        setLinkUrl(page.path);
+        if (!linkText.trim()) {
+            setLinkText(page.titolo);
+        }
     };
 
     // Inserisce il link nell'editor
@@ -401,6 +466,9 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
         setShowLinkModal(false);
         setLinkText('');
         setLinkUrl('');
+        setPageFilter('');
+        setWikiPages([]);
+        setFilteredPages([]);
         savedSelectionRef.current = null;
     };
 
@@ -474,18 +542,20 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                                 active={showEmojiPicker}
                             />
                             {showEmojiPicker && (
-                                <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg p-2 z-50 max-w-[280px] max-h-[200px] overflow-y-auto grid grid-cols-10 gap-1">
-                                    {COMMON_EMOJIS.map((emoji, idx) => (
-                                        <button
-                                            key={idx}
-                                            type="button"
-                                            onClick={() => insertEmoji(emoji)}
-                                            className="text-lg hover:bg-gray-700 rounded p-1 transition-colors"
-                                            title={emoji}
-                                        >
-                                            {emoji}
-                                        </button>
-                                    ))}
+                                <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg p-3 z-50 w-[480px] max-h-[350px] overflow-y-auto">
+                                    <div className="grid grid-cols-12 gap-1">
+                                        {COMMON_EMOJIS.map((emoji, idx) => (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => insertEmoji(emoji)}
+                                                className="text-xl hover:bg-gray-700 rounded p-2 transition-colors flex items-center justify-center min-w-[36px] min-h-[36px]"
+                                                title={emoji}
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -647,7 +717,7 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
             {/* Modal per Inserire Link Wiki */}
             {showLinkModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={closeLinkModal}>
-                    <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-600" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl border border-gray-600 max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
                                 <LinkIcon size={20} className="text-indigo-400" />
@@ -662,7 +732,7 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                             </button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-4 flex-1 overflow-y-auto">
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">
                                     Testo del Link
@@ -673,41 +743,89 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                                     onChange={(e) => setLinkText(e.target.value)}
                                     placeholder="es. Guida alle Classi"
                                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    autoFocus
                                 />
                             </div>
 
                             <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Seleziona Pagina Wiki
+                                </label>
+                                
+                                {/* Campo di ricerca */}
+                                <div className="relative mb-2">
+                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={pageFilter}
+                                        onChange={(e) => handlePageFilterChange(e.target.value)}
+                                        placeholder="Cerca pagina..."
+                                        className="w-full pl-9 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {/* Lista pagine */}
+                                <div className="border border-gray-600 rounded-md bg-gray-900 max-h-[280px] overflow-y-auto">
+                                    {loadingPages ? (
+                                        <div className="p-4 text-center text-gray-400">
+                                            Caricamento pagine...
+                                        </div>
+                                    ) : filteredPages.length === 0 ? (
+                                        <div className="p-4 text-center text-gray-400">
+                                            Nessuna pagina trovata
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-gray-700">
+                                            {filteredPages.map((page, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => selectWikiPage(page)}
+                                                    className={`w-full text-left px-4 py-2.5 hover:bg-gray-700 transition-colors ${
+                                                        linkUrl === page.path ? 'bg-indigo-600/30 border-l-4 border-indigo-500' : ''
+                                                    }`}
+                                                >
+                                                    <div className="font-medium text-gray-200">{page.titolo}</div>
+                                                    <div className="text-xs text-gray-400 mt-0.5">{page.path}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">
-                                    URL Interno Wiki
+                                    URL Manuale (opzionale)
                                 </label>
                                 <input
                                     type="text"
                                     value={linkUrl}
                                     onChange={(e) => setLinkUrl(e.target.value)}
-                                    placeholder="es. /wiki/classi o #sezione"
+                                    placeholder="es. /regolamento/pagina o #sezione"
                                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                 />
                                 <p className="text-xs text-gray-400 mt-1">
-                                    Inserisci il percorso relativo o l'anchor (#) della pagina wiki
+                                    Puoi anche inserire manualmente un URL o un anchor (#sezione)
                                 </p>
                             </div>
+                        </div>
 
-                            <div className="flex gap-2 justify-end pt-2">
-                                <button
-                                    onClick={closeLinkModal}
-                                    className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors"
-                                >
-                                    Annulla
-                                </button>
-                                <button
-                                    onClick={insertLink}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 transition-colors flex items-center gap-2"
-                                >
-                                    <LinkIcon size={16} />
-                                    Inserisci Link
-                                </button>
-                            </div>
+                        <div className="flex gap-2 justify-end pt-4 border-t border-gray-700 mt-4">
+                            <button
+                                onClick={closeLinkModal}
+                                className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors"
+                            >
+                                Annulla
+                            </button>
+                            <button
+                                onClick={insertLink}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 transition-colors flex items-center gap-2"
+                                disabled={!linkText || !linkUrl}
+                            >
+                                <LinkIcon size={16} />
+                                Inserisci Link
+                            </button>
                         </div>
                     </div>
                 </div>

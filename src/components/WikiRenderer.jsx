@@ -79,33 +79,72 @@ export default function WikiRenderer({ content }) {
   // });
 
   return (
-    <div className="wiki-content prose prose-red max-w-none text-gray-800">
-      {parts.map((part, index) => {
-        if (part.type === 'widget') {
-            switch (part.widgetType) {
-                case 'TIER':
-                    return <WidgetTier key={index} id={part.id} />;
-                case 'AURA':
-                    return <WidgetAura key={index} id={part.id} />;
-                case 'TABELLA':
-                    return <WidgetTabellaAbilita key={index} id={part.id} />;
-                case 'IMAGE':
-                case 'IMMAGINE':
-                    return <WidgetImmagine key={index} id={part.id} />;
-                default:
-                    return (
-                        <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">
-                            [WIDGET IGNOTO: {part.widgetType}]
-                        </div>
-                    );
-            }
+    <>
+      <style>{`
+        .wiki-content ul {
+          list-style-type: disc;
+          margin: 0.5em 0;
+          padding-left: 2em;
         }
-        
-        // Renderizza HTML.
-        // Importante: se cleanContent ha funzionato, qui dentro NON ci sono pezzi di tag orfani.
-        // Se part.content è solo uno spazio o a capo, React lo gestisce bene.
-        return <div key={index} dangerouslySetInnerHTML={{ __html: part.content }} />;
-      })}
-    </div>
+        .wiki-content ol {
+          list-style-type: decimal;
+          margin: 0.5em 0;
+          padding-left: 2em;
+        }
+        .wiki-content li {
+          margin: 0.25em 0;
+          display: list-item;
+        }
+        .wiki-content ul ul {
+          list-style-type: circle;
+          margin: 0.25em 0;
+        }
+        .wiki-content ul ul ul {
+          list-style-type: square;
+        }
+        .wiki-content hr {
+          border: none;
+          border-top: 2px solid #9ca3af;
+          margin: 1.5em 0;
+        }
+        .wiki-content a.wiki-link {
+          color: #6366f1;
+          text-decoration: underline;
+          cursor: pointer;
+          transition: color 0.2s;
+        }
+        .wiki-content a.wiki-link:hover {
+          color: #818cf8;
+        }
+      `}</style>
+      <div className="wiki-content prose prose-red max-w-none text-gray-800">
+        {parts.map((part, index) => {
+          if (part.type === 'widget') {
+              switch (part.widgetType) {
+                  case 'TIER':
+                      return <WidgetTier key={index} id={part.id} />;
+                  case 'AURA':
+                      return <WidgetAura key={index} id={part.id} />;
+                  case 'TABELLA':
+                      return <WidgetTabellaAbilita key={index} id={part.id} />;
+                  case 'IMAGE':
+                  case 'IMMAGINE':
+                      return <WidgetImmagine key={index} id={part.id} />;
+                  default:
+                      return (
+                          <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">
+                              [WIDGET IGNOTO: {part.widgetType}]
+                          </div>
+                      );
+              }
+          }
+          
+          // Renderizza HTML.
+          // Importante: se cleanContent ha funzionato, qui dentro NON ci sono pezzi di tag orfani.
+          // Se part.content è solo uno spazio o a capo, React lo gestisce bene.
+          return <div key={index} dangerouslySetInnerHTML={{ __html: part.content }} />;
+        })}
+      </div>
+    </>
   );
 }
