@@ -300,7 +300,7 @@ const GameTab = ({ onNavigate }) => {
     // Logica Capacità
     const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
-    const capacityConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS' && i.potenziamenti_installati?.length > 0);
+    const capacityConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
     const capacityUsed = capacityConsumers.length;
     
     const statOgp = char.statistiche_primarie?.find(s => s.sigla === 'OGP');

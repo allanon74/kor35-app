@@ -64,7 +64,11 @@ const ForgingModal = ({ infusione, onClose, onRefresh }) => {
          } else if (selectedTarget) {
              // Artigiano
              const art = capableArtisans.find(a => a.id == selectedTarget);
-             await createForgingRequest(selectedCharacterData.id, infusione.id, art.nome, offerCredits);
+             const validOffer = parseInt(offerCredits) || 0;
+             if (validOffer < 0) {
+                 throw new Error("L'offerta deve essere un valore positivo.");
+             }
+             await createForgingRequest(selectedCharacterData.id, infusione.id, art.nome, validOffer);
              setMsg({ type: 'success', text: `Richiesta inviata a ${art.nome}!` });
          } else {
              throw new Error("Seleziona un metodo.");
@@ -145,9 +149,10 @@ const ForgingModal = ({ infusione, onClose, onRefresh }) => {
                               <Coins className="absolute left-3 top-2.5 text-yellow-500" size={16}/>
                               <input 
                                   type="number" 
+                                  min="0"
                                   className="w-full bg-gray-900 border-gray-600 text-white rounded p-2 pl-10 focus:border-yellow-500 outline-none"
                                   value={offerCredits} 
-                                  onChange={e=>setOfferCredits(e.target.value)} 
+                                  onChange={e=>setOfferCredits(parseInt(e.target.value) || 0)} 
                                   placeholder="0"
                               />
                           </div>

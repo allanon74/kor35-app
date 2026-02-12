@@ -95,15 +95,46 @@ const JobRequestsWidget = ({ characterId }) => {
               <div className="flex items-center gap-2 text-sm text-gray-300">
                 <User size={14} className="text-indigo-400"/>
                 <span className="font-bold text-white">{req.committente_nome || "Cliente"}</span> 
-                <span>richiede installazione:</span>
+                <span>
+                  {req.tipo_operazione === 'FORG' && 'richiede forgiatura:'}
+                  {req.tipo_operazione === 'INST' && 'richiede installazione:'}
+                  {req.tipo_operazione === 'RIMO' && 'richiede rimozione:'}
+                  {req.tipo_operazione === 'GRAF' && 'propone operazione chirurgica:'}
+                  {!req.tipo_operazione && 'richiede installazione:'}
+                </span>
               </div>
               
-              <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded border border-gray-600/50">
-                <Box size={16} className="text-cyan-400" />
-                <span className="text-cyan-200 font-mono text-sm">{req.componente_nome}</span>
-                <span className="text-gray-500">➔</span>
-                <span className="text-emerald-200 font-mono text-sm">{req.host_nome}</span>
-              </div>
+              {/* Per FORG: mostra solo infusione */}
+              {req.tipo_operazione === 'FORG' && (
+                <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded border border-gray-600/50">
+                  <Box size={16} className="text-purple-400" />
+                  <span className="text-purple-200 font-mono text-sm">{req.infusione_nome || "Infusione"}</span>
+                </div>
+              )}
+              
+              {/* Per GRAF: mostra infusione e slot */}
+              {req.tipo_operazione === 'GRAF' && (
+                <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded border border-gray-600/50">
+                  <Box size={16} className="text-red-400" />
+                  <span className="text-red-200 font-mono text-sm">{req.infusione_nome || req.forgiatura_nome || "Innesto"}</span>
+                  {req.slot_destinazione && (
+                    <>
+                      <span className="text-gray-500">➔</span>
+                      <span className="text-orange-200 font-mono text-sm">Slot {req.slot_destinazione}</span>
+                    </>
+                  )}
+                </div>
+              )}
+              
+              {/* Per INST/RIMO: mostra componente e host */}
+              {(!req.tipo_operazione || req.tipo_operazione === 'INST' || req.tipo_operazione === 'RIMO') && (
+                <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded border border-gray-600/50">
+                  <Box size={16} className="text-cyan-400" />
+                  <span className="text-cyan-200 font-mono text-sm">{req.componente_nome}</span>
+                  <span className="text-gray-500">{req.tipo_operazione === 'RIMO' ? '←' : '➔'}</span>
+                  <span className="text-emerald-200 font-mono text-sm">{req.host_nome}</span>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 text-xs mt-1">
                  <span className="text-yellow-500 font-bold bg-yellow-500/10 px-2 py-0.5 rounded">
