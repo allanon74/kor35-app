@@ -192,7 +192,8 @@ export const getTransazioneDetail = (transazioneId, onLogout) => {
  */
 export const addPropostaTransazione = (transazioneId, proposta, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/transazioni/${transazioneId}/proposta/`,
+    `
+    /${transazioneId}/proposta/`,
     {
       method: 'POST',
       body: JSON.stringify(proposta)

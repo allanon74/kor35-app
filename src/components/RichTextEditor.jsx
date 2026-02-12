@@ -3,7 +3,8 @@ import {
     Bold, Italic, Underline, 
     List, ListOrdered, 
     AlignLeft, AlignCenter,
-    Trash2, Paintbrush, Type, Heading, FileText
+    Trash2, Paintbrush, Type, Heading, FileText,
+    Minus, Smile, Link as LinkIcon
 } from 'lucide-react';
 
 // ============================================
@@ -42,6 +43,60 @@ const FONT_FAMILIES = [
     { value: 'Trebuchet MS, sans-serif', label: 'Trebuchet MS' },
     { value: 'Comic Sans MS, cursive', label: 'Comic Sans MS' },
     { value: 'Impact, sans-serif', label: 'Impact' }
+];
+
+// Emoji organizzate per Wiki Fantasy/GdR
+const COMMON_EMOJIS = [
+    // === INDICATORI E SIMBOLI DI ENFASI ===
+    '📌', '📍', '🔖', '⚠️', '❗', '❕', '‼️', '⁉️', '❓', '❔',
+    '💡', '🔆', '💫', '✨', '⭐', '🌟', '💥', '💢', '🔥', '⚡',
+    '☄️', '💧', '💦', '💨', '🌪️', '❄️', '☃️', '🌊', '🌈', '☀️',
+    
+    // === SIMBOLI FANTASY E COMBATTIMENTO ===
+    '⚔️', '🗡️', '🔪', '🏹', '🛡️', '🪓', '⚒️', '🔨', '⛏️', '🪃',
+    '🎯', '💣', '🧨', '🔮', '🪄', '✨', '💎', '💠', '🔷', '🔶',
+    '🔹', '🔸', '🔺', '🔻', '🔘', '⚪', '⚫', '🟤', '🟣', '🟢',
+    
+    // === CREATURE FANTASY ===
+    '🐉', '🐲', '🦎', '🐍', '🦂', '🕷️', '🦇', '🦅', '🦉', '🦌',
+    '🐺', '🦊', '🐗', '🐻', '🦁', '🐯', '🦈', '🐙', '🦑', '🐘',
+    '🦏', '🦒', '🦘', '🦥', '🦦', '🦨', '🦡', '🐾', '🦴', '☠️',
+    
+    // === CORONE, NOBILTÀ E POTERE ===
+    '👑', '💍', '💰', '💴', '💵', '💶', '💷', '🪙', '🏆', '🥇',
+    '🥈', '🥉', '🎖️', '🏅', '🎗️', '🔱', '⚜️', '🔰', '🛡️', '🗝️',
+    
+    // === LUOGHI E EDIFICI ===
+    '🏰', '🏯', '🗼', '🗿', '🏛️', '⛪', '🕌', '🛕', '🗻', '⛰️',
+    '🏔️', '🌋', '🏕️', '⛺', '🏞️', '🏜️', '🏝️', '🌍', '🌎', '🌏',
+    '🗺️', '🧭', '📍', '🚩', '🏴', '🏳️', '🏁', '⛳', '🕳️', '🌌',
+    
+    // === MAGIA E ALCHIMIA ===
+    '🔮', '🪄', '✨', '💫', '⚗️', '🧪', '🧬', '🧫', '🩸', '💉',
+    '🧿', '📿', '🔗', '⛓️', '🕯️', '💀', '⚰️', '🪦', '🌙', '☪️',
+    '☸️', '✝️', '☦️', '☯️', '🕎', '🔯', '♈', '♉', '♊', '♋',
+    
+    // === LIBRI, SCROLL E CONOSCENZA ===
+    '📜', '📋', '📃', '📄', '📰', '🗞️', '📑', '🔖', '📚', '📖',
+    '📕', '📗', '📘', '📙', '📓', '📔', '📒', '✍️', '✒️', '🖊️',
+    '🖋️', '🖌️', '🖍️', '📝', '💼', '🗂️', '📂', '📁', '🗃️', '🗄️',
+    
+    // === TEMPO E METEO ===
+    '⏰', '⏱️', '⏲️', '⌛', '⏳', '🕐', '🕑', '🕒', '🌅', '🌄',
+    '🌠', '🌌', '🌃', '🌆', '🌇', '🌁', '☁️', '⛈️', '🌩️', '⚡',
+    
+    // === EMOZIONI BASE (ridotte) ===
+    '😀', '😃', '😄', '😊', '😎', '🤔', '😮', '😱', '😡', '😈',
+    '👿', '💀', '☠️', '👹', '👺', '🤡', '👻', '👽', '🤖', '💩',
+    
+    // === FRECCE E DIREZIONI ===
+    '⬆️', '⬇️', '⬅️', '➡️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️',
+    '↩️', '↪️', '⤴️', '⤵️', '🔄', '🔃', '🔁', '🔂', '▶️', '◀️',
+    '⏸️', '⏹️', '⏺️', '⏏️', '🔼', '🔽', '⏫', '⏬', '⏮️', '⏭️',
+    
+    // === SIMBOLI SPECIALI ===
+    '✅', '❌', '⭕', '🚫', '💯', '♾️', '🆕', '🆙', '🆒', '🆓',
+    '🆗', '🔞', '⛔', '📵', '🚷', '🚯', '🚱', '🚳', '🚭', '🔇'
 ];
 
 // Stili personalizzati con definizione CSS completa
@@ -190,6 +245,11 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
     const colorInputRef = useRef(null);
     const [currentBlockType, setCurrentBlockType] = useState('p');
     const [currentFont, setCurrentFont] = useState(DEFAULT_EDITOR_STYLE.fontFamily);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showLinkModal, setShowLinkModal] = useState(false);
+    const [linkText, setLinkText] = useState('');
+    const [linkUrl, setLinkUrl] = useState('');
+    const savedSelectionRef = useRef(null);
 
     // Sincronizza il contenuto iniziale o esterno
     useEffect(() => {
@@ -277,6 +337,73 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
         }
     };
 
+    // Inserisce una riga orizzontale
+    const insertHorizontalRule = () => {
+        execCommand('insertHorizontalRule');
+    };
+
+    // Inserisce un'emoji
+    const insertEmoji = (emoji) => {
+        document.execCommand('insertText', false, emoji);
+        if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+            editorRef.current.focus();
+        }
+        setShowEmojiPicker(false);
+    };
+
+    // Apre il modal per inserire un link
+    const openLinkModal = () => {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            savedSelectionRef.current = selection.getRangeAt(0);
+            const selectedText = selection.toString();
+            setLinkText(selectedText || '');
+        }
+        setLinkUrl('');
+        setShowLinkModal(true);
+    };
+
+    // Inserisce il link nell'editor
+    const insertLink = () => {
+        if (!linkText || !linkUrl) {
+            alert('Inserisci sia il testo che l\'URL del link');
+            return;
+        }
+
+        // Ripristina la selezione salvata
+        if (savedSelectionRef.current) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(savedSelectionRef.current);
+        }
+
+        // Crea il link HTML
+        const linkHtml = `<a href="${linkUrl}" class="wiki-link" style="color: #818cf8; text-decoration: underline; cursor: pointer;">${linkText}</a>`;
+        
+        // Inserisce il link
+        document.execCommand('insertHTML', false, linkHtml);
+        
+        if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+            editorRef.current.focus();
+        }
+
+        // Resetta e chiudi modal
+        setLinkText('');
+        setLinkUrl('');
+        setShowLinkModal(false);
+        savedSelectionRef.current = null;
+    };
+
+    // Chiude il modal senza inserire
+    const closeLinkModal = () => {
+        setShowLinkModal(false);
+        setLinkText('');
+        setLinkUrl('');
+        savedSelectionRef.current = null;
+    };
+
     return (
         <div className="flex flex-col gap-1 w-full">
             {label && <label className="text-sm font-medium text-gray-300 ml-1">{label}</label>}
@@ -333,6 +460,35 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                         <ToolbarButton icon={ListOrdered} onClick={() => execCommand('insertOrderedList')} title="Lista Numerata" />
                         <ToolbarButton icon={AlignLeft} onClick={() => execCommand('justifyLeft')} title="Allinea Sinistra" />
                         <ToolbarButton icon={AlignCenter} onClick={() => execCommand('justifyCenter')} title="Allinea Centro" />
+                    </div>
+
+                    {/* Gruppo Elementi Speciali */}
+                    <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
+                        <ToolbarButton icon={Minus} onClick={insertHorizontalRule} title="Riga Orizzontale" />
+                        <ToolbarButton icon={LinkIcon} onClick={openLinkModal} title="Inserisci Link Wiki" />
+                        <div className="relative">
+                            <ToolbarButton 
+                                icon={Smile} 
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                                title="Inserisci Emoji" 
+                                active={showEmojiPicker}
+                            />
+                            {showEmojiPicker && (
+                                <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg p-2 z-50 max-w-[280px] max-h-[200px] overflow-y-auto grid grid-cols-10 gap-1">
+                                    {COMMON_EMOJIS.map((emoji, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => insertEmoji(emoji)}
+                                            className="text-lg hover:bg-gray-700 rounded p-1 transition-colors"
+                                            title={emoji}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Gruppo Stile Avanzato */}
@@ -445,8 +601,117 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                         overflow-x: auto;
                         font-family: monospace;
                     }
+                    
+                    /* Stili per le liste */
+                    [contenteditable] ul {
+                        list-style-type: disc;
+                        margin: 0.5em 0;
+                        padding-left: 2em;
+                    }
+                    [contenteditable] ol {
+                        list-style-type: decimal;
+                        margin: 0.5em 0;
+                        padding-left: 2em;
+                    }
+                    [contenteditable] li {
+                        margin: 0.25em 0;
+                        display: list-item;
+                    }
+                    [contenteditable] ul ul {
+                        list-style-type: circle;
+                        margin: 0.25em 0;
+                    }
+                    [contenteditable] ul ul ul {
+                        list-style-type: square;
+                    }
+                    
+                    /* Stile per la riga orizzontale */
+                    [contenteditable] hr {
+                        border: none;
+                        border-top: 2px solid #4b5563;
+                        margin: 1em 0;
+                    }
+                    
+                    /* Stili per i link wiki */
+                    [contenteditable] a.wiki-link {
+                        color: #818cf8;
+                        text-decoration: underline;
+                        cursor: pointer;
+                    }
+                    [contenteditable] a.wiki-link:hover {
+                        color: #a5b4fc;
+                    }
                 `}</style>
             </div>
+
+            {/* Modal per Inserire Link Wiki */}
+            {showLinkModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={closeLinkModal}>
+                    <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-600" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+                                <LinkIcon size={20} className="text-indigo-400" />
+                                Inserisci Link Wiki
+                            </h3>
+                            <button
+                                onClick={closeLinkModal}
+                                className="text-gray-400 hover:text-gray-200 transition-colors"
+                                title="Chiudi"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    Testo del Link
+                                </label>
+                                <input
+                                    type="text"
+                                    value={linkText}
+                                    onChange={(e) => setLinkText(e.target.value)}
+                                    placeholder="es. Guida alle Classi"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    URL Interno Wiki
+                                </label>
+                                <input
+                                    type="text"
+                                    value={linkUrl}
+                                    onChange={(e) => setLinkUrl(e.target.value)}
+                                    placeholder="es. /wiki/classi o #sezione"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                    Inserisci il percorso relativo o l'anchor (#) della pagina wiki
+                                </p>
+                            </div>
+
+                            <div className="flex gap-2 justify-end pt-2">
+                                <button
+                                    onClick={closeLinkModal}
+                                    className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors"
+                                >
+                                    Annulla
+                                </button>
+                                <button
+                                    onClick={insertLink}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 transition-colors flex items-center gap-2"
+                                >
+                                    <LinkIcon size={16} />
+                                    Inserisci Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

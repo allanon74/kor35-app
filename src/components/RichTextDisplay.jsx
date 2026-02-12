@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo } from 'react'; 
 import { sanitizeHtml } from '../utils/htmlSanitizer';
 import { activateUser, deleteUser } from '../api'; // Importa le chiamate API
 
@@ -39,20 +39,58 @@ const RichTextDisplay = ({ content, onUpdate }) => {
     const parts = cleanContent.split(/(\[(?:ACTIVATE|DELETE)_USER:\d+\])/g);
 
     return (
-        <div 
-            className="ql-editor-view w-full"
-            style={{
-                fontSize: '0.875rem',
-                lineHeight: '1.6',
-                color: '#d1d5db', 
-                whiteSpace: 'normal',       
-                overflowWrap: 'anywhere',   
-                wordBreak: 'normal',        
-                maxWidth: '100%',
-                minWidth: '0'
-            }}
-        >
-            {parts.map((part, index) => {
+        <>
+            <style>{`
+                .ql-editor-view ul {
+                    list-style-type: disc;
+                    margin: 0.5em 0;
+                    padding-left: 2em;
+                }
+                .ql-editor-view ol {
+                    list-style-type: decimal;
+                    margin: 0.5em 0;
+                    padding-left: 2em;
+                }
+                .ql-editor-view li {
+                    margin: 0.25em 0;
+                    display: list-item;
+                }
+                .ql-editor-view ul ul {
+                    list-style-type: circle;
+                    margin: 0.25em 0;
+                }
+                .ql-editor-view ul ul ul {
+                    list-style-type: square;
+                }
+                .ql-editor-view hr {
+                    border: none;
+                    border-top: 2px solid #4b5563;
+                    margin: 1em 0;
+                }
+                .ql-editor-view a.wiki-link {
+                    color: #818cf8;
+                    text-decoration: underline;
+                    cursor: pointer;
+                    transition: color 0.2s;
+                }
+                .ql-editor-view a.wiki-link:hover {
+                    color: #a5b4fc;
+                }
+            `}</style>
+            <div 
+                className="ql-editor-view w-full"
+                style={{
+                    fontSize: '0.875rem',
+                    lineHeight: '1.6',
+                    color: '#d1d5db', 
+                    whiteSpace: 'normal',       
+                    overflowWrap: 'anywhere',   
+                    wordBreak: 'normal',        
+                    maxWidth: '100%',
+                    minWidth: '0'
+                }}
+            >
+                {parts.map((part, index) => {
                 // Controllo se questa parte è il tag ACTIVATE_USER
                 const activateMatch = part.match(/\[ACTIVATE_USER:(\d+)\]/);
                 
@@ -101,7 +139,8 @@ const RichTextDisplay = ({ content, onUpdate }) => {
                     />
                 );
             })}
-        </div>
+            </div>
+        </>
     );
 };
 
