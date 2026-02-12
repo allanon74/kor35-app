@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, LogIn, Scroll, BookOpen, Users, Calendar, Share2 } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
+import { getMediaUrl } from '../api';
 import WidgetChiSiamo from './wg/WidgetChiSiamo';
 import WidgetEventi from './wg/WidgetEventi';
 import WidgetSocial from './wg/WidgetSocial';
@@ -33,7 +34,7 @@ export default function HomePage({ pageData }) {
       {pageData?.immagine && (
         <div className="relative w-full h-64 md:h-80 lg:h-96 overflow-hidden shadow-md">
           <img 
-            src={pageData.immagine_url || pageData.immagine}
+            src={getMediaUrl(pageData.immagine)}
             alt={pageData.titolo}
             className="w-full h-full object-cover"
             style={{ objectPosition: `center ${pageData.banner_y ?? 50}%` }}
