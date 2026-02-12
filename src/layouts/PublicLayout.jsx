@@ -24,10 +24,71 @@ export default function PublicLayout({ token }) {
   
   // Gestione apertura nodi (Set di ID)
   const [openNodes, setOpenNodes] = useState(new Set());
+  
+  // NUOVO: Stato per nascondere bozze/staff (per admin)
+  const [hideAdminContent, setHideAdminContent] = useState(() => {
+    return localStorage.getItem('wiki_hide_admin_content') === 'true';
+  });
 
   const { character, isStaff, isMaster } = useCharacter();
   const canEdit = isStaff || isMaster;
   const location = useLocation();
+
+  // --- HELPER: COSTRUZIONE ALBERO E ORDINAMENTO ---
+  const buildTree = (items) => {
+    if (!Array.isArray(items)) return [];
+    const map = {};
+    const roots = [];
+    
+    items.forEach((item) => { map[item.id] = { ...item, children: [] }; });
+
+    items.forEach((item) => {
+      if (item.parent && map[item.parent]) {
+        // CORREZIONE: Attacca sempre al parent, anche se non pubblico
+        map[item.parent].children.push(map[item.id]);
+      } else if (!item.parent) {
+        // Solo i nodi senza parent vanno nei roots
+        roots.push(map[item.id]);
+      }
+      // Se parent non esiste in map, il nodo viene ignorato (non finisce in root)
+    });
+
+    // Ordinamento: 1. Ordine (numerico), 2. Titolo (Alfabetico)
+    const sortRecursive = (nodes) => {
+        nodes.sort((a, b) => {
+            const ordA = a.ordine !== undefined ? a.ordine : 999;
+            const ordB = b.ordine !== undefined ? b.ordine : 999;
+            if (ordA !== ordB) return ordA - ordB;
+            return (a.titolo || "").localeCompare(b.titolo || "");
+        });
+        nodes.forEach(node => {
+            if (node.children?.length > 0) sortRecursive(node.children);
+        });
+    };
+
+    sortRecursive(roots);
+    
+    // NUOVO: Filtro per nascondere bozze/staff se l'admin lo desidera
+    const filterTree = (nodes) => {
+      return nodes.filter(node => {
+        // Se hideAdminContent è attivo e l'utente è admin, nascondi bozze e staff-only
+        if (hideAdminContent && canEdit) {
+          if (node.public === false || node.visibile_solo_staff === true) {
+            return false;
+          }
+        }
+        
+        // Filtra ricorsivamente i figli
+        if (node.children?.length > 0) {
+          node.children = filterTree(node.children);
+        }
+        
+        return true;
+      });
+    };
+    
+    return filterTree(roots);
+  };
 
   // --- 1. CARICAMENTO DATI ---
   useEffect(() => {
@@ -39,7 +100,6 @@ export default function PublicLayout({ token }) {
         const rawList = await getWikiMenu();
         
         setFlatMenu(rawList); 
-        setMenuTree(buildTree(rawList));
       } catch (error) {
         console.error("Errore caricamento menu:", error);
       } finally {
@@ -48,8 +108,15 @@ export default function PublicLayout({ token }) {
     };
     fetchMenu();
   }, [token]); // Ricarica se cambia il token (login/logout)
+  
+  // --- RICALCOLO ALBERO quando cambiano dati o filtri ---
+  useEffect(() => {
+    if (flatMenu.length > 0) {
+      setMenuTree(buildTree(flatMenu));
+    }
+  }, [flatMenu, hideAdminContent, canEdit]);
 
-  // --- 2. LOGICA AUTO-EXPAND (Mantiene aperto il percorso corrente) ---
+  // --- 2. LOGICA AUTO-EXPAND (Apre solo il percorso corrente e primi figli) ---
   useEffect(() => {
     if (flatMenu.length === 0) return;
 
@@ -61,11 +128,20 @@ export default function PublicLayout({ token }) {
     
     if (currentPage) {
         const parents = getAllParents(currentPage.id, flatMenu);
-        setOpenNodes(prev => {
-            const next = new Set(prev);
-            parents.forEach(id => next.add(id));
-            return next;
-        });
+        
+        // NUOVO: Apri solo i genitori e la pagina corrente (se ha figli)
+        const nodesToOpen = new Set(parents);
+        
+        // Se la pagina corrente ha figli, aprila
+        const hasChildren = flatMenu.some(p => p.parent === currentPage.id);
+        if (hasChildren) {
+            nodesToOpen.add(currentPage.id);
+        }
+        
+        setOpenNodes(nodesToOpen);
+    } else {
+        // Se non troviamo la pagina, chiudi tutto
+        setOpenNodes(new Set());
     }
   }, [location.pathname, flatMenu]);
 
@@ -86,39 +162,6 @@ export default function PublicLayout({ token }) {
           else next.add(id);
           return next;
       });
-  };
-
-  // --- 3. COSTRUZIONE ALBERO E ORDINAMENTO ---
-  const buildTree = (items) => {
-    if (!Array.isArray(items)) return [];
-    const map = {};
-    const roots = [];
-    
-    items.forEach((item) => { map[item.id] = { ...item, children: [] }; });
-
-    items.forEach((item) => {
-      if (item.parent && map[item.parent]) {
-        map[item.parent].children.push(map[item.id]);
-      } else {
-        roots.push(map[item.id]);
-      }
-    });
-
-    // Ordinamento: 1. Ordine (numerico), 2. Titolo (Alfabetico)
-    const sortRecursive = (nodes) => {
-        nodes.sort((a, b) => {
-            const ordA = a.ordine !== undefined ? a.ordine : 999;
-            const ordB = b.ordine !== undefined ? b.ordine : 999;
-            if (ordA !== ordB) return ordA - ordB;
-            return (a.titolo || "").localeCompare(b.titolo || "");
-        });
-        nodes.forEach(node => {
-            if (node.children?.length > 0) sortRecursive(node.children);
-        });
-    };
-
-    sortRecursive(roots);
-    return roots;
   };
 
   // --- HELPER NAVIGAZIONE ---
@@ -144,73 +187,86 @@ export default function PublicLayout({ token }) {
     const isStaffOnly = item.visibile_solo_staff === true;
 
     return (
-      <li className="mb-1 select-none">
+      <li className="mb-1.5 select-none">
         <div 
             className={`
-                group flex items-center justify-between
-                py-2 px-3 mr-2 rounded-lg cursor-pointer transition-all duration-200
+                group flex items-center gap-2
+                py-2.5 px-3 rounded-lg transition-all duration-200
                 ${isActive 
-                    ? 'bg-red-900 text-white shadow-md transform scale-[1.01]' 
-                    : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                    ? 'bg-red-900 text-white shadow-lg' 
+                    : 'text-gray-300 hover:bg-gray-700/60 hover:text-white'
                 }
-                ${isDraft ? 'border-l-4 border-yellow-500 bg-gray-800/40' : ''}
-                ${!isDraft && isStaffOnly ? 'border-l-4 border-indigo-500 bg-gray-800/40' : ''}
+                ${isDraft ? 'border-l-4 border-yellow-500 bg-gray-800/50' : ''}
+                ${!isDraft && isStaffOnly ? 'border-l-4 border-indigo-500 bg-gray-800/50' : ''}
             `}
-            style={{ marginLeft: `${level * 16}px` }}
+            style={{ marginLeft: `${level * 12}px` }}
         >
+          {/* NUOVO: Pulsante Espansione PIÙ EVIDENTE (Solo se ha figli) */}
+          {hasChildren && (
+            <button 
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleNode(item.id); }}
+                className={`
+                    shrink-0 w-7 h-7 flex items-center justify-center rounded-md transition-all
+                    ${isActive 
+                        ? 'bg-red-800 hover:bg-red-700 text-white' 
+                        : 'bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white'
+                    }
+                    ${isOpen ? 'rotate-0' : ''}
+                `}
+                aria-label={isOpen ? 'Chiudi sottosezioni' : 'Apri sottosezioni'}
+            >
+                {isOpen ? <ChevronDown size={16} strokeWidth={2.5} /> : <ChevronRight size={16} strokeWidth={2.5} />}
+            </button>
+          )}
+          
+          {/* Se non ha figli, spazio vuoto per allineamento */}
+          {!hasChildren && <div className="w-7 shrink-0"></div>}
+
           {/* Link Pagina */}
           <Link 
             to={item.slug === 'home' ? '/' : `/regolamento/${item.slug}`}
-            className="flex-1 flex items-center gap-3 truncate"
+            className="flex-1 flex items-center gap-2.5 truncate min-w-0"
             onClick={() => setSidebarOpen(false)}
           >
              {/* Icona Cartella/File */}
              {hasChildren 
                 ? (isOpen 
-                    ? <FolderOpen size={18} className={isActive ? "text-yellow-300" : "text-yellow-500"} /> 
-                    : <Folder size={18} className={isActive ? "text-yellow-300" : "text-yellow-500"} />)
-                : <FileText size={18} className={isActive ? "text-red-200" : "text-gray-500"} />
+                    ? <FolderOpen size={18} className={`shrink-0 ${isActive ? "text-yellow-300" : "text-yellow-500"}`} /> 
+                    : <Folder size={18} className={`shrink-0 ${isActive ? "text-yellow-300" : "text-yellow-500"}`} />)
+                : <FileText size={17} className={`shrink-0 ${isActive ? "text-red-200" : "text-gray-500"}`} />
              }
              
-             <div className="flex flex-col truncate">
-                 <span className={`truncate font-medium ${isDraft ? 'italic text-yellow-500' : ''} ${!isDraft && isStaffOnly ? 'text-indigo-300' : ''}`}>
+             <div className="flex flex-col min-w-0 flex-1">
+                 <span className={`truncate font-medium text-sm leading-tight ${isDraft ? 'italic text-yellow-400' : ''} ${!isDraft && isStaffOnly ? 'text-indigo-300' : ''}`}>
                     {item.titolo}
                  </span>
                  
                  {/* Badges Visivi */}
-                 <div className="flex gap-1 mt-0.5">
-                    {isDraft && (
-                        <span className="text-[9px] uppercase bg-yellow-600 text-black px-1.5 py-0.5 rounded font-bold flex items-center gap-1 w-fit">
-                            <EyeOff size={8}/> Bozza
-                        </span>
-                    )}
-                    {isStaffOnly && (
-                        <span className="text-[9px] uppercase bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-1 w-fit">
-                            <Lock size={8}/> Staff
-                        </span>
-                    )}
-                 </div>
+                 {(isDraft || isStaffOnly) && (
+                   <div className="flex gap-1 mt-1">
+                      {isDraft && (
+                          <span className="text-[9px] uppercase bg-yellow-600 text-black px-1.5 py-0.5 rounded font-bold flex items-center gap-1 w-fit">
+                              <EyeOff size={8}/> Bozza
+                          </span>
+                      )}
+                      {isStaffOnly && (
+                          <span className="text-[9px] uppercase bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-1 w-fit">
+                              <Lock size={8}/> Staff
+                          </span>
+                      )}
+                   </div>
+                 )}
              </div>
           </Link>
-
-          {/* Pulsante Espansione (Solo se ha figli) */}
-          {hasChildren && (
-            <div 
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleNode(item.id); }}
-                className={`p-1 rounded-full hover:bg-white/20 transition-colors ${isActive ? 'text-white' : 'text-gray-400'}`}
-            >
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </div>
-          )}
         </div>
 
         {/* Rendering Figli */}
         {hasChildren && isOpen && (
             <ul className="mt-1 relative">
-                {/* Linea guida verticale */}
+                {/* Linea guida verticale migliorata */}
                 <div 
-                    className="absolute top-0 bottom-0 w-px bg-gray-700" 
-                    style={{ left: `${(level * 16) + 12}px` }} 
+                    className="absolute top-0 bottom-0 w-0.5 bg-linear-to-b from-gray-700 to-transparent rounded-full" 
+                    style={{ left: `${(level * 12) + 14}px` }} 
                 />
                 {item.children.map(child => (
                     <WikiSidebarItem key={child.id} item={child} level={level + 1} />
@@ -223,7 +279,25 @@ export default function PublicLayout({ token }) {
 
   // --- RENDER LAYOUT ---
   return (
-    <div className="flex flex-col h-screen bg-gray-100 text-gray-900 font-sans overflow-hidden">
+    <>
+      {/* Stili Custom per Scrollbar */}
+      <style>{`
+        nav::-webkit-scrollbar {
+          width: 6px;
+        }
+        nav::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        nav::-webkit-scrollbar-thumb {
+          background: #374151;
+          border-radius: 3px;
+        }
+        nav::-webkit-scrollbar-thumb:hover {
+          background: #4b5563;
+        }
+      `}</style>
+      
+      <div className="flex flex-col h-screen bg-gray-100 text-gray-900 font-sans overflow-hidden">
       
       {/* HEADER */}
       <header className="bg-red-900 text-white shadow-md flex items-center justify-between px-4 py-3 z-20 shrink-0">
@@ -260,17 +334,17 @@ export default function PublicLayout({ token }) {
 
       <div className="flex flex-1 overflow-hidden relative">
         
-        {/* SIDEBAR */}
+        {/* SIDEBAR - Migliorato per Mobile */}
         <aside 
           className={`
-            absolute inset-y-0 left-0 w-80 bg-gray-900 text-gray-200 
+            fixed inset-y-0 left-0 w-full sm:w-96 md:w-80 bg-gray-900 text-gray-200 
             transform transition-transform duration-300 z-30 shadow-2xl flex flex-col border-r border-gray-800
             md:relative md:translate-x-0
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           `}
         >
-          {/* BARRA DI RICERCA */}
-          <div className="p-3 bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
+          {/* BARRA DI RICERCA E CONTROLLI */}
+          <div className="p-3 bg-gray-900 border-b border-gray-800 sticky top-0 z-10 space-y-3">
               <div className="relative group">
                   <Search className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-red-400 transition-colors" size={16} />
                   <input 
@@ -286,21 +360,61 @@ export default function PublicLayout({ token }) {
                       </button>
                   )}
               </div>
+              
+              {/* NUOVO: Checkbox per Admin - Nascondi Bozze/Staff */}
+              {canEdit && (
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg bg-gray-800/50 hover:bg-gray-800 cursor-pointer transition-colors border border-gray-700">
+                      <input 
+                          type="checkbox"
+                          checked={hideAdminContent}
+                          onChange={(e) => {
+                              const newValue = e.target.checked;
+                              setHideAdminContent(newValue);
+                              localStorage.setItem('wiki_hide_admin_content', newValue.toString());
+                          }}
+                          className="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 bg-gray-700 cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-300 font-medium flex items-center gap-1.5 leading-tight">
+                          <EyeOff size={13} className="text-gray-400" />
+                          Nascondi bozze e sezioni staff
+                      </span>
+                  </label>
+              )}
           </div>
 
           {/* CONTENUTO MENU */}
-          <nav className="overflow-y-auto flex-1 px-3 pb-20 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+          <nav className="overflow-y-auto flex-1 px-3 pb-20 scroll-smooth" style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#374151 transparent'
+          }}>
              {loadingMenu ? (
                <div className="p-6 text-center text-gray-500 text-sm animate-pulse">Caricamento indice...</div>
              ) : (
                <>
                  {searchTerm ? (
-                    /* RISULTATI RICERCA */
-                    <ul className="space-y-1 mt-2">
-                        {flatMenu.filter(i => i.titolo.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
-                             <li className="p-4 text-gray-500 text-sm text-center">Nessun risultato.</li>
-                        ) : (
-                             flatMenu.filter(i => i.titolo.toLowerCase().includes(searchTerm.toLowerCase())).map(item => (
+                   /* RISULTATI RICERCA */
+                   <ul className="space-y-1 mt-2">
+                        {(() => {
+                            // Filtra in base alla ricerca e hideAdminContent
+                            const filtered = flatMenu.filter(i => {
+                                const matchesSearch = i.titolo.toLowerCase().includes(searchTerm.toLowerCase());
+                                if (!matchesSearch) return false;
+                                
+                                // Se hideAdminContent è attivo e l'utente è admin, nascondi bozze e staff-only
+                                if (hideAdminContent && canEdit) {
+                                    if (i.public === false || i.visibile_solo_staff === true) {
+                                        return false;
+                                    }
+                                }
+                                
+                                return true;
+                            });
+                            
+                            if (filtered.length === 0) {
+                                return <li className="p-4 text-gray-500 text-sm text-center">Nessun risultato.</li>;
+                            }
+                            
+                            return filtered.map(item => (
                                 <li key={item.id}>
                                     <Link 
                                         to={`/regolamento/${item.slug}`}
@@ -316,9 +430,9 @@ export default function PublicLayout({ token }) {
                                         </div>
                                     </Link>
                                 </li>
-                             ))
-                        )}
-                    </ul>
+                            ));
+                        })()}
+                   </ul>
                  ) : (
                     /* ALBERO STANDARD */
                     <ul className="space-y-1 mt-2">
@@ -381,5 +495,6 @@ export default function PublicLayout({ token }) {
       )}
 
     </div>
+    </>
   );
 }
