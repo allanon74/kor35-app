@@ -1411,6 +1411,38 @@ export const deleteWikiImage = (id, onLogout) => {
   }, onLogout);
 };
 
+// --- WIDGET BUTTONS WIKI ---
+export const getWidgetButtons = (id) => {
+  return fetchPublic(`/plot/api/public/wiki-buttons/${id}/`);
+};
+
+export const getWidgetButtonsList = () => {
+  return fetchPublic('/plot/api/public/wiki-buttons/');
+};
+
+// Crea un nuovo widget buttons (Staff)
+export const createWidgetButtons = (data, onLogout) => {
+  return fetchAuthenticated('/plot/api/staff/wiki-buttons/', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
+// Aggiorna un widget buttons esistente (Staff)
+export const updateWidgetButtons = (id, data, onLogout) => {
+  return fetchAuthenticated(`/plot/api/staff/wiki-buttons/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
+// Elimina un widget buttons (Staff)
+export const deleteWidgetButtons = (id, onLogout) => {
+  return fetchAuthenticated(`/plot/api/staff/wiki-buttons/${id}/`, {
+    method: 'DELETE'
+  }, onLogout);
+};
+
 // Recupera la lista delle immagini wiki (Staff) - versione autenticata
 export const staffGetWikiImages = (onLogout) => {
   return fetchAuthenticated('/plot/api/staff/wiki-immagini/', {

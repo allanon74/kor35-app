@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, getWikiImageList, createWikiImage, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiImageList, getWidgetButtonsList, createWikiImage, createWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
-import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X } from 'lucide-react'; 
+import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick } from 'lucide-react'; 
+import ButtonWidgetEditorModal from './ButtonWidgetEditorModal'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -29,7 +30,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   const [showWidgetHelper, setShowWidgetHelper] = useState(false);
   const [availableTiers, setAvailableTiers] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
-  const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier' o 'image'
+  const [availableButtonWidgets, setAvailableButtonWidgets] = useState([]);
+  const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier', 'image', 'buttons'
+  
+  // State per il modal del widget buttons
+  const [showButtonWidgetEditor, setShowButtonWidgetEditor] = useState(false);
   
   // Upload Image form state
   const [showUploadImage, setShowUploadImage] = useState(false);
@@ -62,6 +67,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         getWikiImageList()
             .then(data => setAvailableImages(data))
             .catch(err => console.error("Err loading images", err));
+        
+        // Carica Widget Buttons
+        getWidgetButtonsList()
+            .then(data => setAvailableButtonWidgets(data))
+            .catch(err => console.error("Err loading button widgets", err));
     }
   }, [showWidgetHelper]);
 
@@ -431,6 +441,17 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                 >
                                     🖼️ Immagini
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setWidgetHelperTab('buttons')}
+                                    className={`flex-1 px-3 py-2 text-xs font-bold transition-colors ${
+                                        widgetHelperTab === 'buttons'
+                                            ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    🔘 Pulsanti
+                                </button>
                             </div>
                             
                             {/* Content Area */}
@@ -485,6 +506,41 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                     {img.titolo || `Immagine #${img.id}`}
                                                 </span>
                                                 <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{img.id}</span>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
+                                
+                                {widgetHelperTab === 'buttons' && (
+                                    <>
+                                        {/* Pulsante Crea Nuovo Widget Buttons */}
+                                        <div className="p-2 border-b border-gray-200 bg-purple-50">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowButtonWidgetEditor(true)}
+                                                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                <MousePointerClick size={14} />
+                                                Crea Nuovo Widget Pulsanti
+                                            </button>
+                                        </div>
+                                        
+                                        {/* Lista Widget Buttons */}
+                                        {availableButtonWidgets.length === 0 && (
+                                            <p className="p-2 text-xs text-gray-500">Nessun widget pulsanti disponibile</p>
+                                        )}
+                                        {availableButtonWidgets.map(widget => (
+                                            <button 
+                                                key={widget.id}
+                                                type="button"
+                                                onClick={() => insertWidget(`{{WIDGET_BUTTONS:${widget.id}}}`)}
+                                                className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
+                                            >
+                                                <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2 flex items-center gap-2">
+                                                    <MousePointerClick size={14} className="text-purple-500" />
+                                                    {widget.title || `Widget #${widget.id}`}
+                                                </span>
+                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">{widget.buttons?.length || 0} btn</span>
                                             </button>
                                         ))}
                                     </>
@@ -684,6 +740,30 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
             </form>
           </div>
         </div>
+      )}
+
+      {/* MODAL EDITOR WIDGET BUTTONS */}
+      {showButtonWidgetEditor && (
+        <ButtonWidgetEditorModal
+          onClose={() => setShowButtonWidgetEditor(false)}
+          onSave={async (widgetData) => {
+            try {
+              const response = await createWidgetButtons(widgetData);
+              
+              // Ricarica la lista
+              const updatedList = await getWidgetButtonsList();
+              setAvailableButtonWidgets(updatedList);
+              
+              // Inserisci automaticamente il widget
+              insertWidget(`{{WIDGET_BUTTONS:${response.id}}}`);
+              
+              setShowButtonWidgetEditor(false);
+            } catch (error) {
+              console.error("Errore creazione widget buttons:", error);
+              alert("Errore durante la creazione del widget. Controlla la console.");
+            }
+          }}
+        />
       )}
 
     </div>

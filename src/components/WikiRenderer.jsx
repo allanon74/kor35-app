@@ -6,6 +6,7 @@ import WidgetImmagine from './wg/WidgetImmagine';
 import WidgetChiSiamo from './wg/WidgetChiSiamo';
 import WidgetEventi from './wg/WidgetEventi';
 import WidgetSocial from './wg/WidgetSocial';
+import WidgetButtons from './wg/WidgetButtons';
 
 export default function WikiRenderer({ content }) {
   if (!content) return null;
@@ -139,6 +140,9 @@ export default function WikiRenderer({ content }) {
                       return <WidgetEventi key={index} />;
                   case 'SOCIAL':
                       return <WidgetSocial key={index} />;
+                  case 'BUTTONS':
+                  case 'PULSANTI':
+                      return <WidgetButtons key={index} id={part.id} />;
                   default:
                       return (
                           <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">

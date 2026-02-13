@@ -130,8 +130,7 @@ const CUSTOM_STYLES = [
             marginBottom: '8px',
             display: 'block',
             textTransform: 'uppercase',
-            letterSpacing: '1px',
-            fontSize: '0.95em'
+            letterSpacing: '1px'
         }
     },
     {
