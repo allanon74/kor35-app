@@ -441,6 +441,29 @@ export const useOptimisticAcquireTessitura = () => {
     );
 };
 
+// I-bis. TOGGLE FAVORITE TESSITURA (Optimistic Update)
+export const useOptimisticToggleTessituraFavorite = () => {
+    return useOptimisticAction(
+        ['personaggio'],
+        async ({ tessituraId, charId }) => {
+            const { toggleTessituraFavorite } = await import('../api');
+            return toggleTessituraFavorite(tessituraId, charId);
+        },
+        (oldData, { tessituraId }) => {
+            if (!oldData || !oldData.tessiture_possedute) return oldData;
+            
+            return {
+                ...oldData,
+                tessiture_possedute: oldData.tessiture_possedute.map(t => 
+                    t.id === tessituraId 
+                        ? { ...t, is_favorite: !t.is_favorite }
+                        : t
+                )
+            };
+        }
+    );
+};
+
 // J. ACQUISTO CERIMONIALE (Optimistic Update)
 export const useOptimisticAcquireCerimoniale = () => {
     return useOptimisticAction(

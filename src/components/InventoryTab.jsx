@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
+import ModuloDetailModal from './ModuloDetailModal';
 import PunteggioDisplay from './PunteggioDisplay';
 import { useOptimisticEquip, useOptimisticRecharge } from '../hooks/useGameData';
 
@@ -103,7 +104,7 @@ const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
 
 // --- COMPONENTE CARD INVENTARIO (MEMOIZED PER PERFORMANCE) ---
 // Usa memo per evitare re-render dell'intera lista quando cambia lo stato di un solo elemento
-const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onRecharge, onAssembly }) => {
+const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onRecharge, onAssembly, onModuloClick }) => {
     const isPhysical = item.tipo_oggetto === 'FIS';
     const canBeModified = (isPhysical || ['INN', 'MUT'].includes(item.tipo_oggetto)) && (item.classe_oggetto_nome || item.tipo_oggetto === 'INN');
     const isActive = item.is_active;
@@ -300,7 +301,13 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
                                     <div key={mod.id} className={`p-2 rounded border text-xs ${mod.is_active !== false ? 'bg-indigo-900/20 border-indigo-500/20' : 'bg-red-900/10 border-red-900/30 opacity-70'}`}>
                                         <div className="flex justify-between items-start mb-1">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-indigo-200">{mod.nome}</span>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onModuloClick && onModuloClick(mod.id); }}
+                                                    className="font-bold text-indigo-200 hover:text-indigo-100 text-left underline decoration-dotted decoration-indigo-400/50 hover:decoration-solid transition-all"
+                                                    title="Clicca per vedere i dettagli completi"
+                                                >
+                                                    {mod.nome}
+                                                </button>
                                                 <span className="text-[9px] text-gray-500">{mod.tipo_oggetto_display}</span>
                                             </div>
                                             {/* Icone componenti mod */}
@@ -387,6 +394,8 @@ const InventoryTab = ({ onLogout }) => {
   const [assemblyHost, setAssemblyHost] = useState(null);
   const [selectedBodyItem, setSelectedBodyItem] = useState(null);
   const [expandedItems, setExpandedItems] = useState({});
+  const [showModuloDetail, setShowModuloDetail] = useState(false);
+  const [selectedModuloId, setSelectedModuloId] = useState(null);
 
   const equipMutation = useOptimisticEquip();
   const rechargeMutation = useOptimisticRecharge();
@@ -408,6 +417,11 @@ const InventoryTab = ({ onLogout }) => {
 
   const handleOpenAssembly = (item) => { setAssemblyHost(item); setShowAssembly(true); };
   const handleAssemblyComplete = () => { setShowAssembly(false); setAssemblyHost(null); };
+  
+  const handleModuloClick = (moduloId) => {
+      setSelectedModuloId(moduloId);
+      setShowModuloDetail(true);
+  };
   
   // Toggle ottimizzato
   const toggleExpand = useCallback((itemId) => {
@@ -446,6 +460,7 @@ const InventoryTab = ({ onLogout }) => {
                     onEquip={handleToggleEquip}
                     onRecharge={handleRecharge}
                     onAssembly={handleOpenAssembly}
+                    onModuloClick={handleModuloClick}
                 />
             )}
         />
@@ -501,6 +516,7 @@ const InventoryTab = ({ onLogout }) => {
                                     onEquip={handleToggleEquip}
                                     onRecharge={handleRecharge}
                                     onAssembly={handleOpenAssembly}
+                                    onModuloClick={handleModuloClick}
                                 />
                             </div>
                         )}
@@ -529,6 +545,7 @@ const InventoryTab = ({ onLogout }) => {
 
       {showShop && <ShopModal onClose={() => setShowShop(false)} />}
       {showAssembly && assemblyHost && <ItemAssemblyModal hostItem={assemblyHost} inventory={items} onClose={() => { setShowAssembly(false); setAssemblyHost(null); }} onRefresh={handleAssemblyComplete} />}
+      {showModuloDetail && selectedModuloId && <ModuloDetailModal moduloId={selectedModuloId} onClose={() => { setShowModuloDetail(false); setSelectedModuloId(null); }} onLogout={onLogout} />}
     </div>
   );
 };

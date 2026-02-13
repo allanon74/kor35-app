@@ -1,13 +1,14 @@
 import React, { useState, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit } from 'lucide-react'; // Aggiunto FileEdit
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Star } from 'lucide-react';
 import TecnicaDetailModal from './TecnicaDetailModal';
 import { acquireTessitura } from '../api.js';
+import { useOptimisticToggleTessituraFavorite } from '../hooks/useGameData';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
-import ProposalManager from './ProposalManager'; // Import del Manager
+import ProposalManager from './ProposalManager';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -29,7 +30,16 @@ const TessitureTab = ({ onLogout }) => {
   // Stato per gestire la visibilità del ProposalManager
   const [showProposals, setShowProposals] = useState(false);
 
+  // Hook per optimistic update del favorite
+  const toggleFavoriteMutation = useOptimisticToggleTessituraFavorite();
+
   const handleOpenModal = (item) => setModalItem(item);
+  
+  const handleToggleFavorite = (item, e) => {
+    e.stopPropagation();
+    if (!selectedCharacterId) return;
+    toggleFavoriteMutation.mutate({ tessituraId: item.id, charId: selectedCharacterId });
+  };
 
   const handleAcquire = async (item, e) => {
     e.stopPropagation();
@@ -52,7 +62,10 @@ const TessitureTab = ({ onLogout }) => {
 
   const sortItems = (items) => [...items].sort((a, b) => a.livello - b.livello);
   
-  const possessed = sortItems(char?.tessiture_possedute || []);
+  // Separa le tessiture favorite dalle altre
+  const allPossessed = char?.tessiture_possedute || [];
+  const favorites = sortItems(allPossessed.filter(t => t.is_favorite));
+  const possessed = sortItems(allPossessed.filter(t => !t.is_favorite));
   const acquirable = sortItems(acquirableTessiture || []);
 
   if (isLoadingAcquirable || isLoadingDetail || !char) {
@@ -88,6 +101,7 @@ const TessitureTab = ({ onLogout }) => {
   const renderPossessedItem = (item) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
+    const isFavorite = item.is_favorite || false;
 
     return (
       <li className="flex justify-between items-center py-2 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0">
@@ -100,12 +114,25 @@ const TessitureTab = ({ onLogout }) => {
             </div>
             <span className="font-bold text-gray-200 text-base">{item.nome}</span>
         </div>
-        <button
-            onClick={(e) => {e.stopPropagation(); handleOpenModal(item)}}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors ml-2"
-        >
-            <Info size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+            <button
+                onClick={(e) => handleToggleFavorite(item, e)}
+                className={`p-2 rounded-full transition-all ${
+                    isFavorite 
+                        ? 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/20' 
+                        : 'text-gray-500 hover:text-yellow-400 hover:bg-gray-600'
+                }`}
+                title={isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+            >
+                <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+            <button
+                onClick={(e) => {e.stopPropagation(); handleOpenModal(item)}}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"
+            >
+                <Info size={18} />
+            </button>
+        </div>
       </li>
     );
   };
@@ -198,6 +225,25 @@ const TessitureTab = ({ onLogout }) => {
     );
   };
 
+  const FavoritesList = favorites.length > 0 ? (
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-yellow-700/50">
+          <Star className="w-5 h-5 text-yellow-400" fill="currentColor" />
+          <h3 className="text-lg font-bold text-yellow-400">
+            Tessiture Preferite
+            <span className="ml-2 text-sm font-normal text-gray-400">({favorites.length})</span>
+          </h3>
+        </div>
+        <ul className="space-y-0 bg-gray-800/50 rounded-lg border border-yellow-700/30 overflow-hidden shadow-sm">
+          {favorites.map(item => (
+            <React.Fragment key={item.id}>
+              {renderPossessedItem(item)}
+            </React.Fragment>
+          ))}
+        </ul>
+      </div>
+  ) : null;
+
   const PossessedList = (
       <GenericGroupedList 
         items={possessed} 
@@ -206,7 +252,7 @@ const TessitureTab = ({ onLogout }) => {
         titleKey="nome"
         colorKey="colore"
         iconKey="icona_url"
-        renderItem={renderPossessedItem} // Usa il renderer semplice
+        renderItem={renderPossessedItem}
         renderHeader={renderGroupHeader}
         itemSortFn={(a, b) => a.livello - b.livello} 
       />
@@ -262,7 +308,7 @@ const TessitureTab = ({ onLogout }) => {
                           selected ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
                       )}>
                         {category} <span className="ml-1 opacity-60 text-xs">
-                            ({idx === 0 ? possessed.length : acquirable.length})
+                            ({idx === 0 ? (possessed.length + favorites.length) : acquirable.length})
                         </span>
                       </button>
                     )}
@@ -270,7 +316,10 @@ const TessitureTab = ({ onLogout }) => {
                 ))}
               </Tab.List>
               <Tab.Panels>
-                <Tab.Panel className="focus:outline-none animate-fadeIn">{PossessedList}</Tab.Panel>
+                <Tab.Panel className="focus:outline-none animate-fadeIn">
+                  {FavoritesList}
+                  {PossessedList}
+                </Tab.Panel>
                 <Tab.Panel className="focus:outline-none animate-fadeIn">{AcquirableList}</Tab.Panel>
               </Tab.Panels>
             </Tab.Group>
@@ -279,11 +328,12 @@ const TessitureTab = ({ onLogout }) => {
         {/* --- DESKTOP --- */}
         <div className="hidden md:grid grid-cols-2 gap-6">
             <div>
+                {FavoritesList}
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
                     <CheckCircle2 className="w-6 h-6 text-green-500" />
                     <h2 className="text-xl font-bold text-white">
                         Tessiture Possedute 
-                        <span className="ml-2 text-sm font-normal text-gray-400">({possessed.length})</span>
+                        <span className="ml-2 text-sm font-normal text-gray-400">({possessed.length + favorites.length})</span>
                     </h2>
                 </div>
                 {PossessedList}

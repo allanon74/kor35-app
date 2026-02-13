@@ -253,14 +253,79 @@ const GameTab = ({ onNavigate }) => {
         return activatables;
     }, [char]); // Dipendenza da 'char' completa
 
-    // --- FILTRO ARMI (CON PROTEZIONE CRASH) ---
-    const weapons = (char && char.oggetti) 
-        ? char.oggetti.filter(i => 
-            i.is_equipaggiato && 
-            i.attacco_base && 
-            isActiveByCharges(i)
-          ) 
-        : [];
+    // --- NUOVA LOGICA: Verifica se un oggetto è attivo secondo le regole specificate ---
+    const isObjectActive = (item) => {
+        // Un oggetto è attivo se non ha cariche_massime (non si spegne mai)
+        // OPPURE se ha cariche_massime ma la data_fine_attivazione non è passata (o non è impostata)
+        if (!item.cariche_massime || item.cariche_massime === 0) {
+            return true; // Nessun limite di cariche, sempre attivo
+        }
+        // Ha cariche_massime, controlla la data
+        return isActiveByTime(item);
+    };
+
+    // --- RACCOLTA ATTACCHI DA TUTTE LE FONTI ATTIVE ---
+    const allAttacks = useMemo(() => {
+        if (!char) return [];
+        
+        const attacks = [];
+
+        // 1. Attacchi da oggetti equipaggiati e innesti/mutazioni
+        if (char.oggetti) {
+            const activeHosts = char.oggetti.filter(item => {
+                const isPhysEquipped = (item.tipo_oggetto === 'FIS' && item.is_equipaggiato);
+                const isInnateInstalled = (['INN', 'MUT'].includes(item.tipo_oggetto) && item.slot_corpo);
+                return isPhysEquipped || isInnateInstalled;
+            });
+
+            activeHosts.forEach(host => {
+                // A. Aggiungi l'Host se ha attacco ed è attivo
+                if (host.attacco_base && isObjectActive(host)) {
+                    attacks.push({
+                        type: 'oggetto',
+                        source: host,
+                        isHost: true,
+                        hostName: host.nome,
+                    });
+                }
+
+                // B. Aggiungi i Potenziamenti (Mod/Materia) installati nell'Host che hanno attacco
+                if (host.potenziamenti_installati && host.potenziamenti_installati.length > 0) {
+                    host.potenziamenti_installati.forEach(mod => {
+                        if (mod.attacco_base && isObjectActive(mod)) {
+                            attacks.push({
+                                type: 'modulo',
+                                source: mod,
+                                isHost: false,
+                                hostName: host.nome,
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // 2. Attacchi da tessiture favorite
+        if (char.tessiture_possedute) {
+            const favoriteTessiture = char.tessiture_possedute.filter(t => t.is_favorite);
+            favoriteTessiture.forEach(tessitura => {
+                // Le tessiture hanno sempre una formula di attacco se sono favorite
+                if (tessitura.formula || tessitura.testo_formattato_personaggio) {
+                    attacks.push({
+                        type: 'tessitura',
+                        source: tessitura,
+                        isHost: true,
+                        hostName: tessitura.nome,
+                    });
+                }
+            });
+        }
+
+        return attacks;
+    }, [char]);
+
+    // --- COMPATIBILITÀ: Mantieni la variabile weapons per il vecchio codice (deprecata) ---
+    const weapons = allAttacks.filter(a => a.isHost).map(a => a.source);
 
     const handleStatChange = (key, mode, maxOverride) => {
         statMutation.mutate({ charId: char.id, stat_sigla: key, mode, max_override: maxOverride || 0 });
@@ -327,50 +392,106 @@ const GameTab = ({ onNavigate }) => {
                 </div>
             </div>
 
-            {/* 2. ATTACCHI BASE + MOD */}
-            {weapons.length > 0 && (
+            {/* 2. ATTACCHI DA TUTTE LE FONTI ATTIVE */}
+            {allAttacks.length > 0 && (
                 <section>
                     <h3 className="text-[10px] uppercase tracking-widest text-red-400 mb-2 font-bold flex items-center gap-2 ml-1">
                         <Crosshair size={12} /> Attacchi
                     </h3>
                     <div className="grid grid-cols-1 gap-2">
-                        {weapons.map(w => (
-                            <div key={w.id} className="bg-linear-to-r from-red-900/20 to-gray-900/20 border border-red-500/30 p-3 rounded-lg shadow-sm">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <div className="font-bold text-red-100 text-sm flex items-center gap-2">
-                                            {w.nome}
-                                            {w.is_pesante && <Weight size={12} className="text-orange-500" title="Oggetto Pesante"/>}
-                                        </div>
-                                        <div className="text-[10px] text-red-300/60 uppercase">{w.tipo_oggetto_display}</div>
-                                    </div>
-                                    <div className="text-right">
-                                         <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
-                                             {w.attacco_formattato || w.attacco_base}
-                                         </div>
-                                    </div>
-                                </div>
-
-                                {w.potenziamenti_installati && w.potenziamenti_installati.some(m => m.attacco_base) && (
-                                    <div className="mt-2 space-y-1">
-                                        {w.potenziamenti_installati
-                                            .filter(m => m.attacco_base)
-                                            .filter(m => isActiveByTime(m))
-                                            .map(mod => (
-                                            <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
-                                                <div className="flex items-center gap-2">
-                                                    <Zap size={10} className="text-yellow-500" />
-                                                    <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
+                        {allAttacks.map((attack, idx) => {
+                            // Render Tessitura
+                            if (attack.type === 'tessitura') {
+                                const tessitura = attack.source;
+                                return (
+                                    <div key={`tessitura-${tessitura.id}`} className="bg-linear-to-r from-purple-900/20 to-gray-900/20 border border-purple-500/30 p-3 rounded-lg shadow-sm">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <div className="font-bold text-purple-100 text-sm flex items-center gap-2">
+                                                    <Star size={14} className="text-yellow-400" fill="currentColor" />
+                                                    {tessitura.nome}
                                                 </div>
-                                                <span className="font-mono text-xs font-bold text-yellow-100">
-                                                    {mod.attacco_formattato || mod.attacco_base}
-                                                </span>
+                                                <div className="text-[10px] text-purple-300/60 uppercase">Tessitura • Lv.{tessitura.livello}</div>
                                             </div>
-                                        ))}
+                                        </div>
+                                        <div className="bg-black/30 rounded p-2 mt-2 border-l-2 border-purple-500">
+                                            <div 
+                                                className="text-xs text-purple-200 prose prose-invert prose-sm max-w-none"
+                                                dangerouslySetInnerHTML={{ 
+                                                    __html: tessitura.testo_formattato_personaggio || tessitura.TestoFormattato || tessitura.formula || 'Formula non disponibile' 
+                                                }} 
+                                            />
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        ))}
+                                );
+                            }
+
+                            // Render Oggetti raggruppati per host
+                            return null; // Gli oggetti vengono renderizzati dopo, raggruppati
+                        })}
+
+                        {/* Raggruppa gli attacchi da oggetti per host */}
+                        {(() => {
+                            const objectAttacks = allAttacks.filter(a => a.type === 'oggetto' || a.type === 'modulo');
+                            const hostGroups = {};
+                            
+                            objectAttacks.forEach(attack => {
+                                const key = attack.hostName;
+                                if (!hostGroups[key]) {
+                                    hostGroups[key] = { host: null, mods: [] };
+                                }
+                                if (attack.isHost) {
+                                    hostGroups[key].host = attack.source;
+                                } else {
+                                    hostGroups[key].mods.push(attack.source);
+                                }
+                            });
+
+                            return Object.entries(hostGroups).map(([hostName, group]) => (
+                                <div key={`obj-${hostName}`} className="bg-linear-to-r from-red-900/20 to-gray-900/20 border border-red-500/30 p-3 rounded-lg shadow-sm">
+                                    {/* Attacco Host (se presente) */}
+                                    {group.host && (
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <div className="font-bold text-red-100 text-sm flex items-center gap-2">
+                                                    {group.host.nome}
+                                                    {group.host.is_pesante && <Weight size={12} className="text-orange-500" title="Oggetto Pesante"/>}
+                                                </div>
+                                                <div className="text-[10px] text-red-300/60 uppercase">{group.host.tipo_oggetto_display}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-lg font-mono font-bold text-red-400 drop-shadow-sm">
+                                                    {group.host.attacco_formattato || group.host.attacco_base}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Attacchi dei Moduli */}
+                                    {group.mods.length > 0 && (
+                                        <div className={group.host ? "mt-2 space-y-1" : "space-y-1"}>
+                                            {!group.host && (
+                                                <div className="text-xs text-gray-400 mb-2">
+                                                    Host: <span className="font-bold text-gray-300">{hostName}</span>
+                                                </div>
+                                            )}
+                                            {group.mods.map(mod => (
+                                                <div key={mod.id} className="flex justify-between items-center bg-black/30 rounded px-2 py-1 border-l-2 border-yellow-500">
+                                                    <div className="flex items-center gap-2">
+                                                        <Zap size={10} className="text-yellow-500" />
+                                                        <span className="text-xs text-gray-300 font-medium">{mod.nome}</span>
+                                                        <span className="text-[9px] text-gray-500">({mod.tipo_oggetto_display})</span>
+                                                    </div>
+                                                    <span className="font-mono text-xs font-bold text-yellow-100">
+                                                        {mod.attacco_formattato || mod.attacco_base}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ));
+                        })()}
                     </div>
                 </section>
             )}

@@ -413,6 +413,23 @@ export const acquireTessitura = (tessituraId, personaggioId, onLogout) => {
   );
 };
 
+/**
+ * Toggle favorite status di una tessitura.
+ */
+export const toggleTessituraFavorite = (tessituraId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/personaggi/api/personaggio/me/toggle_tessitura_favorite/', 
+    {
+      method: 'POST',
+      body: JSON.stringify({ 
+        tessitura_id: tessituraId, 
+        personaggio_id: personaggioId 
+      }),
+    }, 
+    onLogout
+  );
+};
+
 export const getModelliAura = (auraId) => {
   return fetchAuthenticated(`/personaggi/api/punteggio/${auraId}/modelli/`, { method: 'GET' });
 };
