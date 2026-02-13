@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; 
 import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
@@ -12,15 +12,15 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) ---
+// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) - VARIANTE 1 MOBILE ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
-    // Zone del corpo
+    // Zone del corpo (5 zone per PV)
     const zones = [
-        { id: 'PV_TR', name: 'Tronco', d: "M70,55 C70,55 85,65 100,65 C115,65 130,55 130,55 C135,65 135,80 130,130 C120,145 80,145 70,130 C65,80 65,65 70,55 Z", cx: 100, cy: 90 },
-        { id: 'PV_RA', name: 'Braccio Dx', d: "M132,55 C145,52 155,58 155,70 C155,90 150,110 160,135 C162,140 150,145 145,135 C135,110 135,90 132,80 Z", cx: 145, cy: 95 },
-        { id: 'PV_LA', name: 'Braccio Sx', d: "M68,55 C55,52 45,58 45,70 C45,90 50,110 40,135 C38,140 50,145 55,135 C65,110 65,90 68,80 Z", cx: 55, cy: 95 },
-        { id: 'PV_RL', name: 'Gamba Dx', d: "M105,135 C115,135 125,140 125,150 C125,180 128,210 125,240 C120,250 140,255 130,260 C110,260 110,240 110,220 C110,190 102,150 105,135 Z", cx: 120, cy: 190 },
-        { id: 'PV_LL', name: 'Gamba Sx', d: "M95,135 C85,135 75,140 75,150 C75,180 72,210 75,240 C80,250 60,255 70,260 C90,260 90,240 90,220 C90,190 98,150 95,135 Z", cx: 80, cy: 190 },
+        { id: 'PV_TR', name: 'Tronco', d: "M68,58 L68,100 L94,106 L106,106 L132,100 L132,58 L116,52 L84,52 Z M68,100 L74,155 L88,162 L112,162 L126,155 L132,100 Z", cx: 100, cy: 110 },
+        { id: 'PV_RA', name: 'Braccio Dx', d: "M132,58 L142,64 L150,82 L154,105 L156,130 L157,158 L154,162 L146,160 L144,130 L140,105 L134,76 Z", cx: 145, cy: 110 },
+        { id: 'PV_LA', name: 'Braccio Sx', d: "M68,58 L58,64 L50,82 L46,105 L44,130 L43,158 L46,162 L54,160 L56,130 L60,105 L66,76 Z", cx: 53, cy: 110 },
+        { id: 'PV_RL', name: 'Gamba Dx', d: "M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z", cx: 122, cy: 235 },
+        { id: 'PV_LL', name: 'Gamba Sx', d: "M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z", cx: 78, cy: 235 },
     ];
 
 
@@ -37,8 +37,8 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     const shellOpacity = maxShell > 0 ? (stats['PS_CUR'] / maxShell) : 0;
 
     return (
-        <div className="relative w-full max-w-[280px] mx-auto aspect-3/4 select-none">
-            <svg viewBox="0 0 200 280" className="w-full h-full drop-shadow-2xl">
+        <div className="relative w-full max-w-[300px] mx-auto select-none">
+            <svg viewBox="0 0 200 330" className="w-full h-full drop-shadow-2xl">
                 <defs>
                     <filter id="glow-shell" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -54,8 +54,8 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
                     onClick={() => maxShell > 0 && onHit('PS_CUR', maxShell)}
                     filter="url(#glow-shell)"
                 >
-                    <ellipse cx="100" cy="130" rx="90" ry="140" fill="transparent" stroke="#8b5cf6" strokeWidth="3" strokeDasharray={shellOpacity === 0 ? "4 4" : "0"} />
-                    {maxShell > 0 && <text x="100" y="15" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
+                    <ellipse cx="100" cy="165" rx="95" ry="155" fill="transparent" stroke="#8b5cf6" strokeWidth="3" strokeDasharray={shellOpacity === 0 ? "4 4" : "0"} />
+                    {maxShell > 0 && <text x="100" y="18" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
                 </g>
 
                 {/* LAYER 2: ARMATURA (PA) */}
@@ -65,19 +65,23 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
                     style={{ pointerEvents: maxArmor > 0 ? 'auto' : 'none', cursor: maxArmor > 0 ? 'pointer' : 'default' }}
                     onClick={() => maxArmor > 0 && onHit('PA_CUR', maxArmor)}
                 >
-                    <path d="M100,15 C130,15 165,50 165,130 C165,220 140,265 100,265 C60,265 35,220 35,130 C35,50 70,15 100,15 Z" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" strokeDasharray={armorOpacity === 0 ? "2 2" : "0"} />
-                    {maxArmor > 0 && <text x="100" y="275" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
+                    <path d="M100,20 C135,20 170,60 170,165 C170,260 145,315 100,315 C55,315 30,260 30,165 C30,60 65,20 100,20 Z" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" strokeDasharray={armorOpacity === 0 ? "2 2" : "0"} />
+                    {maxArmor > 0 && <text x="100" y="325" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
                 </g>
 
                 {/* LAYER 3: CORPO */}
                 <g className="filter drop-shadow-md">
-                    <circle cx="100" cy="35" r="18" fill="#4b5563" stroke="#9ca3af" />
+                    {/* Testa (non cliccabile) */}
+                    <circle cx="100" cy="25" r="20" fill="#4b5563" stroke="#9ca3af" strokeWidth="2"/>
+                    
+                    {/* Collo (non cliccabile) */}
+                    <rect x="88" y="42" width="24" height="16" rx="4" fill="#4b5563" stroke="#9ca3af" strokeWidth="1.5"/>
                     {zones.map(z => {
                         const val = stats[z.id];
                         return (
-                            <g key={z.id} onClick={() => onHit(z.id, maxHp)} className="cursor-pointer hover:opacity-80 transition-opacity">
-                                <path d={z.d} fill={getZoneColor(val)} stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinejoin="round" />
-                                <text x={z.cx} y={z.cy} fill="white" fontSize="10" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{textShadow: '0px 1px 2px black'}}>{val}</text>
+                            <g key={z.id} onClick={() => onHit(z.id, maxHp)} className="cursor-pointer transition-all" style={{'--hover-stroke': 'white'}}>
+                                <path d={z.d} fill={getZoneColor(val)} stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinejoin="round" className="transition-all hover:opacity-80 hover:stroke-white" style={{strokeWidth: '2px'}} onMouseEnter={(e) => e.currentTarget.style.strokeWidth = '3px'} onMouseLeave={(e) => e.currentTarget.style.strokeWidth = '2px'} />
+                                <text x={z.cx} y={z.cy} fill="white" fontSize="12" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{textShadow: '0px 2px 4px black'}}>{val}</text>
                             </g>
                         );
                     })}

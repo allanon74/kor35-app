@@ -54,45 +54,63 @@ const LazyList = ({ items, renderItem, batchSize = 10 }) => {
     );
 };
 
-// --- COMPONENTE VISUALE CORPO (SVG ORGANICO 8 SLOT) ---
+// --- COMPONENTE VISUALE CORPO (SVG ORGANICO 8 SLOT) - VARIANTE 1 MOBILE ---
 const InventoryBodyWidget = ({ slots, onSlotClick, selectedItemId }) => {
     const paths = {
-        'HD1': { d: "M75,35 C75,20 85,10 100,10 C115,10 125,20 125,35 C125,45 100,48 75,35 Z", name: "Cranio (HD1)" },
-        'HD2': { d: "M75,35 C100,48 125,45 125,35 C125,50 115,65 100,65 C85,65 75,50 75,35 Z", name: "Volto (HD2)" },
-        'TR1': { d: "M70,55 C70,55 85,65 100,65 C115,65 130,55 130,55 C132,60 133,85 130,100 C100,105 100,105 70,100 C67,85 68,60 70,55 Z", name: "Torace (TR1)" },
-        'TR2': { d: "M70,100 C100,105 100,105 130,100 C128,120 120,145 100,145 C80,145 72,120 70,100 Z", name: "Addome (TR2)" },
-        'LA': { d: "M68,55 C55,52 45,58 45,70 C45,90 50,110 40,135 C38,140 50,145 55,135 C65,110 65,90 68,80 Z", name: "Braccio Sx (LA)" },
-        'RA': { d: "M132,55 C145,52 155,58 155,70 C155,90 150,110 160,135 C162,140 150,145 145,135 C135,110 135,90 132,80 Z", name: "Braccio Dx (RA)" },
-        'LL': { d: "M95,135 C85,135 75,140 75,150 C75,180 72,210 75,240 C80,250 60,255 70,260 C90,260 90,240 90,220 C90,190 98,150 95,135 Z", name: "Gamba Sx (LL)" },
-        'RL': { d: "M105,135 C115,135 125,140 125,150 C125,180 128,210 125,240 C120,250 140,255 130,260 C110,260 110,240 110,220 C110,190 102,150 105,135 Z", name: "Gamba Dx (RL)" }
+        'HD1': { d: "M85,15 C85,10 90,5 100,5 C110,5 115,10 115,15 C115,22 110,28 100,28 C90,28 85,22 85,15 Z", name: "Cranio (HD1)" },
+        'HD2': { d: "M85,15 C85,22 90,28 100,28 C110,28 115,22 115,15 C115,25 112,38 100,42 C88,38 85,25 85,15 Z", name: "Volto (HD2)" },
+        'TR1': { d: "M68,58 L68,100 L94,106 L106,106 L132,100 L132,58 L116,52 L84,52 Z", name: "Torace (TR1)" },
+        'TR2': { d: "M68,100 L74,155 L88,162 L112,162 L126,155 L132,100 Z", name: "Addome (TR2)" },
+        'LA': { d: "M68,58 L58,64 L50,82 L46,105 L44,130 L43,158 L46,162 L54,160 L56,130 L60,105 L66,76 Z", name: "Braccio Sx (LA)" },
+        'RA': { d: "M132,58 L142,64 L150,82 L154,105 L156,130 L157,158 L154,162 L146,160 L144,130 L140,105 L134,76 Z", name: "Braccio Dx (RA)" },
+        'LL': { d: "M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z", name: "Gamba Sx (LL)" },
+        'RL': { d: "M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z", name: "Gamba Dx (RL)" }
     };
 
     return (
-        <div className="relative w-full max-w-[260px] mx-auto drop-shadow-xl select-none">
-            <svg viewBox="0 0 200 280" className="w-full h-auto filter drop-shadow-lg">
+        <div className="relative w-full max-w-[280px] mx-auto drop-shadow-xl select-none">
+            <svg viewBox="0 0 200 330" className="w-full h-auto filter drop-shadow-lg">
                 <defs>
                     <filter id="glow-selected" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="2" result="blur" />
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
                     </filter>
                 </defs>
+                
+                {/* Collo (non cliccabile, solo visivo) */}
+                <rect x="88" y="42" width="24" height="16" rx="4" fill="#1f2937" stroke="#374151" strokeWidth="1.5" opacity="0.5"/>
+                
+                {/* Shadow layer */}
                 <g opacity="0.2">
                      {Object.values(paths).map((p, i) => <path key={i} d={p.d} fill="#1f2937" stroke="none" />)}
                 </g>
+                
                 {Object.entries(paths).map(([code, { d, name }]) => {
                     const item = slots[code] && slots[code][0];
                     const isOccupied = !!item;
                     const isSelected = item && item.id === selectedItemId;
                     const auraColor = item?.aura?.colore || '#4b5563'; 
                     const fillColor = isOccupied ? auraColor : 'transparent';
-                    const strokeColor = isOccupied ? (isSelected ? '#ffffff' : 'rgba(255,255,255,0.5)') : '#374151';
+                    const strokeColor = isOccupied ? (isSelected ? '#ffffff' : 'rgba(255,255,255,0.6)') : '#374151';
                     const opacity = isOccupied ? (isSelected ? 1 : 0.7) : 0.1;
                     const cursor = isOccupied ? 'cursor-pointer' : 'cursor-default';
                     const filter = isSelected ? 'url(#glow-selected)' : '';
+                    const strokeW = isSelected ? '2.5px' : '2px';
 
                     return (
                         <g key={code} onClick={() => isOccupied && onSlotClick(item)} className={`transition-all duration-300 ${cursor}`}>
-                            <path d={d} fill={fillColor} stroke={strokeColor} strokeWidth={isSelected ? 2 : 1} fillOpacity={opacity} filter={filter} className={`transition-all duration-300 ${isOccupied ? 'hover:fill-opacity-100 hover:stroke-white' : ''}`} />
+                            <path 
+                                d={d} 
+                                fill={fillColor} 
+                                stroke={strokeColor} 
+                                strokeWidth={strokeW}
+                                fillOpacity={opacity} 
+                                filter={filter} 
+                                strokeLinejoin="round" 
+                                className={`transition-all duration-300 ${isOccupied ? 'hover:fill-opacity-100 hover:stroke-white' : ''}`}
+                                onMouseEnter={(e) => isOccupied && (e.currentTarget.style.strokeWidth = '3px')}
+                                onMouseLeave={(e) => isOccupied && (e.currentTarget.style.strokeWidth = strokeW)}
+                            />
                             <title>{name} {isOccupied ? `: ${item.nome}` : '(Vuoto)'}</title>
                         </g>
                     );
