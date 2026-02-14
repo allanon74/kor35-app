@@ -193,18 +193,8 @@ export default function WidgetButtons({ id }) {
       iconComponent: button.icon ? LucideIcons[button.icon] : 'not found'
     });
 
-    // Recupera l'icona da lucide-react
-    let IconComponent = null;
-    if (button.icon) {
-      // Prova sia il nome esatto che con varianti
-      IconComponent = LucideIcons[button.icon] || 
-                     LucideIcons[button.icon.charAt(0).toUpperCase() + button.icon.slice(1)] ||
-                     null;
-      
-      if (!IconComponent) {
-        console.warn(`Icona "${button.icon}" non trovata in LucideIcons. Disponibili:`, Object.keys(LucideIcons).filter(k => k.includes(button.icon.substring(0, 3))));
-      }
-    }
+    // Recupera l'icona da lucide-react - CORREZIONE: assicuriamoci che sia un componente valido
+    const Icon = button.icon && LucideIcons[button.icon] ? LucideIcons[button.icon] : null;
 
     // Determina il link
     const linkTo = button.link_type === 'wiki' 
@@ -217,16 +207,9 @@ export default function WidgetButtons({ id }) {
         <>
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
-              {button.icon && (
+              {Icon && (
                 <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg`}>
-                  {IconComponent ? (
-                    <IconComponent size={sizePreset.iconSize} />
-                  ) : (
-                    // Fallback se l'icona non viene trovata
-                    <div className="flex items-center justify-center" style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }}>
-                      <span className="text-xs font-bold opacity-50">?</span>
-                    </div>
-                  )}
+                  <Icon size={sizePreset.iconSize} />
                 </div>
               )}
               <h2 className={`${sizePreset.titleSize} font-bold`}>{button.title}</h2>
@@ -271,16 +254,9 @@ export default function WidgetButtons({ id }) {
     if (style === BUTTON_STYLES.light) {
       const content = (
         <>
-          {button.icon && (
+          {Icon && (
             <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg group-hover:scale-110 transition-transform`}>
-              {IconComponent ? (
-                <IconComponent size={sizePreset.iconSize} />
-              ) : (
-                // Fallback se l'icona non viene trovata
-                <div className="flex items-center justify-center" style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }}>
-                  <span className="text-xs font-bold opacity-50">?</span>
-                </div>
-              )}
+              <Icon size={sizePreset.iconSize} />
             </div>
           )}
           <div className="flex-1">
