@@ -61,6 +61,48 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // Refs per calcolo visivo
   const previewRef = useRef(null);
 
+  // Funzione per estrarre gli ID dei widget usati nel contenuto
+  const getUsedWidgetIds = () => {
+    const content = formData.contenuto || '';
+    const usedIds = {
+      tiers: [],
+      images: [],
+      buttons: []
+    };
+
+    // Cerca pattern {{WIDGET_TIER:ID}}
+    const tierMatches = content.matchAll(/\{\{WIDGET_TIER:(\d+)\}\}/g);
+    for (const match of tierMatches) {
+      usedIds.tiers.push(parseInt(match[1]));
+    }
+
+    // Cerca pattern {{WIDGET_IMAGE:ID}} o {{WIDGET_IMMAGINE:ID}}
+    const imageMatches = content.matchAll(/\{\{WIDGET_(?:IMAGE|IMMAGINE):(\d+)\}\}/g);
+    for (const match of imageMatches) {
+      usedIds.images.push(parseInt(match[1]));
+    }
+
+    // Cerca pattern {{WIDGET_BUTTONS:ID}} o {{WIDGET_PULSANTI:ID}}
+    const buttonMatches = content.matchAll(/\{\{WIDGET_(?:BUTTONS|PULSANTI):(\d+)\}\}/g);
+    for (const match of buttonMatches) {
+      usedIds.buttons.push(parseInt(match[1]));
+    }
+
+    return usedIds;
+  };
+
+  // Funzione per ordinare una lista mettendo prima gli elementi usati
+  const sortByUsage = (items, usedIds) => {
+    return [...items].sort((a, b) => {
+      const aUsed = usedIds.includes(a.id);
+      const bUsed = usedIds.includes(b.id);
+      
+      if (aUsed && !bUsed) return -1;
+      if (!aUsed && bUsed) return 1;
+      return 0;
+    });
+  };
+
   useEffect(() => {
     if (showWidgetHelper) {
         // Carica Tier
@@ -469,17 +511,36 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                 {widgetHelperTab === 'tier' && (
                                     <>
                                         {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
-                                        {availableTiers.map(tier => (
-                                            <button 
-                                                key={tier.id}
-                                                type="button"
-                                                onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
-                                                className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
-                                            >
-                                                <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2">{tier.nome}</span>
-                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{tier.id}</span>
-                                            </button>
-                                        ))}
+                                        {(() => {
+                                            const usedIds = getUsedWidgetIds();
+                                            const sortedTiers = sortByUsage(availableTiers, usedIds.tiers);
+                                            
+                                            return sortedTiers.map(tier => {
+                                                const isUsed = usedIds.tiers.includes(tier.id);
+                                                return (
+                                                    <button 
+                                                        key={tier.id}
+                                                        type="button"
+                                                        onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
+                                                        className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group transition-colors ${
+                                                            isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
+                                                        }`}
+                                                    >
+                                                        <span className={`font-bold group-hover:text-blue-800 truncate pr-2 flex items-center gap-2 ${
+                                                            isUsed ? 'text-green-700' : 'text-gray-700'
+                                                        }`}>
+                                                            {isUsed && <span className="text-green-600">✓</span>}
+                                                            {tier.nome}
+                                                        </span>
+                                                        <span className={`text-[10px] px-1 rounded ${
+                                                            isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
+                                                        }`}>
+                                                            ID:{tier.id}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            });
+                                        })()}
                                     </>
                                 )}
                                 
@@ -504,37 +565,56 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                         {availableImages.length === 0 && !showUploadImage && (
                                             <p className="p-2 text-xs text-gray-500">Nessuna immagine disponibile</p>
                                         )}
-                                        {availableImages.map(img => (
-                                            <div 
-                                                key={img.id}
-                                                className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    onClick={() => insertWidget(`{{WIDGET_IMAGE:${img.id}}}`)}
-                                                    className="flex-1 flex items-center gap-2 truncate"
-                                                >
-                                                    <ImageIcon size={14} className="text-gray-400 shrink-0" />
-                                                    <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate">
-                                                        {img.titolo || `Immagine #${img.id}`}
-                                                    </span>
-                                                </button>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditingImage(img);
-                                                            setShowImageEditor(true);
-                                                        }}
-                                                        className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
-                                                        title="Modifica immagine"
+                                        {(() => {
+                                            const usedIds = getUsedWidgetIds();
+                                            const sortedImages = sortByUsage(availableImages, usedIds.images);
+                                            
+                                            return sortedImages.map(img => {
+                                                const isUsed = usedIds.images.includes(img.id);
+                                                return (
+                                                    <div 
+                                                        key={img.id}
+                                                        className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group transition-colors ${
+                                                            isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
+                                                        }`}
                                                     >
-                                                        <Edit size={12} />
-                                                    </button>
-                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{img.id}</span>
-                                                </div>
-                                            </div>
-                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => insertWidget(`{{WIDGET_IMAGE:${img.id}}}`)}
+                                                            className="flex-1 flex items-center gap-2 truncate"
+                                                        >
+                                                            <ImageIcon size={14} className={`shrink-0 ${
+                                                                isUsed ? 'text-green-600' : 'text-gray-400'
+                                                            }`} />
+                                                            <span className={`font-bold group-hover:text-blue-800 truncate ${
+                                                                isUsed ? 'text-green-700' : 'text-gray-700'
+                                                            }`}>
+                                                                {isUsed && <span className="text-green-600">✓ </span>}
+                                                                {img.titolo || `Immagine #${img.id}`}
+                                                            </span>
+                                                        </button>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEditingImage(img);
+                                                                    setShowImageEditor(true);
+                                                                }}
+                                                                className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                                                title="Modifica immagine"
+                                                            >
+                                                                <Edit size={12} />
+                                                            </button>
+                                                            <span className={`text-[10px] px-1 rounded ${
+                                                                isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
+                                                            }`}>
+                                                                ID:{img.id}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
                                     </>
                                 )}
                                 
@@ -556,37 +636,56 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                         {availableButtonWidgets.length === 0 && (
                                             <p className="p-2 text-xs text-gray-500">Nessun widget pulsanti disponibile</p>
                                         )}
-                                        {availableButtonWidgets.map(widget => (
-                                            <div
-                                                key={widget.id}
-                                                className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    onClick={() => insertWidget(`{{WIDGET_BUTTONS:${widget.id}}}`)}
-                                                    className="flex-1 flex items-center gap-2 truncate"
-                                                >
-                                                    <MousePointerClick size={14} className="text-purple-500 shrink-0" />
-                                                    <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate">
-                                                        {widget.title || `Widget #${widget.id}`}
-                                                    </span>
-                                                </button>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditingButtonWidget(widget);
-                                                            setShowButtonWidgetEditor(true);
-                                                        }}
-                                                        className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
-                                                        title="Modifica widget"
+                                        {(() => {
+                                            const usedIds = getUsedWidgetIds();
+                                            const sortedWidgets = sortByUsage(availableButtonWidgets, usedIds.buttons);
+                                            
+                                            return sortedWidgets.map(widget => {
+                                                const isUsed = usedIds.buttons.includes(widget.id);
+                                                return (
+                                                    <div
+                                                        key={widget.id}
+                                                        className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group transition-colors ${
+                                                            isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
+                                                        }`}
                                                     >
-                                                        <Edit size={12} />
-                                                    </button>
-                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">{widget.buttons?.length || 0} btn</span>
-                                                </div>
-                                            </div>
-                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => insertWidget(`{{WIDGET_BUTTONS:${widget.id}}}`)}
+                                                            className="flex-1 flex items-center gap-2 truncate"
+                                                        >
+                                                            <MousePointerClick size={14} className={`shrink-0 ${
+                                                                isUsed ? 'text-purple-600' : 'text-purple-500'
+                                                            }`} />
+                                                            <span className={`font-bold group-hover:text-blue-800 truncate ${
+                                                                isUsed ? 'text-green-700' : 'text-gray-700'
+                                                            }`}>
+                                                                {isUsed && <span className="text-green-600">✓ </span>}
+                                                                {widget.title || `Widget #${widget.id}`}
+                                                            </span>
+                                                        </button>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEditingButtonWidget(widget);
+                                                                    setShowButtonWidgetEditor(true);
+                                                                }}
+                                                                className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                                                title="Modifica widget"
+                                                            >
+                                                                <Edit size={12} />
+                                                            </button>
+                                                            <span className={`text-[10px] px-1 rounded ${
+                                                                isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
+                                                            }`}>
+                                                                {widget.buttons?.length || 0} btn
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
                                     </>
                                 )}
                             </div>
