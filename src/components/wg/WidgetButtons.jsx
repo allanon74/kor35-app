@@ -138,7 +138,13 @@ export default function WidgetButtons({ id }) {
     const fetchData = async () => {
       try {
         const result = await getWidgetButtons(id);
-        console.log('Widget Buttons Data:', result); // Debug
+        console.log('=== Widget Buttons Full Data ===');
+        console.log('Widget ID:', id);
+        console.log('Widget Data:', result);
+        console.log('Buttons Array:', result?.buttons);
+        console.log('First Button:', result?.buttons?.[0]);
+        console.log('Available Lucide Icons (sample):', Object.keys(LucideIcons).slice(0, 20));
+        console.log('================================');
         setData(result);
       } catch (error) {
         console.error('Errore caricamento widget buttons:', error);
@@ -179,10 +185,26 @@ export default function WidgetButtons({ id }) {
     const sizePreset = SIZE_PRESETS[button.size] || SIZE_PRESETS.medium;
     const style = button.style || BUTTON_STYLES.gradient;
 
+    // Debug: verifica dati pulsante
+    console.log(`Button ${index}:`, {
+      title: button.title,
+      icon: button.icon,
+      iconExists: button.icon && LucideIcons[button.icon],
+      iconComponent: button.icon ? LucideIcons[button.icon] : 'not found'
+    });
+
     // Recupera l'icona da lucide-react
-    const IconComponent = button.icon && LucideIcons[button.icon] 
-      ? LucideIcons[button.icon] 
-      : null;
+    let IconComponent = null;
+    if (button.icon) {
+      // Prova sia il nome esatto che con varianti
+      IconComponent = LucideIcons[button.icon] || 
+                     LucideIcons[button.icon.charAt(0).toUpperCase() + button.icon.slice(1)] ||
+                     null;
+      
+      if (!IconComponent) {
+        console.warn(`Icona "${button.icon}" non trovata in LucideIcons. Disponibili:`, Object.keys(LucideIcons).filter(k => k.includes(button.icon.substring(0, 3))));
+      }
+    }
 
     // Determina il link
     const linkTo = button.link_type === 'wiki' 
@@ -195,9 +217,16 @@ export default function WidgetButtons({ id }) {
         <>
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
-              {IconComponent && (
+              {button.icon && (
                 <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg`}>
-                  <IconComponent size={sizePreset.iconSize} />
+                  {IconComponent ? (
+                    <IconComponent size={sizePreset.iconSize} />
+                  ) : (
+                    // Fallback se l'icona non viene trovata
+                    <div className="flex items-center justify-center" style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }}>
+                      <span className="text-xs font-bold opacity-50">?</span>
+                    </div>
+                  )}
                 </div>
               )}
               <h2 className={`${sizePreset.titleSize} font-bold`}>{button.title}</h2>
@@ -242,9 +271,16 @@ export default function WidgetButtons({ id }) {
     if (style === BUTTON_STYLES.light) {
       const content = (
         <>
-          {IconComponent && (
+          {button.icon && (
             <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg group-hover:scale-110 transition-transform`}>
-              <IconComponent size={sizePreset.iconSize} />
+              {IconComponent ? (
+                <IconComponent size={sizePreset.iconSize} />
+              ) : (
+                // Fallback se l'icona non viene trovata
+                <div className="flex items-center justify-center" style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }}>
+                  <span className="text-xs font-bold opacity-50">?</span>
+                </div>
+              )}
             </div>
           )}
           <div className="flex-1">
