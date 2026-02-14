@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, getWikiImageList, getWidgetButtonsList, createWikiImage, createWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiImageList, getWidgetButtonsList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
-import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick } from 'lucide-react'; 
+import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick, Edit } from 'lucide-react'; 
 import ButtonWidgetEditorModal from './ButtonWidgetEditorModal'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
@@ -35,6 +35,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   
   // State per il modal del widget buttons
   const [showButtonWidgetEditor, setShowButtonWidgetEditor] = useState(false);
+  const [editingButtonWidget, setEditingButtonWidget] = useState(null);
+  
+  // State per il modal edit immagine
+  const [showImageEditor, setShowImageEditor] = useState(false);
+  const [editingImage, setEditingImage] = useState(null);
   
   // Upload Image form state
   const [showUploadImage, setShowUploadImage] = useState(false);
@@ -415,6 +420,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                         <span>{showWidgetHelper ? '▲' : '▼'}</span>
                     </button>
                     
+                    {/* Reminder Modifica Widget */}
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-yellow-800">
+                        <strong>💡 Modifica Widget:</strong> Per modificare un widget già inserito, vai alla sezione corrispondente (Tier/Immagini/Pulsanti) e modifica l'elemento. Le modifiche si rifletteranno automaticamente nella pagina.
+                    </div>
+                    
                     {showWidgetHelper && (
                         <div className="mt-2 bg-white rounded border border-gray-300 shadow-inner">
                             {/* Tab Selector */}
@@ -495,18 +505,35 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                             <p className="p-2 text-xs text-gray-500">Nessuna immagine disponibile</p>
                                         )}
                                         {availableImages.map(img => (
-                                            <button 
+                                            <div 
                                                 key={img.id}
-                                                type="button"
-                                                onClick={() => insertWidget(`{{WIDGET_IMAGE:${img.id}}}`)}
                                                 className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
                                             >
-                                                <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2 flex items-center gap-2">
-                                                    <ImageIcon size={14} className="text-gray-400" />
-                                                    {img.titolo || `Immagine #${img.id}`}
-                                                </span>
-                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{img.id}</span>
-                                            </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => insertWidget(`{{WIDGET_IMAGE:${img.id}}}`)}
+                                                    className="flex-1 flex items-center gap-2 truncate"
+                                                >
+                                                    <ImageIcon size={14} className="text-gray-400 shrink-0" />
+                                                    <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate">
+                                                        {img.titolo || `Immagine #${img.id}`}
+                                                    </span>
+                                                </button>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditingImage(img);
+                                                            setShowImageEditor(true);
+                                                        }}
+                                                        className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                                        title="Modifica immagine"
+                                                    >
+                                                        <Edit size={12} />
+                                                    </button>
+                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">ID:{img.id}</span>
+                                                </div>
+                                            </div>
                                         ))}
                                     </>
                                 )}
@@ -530,18 +557,35 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                             <p className="p-2 text-xs text-gray-500">Nessun widget pulsanti disponibile</p>
                                         )}
                                         {availableButtonWidgets.map(widget => (
-                                            <button 
+                                            <div
                                                 key={widget.id}
-                                                type="button"
-                                                onClick={() => insertWidget(`{{WIDGET_BUTTONS:${widget.id}}}`)}
                                                 className="w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group"
                                             >
-                                                <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate pr-2 flex items-center gap-2">
-                                                    <MousePointerClick size={14} className="text-purple-500" />
-                                                    {widget.title || `Widget #${widget.id}`}
-                                                </span>
-                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">{widget.buttons?.length || 0} btn</span>
-                                            </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => insertWidget(`{{WIDGET_BUTTONS:${widget.id}}}`)}
+                                                    className="flex-1 flex items-center gap-2 truncate"
+                                                >
+                                                    <MousePointerClick size={14} className="text-purple-500 shrink-0" />
+                                                    <span className="font-bold text-gray-700 group-hover:text-blue-800 truncate">
+                                                        {widget.title || `Widget #${widget.id}`}
+                                                    </span>
+                                                </button>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditingButtonWidget(widget);
+                                                            setShowButtonWidgetEditor(true);
+                                                        }}
+                                                        className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                                        title="Modifica widget"
+                                                    >
+                                                        <Edit size={12} />
+                                                    </button>
+                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">{widget.buttons?.length || 0} btn</span>
+                                                </div>
+                                            </div>
                                         ))}
                                     </>
                                 )}
@@ -590,7 +634,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
       {/* MODAL CARICAMENTO IMMAGINE */}
       {showUploadImage && (
-        <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/90 z-60 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="p-4 border-b flex justify-between items-center bg-green-50 rounded-t-lg">
@@ -745,25 +789,178 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
       {/* MODAL EDITOR WIDGET BUTTONS */}
       {showButtonWidgetEditor && (
         <ButtonWidgetEditorModal
-          onClose={() => setShowButtonWidgetEditor(false)}
+          initialData={editingButtonWidget}
+          onClose={() => {
+            setShowButtonWidgetEditor(false);
+            setEditingButtonWidget(null);
+          }}
           onSave={async (widgetData) => {
             try {
-              const response = await createWidgetButtons(widgetData);
+              let response;
+              
+              if (editingButtonWidget) {
+                // Modifica esistente
+                response = await updateWidgetButtons(editingButtonWidget.id, widgetData);
+              } else {
+                // Nuovo widget
+                response = await createWidgetButtons(widgetData);
+                // Inserisci automaticamente solo se nuovo
+                insertWidget(`{{WIDGET_BUTTONS:${response.id}}}`);
+              }
               
               // Ricarica la lista
               const updatedList = await getWidgetButtonsList();
               setAvailableButtonWidgets(updatedList);
               
-              // Inserisci automaticamente il widget
-              insertWidget(`{{WIDGET_BUTTONS:${response.id}}}`);
-              
               setShowButtonWidgetEditor(false);
+              setEditingButtonWidget(null);
             } catch (error) {
-              console.error("Errore creazione widget buttons:", error);
-              alert("Errore durante la creazione del widget. Controlla la console.");
+              console.error("Errore salvataggio widget buttons:", error);
+              alert("Errore durante il salvataggio del widget. Controlla la console.");
             }
           }}
         />
+      )}
+      
+      {/* MODAL EDITOR IMMAGINE */}
+      {showImageEditor && editingImage && (
+        <div className="fixed inset-0 bg-black/90 z-70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b flex justify-between items-center bg-blue-50 rounded-t-lg">
+              <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <Edit size={20} className="text-blue-600" />
+                Modifica Immagine Wiki
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowImageEditor(false);
+                  setEditingImage(null);
+                }}
+                className="text-gray-500 hover:text-red-600 font-bold text-xl px-2"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form 
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  const formData = new FormData();
+                  formData.append('titolo', editingImage.titolo);
+                  formData.append('descrizione', editingImage.descrizione || '');
+                  formData.append('larghezza_max', editingImage.larghezza_max);
+                  formData.append('allineamento', editingImage.allineamento);
+                  
+                  if (editingImage.newImageFile) {
+                    formData.append('immagine', editingImage.newImageFile);
+                  }
+
+                  await updateWikiImage(editingImage.id, formData);
+                  
+                  // Ricarica la lista
+                  const updatedList = await getWikiImageList();
+                  setAvailableImages(updatedList);
+                  
+                  setShowImageEditor(false);
+                  setEditingImage(null);
+                } catch (error) {
+                  console.error("Errore aggiornamento immagine:", error);
+                  alert("Errore durante l'aggiornamento. Controlla la console.");
+                }
+              }}
+              className="p-4 overflow-y-auto flex-1 space-y-4"
+            >
+              {/* Titolo */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Titolo *</label>
+                <input
+                  type="text"
+                  value={editingImage.titolo}
+                  onChange={(e) => setEditingImage(prev => ({ ...prev, titolo: e.target.value }))}
+                  className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  required
+                />
+              </div>
+
+              {/* Descrizione */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Descrizione</label>
+                <textarea
+                  value={editingImage.descrizione || ''}
+                  onChange={(e) => setEditingImage(prev => ({ ...prev, descrizione: e.target.value }))}
+                  className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  rows="3"
+                />
+              </div>
+
+              {/* Cambio Immagine */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Sostituisci Immagine (opzionale)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setEditingImage(prev => ({ ...prev, newImageFile: file }));
+                    }
+                  }}
+                  className="block w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-100 file:text-blue-700 file:font-bold hover:file:bg-blue-200"
+                />
+              </div>
+
+              {/* Larghezza e Allineamento */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Larghezza Max (px)</label>
+                  <input
+                    type="number"
+                    value={editingImage.larghezza_max}
+                    onChange={(e) => setEditingImage(prev => ({ ...prev, larghezza_max: parseInt(e.target.value) || 0 }))}
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Allineamento</label>
+                  <select
+                    value={editingImage.allineamento}
+                    onChange={(e) => setEditingImage(prev => ({ ...prev, allineamento: e.target.value }))}
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  >
+                    <option value="left">Sinistra</option>
+                    <option value="center">Centro</option>
+                    <option value="right">Destra</option>
+                    <option value="full">Larghezza piena</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Bottoni */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImageEditor(false);
+                    setEditingImage(null);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded font-medium"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-sm bg-blue-600 text-white font-bold rounded hover:bg-blue-700 shadow"
+                >
+                  Salva Modifiche
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
     </div>

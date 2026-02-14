@@ -138,6 +138,7 @@ export default function WidgetButtons({ id }) {
     const fetchData = async () => {
       try {
         const result = await getWidgetButtons(id);
+        console.log('Widget Buttons Data:', result); // Debug
         setData(result);
       } catch (error) {
         console.error('Errore caricamento widget buttons:', error);

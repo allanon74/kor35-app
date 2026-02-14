@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, GripVertical, ExternalLink, AppWindow, ChevronDown } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { COLOR_PRESETS, SIZE_PRESETS, BUTTON_STYLES } from '../wg/WidgetButtons';
+import { getWikiMenu } from '../../api';
 
 /**
  * Modal per configurare il Widget Buttons
@@ -24,6 +25,11 @@ export default function ButtonWidgetEditorModal({ onClose, onSave, initialData =
   const [widgetTitle, setWidgetTitle] = useState(initialData?.title || '');
   const [buttons, setButtons] = useState(initialData?.buttons || []);
   const [editingIndex, setEditingIndex] = useState(null);
+  
+  // Lista degli slug wiki disponibili
+  const [wikiSlugs, setWikiSlugs] = useState([]);
+  const [filteredSlugs, setFilteredSlugs] = useState([]);
+  const [showSlugSuggestions, setShowSlugSuggestions] = useState(false);
 
   // Form per singolo pulsante
   const [buttonForm, setButtonForm] = useState({
@@ -38,6 +44,32 @@ export default function ButtonWidgetEditorModal({ onClose, onSave, initialData =
     wiki_slug: '',
     app_route: ''
   });
+
+  // Carica gli slug wiki all'apertura
+  useEffect(() => {
+    const fetchWikiSlugs = async () => {
+      try {
+        const menuData = await getWikiMenu();
+        const slugs = menuData.map(page => page.slug).filter(Boolean);
+        setWikiSlugs(slugs);
+      } catch (error) {
+        console.error('Errore caricamento slugs:', error);
+      }
+    };
+    fetchWikiSlugs();
+  }, []);
+
+  // Filtra gli slug in base al testo inserito
+  useEffect(() => {
+    if (buttonForm.wiki_slug && wikiSlugs.length > 0) {
+      const filtered = wikiSlugs.filter(slug => 
+        slug.toLowerCase().includes(buttonForm.wiki_slug.toLowerCase())
+      ).slice(0, 10); // Max 10 suggerimenti
+      setFilteredSlugs(filtered);
+    } else {
+      setFilteredSlugs([]);
+    }
+  }, [buttonForm.wiki_slug, wikiSlugs]);
 
   // Apri form per modificare un pulsante esistente
   const handleEditButton = (index) => {
@@ -316,21 +348,44 @@ export default function ButtonWidgetEditorModal({ onClose, onSave, initialData =
                   </div>
                 )}
 
-                {/* Icona */}
+                {/* Icona con Preview */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">
                     Icona <span className="text-xs font-normal text-gray-500">(opzionale)</span>
                   </label>
-                  <select
-                    value={buttonForm.icon}
-                    onChange={(e) => setButtonForm({ ...buttonForm, icon: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Nessuna icona</option>
-                    {COMMON_ICONS.map(iconName => (
-                      <option key={iconName} value={iconName}>{iconName}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={buttonForm.icon}
+                      onChange={(e) => setButtonForm({ ...buttonForm, icon: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none pr-10"
+                    >
+                      <option value="">Nessuna icona</option>
+                      {COMMON_ICONS.map(iconName => (
+                        <option key={iconName} value={iconName}>{iconName}</option>
+                      ))}
+                    </select>
+                    
+                    {/* Preview Icona Selezionata */}
+                    {buttonForm.icon && (
+                      <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <IconPreview iconName={buttonForm.icon} size={20} />
+                      </div>
+                    )}
+                    
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <ChevronDown size={16} className="text-gray-400" />
+                    </div>
+                  </div>
+                  
+                  {/* Preview Grande sotto */}
+                  {buttonForm.icon && (
+                    <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-3">
+                      <div className="bg-indigo-500 text-white p-2 rounded">
+                        <IconPreview iconName={buttonForm.icon} size={24} />
+                      </div>
+                      <span className="text-sm text-gray-700 font-medium">{buttonForm.icon}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Stile */}
@@ -434,19 +489,48 @@ export default function ButtonWidgetEditorModal({ onClose, onSave, initialData =
                   </div>
                 </div>
 
-                {/* Campo Wiki Slug */}
+                {/* Campo Wiki Slug con Autocomplete */}
                 {buttonForm.link_type === 'wiki' && (
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-bold text-gray-700 mb-1">
                       Slug Pagina Wiki * <span className="text-xs font-normal text-gray-500">(es: ambientazione)</span>
                     </label>
                     <input
                       type="text"
                       value={buttonForm.wiki_slug}
-                      onChange={(e) => setButtonForm({ ...buttonForm, wiki_slug: e.target.value })}
+                      onChange={(e) => {
+                        setButtonForm({ ...buttonForm, wiki_slug: e.target.value });
+                        setShowSlugSuggestions(true);
+                      }}
+                      onFocus={() => setShowSlugSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSlugSuggestions(false), 200)}
                       placeholder="ambientazione"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                      autoComplete="off"
                     />
+                    
+                    {/* Suggerimenti Autocomplete */}
+                    {showSlugSuggestions && filteredSlugs.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {filteredSlugs.map((slug, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setButtonForm({ ...buttonForm, wiki_slug: slug });
+                              setShowSlugSuggestions(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-sm font-mono text-gray-700 hover:text-indigo-700 transition-colors border-b border-gray-100 last:border-b-0"
+                          >
+                            {slug}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Inizia a digitare per vedere i suggerimenti. Puoi anche inserire slug nuovi.
+                    </p>
                   </div>
                 )}
 
