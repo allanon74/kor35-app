@@ -183,7 +183,7 @@ const AdminMessageTab = ({ onLogout }) => {
             if (targetType === 'single') {
                 // Invio Singolo (Messaggio diretto Staff -> PG)
                 // Usa l'endpoint standard dei messaggi, forzando il tipo STAFF
-                await fetchAuthenticated('/personaggi/api/messaggi/', {
+                await fetchAuthenticated('/api/personaggi/api/messaggi/', {
                     method: 'POST',
                     body: JSON.stringify({
                         destinatario_personaggio: singleRecipient.id,

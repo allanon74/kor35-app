@@ -166,7 +166,7 @@ export const useOptimisticStatChange = () => {
     return useOptimisticAction(
         ['personaggio'], 
         async ({ charId, stat_sigla, mode, max_override }) => {
-            return fetchAuthenticated('/personaggi/api/game/modifica_stat_temp/', {
+            return fetchAuthenticated('/api/personaggi/api/game/modifica_stat_temp/', {
                 method: 'POST',
                 // Passiamo max_override se presente (per zone corpo)
                 body: JSON.stringify({ char_id: charId, stat_sigla, mode, max_value: max_override })
@@ -244,7 +244,7 @@ export const useOptimisticUseItem = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ oggetto_id, charId }) => {
-            return fetchAuthenticated('/personaggi/api/game/usa_oggetto/', {
+            return fetchAuthenticated('/api/personaggi/api/game/usa_oggetto/', {
                 method: 'POST',
                 body: JSON.stringify({ oggetto_id, char_id: charId })
             });
@@ -283,7 +283,7 @@ export const useOptimisticRecharge = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ oggetto_id, charId }) => {
-             return fetchAuthenticated('/personaggi/api/game/ricarica_oggetto/', {
+             return fetchAuthenticated('/api/personaggi/api/game/ricarica_oggetto/', {
                 method: 'POST',
                 body: JSON.stringify({ oggetto_id, char_id: charId })
             });
@@ -470,7 +470,7 @@ export const useOptimisticAcquireCerimoniale = () => {
         ['personaggio'],
         async ({ cerimonialeId, charId, onLogout }) => {
             const { fetchAuthenticated } = await import('../api');
-            return fetchAuthenticated('/personaggi/api/personaggio/me/acquisisci_cerimoniale/', {
+            return fetchAuthenticated('/api/personaggi/api/personaggio/me/acquisisci_cerimoniale/', {
                 method: 'POST',
                 body: JSON.stringify({ personaggio_id: charId, cerimoniale_id: cerimonialeId })
             }, onLogout);

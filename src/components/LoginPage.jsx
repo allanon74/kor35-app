@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { registerUser } from '../api'; // Assicurati che api.js esporti questa funzione
+import { registerUser, API_BASE_URL } from '../api'; // Assicurati che api.js esporti questa funzione
 
 const LoginPage = ({ onLoginSuccess }) => {
   // Stato Toggle
@@ -28,7 +28,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://www.kor35.it/auth/', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

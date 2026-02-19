@@ -232,7 +232,7 @@ const PlotTab = ({ onLogout }) => {
         const task = allTasks.find(t => t.id === id);
         if (!task) return;
 
-        await fetchAuthenticated(`/plot/api/tasks/${id}/`, { 
+        await fetchAuthenticated(`/api/plot/api/tasks/${id}/`, { 
             method: 'PATCH', 
             body: JSON.stringify({ [field]: (task[field] || 0) + delta }) 
         }, onLogout);

@@ -213,7 +213,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       setUserShortcuts(newShortcuts);
 
       try {
-          await fetchAuthenticated(`/personaggi/api/personaggi/${selectedCharacterId}/`, 
+          await fetchAuthenticated(`/api/personaggi/api/personaggi/${selectedCharacterId}/`, 
             {
               method: 'PATCH',
               headers: {
