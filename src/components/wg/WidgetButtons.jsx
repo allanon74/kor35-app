@@ -195,6 +195,15 @@ export default function WidgetButtons({ id }) {
 
     // Recupera l'icona da lucide-react - CORREZIONE: assicuriamoci che sia un componente valido
     const Icon = button.icon && LucideIcons[button.icon] ? LucideIcons[button.icon] : null;
+    
+    // Debug specifico per il render
+    console.log(`🎨 Rendering Button ${index}:`, {
+      hasIcon: !!button.icon,
+      iconName: button.icon,
+      IconResolved: !!Icon,
+      IconType: Icon ? typeof Icon : 'null',
+      willRender: Icon ? 'YES' : 'NO'
+    });
 
     // Determina il link
     const linkTo = button.link_type === 'wiki' 
@@ -207,10 +216,19 @@ export default function WidgetButtons({ id }) {
         <>
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
-              {Icon && (
+              {button.icon && (
                 <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg`}>
-                  <Icon size={sizePreset.iconSize} />
+                  {Icon ? (
+                    <Icon size={sizePreset.iconSize} />
+                  ) : (
+                    <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
+                      ❌
+                    </div>
+                  )}
                 </div>
+              )}
+              {!button.icon && (
+                <div className="text-yellow-300 text-xs">⚠️ No icon field</div>
               )}
               <h2 className={`${sizePreset.titleSize} font-bold`}>{button.title}</h2>
             </div>
@@ -254,10 +272,19 @@ export default function WidgetButtons({ id }) {
     if (style === BUTTON_STYLES.light) {
       const content = (
         <>
-          {Icon && (
+          {button.icon && (
             <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg group-hover:scale-110 transition-transform`}>
-              <Icon size={sizePreset.iconSize} />
+              {Icon ? (
+                <Icon size={sizePreset.iconSize} />
+              ) : (
+                <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
+                  ❌
+                </div>
+              )}
             </div>
+          )}
+          {!button.icon && (
+            <div className="text-yellow-600 text-xs">⚠️ No icon</div>
           )}
           <div className="flex-1">
             <h3 className={`${sizePreset.titleSize} font-bold text-gray-800 mb-1`}>
