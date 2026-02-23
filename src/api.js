@@ -1367,9 +1367,9 @@ export const getWikiAura = (id) => {
   return fetchPublic(`/api/plot/api/public/wiki-aure/${id}/`);
 };
 
-// --- AGGIUNTA PER WIDGET TIER ---
+// --- WIDGET TIER: usa tier-display (accetta id Tier oppure id plugin CMS) ---
 export const getWikiTier = (id) => {
-  return fetchPublic(`/api/plot/api/public/wiki-tiers/${id}/`);
+  return fetchPublic(`/api/plot/api/wiki/tier-display/${id}/`);
 };
 
 // Helper per avere la lista di tutti i Tier (per l'editor del Master)
