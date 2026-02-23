@@ -1,7 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getWidgetButtons } from '../../api';
-import * as LucideIcons from 'lucide-react';
+import {
+  Sparkles, LogIn, Scroll, BookOpen, Users, Calendar, Share2,
+  Home, Settings, Mail, Phone, MapPin, Globe, Shield,
+  Star, Heart, Zap, Award, Bookmark, Bell, Camera,
+  Gift, Music, Video, Image, File, Folder, Search,
+  Edit, Trash2, Download, Upload, Save, Send, Lock,
+  Unlock, Key, Eye, EyeOff, Flag, Tag, Target,
+  TrendingUp, Activity, BarChart, PieChart, Coffee, Pizza,
+  Briefcase, ShoppingCart, CreditCard, DollarSign, Percent
+} from 'lucide-react';
+
+// Mappa icone con import espliciti - evita tree-shaking in produzione
+const ICON_MAP = {
+  Sparkles, LogIn, Scroll, BookOpen, Users, Calendar, Share2,
+  Home, Settings, Mail, Phone, MapPin, Globe, Shield,
+  Star, Heart, Zap, Award, Bookmark, Bell, Camera,
+  Gift, Music, Video, Image, File, Folder, Search,
+  Edit, Trash: Trash2, Download, Upload, Save, Send, Lock,
+  Unlock, Key, Eye, EyeOff, Flag, Tag, Target,
+  TrendingUp, Activity, BarChart, PieChart, Coffee, Pizza,
+  Briefcase, ShoppingCart, CreditCard, DollarSign, Percent
+};
 
 /**
  * Widget Pulsanti Configurabili
@@ -138,13 +159,6 @@ export default function WidgetButtons({ id }) {
     const fetchData = async () => {
       try {
         const result = await getWidgetButtons(id);
-        console.log('=== Widget Buttons Full Data ===');
-        console.log('Widget ID:', id);
-        console.log('Widget Data:', result);
-        console.log('Buttons Array:', result?.buttons);
-        console.log('First Button:', result?.buttons?.[0]);
-        console.log('Available Lucide Icons (sample):', Object.keys(LucideIcons).slice(0, 20));
-        console.log('================================');
         setData(result);
       } catch (error) {
         console.error('Errore caricamento widget buttons:', error);
@@ -185,25 +199,8 @@ export default function WidgetButtons({ id }) {
     const sizePreset = SIZE_PRESETS[button.size] || SIZE_PRESETS.medium;
     const style = button.style || BUTTON_STYLES.gradient;
 
-    // Debug: verifica dati pulsante
-    console.log(`Button ${index}:`, {
-      title: button.title,
-      icon: button.icon,
-      iconExists: button.icon && LucideIcons[button.icon],
-      iconComponent: button.icon ? LucideIcons[button.icon] : 'not found'
-    });
-
-    // Recupera l'icona da lucide-react - CORREZIONE: assicuriamoci che sia un componente valido
-    const Icon = button.icon && LucideIcons[button.icon] ? LucideIcons[button.icon] : null;
-    
-    // Debug specifico per il render
-    console.log(`🎨 Rendering Button ${index}:`, {
-      hasIcon: !!button.icon,
-      iconName: button.icon,
-      IconResolved: !!Icon,
-      IconType: Icon ? typeof Icon : 'null',
-      willRender: Icon ? 'YES' : 'NO'
-    });
+    // Recupera l'icona dalla mappa (import espliciti per evitare tree-shaking in produzione)
+    const Icon = button.icon && ICON_MAP[button.icon] ? ICON_MAP[button.icon] : null;
 
     // Determina il link
     const linkTo = button.link_type === 'wiki' 
@@ -217,9 +214,9 @@ export default function WidgetButtons({ id }) {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
               {button.icon && (
-                <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg`}>
+                <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg text-white`}>
                   {Icon ? (
-                    React.createElement(Icon, { size: sizePreset.iconSize })
+                    React.createElement(Icon, { size: sizePreset.iconSize, className: 'text-white' })
                   ) : (
                     <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
                       ❌
@@ -275,7 +272,7 @@ export default function WidgetButtons({ id }) {
           {button.icon && (
             <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg group-hover:scale-110 transition-transform`}>
               {Icon ? (
-                React.createElement(Icon, { size: sizePreset.iconSize })
+                React.createElement(Icon, { size: sizePreset.iconSize, className: 'text-white' })
               ) : (
                 <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
                   ❌
