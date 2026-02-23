@@ -3,7 +3,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://www.kor35.i
 /**
  * Helper generico per le chiamate API autenticate.
  * Gestisce l'header Authorization e il caso di token non valido.
- * @param {string} endpoint - L'endpoint API (es. /personaggi/api/personaggi/)
+ * @param {string} endpoint - L'endpoint API (es. /api/personaggi/api/personaggi/)
  * @param {object} options - Opzioni standard di fetch (method, body, etc.)
  * @param {function} onLogout - La funzione di logout da App.jsx
  */
@@ -128,18 +128,18 @@ export const getPersonaggiList = (onLogout, viewAll = false) => {
   // Costruisci la query string se viewAll è true
   const queryParam = viewAll ? '?view_all=true' : '';
   
-  return fetchAuthenticated(`/personaggi/api/personaggi/${queryParam}`, { method: 'GET' }, onLogout);
+  return fetchAuthenticated(`/api/personaggi/api/personaggi/${queryParam}`, { method: 'GET' }, onLogout);
 };
 
 /**
  * Recupera i dettagli di un personaggio specifico.
  */
 export const getPersonaggioDetail = (id, onLogout) => {
-  return fetchAuthenticated(`/personaggi/api/personaggi/${id}/`, { method: 'GET' }, onLogout);
+  return fetchAuthenticated(`/api/personaggi/api/personaggi/${id}/`, { method: 'GET' }, onLogout);
 };
 
 export const getQrCodeData = (qrId, onLogout) => {
-  return fetchAuthenticated(`/personaggi/api/qrcode/${qrId}/`, { method: 'GET' }, onLogout);
+  return fetchAuthenticated(`/api/personaggi/api/qrcode/${qrId}/`, { method: 'GET' }, onLogout);
 };
 
 /**
@@ -147,7 +147,7 @@ export const getQrCodeData = (qrId, onLogout) => {
  */
 export const richiediTransazione = (oggettoId, mittenteInventarioId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/transazioni/richiedi/', 
+    '/api/personaggi/api/transazioni/richiedi/', 
     {
       method: 'POST',
       body: JSON.stringify({
@@ -164,7 +164,7 @@ export const richiediTransazione = (oggettoId, mittenteInventarioId, onLogout) =
  */
 export const createTransazioneAvanzata = (destinatarioId, proposta, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/transazioni/avanzata/',
+    '/api/personaggi/api/transazioni/avanzata/',
     {
       method: 'POST',
       body: JSON.stringify({
@@ -181,7 +181,7 @@ export const createTransazioneAvanzata = (destinatarioId, proposta, onLogout) =>
  */
 export const getTransazioneDetail = (transazioneId, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/transazioni/${transazioneId}/`,
+    `/api/personaggi/api/transazioni/${transazioneId}/`,
     { method: 'GET' },
     onLogout
   );
@@ -192,8 +192,7 @@ export const getTransazioneDetail = (transazioneId, onLogout) => {
  */
 export const addPropostaTransazione = (transazioneId, proposta, onLogout) => {
   return fetchAuthenticated(
-    `
-    /${transazioneId}/proposta/`,
+    `/api/personaggi/api/transazioni/${transazioneId}/proposta/`,
     {
       method: 'POST',
       body: JSON.stringify(proposta)
@@ -207,7 +206,7 @@ export const addPropostaTransazione = (transazioneId, proposta, onLogout) => {
  */
 export const confermaTransazione = (transazioneId, azione, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/transazioni/${transazioneId}/conferma/`,
+    `/api/personaggi/api/transazioni/${transazioneId}/conferma/`,
     {
       method: 'POST',
       body: JSON.stringify({ azione: azione }) // 'accetta' o 'rifiuta'
@@ -221,7 +220,7 @@ export const confermaTransazione = (transazioneId, azione, onLogout) => {
  */
 export const rubaOggetto = (oggettoId, targetPersonaggioId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/transazioni/ruba/', 
+    '/api/personaggi/api/transazioni/ruba/', 
     {
       method: 'POST',
       body: JSON.stringify({
@@ -238,7 +237,7 @@ export const rubaOggetto = (oggettoId, targetPersonaggioId, onLogout) => {
  */
 export const acquisisciItem = (qrCodeId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/transazioni/acquisisci/', 
+    '/api/personaggi/api/transazioni/acquisisci/', 
     {
       method: 'POST',
       body: JSON.stringify({
@@ -254,7 +253,7 @@ export const acquisisciItem = (qrCodeId, onLogout) => {
  * @deprecated Non più usata, sostituita da getAcquirableSkills e dati da getPersonaggioDetail
  */
 export const getAbilitaMasterList = (onLogout) => {
-  return fetchAuthenticated('/personaggi/api/abilita/master_list/', { method: 'GET' }, onLogout);
+  return fetchAuthenticated('/api/personaggi/api/abilita/master_list/', { method: 'GET' }, onLogout);
 };
 
 /**
@@ -262,7 +261,7 @@ export const getAbilitaMasterList = (onLogout) => {
  */
 export const acquireAbilita = (abilitaId, characterId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/personaggio/me/acquisisci_abilita/', 
+    '/api/personaggi/api/personaggio/me/acquisisci_abilita/', 
     {
       method: 'POST',
       body: JSON.stringify({
@@ -278,7 +277,7 @@ export const acquireAbilita = (abilitaId, characterId, onLogout) => {
  * Recupera la lista di tutti i punteggi (Caratteristiche, Statistiche, ecc).
  */
 export const getPunteggiList = (onLogout) => {
-  return fetchAuthenticated('/personaggi/api/punteggi/all/', { method: 'GET' }, onLogout);
+  return fetchAuthenticated('/api/personaggi/api/punteggi/all/', { method: 'GET' }, onLogout);
 };
 
 
@@ -289,37 +288,37 @@ export const getPunteggiList = (onLogout) => {
 
 /**
  * Recupera la lista *filtrata* di abilità acquistabili per il personaggio.
- * GET /personaggi/api/personaggio/me/abilita_acquistabili/
+ * GET /api/personaggi/api/personaggio/me/abilita_acquistabili/
  */
 export const getAcquirableSkills = (onLogout, selectedCharacterId) => {
   // Aggiunge l'ID del personaggio come query parameter. Il backend dovrà leggere 'char_id'.
   const queryParam = selectedCharacterId ? `?char_id=${selectedCharacterId}` : '';
   
   return fetchAuthenticated(
-    `/personaggi/api/personaggio/me/abilita_acquistabili/${queryParam}`, // <--- AGGIUNTO queryParam
+    `/api/personaggi/api/personaggio/me/abilita_acquistabili/${queryParam}`, // <--- AGGIUNTO queryParam
     { method: 'GET' }, 
     onLogout
   );
 };
 
 /**
- * GET /personaggi/api/messaggi/ - Ottiene la lista dei messaggi per il PG loggato.
+ * GET /api/personaggi/api/messaggi/ - Ottiene la lista dei messaggi per il PG loggato.
  */
 export const getMessages = (personaggioId, onLogout) => {
   if (!personaggioId) {
     return Promise.resolve([]); // Ritorna un array vuoto se l'ID non è fornito
   }
-  const url = `/personaggi/api/messaggi/?personaggio_id=${personaggioId}`;
+  const url = `/api/personaggi/api/messaggi/?personaggio_id=${personaggioId}`;
 
   return fetchAuthenticated(url, { method: 'GET' }, onLogout);
 };
 
 /**
- * POST /personaggi/api/messaggi/broadcast/send/ - Invia un messaggio Broadcast.
+ * POST /api/personaggi/api/messaggi/broadcast/send/ - Invia un messaggio Broadcast.
  */
 export const postBroadcastMessage = (messageData, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/messaggi/broadcast/send/',
+    '/api/personaggi/api/messaggi/broadcast/send/',
     {
       method: 'POST',
       body: JSON.stringify(messageData)
@@ -329,10 +328,10 @@ export const postBroadcastMessage = (messageData, onLogout) => {
 };
 
 /**
- * GET /personaggi/api/messaggi/admin/sent/ - Ottiene i messaggi inviati dall'admin.
+ * GET /api/personaggi/api/messaggi/admin/sent/ - Ottiene i messaggi inviati dall'admin.
  */
 export const getAdminSentMessages = (onLogout) => {
-  return fetchAuthenticated('/personaggi/api/messaggi/admin/sent/', { method: 'GET' }, onLogout);
+  return fetchAuthenticated('/api/personaggi/api/messaggi/admin/sent/', { method: 'GET' }, onLogout);
 };
 
 export const saveWebPushSubscription = async (subscription, onLogout) => {
@@ -340,7 +339,7 @@ export const saveWebPushSubscription = async (subscription, onLogout) => {
     
     if (!token) return;
 
-    const response = await fetch('https://www.kor35.it/personaggi/api/webpush/subscribe/', {
+    const response = await fetch(`${API_BASE_URL}/api/personaggi/api/webpush/subscribe/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -364,7 +363,7 @@ export const saveWebPushSubscription = async (subscription, onLogout) => {
  */
 export const getAcquirableInfusioni = (characterId) => {
   return fetchAuthenticated(
-    `/personaggi/api/personaggio/me/infusioni_acquistabili/?char_id=${characterId}`, 
+    `/api/personaggi/api/personaggio/me/infusioni_acquistabili/?char_id=${characterId}`, 
     { method: 'GET' }
   );
 };
@@ -374,7 +373,7 @@ export const getAcquirableInfusioni = (characterId) => {
  */
 export const acquireInfusione = (infusioneId, personaggioId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/personaggio/me/acquisisci_infusione/', 
+    '/api/personaggi/api/personaggio/me/acquisisci_infusione/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -391,7 +390,7 @@ export const acquireInfusione = (infusioneId, personaggioId, onLogout) => {
  */
 export const getAcquirableTessiture = (characterId) => {
   return fetchAuthenticated(
-    `/personaggi/api/personaggio/me/tessiture_acquistabili/?char_id=${characterId}`, 
+    `/api/personaggi/api/personaggio/me/tessiture_acquistabili/?char_id=${characterId}`, 
     { method: 'GET' }
   );
 };
@@ -401,7 +400,7 @@ export const getAcquirableTessiture = (characterId) => {
  */
 export const acquireTessitura = (tessituraId, personaggioId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/personaggio/me/acquisisci_tessitura/', 
+    '/api/personaggi/api/personaggio/me/acquisisci_tessitura/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -418,7 +417,7 @@ export const acquireTessitura = (tessituraId, personaggioId, onLogout) => {
  */
 export const toggleTessituraFavorite = (tessituraId, personaggioId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/personaggio/me/toggle_tessitura_favorite/', 
+    '/api/personaggi/api/personaggio/me/toggle_tessitura_favorite/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -431,12 +430,12 @@ export const toggleTessituraFavorite = (tessituraId, personaggioId, onLogout) =>
 };
 
 export const getModelliAura = (auraId) => {
-  return fetchAuthenticated(`/personaggi/api/punteggio/${auraId}/modelli/`, { method: 'GET' });
+  return fetchAuthenticated(`/api/personaggi/api/punteggio/${auraId}/modelli/`, { method: 'GET' });
 };
 
 export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/personaggio/me/seleziona_modello_aura/', 
+    '/api/personaggi/api/personaggio/me/seleziona_modello_aura/', 
     {
       method: 'POST',
       body: JSON.stringify({ personaggio_id: personaggioId, modello_id: modelloId })
@@ -448,20 +447,20 @@ export const selezionaModelloAura = (personaggioId, modelloId, onLogout) => {
 export const getProposte = async (charId) => {
     // fetchAuthenticated restituisce già i dati, non la response raw.
     // L'errore viene gestito internamente a fetchAuthenticated.
-    return await fetchAuthenticated(`/personaggi/api/proposte/?char_id=${charId}`, {
+    return await fetchAuthenticated(`/api/personaggi/api/proposte/?char_id=${charId}`, {
         method: 'GET'
     });
 };
 
 export const createProposta = async (data) => {
-    return await fetchAuthenticated(`/personaggi/api/proposte/`, {
+    return await fetchAuthenticated(`/api/personaggi/api/proposte/`, {
         method: 'POST',
         body: JSON.stringify(data)
     });
 };
 
 export const updateProposta = async (id, data) => {
-    return await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
+    return await fetchAuthenticated(`/api/personaggi/api/proposte/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     });
@@ -469,14 +468,14 @@ export const updateProposta = async (id, data) => {
 
 export const deleteProposta = async (id) => {
     // Qui fetchAuthenticated potrebbe tornare null (204 No Content), va bene così.
-    await fetchAuthenticated(`/personaggi/api/proposte/${id}/`, {
+    await fetchAuthenticated(`/api/personaggi/api/proposte/${id}/`, {
         method: 'DELETE'
     });
     return true;
 };
 
 export const sendProposta = async (id) => {
-    return await fetchAuthenticated(`/personaggi/api/proposte/${id}/invia_proposta/`, {
+    return await fetchAuthenticated(`/api/personaggi/api/proposte/${id}/invia_proposta/`, {
         method: 'POST'
     });
 };
@@ -485,25 +484,25 @@ export const sendProposta = async (id) => {
 
 export const getAllPunteggi = async () => {
     // Assicurati che l'URL finisca con /all/ come definito in urls.py
-    return await fetchAuthenticated(`/personaggi/api/punteggi/all/`, {
+    return await fetchAuthenticated(`/api/personaggi/api/punteggi/all/`, {
         method: 'GET'
     });
 };
 
 export const getMattoniAura = async (auraId) => {
     // Puntiamo all'endpoint corretto che restituisce i mattoni di quella specifica aura
-    return await fetchAuthenticated(`/personaggi/api/punteggio/${auraId}/mattoni/`, {
+    return await fetchAuthenticated(`/api/personaggi/api/punteggio/${auraId}/mattoni/`, {
         method: 'GET'
     });
 };
 
 export const getAdminPendingProposalsCount = (onLogout) => {
-  return fetchAuthenticated('/personaggi/api/admin/pending_proposals_count/', { method: 'GET' }, onLogout);
+  return fetchAuthenticated('/api/personaggi/api/admin/pending_proposals_count/', { method: 'GET' }, onLogout);
 };
 
 export const markMessageAsRead = (messageId, characterId, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/messaggi/${messageId}/leggi/`,
+    `/api/personaggi/api/messaggi/${messageId}/leggi/`,
     {
       method: 'POST',
       body: JSON.stringify({ personaggio_id: characterId })
@@ -514,11 +513,11 @@ export const markMessageAsRead = (messageId, characterId, onLogout) => {
 
 /**
  * Cancella un messaggio (soft delete per l'utente).
- * POST /personaggi/api/messaggi/<id>/cancella/
+ * POST /api/personaggi/api/messaggi/<id>/cancella/
  */
 export const deleteMessage = (messageId, characterId, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/messaggi/${messageId}/cancella/`,
+    `/api/personaggi/api/messaggi/${messageId}/cancella/`,
     {
       method: 'POST',
       body: JSON.stringify({ personaggio_id: characterId })
@@ -532,7 +531,7 @@ export const deleteMessage = (messageId, characterId, onLogout) => {
  * @param {number} page - Numero di pagina (default 1)
  */
 export const getPersonaggioLogs = (page = 1) => {
-  return fetchAuthenticated(`/personaggi/api/personaggio/me/logs/?page=${page}`, { method: 'GET' });
+  return fetchAuthenticated(`/api/personaggi/api/personaggio/me/logs/?page=${page}`, { method: 'GET' });
 };
 
 /**
@@ -542,7 +541,7 @@ export const getPersonaggioLogs = (page = 1) => {
  * @param {string} charId - ID del personaggio (opzionale)
  */
 export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata', charId = null) => {
-  let url = `/personaggi/api/personaggio/me/transazioni/?page=${page}&tipo=${tipo}`;
+  let url = `/api/personaggi/api/personaggio/me/transazioni/?page=${page}&tipo=${tipo}`;
   if (charId) {
     url += `&char_id=${charId}`;
   }
@@ -553,7 +552,7 @@ export const getPersonaggioTransazioni = (page = 1, tipo = 'entrata', charId = n
  * Opzionalmente filtra per compatibilità con un'infusione (Innesto).
  */
 export const searchPersonaggi = (query, currentCharacterId, infusioneId = null) => {
-  let url = `/personaggi/api/personaggi/search/?q=${encodeURIComponent(query)}&current_char_id=${currentCharacterId}`;
+  let url = `/api/personaggi/api/personaggi/search/?q=${encodeURIComponent(query)}&current_char_id=${currentCharacterId}`;
   if (infusioneId) {
       url += `&infusione_id=${infusioneId}`;
   }
@@ -565,7 +564,7 @@ export const searchPersonaggi = (query, currentCharacterId, infusioneId = null) 
  */
 export const sendPrivateMessage = (messageData, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/messaggi/send/',
+    '/api/personaggi/api/messaggi/send/',
     {
       method: 'POST',
       body: JSON.stringify(messageData)
@@ -576,7 +575,7 @@ export const sendPrivateMessage = (messageData, onLogout) => {
 
 // Crea un oggetto fisico a partire da un'infusione
 export const craftOggetto = (infusioneId) => {
-  return fetchAuthenticated('/api/oggetti/craft/', {
+  return fetchAuthenticated('/api/personaggi/api/oggetti/craft/', {
     method: 'POST',
     body: JSON.stringify({ infusione_id: infusioneId })
   });
@@ -584,7 +583,7 @@ export const craftOggetto = (infusioneId) => {
 
 // // Monta un potenziamento (Mod/Materia) su un oggetto ospite
 // export const montaPotenziamento = (ospiteId, potenziamentoId) => {
-//   return fetchAuthenticated(`/api/oggetti/${ospiteId}/monta/`, {
+//   return fetchAuthenticated(`/api/personaggi/api/oggetti/${ospiteId}/monta/`, {
 //     method: 'POST',
 //     body: JSON.stringify({ potenziamento_id: potenziamentoId })
 //   });
@@ -592,7 +591,7 @@ export const craftOggetto = (infusioneId) => {
 
 // Smonta un potenziamento
 export const smontaPotenziamento = (ospiteId, potenziamentoId) => {
-  return fetchAuthenticated(`/api/oggetti/${ospiteId}/smonta/`, {
+  return fetchAuthenticated(`/api/personaggi/api/oggetti/${ospiteId}/smonta/`, {
     method: 'POST',
     body: JSON.stringify({ potenziamento_id: potenziamentoId })
   });
@@ -600,14 +599,14 @@ export const smontaPotenziamento = (ospiteId, potenziamentoId) => {
 
 // Usa una carica (Mod, Innesti, Oggetti)
 export const usaCarica = (oggettoId) => {
-  return fetchAuthenticated(`/api/oggetti/${oggettoId}/usa_carica/`, {
+  return fetchAuthenticated(`/api/personaggi/api/oggetti/${oggettoId}/usa_carica/`, {
     method: 'POST'
   });
 };
 
 // Ricarica oggetto (pagando crediti)
 export const ricaricaOggetto = (oggettoId) => {
-  return fetchAuthenticated(`/api/oggetti/${oggettoId}/ricarica/`, {
+  return fetchAuthenticated(`/api/personaggi/api/oggetti/${oggettoId}/ricarica/`, {
     method: 'POST'
   });
 };
@@ -616,11 +615,11 @@ export const ricaricaOggetto = (oggettoId) => {
 
 /**
  * Recupera i dettagli di un oggetto tramite ID
- * GET /personaggi/api/oggetti/<id>/
+ * GET /api/personaggi/api/oggetti/<id>/
  */
 export const getOggettoDetail = (oggettoId, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/oggetti/${oggettoId}/`,
+    `/api/personaggi/api/oggetti/${oggettoId}/`,
     { method: 'GET' },
     onLogout
   );
@@ -628,11 +627,11 @@ export const getOggettoDetail = (oggettoId, onLogout) => {
 
 /**
  * Equipaggia o disequipaggia un oggetto fisico.
- * POST /personaggi/api/oggetti/equipaggia/
+ * POST /api/personaggi/api/oggetti/equipaggia/
  */
 export const equipaggiaOggetto = (itemId, characterId, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/oggetti/equipaggia/', 
+    '/api/personaggi/api/oggetti/equipaggia/', 
     {
       method: 'POST',
       // Invia anche char_id nel JSON
@@ -647,7 +646,7 @@ export const equipaggiaOggetto = (itemId, characterId, onLogout) => {
 
 export const assemblaOggetto = (hostId, modId, characterId, useAcademy = false, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/oggetti/assembla/', 
+    '/api/personaggi/api/oggetti/assembla/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -663,7 +662,7 @@ export const assemblaOggetto = (hostId, modId, characterId, useAcademy = false, 
 
 export const smontaOggetto = (hostId, modId, characterId, useAcademy = false, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/oggetti/smonta/', 
+    '/api/personaggi/api/oggetti/smonta/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -680,7 +679,7 @@ export const smontaOggetto = (hostId, modId, characterId, useAcademy = false, on
 // Se hai bisogno del crafting nel frontend in futuro:
 export const craftOggettoFromInfusione = (infusioneId, targetId, qrCode, onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/oggetti/craft/',
+    '/api/personaggi/api/oggetti/craft/',
     {
       method: 'POST',
       body: JSON.stringify({
@@ -695,7 +694,7 @@ export const craftOggettoFromInfusione = (infusioneId, targetId, qrCode, onLogou
 
 export const startForging = (infusioneId, charId, slotTarget = null) => {
   return fetchAuthenticated(
-    '/personaggi/api/crafting/avvia_forgiatura/',
+    '/api/personaggi/api/crafting/avvia_forgiatura/',
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -709,7 +708,7 @@ export const startForging = (infusioneId, charId, slotTarget = null) => {
 
 export const completeForging = (forgiaturaId, charId) => {
   return fetchAuthenticated(
-    '/personaggi/api/crafting/completa_forgiatura/',
+    '/api/personaggi/api/crafting/completa_forgiatura/',
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -722,7 +721,7 @@ export const completeForging = (forgiaturaId, charId) => {
 
 export const getForgingQueue = (charId) => {
   return fetchAuthenticated(
-    `/personaggi/api/crafting/coda_forgiatura/?char_id=${charId}`,
+    `/api/personaggi/api/crafting/coda_forgiatura/?char_id=${charId}`,
     { method: 'GET' }
   );
 };
@@ -731,14 +730,14 @@ export const getForgingQueue = (charId) => {
 
 export const getShopItems = () => {
   return fetchAuthenticated(
-    '/personaggi/api/negozio/listino/',
+    '/api/personaggi/api/negozio/listino/',
     { method: 'GET' }
   );
 };
 
 export const buyShopItem = (oggettoId, charId) => {
   return fetchAuthenticated(
-    '/personaggi/api/negozio/acquista/',
+    '/api/personaggi/api/negozio/acquista/',
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -754,7 +753,7 @@ export const buyShopItem = (oggettoId, charId) => {
  */
 export const validateAssembly = (charId, hostId, modId) => {
   return fetchAuthenticated(
-    '/personaggi/api/assembly/validate/', 
+    '/api/personaggi/api/assembly/validate/', 
     {
       method: 'POST',
       body: JSON.stringify({
@@ -772,7 +771,7 @@ export const validateAssembly = (charId, hostId, modId) => {
  */
 export const createAssemblyRequest = (charId, hostId, modId, artisanName, offer, operationType = 'INST') => {
   return fetchAuthenticated(
-    '/personaggi/api/richieste-assemblaggio/crea/', 
+    '/api/personaggi/api/richieste-assemblaggio/crea/', 
     {
       method: 'POST',
       body: JSON.stringify({
@@ -792,7 +791,7 @@ export const createAssemblyRequest = (charId, hostId, modId, artisanName, offer,
  */
 export const acceptAssemblyRequest = (requestId) => {
   return fetchAuthenticated(
-    `/personaggi/api/richieste-assemblaggio/${requestId}/accetta/`, 
+    `/api/personaggi/api/richieste-assemblaggio/${requestId}/accetta/`, 
     { method: 'POST' }
   );
 };
@@ -802,7 +801,7 @@ export const acceptAssemblyRequest = (requestId) => {
  */
 export const rejectAssemblyRequest = (requestId) => {
   return fetchAuthenticated(
-    `/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
+    `/api/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
     { method: 'POST' }
   );
 };
@@ -812,7 +811,7 @@ export const rejectAssemblyRequest = (requestId) => {
  */
 export const getAssemblyRequests = () => {
   return fetchAuthenticated(
-    '/personaggi/api/richieste-assemblaggio/', 
+    '/api/personaggi/api/richieste-assemblaggio/', 
     { method: 'GET' }
   );
 };
@@ -820,7 +819,7 @@ export const getAssemblyRequests = () => {
 // Aggiungi questa funzione per recuperare gli artigiani capaci
 // Questa va bene per entrambi (Assemblaggio e Forgiatura)
 export const getCapableArtisans = (charId, hostId, modId, infusioneId) => {
-  return fetchAuthenticated('/personaggi/api/assembly/artisans/', {
+  return fetchAuthenticated('/api/personaggi/api/assembly/artisans/', {
       method: 'POST',
       body: JSON.stringify({ 
         char_id: charId, 
@@ -832,7 +831,7 @@ export const getCapableArtisans = (charId, hostId, modId, infusioneId) => {
 };
 
 export const forgiaOggetto = (infusioneId, charId, useAcademy = false) => {
-  return fetchAuthenticated('/personaggi/api/oggetti/forgia/', {
+  return fetchAuthenticated('/api/personaggi/api/oggetti/forgia/', {
       method: 'POST',
       body: JSON.stringify({ 
         infusione_id: infusioneId, 
@@ -843,7 +842,7 @@ export const forgiaOggetto = (infusioneId, charId, useAcademy = false) => {
 };
 
 export const createForgingRequest = (charId, infusioneId, artisanName, offer) => {
-  return fetchAuthenticated('/personaggi/api/richieste-assemblaggio/crea/', {
+  return fetchAuthenticated('/api/personaggi/api/richieste-assemblaggio/crea/', {
       method: 'POST',
       body: JSON.stringify({
         committente_id: charId,
@@ -856,7 +855,7 @@ export const createForgingRequest = (charId, infusioneId, artisanName, offer) =>
 };
 
 export const validateForging = (charId, infusioneId) => {
-  return fetchAuthenticated('/personaggi/api/forging/validate/', {
+  return fetchAuthenticated('/api/personaggi/api/forging/validate/', {
       method: 'POST',
       body: JSON.stringify({ 
         char_id: charId, 
@@ -866,7 +865,7 @@ export const validateForging = (charId, infusioneId) => {
 };
 
 export const getClassiOggetto = () => {
-  return fetchAuthenticated('/personaggi/api/classi_oggetto/', { method: 'GET' });
+  return fetchAuthenticated('/api/personaggi/api/classi_oggetto/', { method: 'GET' });
 };
 
 /**
@@ -875,7 +874,7 @@ export const getClassiOggetto = () => {
  */
 export const installaInnesto = (forgiaturaId, slot, characterId, targetId = null) => {
   return fetchAuthenticated(
-    '/personaggi/api/crafting/completa_forgiatura/', 
+    '/api/personaggi/api/crafting/completa_forgiatura/', 
     {
       method: 'POST',
       body: JSON.stringify({ 
@@ -893,7 +892,7 @@ export const installaInnesto = (forgiaturaId, slot, characterId, targetId = null
  */
 export const richiediOperazioneChirurgica = (forgiaturaId, slot, medicoNome, offerta, characterId) => {
   return fetchAuthenticated(
-    '/personaggi/api/richieste-assemblaggio/crea/', 
+    '/api/personaggi/api/richieste-assemblaggio/crea/', 
     {
       method: 'POST',
       body: JSON.stringify({
@@ -910,7 +909,7 @@ export const richiediOperazioneChirurgica = (forgiaturaId, slot, medicoNome, off
 
 export const richiediAssemblaggio = (data) => {
   return fetchAuthenticated(
-    '/personaggi/api/richieste-assemblaggio/crea/', 
+    '/api/personaggi/api/richieste-assemblaggio/crea/', 
     {
       method: 'POST',
       body: JSON.stringify(data)
@@ -923,7 +922,7 @@ export const richiediAssemblaggio = (data) => {
  */
 export const rifiutaRichiestaAssemblaggio = (requestId) => {
   return fetchAuthenticated(
-    `/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
+    `/api/personaggi/api/richieste-assemblaggio/${requestId}/rifiuta/`, 
     { method: 'POST' }
   );
 };
@@ -933,7 +932,7 @@ export const rifiutaRichiestaAssemblaggio = (requestId) => {
  */
 export const updatePersonaggioSettings = (charId, settingsData, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/personaggi/${charId}/`, 
+    `/api/personaggi/api/personaggi/${charId}/`, 
     {
       method: 'PATCH',
       body: JSON.stringify({ impostazioni_ui: settingsData })
@@ -946,7 +945,7 @@ export const updatePersonaggioSettings = (charId, settingsData, onLogout) => {
 
 export const getAcquirableCerimoniali = (charId, onLogout) => {
     return fetchAuthenticated(
-        `/personaggi/api/personaggio/me/cerimoniali_acquistabili/?char_id=${charId}`, 
+        `/api/personaggi/api/personaggio/me/cerimoniali_acquistabili/?char_id=${charId}`, 
         { method: 'GET' }, 
         onLogout
     );
@@ -955,7 +954,7 @@ export const getAcquirableCerimoniali = (charId, onLogout) => {
 // Modifica HP di un mostro in tempo reale
 export const updateMostroHp = (mostroId, delta, onLogout) => {
   return fetchAuthenticated(
-    `/plot/api/mostri-istanza/${mostroId}/modifica_hp/`,
+    `/api/plot/api/mostri-istanza/${mostroId}/modifica_hp/`,
     {
       method: 'POST',
       body: JSON.stringify({ delta })
@@ -967,7 +966,7 @@ export const updateMostroHp = (mostroId, delta, onLogout) => {
 // Associa un QR code scansionato a un oggetto "Vista" della quest
 export const associaQrAVista = (vistaId, qrId, onLogout, force = false) => {
   return fetchAuthenticated(
-    `/plot/api/viste-setup/${vistaId}/associa_qr/`,
+    `/api/plot/api/viste-setup/${vistaId}/associa_qr/`,
     {
       method: 'POST',
       body: JSON.stringify({ qr_id: qrId, force: force })
@@ -979,7 +978,7 @@ export const associaQrAVista = (vistaId, qrId, onLogout, force = false) => {
 // Associa QR direttamente a un elemento derivato da A_vista (Tessitura, Infusione, Cerimoniale, Oggetto, OggettoBase, Inventario)
 export const associaQrDiretto = (aVistaId, qrId, onLogout, force = false) => {
   return fetchAuthenticated(
-    `/personaggi/api/a-vista/${aVistaId}/associa-qr/`,
+    `/api/personaggi/api/a-vista/${aVistaId}/associa-qr/`,
     {
       method: 'POST',
       body: JSON.stringify({ qr_id: qrId, force: force })
@@ -989,33 +988,33 @@ export const associaQrDiretto = (aVistaId, qrId, onLogout, force = false) => {
 };
 
 // --- EVENTI ---
-export const getEventi = (onLogout) => fetchAuthenticated('/plot/api/eventi/', { method: 'GET' }, onLogout);
-export const createEvento = (data, onLogout) => fetchAuthenticated('/plot/api/eventi/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const updateEvento = (id, data, onLogout) => fetchAuthenticated(`/plot/api/eventi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
-export const deleteEvento = (id, onLogout) => fetchAuthenticated(`/plot/api/eventi/${id}/`, { method: 'DELETE' }, onLogout);
+export const getEventi = (onLogout) => fetchAuthenticated('/api/plot/api/eventi/', { method: 'GET' }, onLogout);
+export const createEvento = (data, onLogout) => fetchAuthenticated('/api/plot/api/eventi/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const updateEvento = (id, data, onLogout) => fetchAuthenticated(`/api/plot/api/eventi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+export const deleteEvento = (id, onLogout) => fetchAuthenticated(`/api/plot/api/eventi/${id}/`, { method: 'DELETE' }, onLogout);
 
 // --- GIORNI ---
-export const createGiorno = (data, onLogout) => fetchAuthenticated('/plot/api/giorni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const updateGiorno = (id, data, onLogout) => fetchAuthenticated(`/plot/api/giorni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
-export const deleteGiorno = (id, onLogout) => fetchAuthenticated(`/plot/api/giorni/${id}/`, { method: 'DELETE' }, onLogout);
+export const createGiorno = (data, onLogout) => fetchAuthenticated('/api/plot/api/giorni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const updateGiorno = (id, data, onLogout) => fetchAuthenticated(`/api/plot/api/giorni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+export const deleteGiorno = (id, onLogout) => fetchAuthenticated(`/api/plot/api/giorni/${id}/`, { method: 'DELETE' }, onLogout);
 
 // --- QUESTS ---
-export const createQuest = (data, onLogout) => fetchAuthenticated('/plot/api/quests/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-export const updateQuest = (id, data, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
-export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/quests/${id}/`, { method: 'DELETE' }, onLogout);
+export const createQuest = (data, onLogout) => fetchAuthenticated('/api/plot/api/quests/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+export const updateQuest = (id, data, onLogout) => fetchAuthenticated(`/api/plot/api/quests/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+export const deleteQuest = (id, onLogout) => fetchAuthenticated(`/api/plot/api/quests/${id}/`, { method: 'DELETE' }, onLogout);
 
 // Recupera tutte le liste per i dropdown dell'editor
-export const getRisorseEditor = (onLogout) => fetchAuthenticated('/plot/api/eventi/risorse_editor/', { method: 'GET' }, onLogout);
-export const getAVistaDisponibili = (onLogout) => fetchAuthenticated('/plot/api/eventi/a_vista_disponibili/', { method: 'GET' }, onLogout);
+export const getRisorseEditor = (onLogout) => fetchAuthenticated('/api/plot/api/eventi/risorse_editor/', { method: 'GET' }, onLogout);
+export const getAVistaDisponibili = (onLogout) => fetchAuthenticated('/api/plot/api/eventi/a_vista_disponibili/', { method: 'GET' }, onLogout);
 
 // Operazioni su PnG, Mostri e Viste
-// export const addPngToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-// export const addMostroToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
-// export const addVistaToQuest = (data, onLogout) => fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+// export const addPngToQuest = (data, onLogout) => fetchAuthenticated('/api/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+// export const addMostroToQuest = (data, onLogout) => fetchAuthenticated('/api/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+// export const addVistaToQuest = (data, onLogout) => fetchAuthenticated('/api/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
-export const removePngFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/png-assegnati/${id}/`, { method: 'DELETE' }, onLogout);
-export const removeMostroFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/mostri-istanza/${id}/`, { method: 'DELETE' }, onLogout);
-export const removeVistaFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/viste-setup/${id}/`, { method: 'DELETE' }, onLogout);
+export const removePngFromQuest = (id, onLogout) => fetchAuthenticated(`/api/plot/api/png-assegnati/${id}/`, { method: 'DELETE' }, onLogout);
+export const removeMostroFromQuest = (id, onLogout) => fetchAuthenticated(`/api/plot/api/mostri-istanza/${id}/`, { method: 'DELETE' }, onLogout);
+export const removeVistaFromQuest = (id, onLogout) => fetchAuthenticated(`/api/plot/api/viste-setup/${id}/`, { method: 'DELETE' }, onLogout);
 
 export const addPngToQuest = (questId, personaggioId, stafferId, onLogout) => {
     const payload = {
@@ -1023,7 +1022,7 @@ export const addPngToQuest = (questId, personaggioId, stafferId, onLogout) => {
         personaggio: parseInt(personaggioId),
         staffer: stafferId ? parseInt(stafferId) : null
     };
-    return fetchAuthenticated('/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
+    return fetchAuthenticated('/api/plot/api/png-assegnati/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };
 
 // Correzione Mostri
@@ -1033,7 +1032,7 @@ export const addMostroToQuest = (questId, templateId, stafferId, onLogout) => {
         template: parseInt(templateId),
         staffer: stafferId ? parseInt(stafferId) : null
     };
-    return fetchAuthenticated('/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
+    return fetchAuthenticated('/api/plot/api/mostri-istanza/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };
 
 // Correzione Viste: accetta l'oggetto vistaPayload
@@ -1043,124 +1042,124 @@ export const addVistaToQuest = (questId, data, onLogout) => {
         tipo: data.tipo,
         a_vista_id: parseInt(data.a_vista_id)
     };
-    return fetchAuthenticated('/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
+    return fetchAuthenticated('/api/plot/api/viste-setup/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
 };
 
 /** --- STRUMENTI MASTER --- **/
 
 // Recupera la lista di tutte le statistiche definite nel sistema
 export const getStatisticheList = (onLogout) => {
-  return fetchAuthenticated('/personaggi/api/statistiche/', { method: 'GET' }, onLogout);
+  return fetchAuthenticated('/api/personaggi/api/statistiche/', { method: 'GET' }, onLogout);
 };
 
 // --- INFUSIONI ---
 export const staffGetInfusioni = (onLogout, params = {}) => {
   // Costruiamo la query string (es: ?page=1&search=pippo)
   const queryString = new URLSearchParams(params).toString();
-  return fetchAuthenticated(`/personaggi/api/staff/infusioni/?${queryString}`, { method: 'GET' }, onLogout);
+  return fetchAuthenticated(`/api/personaggi/api/staff/infusioni/?${queryString}`, { method: 'GET' }, onLogout);
 };
 
 export const staffCreateInfusione = (data, onLogout) => 
-  fetchAuthenticated('/personaggi/api/staff/infusioni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+  fetchAuthenticated('/api/personaggi/api/staff/infusioni/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
 export const staffUpdateInfusione = (id, data, onLogout) => 
-  fetchAuthenticated(`/personaggi/api/staff/infusioni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+  fetchAuthenticated(`/api/personaggi/api/staff/infusioni/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 
 export const staffDeleteInfusione = (id, onLogout) => 
-  fetchAuthenticated(`/personaggi/api/staff/infusioni/${id}/`, { method: 'DELETE' }, onLogout);
+  fetchAuthenticated(`/api/personaggi/api/staff/infusioni/${id}/`, { method: 'DELETE' }, onLogout);
 
 // --- TESSITURE ---
 export const staffGetTessiture = (onLogout, params = {}) => {
   // Costruiamo la query string (es: ?page=1&search=pippo)
   const queryString = new URLSearchParams(params).toString();
-  return fetchAuthenticated(`/personaggi/api/staff/tessiture/?${queryString}`, { method: 'GET' }, onLogout);
+  return fetchAuthenticated(`/api/personaggi/api/staff/tessiture/?${queryString}`, { method: 'GET' }, onLogout);
 };
 
 export const staffCreateTessitura = (data, onLogout) => 
-  fetchAuthenticated('/personaggi/api/staff/tessiture/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+  fetchAuthenticated('/api/personaggi/api/staff/tessiture/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
 export const staffUpdateTessitura = (id, data, onLogout) => 
-  fetchAuthenticated(`/personaggi/api/staff/tessiture/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+  fetchAuthenticated(`/api/personaggi/api/staff/tessiture/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 
 export const staffDeleteTessitura = (id, onLogout) => 
-  fetchAuthenticated(`/personaggi/api/staff/tessiture/${id}/`, { method: 'DELETE' }, onLogout);
+  fetchAuthenticated(`/api/personaggi/api/staff/tessiture/${id}/`, { method: 'DELETE' }, onLogout);
 
 // --- CERIMONIALI ---
 export const staffGetCerimoniali = (onLogout, params = {}) => {
   // Costruiamo la query string (es: ?page=1&search=pippo)
   const queryString = new URLSearchParams(params).toString();
-  return fetchAuthenticated(`/personaggi/api/staff/cerimoniali/?${queryString}`, { method: 'GET' }, onLogout);
+  return fetchAuthenticated(`/api/personaggi/api/staff/cerimoniali/?${queryString}`, { method: 'GET' }, onLogout);
 };
 
 export const staffCreateCerimoniale = (data, onLogout) => 
-  fetchAuthenticated('/personaggi/api/staff/cerimoniali/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+  fetchAuthenticated('/api/personaggi/api/staff/cerimoniali/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
 export const staffUpdateCerimoniale = (id, data, onLogout) => 
-  fetchAuthenticated(`/personaggi/api/staff/cerimoniali/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+  fetchAuthenticated(`/api/personaggi/api/staff/cerimoniali/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 
 export const staffDeleteCerimoniale = (id, onLogout) => 
-  fetchAuthenticated(`/personaggi/api/staff/cerimoniali/${id}/`, { method: 'DELETE' }, onLogout);
+  fetchAuthenticated(`/api/personaggi/api/staff/cerimoniali/${id}/`, { method: 'DELETE' }, onLogout);
 
 // Gestione Oggetti (Istanze)
 export const staffGetOggetti = (onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/oggetti/', { method: 'GET' }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/oggetti/', { method: 'GET' }, onLogout);
 
 export const staffCreateOggetto = (data, onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/oggetti/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/oggetti/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
 export const staffUpdateOggetto = (id, data, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/oggetti/${id}/`, { method: 'PUT', body: JSON.stringify(data) }, onLogout);
+    fetchAuthenticated(`/api/personaggi/api/staff/oggetti/${id}/`, { method: 'PUT', body: JSON.stringify(data) }, onLogout);
 
 export const staffDeleteOggetto = (id, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/oggetti/${id}/`, { method: 'DELETE' }, onLogout);
+    fetchAuthenticated(`/api/personaggi/api/staff/oggetti/${id}/`, { method: 'DELETE' }, onLogout);
 
 // Gestione Oggetti Base (Listino/Template)
 export const staffGetOggettiBase = (onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/oggetti-base/', { method: 'GET' }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/oggetti-base/', { method: 'GET' }, onLogout);
 
 export const staffCreateOggettoBase = (data, onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/oggetti-base/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/oggetti-base/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
 export const staffUpdateOggettoBase = (id, data, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/oggetti-base/${id}/`, { method: 'PUT', body: JSON.stringify(data) }, onLogout);
+    fetchAuthenticated(`/api/personaggi/api/staff/oggetti-base/${id}/`, { method: 'PUT', body: JSON.stringify(data) }, onLogout);
 
 export const staffDeleteOggettoBase = (id, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/oggetti-base/${id}/`, { method: 'DELETE' }, onLogout);
+    fetchAuthenticated(`/api/personaggi/api/staff/oggetti-base/${id}/`, { method: 'DELETE' }, onLogout);
 
 // Utility
 export const staffGetClassiOggetto = (onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/classi-oggetto/', { method: 'GET' }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/classi-oggetto/', { method: 'GET' }, onLogout);
 
 // --- GESTIONE INVENTARI (Staff) ---
 export const staffGetInventari = (onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/inventari/', { method: 'GET' }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/inventari/', { method: 'GET' }, onLogout);
 
 export const staffCreateInventario = (data, onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/inventari/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/inventari/', { method: 'POST', body: JSON.stringify(data) }, onLogout);
 
 export const staffUpdateInventario = (id, data, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/inventari/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+    fetchAuthenticated(`/api/personaggi/api/staff/inventari/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 
 export const staffDeleteInventario = (id, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/inventari/${id}/`, { method: 'DELETE' }, onLogout);
+    fetchAuthenticated(`/api/personaggi/api/staff/inventari/${id}/`, { method: 'DELETE' }, onLogout);
 
 export const staffGetInventarioOggetti = (inventarioId, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/inventari/${inventarioId}/oggetti/`, { method: 'GET' }, onLogout);
+    fetchAuthenticated(`/api/personaggi/api/staff/inventari/${inventarioId}/oggetti/`, { method: 'GET' }, onLogout);
 
 export const staffAggiungiOggettoInventario = (inventarioId, oggettoId, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/inventari/${inventarioId}/aggiungi_oggetto/`, { 
+    fetchAuthenticated(`/api/personaggi/api/staff/inventari/${inventarioId}/aggiungi_oggetto/`, { 
         method: 'POST', 
         body: JSON.stringify({ oggetto_id: oggettoId }) 
     }, onLogout);
 
 export const staffRimuoviOggettoInventario = (inventarioId, oggettoId, onLogout) => 
-    fetchAuthenticated(`/personaggi/api/staff/inventari/${inventarioId}/rimuovi_oggetto/`, { 
+    fetchAuthenticated(`/api/personaggi/api/staff/inventari/${inventarioId}/rimuovi_oggetto/`, { 
         method: 'POST', 
         body: JSON.stringify({ oggetto_id: oggettoId }) 
     }, onLogout);
 
 export const staffGetOggettiSenzaPosizione = (onLogout) => 
-    fetchAuthenticated('/personaggi/api/staff/oggetti-senza-posizione/', { method: 'GET' }, onLogout);
+    fetchAuthenticated('/api/personaggi/api/staff/oggetti-senza-posizione/', { method: 'GET' }, onLogout);
 
 // Sezione Personaggi
 
@@ -1173,7 +1172,7 @@ export const getTipologiePersonaggio = async (onLogout) => {
     try {
         // Tenta la chiamata all'API reale
         // Assicurati che nel backend esista: router.register(r'tipologie', TipologiaPersonaggioViewSet)
-        const data = await fetchAuthenticated('/personaggi/api/tipologiepersonaggio/', { method: 'GET' }, onLogout);
+        const data = await fetchAuthenticated('/api/personaggi/api/tipologiepersonaggio/', { method: 'GET' }, onLogout);
         return data;
     } catch (error) {
         console.warn("API Tipologie non raggiungibile, uso fallback locale:", error);
@@ -1192,18 +1191,18 @@ export const getPersonaggiEditList = (onLogout, viewAll = false) => {
     // Nota: gestione-personaggi restituisce già la lista filtrata o completa in base all'utente/staff
     // Se vuoi forzare viewAll lato server potresti dover gestire i permessi, 
     // ma il get_queryset sopra lo fa già in automatico basandosi su is_staff.
-    return fetchAuthenticated('/personaggi/api/gestione-personaggi/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/api/personaggi/api/gestione-personaggi/', { method: 'GET' }, onLogout);
 };
 
 export const createPersonaggio = (data, onLogout) => {
-    return fetchAuthenticated('/personaggi/api/gestione-personaggi/', {
+    return fetchAuthenticated('/api/personaggi/api/gestione-personaggi/', {
         method: 'POST',
         body: JSON.stringify(data)
     }, onLogout);
 };
 
 export const updatePersonaggio = (id, data, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/gestione-personaggi/${id}/`, {
+    return fetchAuthenticated(`/api/personaggi/api/gestione-personaggi/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }, onLogout);
@@ -1211,7 +1210,7 @@ export const updatePersonaggio = (id, data, onLogout) => {
 
 // --- STAFF RESOURCES ---
 export const staffAddResources = (charId, tipo, amount, reason, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/gestione-personaggi/${charId}/add_resources/`, {
+    return fetchAuthenticated(`/api/personaggi/api/gestione-personaggi/${charId}/add_resources/`, {
         method: 'POST',
         body: JSON.stringify({ tipo, amount, reason })
     }, onLogout);
@@ -1222,7 +1221,7 @@ export const staffAddResources = (charId, tipo, amount, reason, onLogout) => {
  */
 export const staffGetProposteInValutazione = (onLogout) => {
   return fetchAuthenticated(
-    '/personaggi/api/staff/proposte/valutazione/', 
+    '/api/personaggi/api/staff/proposte/valutazione/', 
     { method: 'GET' }, 
     onLogout
   );
@@ -1233,7 +1232,7 @@ export const staffGetProposteInValutazione = (onLogout) => {
  */
 export const staffRifiutaProposta = (propostaId, noteStaff, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/staff/proposte/${propostaId}/rifiuta/`,
+    `/api/personaggi/api/staff/proposte/${propostaId}/rifiuta/`,
     {
       method: 'POST',
       body: JSON.stringify({ note_staff: noteStaff })
@@ -1248,7 +1247,7 @@ export const staffRifiutaProposta = (propostaId, noteStaff, onLogout) => {
  */
 export const staffApprovaProposta = (propostaId, finalData, onLogout) => {
   return fetchAuthenticated(
-    `/personaggi/api/staff/proposta/${propostaId}/approva/`,
+    `/api/personaggi/api/staff/proposta/${propostaId}/approva/`,
     {
       method: 'POST',
       body: JSON.stringify(finalData)
@@ -1260,74 +1259,74 @@ export const staffApprovaProposta = (propostaId, finalData, onLogout) => {
 // --- GESTIONE MOSTRI (TEMPLATE) ---
 
 export const staffGetMostriTemplates = (onLogout) => {
-    return fetchAuthenticated('/plot/api/staff/mostri-templates/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/api/plot/api/staff/mostri-templates/', { method: 'GET' }, onLogout);
 };
 
 export const staffCreateMostroTemplate = (data, onLogout) => {
-    return fetchAuthenticated('/plot/api/staff/mostri-templates/', { 
+    return fetchAuthenticated('/api/plot/api/staff/mostri-templates/', { 
         method: 'POST', 
         body: JSON.stringify(data) 
     }, onLogout);
 };
 
 export const staffUpdateMostroTemplate = (id, data, onLogout) => {
-    return fetchAuthenticated(`/plot/api/staff/mostri-templates/${id}/`, { 
+    return fetchAuthenticated(`/api/plot/api/staff/mostri-templates/${id}/`, { 
         method: 'PUT', // Usa PUT per sostituire l'intero oggetto inclusi gli attacchi
         body: JSON.stringify(data) 
     }, onLogout);
 };
 
 export const staffDeleteMostroTemplate = (id, onLogout) => {
-    return fetchAuthenticated(`/plot/api/staff/mostri-templates/${id}/`, { method: 'DELETE' }, onLogout);
+    return fetchAuthenticated(`/api/plot/api/staff/mostri-templates/${id}/`, { method: 'DELETE' }, onLogout);
 };
 
 // --- GESTIONE ABILITÀ ---
 
 export const staffGetAbilitaList = (onLogout) => {
-    return fetchAuthenticated('/personaggi/api/staff/abilita/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/api/personaggi/api/staff/abilita/', { method: 'GET' }, onLogout);
 };
 
 export const staffCreateAbilita = (data, onLogout) => {
-    return fetchAuthenticated('/personaggi/api/staff/abilita/', {
+    return fetchAuthenticated('/api/personaggi/api/staff/abilita/', {
         method: 'POST',
         body: JSON.stringify(data)
     }, onLogout);
 };
 
 export const staffUpdateAbilita = (id, data, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/abilita/${id}/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/abilita/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }, onLogout);
 };
 
 export const staffDeleteAbilita = (id, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/abilita/${id}/`, { method: 'DELETE' }, onLogout);
+    return fetchAuthenticated(`/api/personaggi/api/staff/abilita/${id}/`, { method: 'DELETE' }, onLogout);
 };
 
 // Utile per l'editor: serve la lista di tutte le abilità per i prerequisiti
 export const getAbilitaOptions = (onLogout) => {
-    return fetchAuthenticated('/personaggi/api/abilita/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/api/personaggi/api/abilita/', { method: 'GET' }, onLogout);
 };
 
 export const getTiersList = (onLogout) => {
-    return fetchAuthenticated('/personaggi/api/tier/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/api/personaggi/api/tier/', { method: 'GET' }, onLogout);
 };
 
 export const staffCreateOffGame = async (data, onLogout) => {
-    return await fetchAuthenticated('/plot/api/staff/staff-offgame/', 'POST', data, onLogout);
+    return await fetchAuthenticated('/api/plot/api/staff/staff-offgame/', 'POST', data, onLogout);
 };
 
 export const staffDeleteOffGame = async (id, onLogout) => {
-    return await fetchAuthenticated(`/plot/api/staff/staff-offgame/${id}/`, 'DELETE', null, onLogout);
+    return await fetchAuthenticated(`/api/plot/api/staff/staff-offgame/${id}/`, 'DELETE', null, onLogout);
 };
 
 // src/api.js - Aggiungi queste esportazioni
-export const addFaseToQuest = (payload, onLogout) => fetchAuthenticated('/plot/api/fasi/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
-export const removeFaseFromQuest = (id, onLogout) => fetchAuthenticated(`/plot/api/fasi/${id}/`, { method: 'DELETE' }, onLogout);
-export const addTaskToFase = (payload, onLogout) => fetchAuthenticated('/plot/api/tasks/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
-export const removeTaskFromFase = (id, onLogout) => fetchAuthenticated(`/plot/api/tasks/${id}/`, { method: 'DELETE' }, onLogout);
-export const updateFase = (id, data, onLogout) => fetchAuthenticated(`/plot/api/fasi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
+export const addFaseToQuest = (payload, onLogout) => fetchAuthenticated('/api/plot/api/fasi/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
+export const removeFaseFromQuest = (id, onLogout) => fetchAuthenticated(`/api/plot/api/fasi/${id}/`, { method: 'DELETE' }, onLogout);
+export const addTaskToFase = (payload, onLogout) => fetchAuthenticated('/api/plot/api/tasks/', { method: 'POST', body: JSON.stringify(payload) }, onLogout);
+export const removeTaskFromFase = (id, onLogout) => fetchAuthenticated(`/api/plot/api/tasks/${id}/`, { method: 'DELETE' }, onLogout);
+export const updateFase = (id, data, onLogout) => fetchAuthenticated(`/api/plot/api/fasi/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }, onLogout);
 
 
 
@@ -1336,7 +1335,7 @@ export const updateFase = (id, data, onLogout) => fetchAuthenticated(`/plot/api/
 export const getWikiMenu = async () => {
   const token = localStorage.getItem('kor35_token');
   // Puntiamo all'endpoint "smart" definito nelle urlpatterns di gestione_plot/urls.py
-  const endpoint = '/plot/api/wiki/menu/'; 
+  const endpoint = '/api/plot/api/wiki/menu/'; 
 
   if (token) {
     // Se c'è il token, usiamo fetchAuthenticated: il backend riconoscerà lo Staff 
@@ -1350,7 +1349,7 @@ export const getWikiMenu = async () => {
 
 export const getWikiPage = async (slug) => {
   const token = localStorage.getItem('kor35_token');
-  const endpoint = `/plot/api/wiki/pagina/${slug}/`;
+  const endpoint = `/api/plot/api/wiki/pagina/${slug}/`;
 
   if (token) {
     return fetchAuthenticated(endpoint, { method: 'GET' });
@@ -1361,35 +1360,35 @@ export const getWikiPage = async (slug) => {
 
 
 export const getWikiTable = (id) => {
-  return fetchPublic(`/plot/api/public/wiki-tabelle/${id}/`);
+  return fetchPublic(`/api/plot/api/public/wiki-tabelle/${id}/`);
 };
 
 export const getWikiAura = (id) => {
-  return fetchPublic(`/plot/api/public/wiki-aure/${id}/`);
+  return fetchPublic(`/api/plot/api/public/wiki-aure/${id}/`);
 };
 
 // --- AGGIUNTA PER WIDGET TIER ---
 export const getWikiTier = (id) => {
-  return fetchPublic(`/plot/api/public/wiki-tiers/${id}/`);
+  return fetchPublic(`/api/plot/api/public/wiki-tiers/${id}/`);
 };
 
 // Helper per avere la lista di tutti i Tier (per l'editor del Master)
 export const getWikiTierList = () => {
-  return fetchPublic('/plot/api/public/wiki-tiers/');
+  return fetchPublic('/api/plot/api/public/wiki-tiers/');
 };
 
 // --- WIDGET IMMAGINI WIKI ---
 export const getWikiImage = (id) => {
-  return fetchPublic(`/plot/api/public/wiki-immagini/${id}/`);
+  return fetchPublic(`/api/plot/api/public/wiki-immagini/${id}/`);
 };
 
 export const getWikiImageList = () => {
-  return fetchPublic('/plot/api/public/wiki-immagini/');
+  return fetchPublic('/api/plot/api/public/wiki-immagini/');
 };
 
 // Crea una nuova immagine wiki (Staff) - Supporta FormData per immagini
 export const createWikiImage = (formData, onLogout) => {
-  return fetchAuthenticated('/plot/api/staff/wiki-immagini/', {
+  return fetchAuthenticated('/api/plot/api/staff/wiki-immagini/', {
     method: 'POST',
     body: formData // fetchAuthenticated gestisce automaticamente il Content-Type per FormData
   }, onLogout);
@@ -1398,7 +1397,7 @@ export const createWikiImage = (formData, onLogout) => {
 // Aggiorna un'immagine wiki esistente (Staff) - Supporta FormData per immagini
 // Usa PATCH per aggiornamenti parziali (non sovrascrive l'immagine se non viene passata)
 export const updateWikiImage = (id, formData, onLogout) => {
-  return fetchAuthenticated(`/plot/api/staff/wiki-immagini/${id}/`, {
+  return fetchAuthenticated(`/api/plot/api/staff/wiki-immagini/${id}/`, {
     method: 'PATCH',
     body: formData
   }, onLogout);
@@ -1406,23 +1405,23 @@ export const updateWikiImage = (id, formData, onLogout) => {
 
 // Elimina un'immagine wiki (Staff)
 export const deleteWikiImage = (id, onLogout) => {
-  return fetchAuthenticated(`/plot/api/staff/wiki-immagini/${id}/`, {
+  return fetchAuthenticated(`/api/plot/api/staff/wiki-immagini/${id}/`, {
     method: 'DELETE'
   }, onLogout);
 };
 
 // --- WIDGET BUTTONS WIKI ---
 export const getWidgetButtons = (id) => {
-  return fetchPublic(`/plot/api/public/wiki-buttons/${id}/`);
+  return fetchPublic(`/api/plot/api/public/wiki-buttons/${id}/`);
 };
 
 export const getWidgetButtonsList = () => {
-  return fetchPublic('/plot/api/public/wiki-buttons/');
+  return fetchPublic('/api/plot/api/public/wiki-buttons/');
 };
 
 // Crea un nuovo widget buttons (Staff)
 export const createWidgetButtons = (data, onLogout) => {
-  return fetchAuthenticated('/plot/api/staff/wiki-buttons/', {
+  return fetchAuthenticated('/api/plot/api/staff/wiki-buttons/', {
     method: 'POST',
     body: JSON.stringify(data)
   }, onLogout);
@@ -1430,7 +1429,7 @@ export const createWidgetButtons = (data, onLogout) => {
 
 // Aggiorna un widget buttons esistente (Staff)
 export const updateWidgetButtons = (id, data, onLogout) => {
-  return fetchAuthenticated(`/plot/api/staff/wiki-buttons/${id}/`, {
+  return fetchAuthenticated(`/api/plot/api/staff/wiki-buttons/${id}/`, {
     method: 'PATCH',
     body: JSON.stringify(data)
   }, onLogout);
@@ -1438,36 +1437,36 @@ export const updateWidgetButtons = (id, data, onLogout) => {
 
 // Elimina un widget buttons (Staff)
 export const deleteWidgetButtons = (id, onLogout) => {
-  return fetchAuthenticated(`/plot/api/staff/wiki-buttons/${id}/`, {
+  return fetchAuthenticated(`/api/plot/api/staff/wiki-buttons/${id}/`, {
     method: 'DELETE'
   }, onLogout);
 };
 
 // Recupera la lista delle immagini wiki (Staff) - versione autenticata
 export const staffGetWikiImages = (onLogout) => {
-  return fetchAuthenticated('/plot/api/staff/wiki-immagini/', {
+  return fetchAuthenticated('/api/plot/api/staff/wiki-immagini/', {
     method: 'GET'
   }, onLogout);
 };
 
 // --- EVENTI PUBBLICI ---
 export const getEventiPubblici = () => {
-  return fetchPublic('/plot/api/public/eventi/');
+  return fetchPublic('/api/plot/api/public/eventi/');
 };
 
 // --- CONFIGURAZIONE SITO ---
 export const getConfigurazioneSito = () => {
-  return fetchPublic('/plot/api/public/configurazione-sito/1/');
+  return fetchPublic('/api/plot/api/public/configurazione-sito/1/');
 };
 
 // --- LINK SOCIAL ---
 export const getLinkSocial = () => {
-  return fetchPublic('/plot/api/public/link-social/');
+  return fetchPublic('/api/plot/api/public/link-social/');
 };
 
 // Crea una nuova pagina (Staff) - Supporta FormData per immagini
 export const createWikiPage = (formData, onLogout) => {
-  return fetchAuthenticated('/plot/api/staff/pagine-regolamento/', {
+  return fetchAuthenticated('/api/plot/api/staff/pagine-regolamento/', {
     method: 'POST',
     body: formData // fetchAuthenticated gestisce automaticamente il Content-Type per FormData
   }, onLogout);
@@ -1475,7 +1474,7 @@ export const createWikiPage = (formData, onLogout) => {
 
 // Aggiorna una pagina esistente (Staff)
 export const updateWikiPage = (id, formData, onLogout) => {
-  return fetchAuthenticated(`/plot/api/staff/pagine-regolamento/${id}/`, {
+  return fetchAuthenticated(`/api/plot/api/staff/pagine-regolamento/${id}/`, {
     method: 'PUT',
     body: formData
   }, onLogout);
@@ -1484,36 +1483,36 @@ export const updateWikiPage = (id, formData, onLogout) => {
 // --- GESTIONE TABELLE (TIER) ---
 
 export const getTiers = (onLogout) => {
-    return fetchAuthenticated('/personaggi/api/staff/tiers/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/api/personaggi/api/staff/tiers/', { method: 'GET' }, onLogout);
 };
 
 export const createTier = (data, onLogout) => {
-    return fetchAuthenticated('/personaggi/api/staff/tiers/', {
+    return fetchAuthenticated('/api/personaggi/api/staff/tiers/', {
         method: 'POST',
         body: JSON.stringify(data)
     }, onLogout);
 };
 
 export const updateTier = (id, data, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/tiers/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }, onLogout);
 };
 
 export const deleteTier = (id, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/tiers/${id}/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/tiers/${id}/`, {
         method: 'DELETE'
     }, onLogout);
 };
 
 export const getAllAbilitaSimple = (onLogout) => {
-    return fetchAuthenticated('/personaggi/api/staff/tiers/all_abilita/', { method: 'GET' }, onLogout);
+    return fetchAuthenticated('/api/personaggi/api/staff/tiers/all_abilita/', { method: 'GET' }, onLogout);
 };
 
 export const updateTierAbilita = (tierId, abilitaList, onLogout) => {
     // abilitaList deve essere array di { abilita_id, ordine }
-    return fetchAuthenticated(`/personaggi/api/staff/tiers/${tierId}/update_abilita_list/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/tiers/${tierId}/update_abilita_list/`, {
         method: 'POST',
         body: JSON.stringify({ abilita_list: abilitaList })
     }, onLogout);
@@ -1525,7 +1524,7 @@ export const getWikiImageUrl = (slug, width = 0) => {
     // Nota: API_BASE_URL deve essere la root del backend (es. http://localhost:8000)
     // Se usi il proxy di Vite, potrebbe essere solo ''
     const baseUrl = API_BASE_URL; // Sostituisci con la tua URL vera o variabile env
-    return `${baseUrl}/plot/api/wiki/image/${slug}/?w=${width}`;
+    return `${baseUrl}/api/plot/api/wiki/image/${slug}/?w=${width}`;
 };
 
 // Funzione helper extra per le immagini "grezze" (es. se servono fuori dal resize)
@@ -1540,7 +1539,7 @@ export const getMediaUrl = (path) => {
  */
 export const registerUser = async (userData) => {
     // userData deve contenere: username, password, email, first_name, last_name
-    return fetchPublic('/personaggi/api/user/register/', {
+    return fetchPublic('/api/personaggi/api/user/register/', {
         method: 'POST',
         body: JSON.stringify(userData)
     });
@@ -1550,7 +1549,7 @@ export const registerUser = async (userData) => {
  * Cambia la password dell'utente loggato.
  */
 export const changePassword = async (oldPassword, newPassword, onLogout) => {
-    return fetchAuthenticated('/personaggi/api/user/change-password/', {
+    return fetchAuthenticated('/api/personaggi/api/user/change-password/', {
         method: 'POST',
         body: JSON.stringify({
             old_password: oldPassword,
@@ -1563,7 +1562,7 @@ export const changePassword = async (oldPassword, newPassword, onLogout) => {
  * Attiva un utente (Solo Staff).
  */
 export const activateUser = async (userIdToActivate, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/activate-user/${userIdToActivate}/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/activate-user/${userIdToActivate}/`, {
         method: 'POST'
     }, onLogout);
 };
@@ -1572,7 +1571,7 @@ export const activateUser = async (userIdToActivate, onLogout) => {
  * Elimina un utente (Solo Staff).
  */
 export const deleteUser = async (userIdToDelete, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/delete-user/${userIdToDelete}/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/delete-user/${userIdToDelete}/`, {
         method: 'DELETE'
     }, onLogout);
 };
@@ -1582,7 +1581,7 @@ export const deleteUser = async (userIdToDelete, onLogout) => {
  */
 export const fetchStaffMessages = async (onLogout) => {
     // --- CORREZIONE: Usa l'endpoint specifico per lo staff invece di quello generico ---
-    return fetchAuthenticated('/personaggi/api/staff/messages/', {
+    return fetchAuthenticated('/api/personaggi/api/staff/messages/', {
         method: 'GET'
     }, onLogout);
 };
@@ -1591,7 +1590,7 @@ export const fetchStaffMessages = async (onLogout) => {
  * Marca un messaggio staff come letto.
  */
 export const markStaffMessageAsRead = async (messageId, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/messages/${messageId}/leggi/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/messages/${messageId}/leggi/`, {
         method: 'POST'
     }, onLogout);
 };
@@ -1600,7 +1599,7 @@ export const markStaffMessageAsRead = async (messageId, onLogout) => {
  * Elimina un messaggio staff.
  */
 export const deleteStaffMessage = async (messageId, onLogout) => {
-    return fetchAuthenticated(`/personaggi/api/staff/messages/${messageId}/cancella/`, {
+    return fetchAuthenticated(`/api/personaggi/api/staff/messages/${messageId}/cancella/`, {
         method: 'POST'
     }, onLogout);
 };
@@ -1610,7 +1609,7 @@ export const deleteStaffMessage = async (messageId, onLogout) => {
  */
 export const getConversazioni = async (personaggioId, onLogout) => {
     return fetchAuthenticated(
-        `/personaggi/api/messaggi/conversazioni/?personaggio_id=${personaggioId}`,
+        `/api/personaggi/api/messaggi/conversazioni/?personaggio_id=${personaggioId}`,
         { method: 'GET' },
         onLogout
     );
@@ -1621,7 +1620,7 @@ export const getConversazioni = async (personaggioId, onLogout) => {
  */
 export const rispondiMessaggio = async (messaggioId, personaggioId, testo, titolo, onLogout) => {
     return fetchAuthenticated(
-        `/personaggi/api/messaggi/${messaggioId}/rispondi/`,
+        `/api/personaggi/api/messaggi/${messaggioId}/rispondi/`,
         {
             method: 'POST',
             body: JSON.stringify({

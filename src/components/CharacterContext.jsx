@@ -83,7 +83,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   useEffect(() => {
     const loadInitialTimers = async () => {
       try {
-        const data = await fetchAuthenticated('/personaggi/api/timers/active/', onLogout);
+        const data = await fetchAuthenticated('/api/personaggi/api/timers/active/', onLogout);
         if (Array.isArray(data)) {
           data.forEach(t => updateTimerState(t));
         }
@@ -225,7 +225,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
       setUnreadCount(prev => newStatus ? Math.max(0, prev - 1) : prev + 1);
       
       try { 
-          await fetchAuthenticated(`/personaggi/api/messaggi/${msgId}/toggle_letto/`, {
+          await fetchAuthenticated(`/api/personaggi/api/messaggi/${msgId}/toggle_letto/`, {
               method: 'POST',
               body: JSON.stringify({ personaggio_id: selectedCharacterId })
           }, onLogout);

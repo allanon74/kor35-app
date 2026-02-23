@@ -13,8 +13,8 @@ const StatisticaModificatoriModal = ({ punteggio, personaggioId, onClose, onLogo
         setLoading(true);
         setError(null);
         
-        const url = `/personaggi/api/personaggi/${personaggioId}/modificatori-dettagliati/?parametro=${punteggio.parametro}`;
-        const response = await fetchAuthenticated(url, onLogout);
+        const url = `/api/personaggi/api/personaggi/${personaggioId}/modificatori-dettagliati/?parametro=${punteggio.parametro}`;
+        const response = await fetchAuthenticated(url, { method: 'GET' }, onLogout);
         
         // La risposta è un oggetto con una chiave uguale al parametro
         const datiParametro = response[punteggio.parametro];
