@@ -1,5 +1,6 @@
 import React, { useRef, useLayoutEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import WidgetTier from './wg/WidgetTier';
 import WidgetAura from './wg/WidgetAura';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
@@ -9,8 +10,17 @@ import WidgetEventi from './wg/WidgetEventi';
 import WidgetSocial from './wg/WidgetSocial';
 import WidgetButtons from './wg/WidgetButtons';
 
+// I widget montati con createRoot non ereditano il contesto Router.
+// WidgetButtons usa useNavigate e Link, quindi va avvolto in BrowserRouter.
+const RouterWrapper = ({ children }) => <BrowserRouter>{children}</BrowserRouter>;
+
 const getWidgetComponent = (widgetType, id) => {
   const widgetWrapper = (children) => <div className="not-prose">{children}</div>;
+  const needsRouter = (children) => (
+    <RouterWrapper>
+      {widgetWrapper(children)}
+    </RouterWrapper>
+  );
   switch (widgetType) {
     case 'TIER': return widgetWrapper(<WidgetTier id={id} />);
     case 'AURA': return widgetWrapper(<WidgetAura id={id} />);
@@ -21,7 +31,7 @@ const getWidgetComponent = (widgetType, id) => {
     case 'EVENTI': return widgetWrapper(<WidgetEventi />);
     case 'SOCIAL': return widgetWrapper(<WidgetSocial />);
     case 'BUTTONS':
-    case 'PULSANTI': return widgetWrapper(<WidgetButtons id={id} />);
+    case 'PULSANTI': return needsRouter(<WidgetButtons id={id} />);
     default: return <span className="text-red-500 text-xs">[WIDGET IGNOTO: {widgetType}]</span>;
   }
 };
