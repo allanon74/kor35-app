@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useLayoutEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 import WidgetTier from './wg/WidgetTier';
 import WidgetAura from './wg/WidgetAura';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
@@ -8,26 +9,33 @@ import WidgetEventi from './wg/WidgetEventi';
 import WidgetSocial from './wg/WidgetSocial';
 import WidgetButtons from './wg/WidgetButtons';
 
+const getWidgetComponent = (widgetType, id) => {
+  const widgetWrapper = (children) => <div className="not-prose">{children}</div>;
+  switch (widgetType) {
+    case 'TIER': return widgetWrapper(<WidgetTier id={id} />);
+    case 'AURA': return widgetWrapper(<WidgetAura id={id} />);
+    case 'TABELLA': return widgetWrapper(<WidgetTabellaAbilita id={id} />);
+    case 'IMAGE':
+    case 'IMMAGINE': return widgetWrapper(<WidgetImmagine id={id} />);
+    case 'CHI_SIAMO': return widgetWrapper(<WidgetChiSiamo />);
+    case 'EVENTI': return widgetWrapper(<WidgetEventi />);
+    case 'SOCIAL': return widgetWrapper(<WidgetSocial />);
+    case 'BUTTONS':
+    case 'PULSANTI': return widgetWrapper(<WidgetButtons id={id} />);
+    default: return <span className="text-red-500 text-xs">[WIDGET IGNOTO: {widgetType}]</span>;
+  }
+};
+
 export default function WikiRenderer({ content }) {
+  const containerRef = useRef(null);
+
   if (!content) return null;
 
   // --- FUNZIONE DI PULIZIA PROFONDA ---
   const cleanContent = (html) => {
     let currentHtml = html;
     let hasChanged = true;
-
-    // Regex spiegata:
-    // <([a-z][a-z0-9]*)   -> Cattura il tag di apertura (es: p, div, span, strong) nel gruppo 1
-    // [^>]*>              -> Ignora attributi (class, style, etc.)
-    // [\s\u00A0]* -> Ignora spazi bianchi e Non-Breaking Spaces reali
-    // (?:&nbsp;|<br\/?>)* -> Ignora entità &nbsp; e tag <br>
-    // ({{WIDGET_[^}]+}})  -> CATTURA IL WIDGET nel gruppo 2
-    // ...ripetizione ignore... -> Ignora spazi/br dopo il widget
-    // <\/\1>              -> Cerca la chiusura dello STESSO tag catturato all'inizio
-    
     const wrapperRegex = /<([a-z][a-z0-9]*)[^>]*>(?:[\s\u00A0]|&nbsp;|<br\/?>)*({{WIDGET_[A-Z_]+:\d+}})(?:[\s\u00A0]|&nbsp;|<br\/?>)*<\/\1>/gi;
-
-    // Continuiamo a eseguire la replace finché troviamo match (per gestire nesting tipo <p><span>{{WIDGET}}</span></p>)
     while (hasChanged) {
       const newHtml = currentHtml.replace(wrapperRegex, '$2');
       if (newHtml !== currentHtml) {
@@ -36,51 +44,39 @@ export default function WikiRenderer({ content }) {
         hasChanged = false;
       }
     }
-    
     return currentHtml;
   };
 
-  // 1. Eseguiamo la pulizia
-  const processedContent = cleanContent(content);
+  // 1. Pulizia
+  let processedContent = cleanContent(content);
 
-  // 2. Parsing per dividere HTML e Widget
-  const regex = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
-  const parts = [];
-  let lastIndex = 0;
-  let match;
+  // 2. Rimuovi attributo "open" da details.wiki-collapse così partono sempre chiusi
+  processedContent = processedContent.replace(
+    /<details\s+class=["']wiki-collapse["'][^>]*>/gi,
+    '<details class="wiki-collapse">'
+  );
 
-  while ((match = regex.exec(processedContent)) !== null) {
-    // Aggiungi parte HTML precedente
-    if (match.index > lastIndex) {
-      parts.push({ 
-        type: 'html', 
-        content: processedContent.substring(lastIndex, match.index) 
-      });
-    }
+  // 3. Sostituisci widget con placeholder (mantiene la struttura HTML intatta, es. dentro <details>)
+  processedContent = processedContent.replace(
+    /{{WIDGET_([A-Z_]+):(\d+)}}/g,
+    (_, type, id) => `<span data-widget-mount data-type="${type}" data-id="${id}" class="wiki-widget-placeholder"></span>`
+  );
 
-    // Aggiungi Widget
-    parts.push({
-      type: 'widget',
-      widgetType: match[1], 
-      id: match[2]
+  // Mount dei widget nei placeholder (dopo il render dell'HTML)
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const placeholders = container.querySelectorAll('[data-widget-mount]');
+    const roots = [];
+    placeholders.forEach((ph) => {
+      const type = ph.dataset.type;
+      const id = ph.dataset.id;
+      const root = createRoot(ph);
+      root.render(getWidgetComponent(type, id));
+      roots.push(root);
     });
-
-    lastIndex = regex.lastIndex;
-  }
-
-  // Aggiungi eventuale HTML rimanente
-  if (lastIndex < processedContent.length) {
-    parts.push({ type: 'html', content: processedContent.substring(lastIndex) });
-  }
-
-  // console.log("--- DEBUG WIKI RENDERER ---");
-  // parts.forEach((part, i) => {
-  //     console.log(`Part ${i} [${part.type}]:`, part.content || part.widgetType);
-  //     if (part.type === 'html') {
-  //         // Controlla se ci sono tag aperti non chiusi
-  //         console.log("HTML Chunk:", part.content); 
-  //     }
-  // });
+    return () => roots.forEach((r) => r.unmount());
+  }, [content]);
 
   return (
     <>
@@ -161,51 +157,15 @@ export default function WikiRenderer({ content }) {
           padding: 16px;
           background: #fff;
         }
+        .wiki-content .wiki-widget-placeholder {
+          display: block;
+        }
       `}</style>
-      <div className="wiki-content prose prose-red max-w-none text-gray-800">
-        {parts.map((part, index) => {
-          if (part.type === 'widget') {
-              // not-prose: esclude i widget dagli stili Typography (prose) che sovrascrivono
-              // colori e stili custom - es. icone Lucide nei pulsanti diventavano invisibili
-              const widgetWrapper = (children) => (
-                <div key={index} className="not-prose">
-                  {children}
-                </div>
-              );
-              switch (part.widgetType) {
-                  case 'TIER':
-                      return widgetWrapper(<WidgetTier id={part.id} />);
-                  case 'AURA':
-                      return widgetWrapper(<WidgetAura id={part.id} />);
-                  case 'TABELLA':
-                      return widgetWrapper(<WidgetTabellaAbilita id={part.id} />);
-                  case 'IMAGE':
-                  case 'IMMAGINE':
-                      return widgetWrapper(<WidgetImmagine id={part.id} />);
-                  case 'CHI_SIAMO':
-                      return widgetWrapper(<WidgetChiSiamo />);
-                  case 'EVENTI':
-                      return widgetWrapper(<WidgetEventi />);
-                  case 'SOCIAL':
-                      return widgetWrapper(<WidgetSocial />);
-                  case 'BUTTONS':
-                  case 'PULSANTI':
-                      return widgetWrapper(<WidgetButtons id={part.id} />);
-                  default:
-                      return (
-                          <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">
-                              [WIDGET IGNOTO: {part.widgetType}]
-                          </div>
-                      );
-              }
-          }
-          
-          // Renderizza HTML.
-          // Importante: se cleanContent ha funzionato, qui dentro NON ci sono pezzi di tag orfani.
-          // Se part.content è solo uno spazio o a capo, React lo gestisce bene.
-          return <div key={index} dangerouslySetInnerHTML={{ __html: part.content }} />;
-        })}
-      </div>
+      <div
+        ref={containerRef}
+        className="wiki-content prose prose-red max-w-none text-gray-800"
+        dangerouslySetInnerHTML={{ __html: processedContent }}
+      />
     </>
   );
 }

@@ -29,8 +29,90 @@ const ICON_MAP = {
  * Renderizza una griglia di pulsanti configurabili con link a pagine wiki o app
  */
 
-// Preset di colori disponibili
+// Preset di colori (include stili cromatici condivisi con Tier)
 const COLOR_PRESETS = {
+  // Stili cromatici (identici a Tier)
+  white: {
+    name: 'Bianco',
+    gradient: 'from-gray-100 to-white',
+    border: 'border-gray-300',
+    bg: 'from-white to-gray-50',
+    icon: 'bg-gray-400',
+    text: 'text-gray-700'
+  },
+  gray: {
+    name: 'Grigio',
+    gradient: 'from-gray-500 to-gray-600',
+    border: 'border-gray-400',
+    bg: 'from-gray-100 to-gray-200',
+    icon: 'bg-gray-500',
+    text: 'text-gray-600'
+  },
+  red: {
+    name: 'Rosso',
+    gradient: 'from-red-600 to-red-700',
+    border: 'border-red-300',
+    bg: 'from-red-50 to-red-100',
+    icon: 'bg-red-600',
+    text: 'text-red-600'
+  },
+  black: {
+    name: 'Nero',
+    gradient: 'from-gray-900 to-black',
+    border: 'border-gray-700',
+    bg: 'from-gray-800 to-gray-900',
+    icon: 'bg-gray-800',
+    text: 'text-gray-800'
+  },
+  ochre: {
+    name: 'Ocra',
+    gradient: 'from-amber-700 to-yellow-800',
+    border: 'border-amber-300',
+    bg: 'from-amber-50 to-yellow-100',
+    icon: 'bg-amber-600',
+    text: 'text-amber-700'
+  },
+  blue: {
+    name: 'Blu',
+    gradient: 'from-blue-600 to-blue-700',
+    border: 'border-blue-300',
+    bg: 'from-blue-50 to-blue-100',
+    icon: 'bg-blue-600',
+    text: 'text-blue-600'
+  },
+  yellow: {
+    name: 'Giallo',
+    gradient: 'from-yellow-500 to-amber-500',
+    border: 'border-yellow-300',
+    bg: 'from-yellow-50 to-amber-50',
+    icon: 'bg-yellow-600',
+    text: 'text-yellow-700'
+  },
+  purple: {
+    name: 'Viola',
+    gradient: 'from-violet-600 to-purple-700',
+    border: 'border-violet-300',
+    bg: 'from-violet-50 to-purple-50',
+    icon: 'bg-violet-600',
+    text: 'text-violet-600'
+  },
+  green: {
+    name: 'Verde',
+    gradient: 'from-green-600 to-emerald-700',
+    border: 'border-green-300',
+    bg: 'from-green-50 to-emerald-50',
+    icon: 'bg-green-600',
+    text: 'text-green-600'
+  },
+  porpora: {
+    name: 'Porpora',
+    gradient: 'from-purple-700 to-fuchsia-700',
+    border: 'border-purple-300',
+    bg: 'from-purple-50 to-fuchsia-50',
+    icon: 'bg-purple-600',
+    text: 'text-purple-600'
+  },
+  // Preset originali
   indigo_purple: {
     name: 'Indaco-Viola',
     gradient: 'from-indigo-500 to-purple-600',

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getWikiTierList, getWikiImageList, getWidgetButtonsList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick, Edit } from 'lucide-react'; 
-import ButtonWidgetEditorModal from './ButtonWidgetEditorModal'; 
+import ButtonWidgetEditorModal from './ButtonWidgetEditorModal';
+import TierWidgetEditorModal from './TierWidgetEditorModal'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -40,6 +41,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // State per il modal edit immagine
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [editingImage, setEditingImage] = useState(null);
+  
+  // State per il modal widget tier
+  const [showTierWidgetEditor, setShowTierWidgetEditor] = useState(false);
+  const [editingTierWidget, setEditingTierWidget] = useState(null);
+  const [tierWidgetPreselectedTier, setTierWidgetPreselectedTier] = useState(null);
   
   // Upload Image form state
   const [showUploadImage, setShowUploadImage] = useState(false);
@@ -510,6 +516,19 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             <div className="max-h-40 md:max-h-60 overflow-y-auto">
                                 {widgetHelperTab === 'tier' && (
                                     <>
+                                        <div className="p-2 border-b border-gray-200 bg-indigo-50">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setTierWidgetPreselectedTier(null);
+                                                    setEditingTierWidget(null);
+                                                    setShowTierWidgetEditor(true);
+                                                }}
+                                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                Configura e Inserisci Tier
+                                            </button>
+                                        </div>
                                         {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
                                         {(() => {
                                             const usedIds = getUsedWidgetIds();
@@ -521,7 +540,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                     <button 
                                                         key={tier.id}
                                                         type="button"
-                                                        onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
+                                                        onClick={() => {
+                                                            setTierWidgetPreselectedTier(tier);
+                                                            setEditingTierWidget(null);
+                                                            setShowTierWidgetEditor(true);
+                                                        }}
                                                         className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group transition-colors ${
                                                             isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
                                                         }`}
@@ -535,7 +558,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                         <span className={`text-[10px] px-1 rounded ${
                                                             isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
                                                         }`}>
-                                                            ID:{tier.id}
+                                                            Configura...
                                                         </span>
                                                     </button>
                                                 );
@@ -921,6 +944,24 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         />
       )}
       
+      {/* MODAL EDITOR WIDGET TIER */}
+      {showTierWidgetEditor && (
+        <TierWidgetEditorModal
+          initialData={editingTierWidget || (tierWidgetPreselectedTier ? { tier: tierWidgetPreselectedTier } : null)}
+          onClose={() => {
+            setShowTierWidgetEditor(false);
+            setEditingTierWidget(null);
+            setTierWidgetPreselectedTier(null);
+          }}
+          onSave={(widget) => {
+            insertWidget(`{{WIDGET_TIER:${widget.id}}}`);
+            setShowTierWidgetEditor(false);
+            setEditingTierWidget(null);
+            setTierWidgetPreselectedTier(null);
+          }}
+        />
+      )}
+
       {/* MODAL EDITOR IMMAGINE */}
       {showImageEditor && editingImage && (
         <div className="fixed inset-0 bg-black/90 z-70 flex items-center justify-center p-4">
