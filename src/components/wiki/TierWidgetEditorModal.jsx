@@ -1,9 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { CHROMATIC_STYLES } from '../../utils/chromaticStyles';
 import { getWikiTierList, getWikiTierWidget } from '../../api';
 
-const DEFAULT_GRADIENT_COLOR = '#334155';
+/** I 10 colori predefiniti per il gradiente (stessi temi degli stili cromatici) */
+const GRADIENT_PRESET_COLORS = [
+  { key: 'default', name: 'Default (grigio)', hex: '#374151' },
+  { key: 'gray', name: 'Grigio', hex: '#4B5563' },
+  { key: 'red', name: 'Rosso', hex: '#B91C1C' },
+  { key: 'black', name: 'Nero', hex: '#111827' },
+  { key: 'ochre', name: 'Ocra', hex: '#B45309' },
+  { key: 'blue', name: 'Blu', hex: '#1D4ED8' },
+  { key: 'yellow', name: 'Giallo', hex: '#EAB308' },
+  { key: 'purple', name: 'Viola', hex: '#6D28D9' },
+  { key: 'green', name: 'Verde', hex: '#15803D' },
+  { key: 'porpora', name: 'Porpora', hex: '#4A044E' },
+];
+
+const DEFAULT_GRADIENT_HEX = GRADIENT_PRESET_COLORS[0].hex;
 
 /**
  * Modal per creare o modificare un Widget Tier (tier + opzioni di visualizzazione, gradiente colori).
@@ -15,12 +29,25 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
   const [abilitiesCollapsedByDefault, setAbilitiesCollapsedByDefault] = useState(initialData?.abilities_collapsed_by_default ?? false);
   const [showDescription, setShowDescription] = useState(initialData?.show_description ?? true);
   const [colorStyle, setColorStyle] = useState(initialData?.color_style || 'default');
+  const normalizeToPresetHex = (h) => {
+    const hex = String(h).trim().startsWith('#') ? String(h).trim() : `#${String(h).trim()}`;
+    const found = GRADIENT_PRESET_COLORS.find(p => p.hex.toLowerCase() === hex.toLowerCase());
+    return found ? found.hex : DEFAULT_GRADIENT_HEX;
+  };
   const [gradientColors, setGradientColors] = useState(
     Array.isArray(initialData?.gradient_colors) && initialData.gradient_colors.length > 0
-      ? initialData.gradient_colors
-      : [DEFAULT_GRADIENT_COLOR]
+      ? initialData.gradient_colors.map(normalizeToPresetHex)
+      : [DEFAULT_GRADIENT_HEX]
   );
+  const [tierSearch, setTierSearch] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const sortedTiers = useMemo(() => {
+    const list = [...(tiers || [])].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+    const q = (tierSearch || '').trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(t => (t.nome || '').toLowerCase().includes(q));
+  }, [tiers, tierSearch]);
 
   useEffect(() => {
     getWikiTierList()
@@ -39,9 +66,9 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
           setShowDescription(w.show_description ?? true);
           setColorStyle(w.color_style || 'default');
           if (Array.isArray(w.gradient_colors) && w.gradient_colors.length > 0) {
-            setGradientColors(w.gradient_colors);
+            setGradientColors(w.gradient_colors.map(normalizeToPresetHex));
           } else {
-            setGradientColors([DEFAULT_GRADIENT_COLOR]);
+            setGradientColors([DEFAULT_GRADIENT_HEX]);
           }
         })
         .catch(err => console.error('Errore caricamento widget tier:', err));
@@ -88,6 +115,13 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1">Tier</label>
+            <input
+              type="text"
+              placeholder="Cerca tier per nome..."
+              value={tierSearch}
+              onChange={e => setTierSearch(e.target.value)}
+              className="w-full border border-gray-300 px-2 py-1.5 rounded text-sm mb-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            />
             <select
               value={tierId}
               onChange={e => setTierId(e.target.value)}
@@ -95,7 +129,7 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
               required
             >
               <option value="">— Seleziona tier —</option>
-              {(tiers || []).map(t => (
+              {sortedTiers.map(t => (
                 <option key={t.id} value={t.id}>{t.nome}</option>
               ))}
             </select>
@@ -115,31 +149,28 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1">Gradiente (uno o più colori)</label>
-            <p className="text-[11px] text-gray-500 mb-2">Se imposti almeno un colore, il widget userà un gradiente tra questi colori. Lascia un solo colore per un effetto uniforme.</p>
+            <p className="text-[11px] text-gray-500 mb-2">Scegli uno o più colori tra i 10 predefiniti. Il widget userà un gradiente tra i colori selezionati.</p>
             <div className="space-y-2">
               {gradientColors.map((hex, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <input
-                    type="color"
+                  <div
+                    className="h-9 w-10 rounded border border-gray-300 shrink-0"
+                    style={{ background: hex.startsWith('#') ? hex : `#${hex}` }}
+                    title={hex}
+                  />
+                  <select
                     value={hex.startsWith('#') ? hex : `#${hex}`}
                     onChange={e => {
                       const next = [...gradientColors];
                       next[i] = e.target.value;
                       setGradientColors(next);
                     }}
-                    className="h-9 w-12 rounded border border-gray-300 cursor-pointer shrink-0"
-                  />
-                  <input
-                    type="text"
-                    value={hex}
-                    onChange={e => {
-                      const next = [...gradientColors];
-                      next[i] = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`;
-                      setGradientColors(next);
-                    }}
-                    placeholder="#hex"
-                    className="flex-1 border border-gray-300 px-2 py-1.5 rounded text-sm font-mono"
-                  />
+                    className="flex-1 border border-gray-300 px-2 py-1.5 rounded text-sm"
+                  >
+                    {GRADIENT_PRESET_COLORS.map(p => (
+                      <option key={p.key} value={p.hex}>{p.name}</option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     onClick={() => setGradientColors(prev => prev.filter((_, j) => j !== i))}
@@ -153,7 +184,7 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
               ))}
               <button
                 type="button"
-                onClick={() => setGradientColors(prev => [...prev, DEFAULT_GRADIENT_COLOR])}
+                onClick={() => setGradientColors(prev => [...prev, DEFAULT_GRADIENT_HEX])}
                 className="flex items-center gap-1.5 text-sm text-indigo-600 hover:bg-indigo-50 px-2 py-1.5 rounded"
               >
                 <Plus size={14} />
