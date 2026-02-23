@@ -24,15 +24,6 @@ export default function WidgetTier({ id }) {
   );
 
   const style = CHROMATIC_STYLES[data.color_style] || CHROMATIC_STYLES.default;
-  const abilitiesCollapsible = data.abilities_collapsible !== false;
-  const abilitiesCollapsedByDefault = data.abilities_collapsed_by_default === true;
-  const showDescription = data.show_description !== false;
-
-  const abilitiesContent = (
-    <div className={`w-full bg-gradient-to-b ${style.bg} ${style.text} p-2`}>
-      <AbilitaTable list={sortedList} chromaticStyle={style} />
-    </div>
-  );
 
   return (
     <div className={`my-6 w-full max-w-full border ${style.border} rounded-lg bg-white shadow-sm break-inside-avoid overflow-hidden`}>
@@ -50,28 +41,17 @@ export default function WidgetTier({ id }) {
         </div>
 
         {/* DESCRIZIONE TIER */}
-        {showDescription && data.descrizione && (
+        {data.descrizione && (
             <div 
-              className={`p-3 md:p-4 bg-gradient-to-b ${style.bg} ${style.text} text-xs md:text-sm border-b border-gray-200 italic prose prose-sm max-w-none wrap-break-words`}
+              className={`p-3 md:p-4 bg-gradient-to-b ${style.bg} ${style.text} text-xs md:text-sm border-b ${style.border} italic prose prose-sm max-w-none wrap-break-words`}
               dangerouslySetInnerHTML={{ __html: data.descrizione }}
             />
         )}
 
-        {/* GRIGLIA ABILITÀ: collapsible o sempre visibile */}
-        {abilitiesCollapsible ? (
-          <details 
-            className={`wiki-collapse-tier border-t ${style.border}`}
-            open={!abilitiesCollapsedByDefault}
-          >
-            <summary className={`px-4 py-3 cursor-pointer font-semibold ${style.headerBg} ${style.headerText} hover:opacity-90 transition-opacity list-none flex items-center gap-2 [&::-webkit-details-marker]:hidden`}>
-              <span className="opacity-80">▶</span>
-              Abilità elencate
-            </summary>
-            {abilitiesContent}
-          </details>
-        ) : (
-          abilitiesContent
-        )}
+        {/* GRIGLIA ABILITÀ con stile cromatico (sfondo e testo descrizione) */}
+        <div className={`w-full bg-gradient-to-b ${style.bg} ${style.text} p-2`}>
+            <AbilitaTable list={sortedList} chromaticStyle={style} />
+        </div>
     </div>
   );
 }

@@ -1,7 +1,4 @@
-import React, { useRef, useLayoutEffect, useMemo } from 'react';
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
-import { CharacterContext, WIKI_FALLBACK_CONTEXT } from './CharacterContext';
+import React from 'react';
 import WidgetTier from './wg/WidgetTier';
 import WidgetAura from './wg/WidgetAura';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
@@ -11,51 +8,26 @@ import WidgetEventi from './wg/WidgetEventi';
 import WidgetSocial from './wg/WidgetSocial';
 import WidgetButtons from './wg/WidgetButtons';
 
-// I widget montati con createRoot non ereditano il contesto Router.
-// WidgetButtons usa useNavigate e Link, quindi va avvolto in BrowserRouter.
-const RouterWrapper = ({ children }) => <BrowserRouter>{children}</BrowserRouter>;
+export default function WikiRenderer({ content }) {
+  if (!content) return null;
 
-// I widget montati con createRoot non ereditano i context (Router, CharacterProvider).
-// Li avvolgiamo con Provider di fallback.
-const WikiContextWrapper = ({ children }) => (
-  <CharacterContext.Provider value={WIKI_FALLBACK_CONTEXT}>
-    {children}
-  </CharacterContext.Provider>
-);
-
-const getWidgetComponent = (widgetType, id) => {
-  const widgetWrapper = (children) => (
-    <WikiContextWrapper>
-      <div className="not-prose">{children}</div>
-    </WikiContextWrapper>
-  );
-  const needsRouter = (children) => (
-    <WikiContextWrapper>
-      <RouterWrapper>
-        <div className="not-prose">{children}</div>
-      </RouterWrapper>
-    </WikiContextWrapper>
-  );
-  switch (widgetType) {
-    case 'TIER': return widgetWrapper(<WidgetTier id={id} />);
-    case 'AURA': return widgetWrapper(<WidgetAura id={id} />);
-    case 'TABELLA': return widgetWrapper(<WidgetTabellaAbilita id={id} />);
-    case 'IMAGE':
-    case 'IMMAGINE': return widgetWrapper(<WidgetImmagine id={id} />);
-    case 'CHI_SIAMO': return widgetWrapper(<WidgetChiSiamo />);
-    case 'EVENTI': return widgetWrapper(<WidgetEventi />);
-    case 'SOCIAL': return widgetWrapper(<WidgetSocial />);
-    case 'BUTTONS':
-    case 'PULSANTI': return needsRouter(<WidgetButtons id={id} />);
-    default: return widgetWrapper(<span className="text-red-500 text-xs">[WIDGET IGNOTO: {widgetType}]</span>);
-  }
-};
-
-function processWikiContent(content) {
+  // --- FUNZIONE DI PULIZIA PROFONDA ---
   const cleanContent = (html) => {
     let currentHtml = html;
     let hasChanged = true;
+
+    // Regex spiegata:
+    // <([a-z][a-z0-9]*)   -> Cattura il tag di apertura (es: p, div, span, strong) nel gruppo 1
+    // [^>]*>              -> Ignora attributi (class, style, etc.)
+    // [\s\u00A0]* -> Ignora spazi bianchi e Non-Breaking Spaces reali
+    // (?:&nbsp;|<br\/?>)* -> Ignora entità &nbsp; e tag <br>
+    // ({{WIDGET_[^}]+}})  -> CATTURA IL WIDGET nel gruppo 2
+    // ...ripetizione ignore... -> Ignora spazi/br dopo il widget
+    // <\/\1>              -> Cerca la chiusura dello STESSO tag catturato all'inizio
+    
     const wrapperRegex = /<([a-z][a-z0-9]*)[^>]*>(?:[\s\u00A0]|&nbsp;|<br\/?>)*({{WIDGET_[A-Z_]+:\d+}})(?:[\s\u00A0]|&nbsp;|<br\/?>)*<\/\1>/gi;
+
+    // Continuiamo a eseguire la replace finché troviamo match (per gestire nesting tipo <p><span>{{WIDGET}}</span></p>)
     while (hasChanged) {
       const newHtml = currentHtml.replace(wrapperRegex, '$2');
       if (newHtml !== currentHtml) {
@@ -64,50 +36,51 @@ function processWikiContent(content) {
         hasChanged = false;
       }
     }
+    
     return currentHtml;
   };
-  let out = cleanContent(content);
-  out = out.replace(
-    /<details\s+class=["']wiki-collapse["'][^>]*>/gi,
-    '<details class="wiki-collapse">'
-  );
-  out = out.replace(
-    /{{WIDGET_([A-Z_]+):(\d+)}}/g,
-    (_, type, id) => `<span data-widget-mount data-type="${type}" data-id="${id}" class="wiki-widget-placeholder"></span>`
-  );
-  return out;
-}
 
-export default function WikiRenderer({ content }) {
-  const containerRef = useRef(null);
+  // 1. Eseguiamo la pulizia
+  const processedContent = cleanContent(content);
 
-  if (!content) return null;
+  // 2. Parsing per dividere HTML e Widget
+  const regex = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
 
-  const processedContent = useMemo(
-    () => (content ? processWikiContent(content) : ''),
-    [content]
-  );
+  while ((match = regex.exec(processedContent)) !== null) {
+    // Aggiungi parte HTML precedente
+    if (match.index > lastIndex) {
+      parts.push({ 
+        type: 'html', 
+        content: processedContent.substring(lastIndex, match.index) 
+      });
+    }
 
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container || !processedContent) return;
-
-    // Impostiamo l'HTML solo qui, così React non lo sovrascrive al re-render
-    // (dangerouslySetInnerHTML a ogni render cancellava i widget montati con createRoot)
-    container.innerHTML = processedContent;
-
-    const placeholders = container.querySelectorAll('[data-widget-mount]');
-    const roots = [];
-    placeholders.forEach((ph) => {
-      const type = ph.dataset.type;
-      const id = ph.dataset.id;
-      const root = createRoot(ph);
-      root.render(getWidgetComponent(type, id));
-      roots.push(root);
+    // Aggiungi Widget
+    parts.push({
+      type: 'widget',
+      widgetType: match[1], 
+      id: match[2]
     });
 
-    return () => roots.forEach((r) => r.unmount());
-  }, [content, processedContent]);
+    lastIndex = regex.lastIndex;
+  }
+
+  // Aggiungi eventuale HTML rimanente
+  if (lastIndex < processedContent.length) {
+    parts.push({ type: 'html', content: processedContent.substring(lastIndex) });
+  }
+
+  // console.log("--- DEBUG WIKI RENDERER ---");
+  // parts.forEach((part, i) => {
+  //     console.log(`Part ${i} [${part.type}]:`, part.content || part.widgetType);
+  //     if (part.type === 'html') {
+  //         // Controlla se ci sono tag aperti non chiusi
+  //         console.log("HTML Chunk:", part.content); 
+  //     }
+  // });
 
   return (
     <>
@@ -147,55 +120,44 @@ export default function WikiRenderer({ content }) {
         .wiki-content a.wiki-link:hover {
           color: #818cf8;
         }
-        /* Sezioni collassabili */
-        .wiki-content details.wiki-collapse {
-          margin: 1em 0;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          overflow: hidden;
-          background: #f9fafb;
-        }
-        .wiki-content details.wiki-collapse summary {
-          padding: 12px 16px;
-          background: linear-gradient(to bottom, #f3f4f6, #e5e7eb);
-          cursor: pointer;
-          font-weight: 600;
-          color: #374151;
-          user-select: none;
-          list-style: none;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .wiki-content details.wiki-collapse summary::-webkit-details-marker {
-          display: none;
-        }
-        .wiki-content details.wiki-collapse summary::before {
-          content: '▶';
-          font-size: 0.75em;
-          transition: transform 0.2s;
-        }
-        .wiki-content details.wiki-collapse[open] summary::before {
-          transform: rotate(90deg);
-        }
-        .wiki-content details.wiki-collapse summary:hover {
-          background: linear-gradient(to bottom, #e5e7eb, #d1d5db);
-        }
-        .wiki-content details.wiki-collapse[open] summary {
-          border-bottom: 1px solid #e5e7eb;
-        }
-        .wiki-content details.wiki-collapse > *:not(summary) {
-          padding: 16px;
-          background: #fff;
-        }
-        .wiki-content .wiki-widget-placeholder {
-          display: block;
-        }
       `}</style>
-      <div
-        ref={containerRef}
-        className="wiki-content prose prose-red max-w-none text-gray-800"
-      />
+      <div className="wiki-content prose prose-red max-w-none text-gray-800">
+        {parts.map((part, index) => {
+          if (part.type === 'widget') {
+              switch (part.widgetType) {
+                  case 'TIER':
+                      return <WidgetTier key={index} id={part.id} />;
+                  case 'AURA':
+                      return <WidgetAura key={index} id={part.id} />;
+                  case 'TABELLA':
+                      return <WidgetTabellaAbilita key={index} id={part.id} />;
+                  case 'IMAGE':
+                  case 'IMMAGINE':
+                      return <WidgetImmagine key={index} id={part.id} />;
+                  case 'CHI_SIAMO':
+                      return <WidgetChiSiamo key={index} />;
+                  case 'EVENTI':
+                      return <WidgetEventi key={index} />;
+                  case 'SOCIAL':
+                      return <WidgetSocial key={index} />;
+                  case 'BUTTONS':
+                  case 'PULSANTI':
+                      return <WidgetButtons key={index} id={part.id} />;
+                  default:
+                      return (
+                          <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">
+                              [WIDGET IGNOTO: {part.widgetType}]
+                          </div>
+                      );
+              }
+          }
+          
+          // Renderizza HTML.
+          // Importante: se cleanContent ha funzionato, qui dentro NON ci sono pezzi di tag orfani.
+          // Se part.content è solo uno spazio o a capo, React lo gestisce bene.
+          return <div key={index} dangerouslySetInnerHTML={{ __html: part.content }} />;
+        })}
+      </div>
     </>
   );
 }

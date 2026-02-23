@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, getWikiTierWidgetList, getWikiImageList, getWidgetButtonsList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiImageList, getWidgetButtonsList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick, Edit } from 'lucide-react'; 
-import ButtonWidgetEditorModal from './ButtonWidgetEditorModal';
-import TierWidgetEditorModal from './TierWidgetEditorModal'; 
+import ButtonWidgetEditorModal from './ButtonWidgetEditorModal'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -30,7 +29,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // Widget Helper logic
   const [showWidgetHelper, setShowWidgetHelper] = useState(false);
   const [availableTiers, setAvailableTiers] = useState([]);
-  const [availableTierWidgets, setAvailableTierWidgets] = useState([]);
+  const [tierSearch, setTierSearch] = useState('');
   const [availableImages, setAvailableImages] = useState([]);
   const [availableButtonWidgets, setAvailableButtonWidgets] = useState([]);
   const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier', 'image', 'buttons'
@@ -42,11 +41,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // State per il modal edit immagine
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [editingImage, setEditingImage] = useState(null);
-  
-  // State per il modal widget tier
-  const [showTierWidgetEditor, setShowTierWidgetEditor] = useState(false);
-  const [editingTierWidget, setEditingTierWidget] = useState(null);
-  const [tierWidgetPreselectedTier, setTierWidgetPreselectedTier] = useState(null);
   
   // Upload Image form state
   const [showUploadImage, setShowUploadImage] = useState(false);
@@ -116,14 +110,12 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         getWikiTierList()
             .then(data => setAvailableTiers(data))
             .catch(err => console.error("Err loading tiers", err));
-        // Carica Widget Tier (per modifica widget già usati)
-        getWikiTierWidgetList()
-            .then(data => setAvailableTierWidgets(Array.isArray(data) ? data : []))
-            .catch(() => setAvailableTierWidgets([]));
+        
         // Carica Immagini
         getWikiImageList()
             .then(data => setAvailableImages(data))
             .catch(err => console.error("Err loading images", err));
+        
         // Carica Widget Buttons
         getWidgetButtonsList()
             .then(data => setAvailableButtonWidgets(data))
@@ -519,71 +511,30 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             <div className="max-h-40 md:max-h-60 overflow-y-auto">
                                 {widgetHelperTab === 'tier' && (
                                     <>
-                                        <div className="p-2 border-b border-gray-200 bg-indigo-50">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setTierWidgetPreselectedTier(null);
-                                                    setEditingTierWidget(null);
-                                                    setShowTierWidgetEditor(true);
-                                                }}
-                                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                                            >
-                                                Configura e Inserisci Tier
-                                            </button>
+                                        <div className="p-2 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                                            <input
+                                                type="text"
+                                                placeholder="Cerca tier per nome..."
+                                                value={tierSearch}
+                                                onChange={(e) => setTierSearch(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                            />
                                         </div>
-                                        {/* Widget Tier già usati in questa pagina: modifica senza creare un nuovo record */}
-                                        {(() => {
-                                            const usedIds = getUsedWidgetIds();
-                                            const usedWidgetIds = usedIds.tiers;
-                                            if (usedWidgetIds.length === 0) return null;
-                                            return (
-                                                <div className="p-2 border-b border-gray-200 bg-amber-50">
-                                                    <p className="text-[10px] font-bold text-amber-800 mb-1">Widget Tier in questa pagina</p>
-                                                    {usedWidgetIds.map(widgetId => {
-                                                        const widget = availableTierWidgets.find(w => w.id === widgetId);
-                                                        return (
-                                                            <div key={widgetId} className="flex items-center justify-between gap-2 py-1">
-                                                                <span className="text-xs text-gray-700 truncate">
-                                                                    {widget ? `#${widget.id} – ${widget.tier_nome || 'Tier'}` : `Widget #${widgetId}`}
-                                                                </span>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        if (widget) setEditingTierWidget(widget);
-                                                                        setTierWidgetPreselectedTier(null);
-                                                                        setShowTierWidgetEditor(true);
-                                                                    }}
-                                                                    className="shrink-0 p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
-                                                                    title="Modifica widget"
-                                                                >
-                                                                    <Edit size={12} />
-                                                                </button>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            );
-                                        })()}
                                         {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
                                         {(() => {
                                             const usedIds = getUsedWidgetIds();
-                                            const usedWidgetTierIds = availableTierWidgets
-                                                .filter(w => usedIds.tiers.includes(w.id))
-                                                .map(w => w.tier);
-                                            const sortedTiers = sortByUsage(availableTiers, usedWidgetTierIds);
+                                            const searchLower = (tierSearch || '').trim().toLowerCase();
+                                            const sortedTiers = [...availableTiers]
+                                                .filter(t => !searchLower || (t.nome || '').toLowerCase().includes(searchLower))
+                                                .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
                                             
                                             return sortedTiers.map(tier => {
-                                                const isUsed = usedWidgetTierIds.includes(tier.id);
+                                                const isUsed = usedIds.tiers.includes(tier.id);
                                                 return (
                                                     <button 
                                                         key={tier.id}
                                                         type="button"
-                                                        onClick={() => {
-                                                            setTierWidgetPreselectedTier(tier);
-                                                            setEditingTierWidget(null);
-                                                            setShowTierWidgetEditor(true);
-                                                        }}
+                                                        onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
                                                         className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group transition-colors ${
                                                             isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
                                                         }`}
@@ -597,7 +548,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                         <span className={`text-[10px] px-1 rounded ${
                                                             isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
                                                         }`}>
-                                                            Configura...
+                                                            ID:{tier.id}
                                                         </span>
                                                     </button>
                                                 );
@@ -983,29 +934,6 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         />
       )}
       
-      {/* MODAL EDITOR WIDGET TIER */}
-      {showTierWidgetEditor && (
-        <TierWidgetEditorModal
-          initialData={editingTierWidget || (tierWidgetPreselectedTier ? { tier: tierWidgetPreselectedTier } : null)}
-          onClose={() => {
-            setShowTierWidgetEditor(false);
-            setEditingTierWidget(null);
-            setTierWidgetPreselectedTier(null);
-          }}
-          onSave={async (widget) => {
-            if (!editingTierWidget) {
-              insertWidget(`{{WIDGET_TIER:${widget.id}}}`);
-            } else {
-              const updatedList = await getWikiTierWidgetList().catch(() => []);
-              setAvailableTierWidgets(Array.isArray(updatedList) ? updatedList : []);
-            }
-            setShowTierWidgetEditor(false);
-            setEditingTierWidget(null);
-            setTierWidgetPreselectedTier(null);
-          }}
-        />
-      )}
-
       {/* MODAL EDITOR IMMAGINE */}
       {showImageEditor && editingImage && (
         <div className="fixed inset-0 bg-black/90 z-70 flex items-center justify-center p-4">

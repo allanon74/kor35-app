@@ -1368,33 +1368,13 @@ export const getWikiAura = (id) => {
 };
 
 // --- AGGIUNTA PER WIDGET TIER ---
-// Usa tier-display per retrocompatibilità: prova WikiTierWidget, poi Tier con default
 export const getWikiTier = (id) => {
-  return fetchPublic(`/api/plot/api/wiki/tier-display/${id}/`);
+  return fetchPublic(`/api/plot/api/public/wiki-tiers/${id}/`);
 };
 
 // Helper per avere la lista di tutti i Tier (per l'editor del Master)
 export const getWikiTierList = () => {
   return fetchPublic('/api/plot/api/public/wiki-tiers/');
-};
-
-// Widget Tier configurati (per modal)
-export const getWikiTierWidgetList = () => {
-  return fetchPublic('/api/plot/api/public/wiki-tier-widgets/');
-};
-
-export const createWikiTierWidget = (data, onLogout) => {
-  return fetchAuthenticated('/api/plot/api/staff/wiki-tier-widgets/', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }, onLogout);
-};
-
-export const updateWikiTierWidget = (id, data, onLogout) => {
-  return fetchAuthenticated(`/api/plot/api/staff/wiki-tier-widgets/${id}/`, {
-    method: 'PATCH',
-    body: JSON.stringify(data)
-  }, onLogout);
 };
 
 // --- WIDGET IMMAGINI WIKI ---

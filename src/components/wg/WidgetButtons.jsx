@@ -1,118 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getWidgetButtons } from '../../api';
-import {
-  Sparkles, LogIn, Scroll, BookOpen, Users, Calendar, Share2,
-  Home, Settings, Mail, Phone, MapPin, Globe, Shield,
-  Star, Heart, Zap, Award, Bookmark, Bell, Camera,
-  Gift, Music, Video, Image, File, Folder, Search,
-  Edit, Trash2, Download, Upload, Save, Send, Lock,
-  Unlock, Key, Eye, EyeOff, Flag, Tag, Target,
-  TrendingUp, Activity, BarChart, PieChart, Coffee, Pizza,
-  Briefcase, ShoppingCart, CreditCard, DollarSign, Percent
-} from 'lucide-react';
-
-// Mappa icone con import espliciti - evita tree-shaking in produzione
-const ICON_MAP = {
-  Sparkles, LogIn, Scroll, BookOpen, Users, Calendar, Share2,
-  Home, Settings, Mail, Phone, MapPin, Globe, Shield,
-  Star, Heart, Zap, Award, Bookmark, Bell, Camera,
-  Gift, Music, Video, Image, File, Folder, Search,
-  Edit, Trash: Trash2, Download, Upload, Save, Send, Lock,
-  Unlock, Key, Eye, EyeOff, Flag, Tag, Target,
-  TrendingUp, Activity, BarChart, PieChart, Coffee, Pizza,
-  Briefcase, ShoppingCart, CreditCard, DollarSign, Percent
-};
+import * as LucideIcons from 'lucide-react';
 
 /**
  * Widget Pulsanti Configurabili
  * Renderizza una griglia di pulsanti configurabili con link a pagine wiki o app
  */
 
-// Preset di colori (include stili cromatici condivisi con Tier)
+// Preset di colori disponibili
 const COLOR_PRESETS = {
-  // Stili cromatici (identici a Tier)
-  white: {
-    name: 'Bianco',
-    gradient: 'from-gray-100 to-white',
-    border: 'border-gray-300',
-    bg: 'from-white to-gray-50',
-    icon: 'bg-gray-400',
-    text: 'text-gray-700'
-  },
-  gray: {
-    name: 'Grigio',
-    gradient: 'from-gray-500 to-gray-600',
-    border: 'border-gray-400',
-    bg: 'from-gray-100 to-gray-200',
-    icon: 'bg-gray-500',
-    text: 'text-gray-600'
-  },
-  red: {
-    name: 'Rosso',
-    gradient: 'from-red-600 to-red-700',
-    border: 'border-red-300',
-    bg: 'from-red-50 to-red-100',
-    icon: 'bg-red-600',
-    text: 'text-red-600'
-  },
-  black: {
-    name: 'Nero',
-    gradient: 'from-gray-900 to-black',
-    border: 'border-gray-700',
-    bg: 'from-gray-800 to-gray-900',
-    icon: 'bg-gray-800',
-    text: 'text-gray-800'
-  },
-  ochre: {
-    name: 'Ocra',
-    gradient: 'from-amber-700 to-yellow-800',
-    border: 'border-amber-300',
-    bg: 'from-amber-50 to-yellow-100',
-    icon: 'bg-amber-600',
-    text: 'text-amber-700'
-  },
-  blue: {
-    name: 'Blu',
-    gradient: 'from-blue-600 to-blue-700',
-    border: 'border-blue-300',
-    bg: 'from-blue-50 to-blue-100',
-    icon: 'bg-blue-600',
-    text: 'text-blue-600'
-  },
-  yellow: {
-    name: 'Giallo',
-    gradient: 'from-yellow-500 to-amber-500',
-    border: 'border-yellow-300',
-    bg: 'from-yellow-50 to-amber-50',
-    icon: 'bg-yellow-600',
-    text: 'text-yellow-700'
-  },
-  purple: {
-    name: 'Viola',
-    gradient: 'from-violet-600 to-purple-700',
-    border: 'border-violet-300',
-    bg: 'from-violet-50 to-purple-50',
-    icon: 'bg-violet-600',
-    text: 'text-violet-600'
-  },
-  green: {
-    name: 'Verde',
-    gradient: 'from-green-600 to-emerald-700',
-    border: 'border-green-300',
-    bg: 'from-green-50 to-emerald-50',
-    icon: 'bg-green-600',
-    text: 'text-green-600'
-  },
-  porpora: {
-    name: 'Porpora',
-    gradient: 'from-purple-700 to-fuchsia-700',
-    border: 'border-purple-300',
-    bg: 'from-purple-50 to-fuchsia-50',
-    icon: 'bg-purple-600',
-    text: 'text-purple-600'
-  },
-  // Preset originali
   indigo_purple: {
     name: 'Indaco-Viola',
     gradient: 'from-indigo-500 to-purple-600',
@@ -241,6 +138,13 @@ export default function WidgetButtons({ id }) {
     const fetchData = async () => {
       try {
         const result = await getWidgetButtons(id);
+        console.log('=== Widget Buttons Full Data ===');
+        console.log('Widget ID:', id);
+        console.log('Widget Data:', result);
+        console.log('Buttons Array:', result?.buttons);
+        console.log('First Button:', result?.buttons?.[0]);
+        console.log('Available Lucide Icons (sample):', Object.keys(LucideIcons).slice(0, 20));
+        console.log('================================');
         setData(result);
       } catch (error) {
         console.error('Errore caricamento widget buttons:', error);
@@ -281,8 +185,16 @@ export default function WidgetButtons({ id }) {
     const sizePreset = SIZE_PRESETS[button.size] || SIZE_PRESETS.medium;
     const style = button.style || BUTTON_STYLES.gradient;
 
-    // Recupera l'icona dalla mappa (import espliciti per evitare tree-shaking in produzione)
-    const Icon = button.icon && ICON_MAP[button.icon] ? ICON_MAP[button.icon] : null;
+    // Debug: verifica dati pulsante
+    console.log(`Button ${index}:`, {
+      title: button.title,
+      icon: button.icon,
+      iconExists: button.icon && LucideIcons[button.icon],
+      iconComponent: button.icon ? LucideIcons[button.icon] : 'not found'
+    });
+
+    // Recupera l'icona da lucide-react - CORREZIONE: assicuriamoci che sia un componente valido
+    const Icon = button.icon && LucideIcons[button.icon] ? LucideIcons[button.icon] : null;
 
     // Determina il link
     const linkTo = button.link_type === 'wiki' 
@@ -295,19 +207,10 @@ export default function WidgetButtons({ id }) {
         <>
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
-              {button.icon && (
-                <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg`}>
-                  {Icon ? (
-                    React.createElement(Icon, { size: sizePreset.iconSize, className: 'text-white' })
-                  ) : (
-                    <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
-                      ❌
-                    </div>
-                  )}
+              {Icon && (
+                <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg`}>
+                  <Icon size={sizePreset.iconSize} />
                 </div>
-              )}
-              {!button.icon && (
-                <div className="text-yellow-300 text-xs">⚠️ No icon field</div>
               )}
               <h2 className={`${sizePreset.titleSize} font-bold`}>{button.title}</h2>
             </div>
@@ -326,7 +229,7 @@ export default function WidgetButtons({ id }) {
         </>
       );
 
-      const className = `group relative overflow-hidden bg-gradient-to-br ${colorPreset.gradient} text-white rounded-xl ${sizePreset.padding} shadow-lg hover:shadow-2xl transition-all transform hover:scale-105`;
+      const className = `group relative overflow-hidden bg-linear-to-br ${colorPreset.gradient} text-white rounded-xl ${sizePreset.padding} shadow-lg hover:shadow-2xl transition-all transform hover:scale-105`;
 
       if (button.link_type === 'wiki') {
         return (
@@ -351,19 +254,10 @@ export default function WidgetButtons({ id }) {
     if (style === BUTTON_STYLES.light) {
       const content = (
         <>
-          {button.icon && (
+          {Icon && (
             <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg group-hover:scale-110 transition-transform`}>
-              {Icon ? (
-                React.createElement(Icon, { size: sizePreset.iconSize, className: 'text-white' })
-              ) : (
-                <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
-                  ❌
-                </div>
-              )}
+              <Icon size={sizePreset.iconSize} />
             </div>
-          )}
-          {!button.icon && (
-            <div className="text-yellow-600 text-xs">⚠️ No icon</div>
           )}
           <div className="flex-1">
             <h3 className={`${sizePreset.titleSize} font-bold text-gray-800 mb-1`}>
@@ -389,7 +283,7 @@ export default function WidgetButtons({ id }) {
         </>
       );
 
-      const className = `flex items-center gap-4 ${sizePreset.padding} bg-gradient-to-r ${colorPreset.bg} border-2 ${colorPreset.border} rounded-lg hover:shadow-lg transition-all group`;
+      const className = `flex items-center gap-4 ${sizePreset.padding} bg-linear-to-r ${colorPreset.bg} border-2 ${colorPreset.border} rounded-lg hover:shadow-lg transition-all group`;
 
       if (button.link_type === 'wiki') {
         return (

@@ -1,8 +1,7 @@
 /**
- * Stili cromatici condivisi per Widget Tier e Widget Buttons.
- * Colori base: bianco, grigio, rosso, nero, ocra, blu, giallo, viola, verde, porpora.
+ * Stili cromatici per Widget Tier (e eventualmente Buttons).
+ * Porpora è volutamente più scuro e distinto dal viola.
  */
-
 export const CHROMATIC_STYLES = {
   default: {
     name: 'Default',
@@ -106,108 +105,12 @@ export const CHROMATIC_STYLES = {
   },
   porpora: {
     name: 'Porpora',
-    gradient: 'from-purple-700 to-fuchsia-700',
-    border: 'border-purple-300',
-    bg: 'from-purple-50 to-fuchsia-50',
-    headerBg: 'bg-purple-800',
+    gradient: 'from-fuchsia-900 to-purple-950',
+    border: 'border-fuchsia-700',
+    bg: 'from-fuchsia-100 to-purple-100',
+    headerBg: 'bg-fuchsia-950',
     headerText: 'text-white',
-    icon: 'bg-purple-600',
-    text: 'text-purple-800',
-  },
-};
-
-// Per i pulsanti: gradienti e stili compatibili con WidgetButtons
-export const CHROMATIC_PRESETS_BUTTONS = {
-  // Stili cromatici (identici a Tier)
-  white: { ...CHROMATIC_STYLES.white },
-  gray: { ...CHROMATIC_STYLES.gray },
-  red: { ...CHROMATIC_STYLES.red },
-  black: { ...CHROMATIC_STYLES.black },
-  ochre: { ...CHROMATIC_STYLES.ochre },
-  blue: { ...CHROMATIC_STYLES.blue },
-  yellow: { ...CHROMATIC_STYLES.yellow },
-  purple: { ...CHROMATIC_STYLES.purple },
-  green: { ...CHROMATIC_STYLES.green },
-  porpora: { ...CHROMATIC_STYLES.porpora },
-  // Preset originali per backward compat
-  indigo_purple: {
-    name: 'Indaco-Viola',
-    gradient: 'from-indigo-500 to-purple-600',
-    border: 'border-indigo-200',
-    bg: 'from-indigo-50 to-purple-50',
-    icon: 'bg-indigo-500',
-    text: 'text-indigo-500',
-  },
-  red_orange: {
-    name: 'Rosso-Arancio',
-    gradient: 'from-red-600 to-orange-600',
-    border: 'border-red-200',
-    bg: 'from-red-50 to-orange-50',
-    icon: 'bg-red-500',
-    text: 'text-red-500',
-  },
-  emerald_teal: {
-    name: 'Smeraldo-Verde Acqua',
-    gradient: 'from-emerald-500 to-teal-600',
-    border: 'border-emerald-200',
-    bg: 'from-emerald-50 to-teal-50',
-    icon: 'bg-emerald-500',
-    text: 'text-emerald-500',
-  },
-  blue_indigo: {
-    name: 'Blu-Indaco',
-    gradient: 'from-blue-500 to-indigo-600',
-    border: 'border-blue-200',
-    bg: 'from-blue-50 to-indigo-50',
-    icon: 'bg-blue-500',
-    text: 'text-blue-500',
-  },
-  pink_rose: {
-    name: 'Rosa-Rosa Intenso',
-    gradient: 'from-pink-500 to-rose-600',
-    border: 'border-pink-200',
-    bg: 'from-pink-50 to-rose-50',
-    icon: 'bg-pink-500',
-    text: 'text-pink-500',
-  },
-  amber_orange: {
-    name: 'Ambra-Arancio',
-    gradient: 'from-amber-500 to-orange-600',
-    border: 'border-amber-200',
-    bg: 'from-amber-50 to-orange-50',
-    icon: 'bg-amber-500',
-    text: 'text-amber-500',
-  },
-  cyan_blue: {
-    name: 'Ciano-Blu',
-    gradient: 'from-cyan-500 to-blue-600',
-    border: 'border-cyan-200',
-    bg: 'from-cyan-50 to-blue-50',
-    icon: 'bg-cyan-500',
-    text: 'text-cyan-500',
-  },
-  violet_purple: {
-    name: 'Viola-Porpora',
-    gradient: 'from-violet-500 to-purple-600',
-    border: 'border-violet-200',
-    bg: 'from-violet-50 to-purple-50',
-    icon: 'bg-violet-500',
-    text: 'text-violet-500',
-  },
-  slate_gray: {
-    name: 'Ardesia-Grigio',
-    gradient: 'from-slate-600 to-gray-700',
-    border: 'border-slate-200',
-    bg: 'from-slate-50 to-gray-50',
-    icon: 'bg-slate-600',
-    text: 'text-slate-600',
-  },
-  lime_green: {
-    name: 'Lime-Verde',
-    gradient: 'from-lime-500 to-green-600',
-    border: 'border-lime-200',
-    bg: 'from-lime-50 to-green-50',
-    icon: 'bg-lime-500',
-    text: 'text-lime-500',
+    icon: 'bg-fuchsia-800',
+    text: 'text-fuchsia-900',
   },
 };

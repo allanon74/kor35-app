@@ -4,8 +4,7 @@ import {
     List, ListOrdered, 
     AlignLeft, AlignCenter,
     Trash2, Paintbrush, Type, Heading, FileText,
-    Minus, Smile, Link as LinkIcon, Search,
-    PanelRightClose
+    Minus, Smile, Link as LinkIcon, Search
 } from 'lucide-react';
 import { getWikiMenu } from '../api';
 
@@ -347,16 +346,6 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
         execCommand('insertHorizontalRule');
     };
 
-    // Inserisce una sezione collassabile (details/summary)
-    const insertCollapsibleSection = () => {
-        const html = `<details class="wiki-collapse"><summary>Titolo sezione</summary><p>Contenuto qui...</p></details><p>&nbsp;</p>`;
-        document.execCommand('insertHTML', false, html);
-        if (editorRef.current) {
-            onChange(editorRef.current.innerHTML);
-            editorRef.current.focus();
-        }
-    };
-
     // Inserisce un'emoji
     const insertEmoji = (emoji) => {
         document.execCommand('insertText', false, emoji);
@@ -543,7 +532,6 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                     {/* Gruppo Elementi Speciali */}
                     <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
                         <ToolbarButton icon={Minus} onClick={insertHorizontalRule} title="Riga Orizzontale" />
-                        <ToolbarButton icon={PanelRightClose} onClick={insertCollapsibleSection} title="Sezione Collassabile" />
                         <ToolbarButton icon={LinkIcon} onClick={openLinkModal} title="Inserisci Link Wiki" />
                         <div className="relative">
                             <ToolbarButton 
@@ -721,32 +709,6 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                     }
                     [contenteditable] a.wiki-link:hover {
                         color: #a5b4fc;
-                    }
-                    
-                    /* Sezione collassabile in editor */
-                    [contenteditable] details.wiki-collapse {
-                        margin: 0.75em 0;
-                        border: 1px solid #4b5563;
-                        border-radius: 6px;
-                        overflow: hidden;
-                    }
-                    [contenteditable] details.wiki-collapse summary {
-                        padding: 8px 12px;
-                        background: #374151;
-                        cursor: pointer;
-                        font-weight: 600;
-                        color: #e5e7eb;
-                        user-select: none;
-                    }
-                    [contenteditable] details.wiki-collapse summary:hover {
-                        background: #4b5563;
-                    }
-                    [contenteditable] details.wiki-collapse[open] summary {
-                        border-bottom: 1px solid #4b5563;
-                    }
-                    [contenteditable] details.wiki-collapse > *:not(summary) {
-                        padding: 12px;
-                        background: #1f2937;
                     }
                 `}</style>
             </div>
