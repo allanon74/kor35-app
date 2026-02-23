@@ -368,6 +368,48 @@ export const CharacterProvider = ({ children, onLogout }) => {
   );
 };
 
+/** Contesto minimo per i widget wiki montati con createRoot (senza CharacterProvider). */
+export const WIKI_FALLBACK_CONTEXT = {
+  selectedCharacterData: null,
+  refreshCharacterData: () => {},
+  punteggiList: [],
+  personaggiList: [],
+  selectedCharacterId: '',
+  characterData: null,
+  acquirableSkills: [],
+  acquirableInfusioni: [],
+  acquirableTessiture: [],
+  acquirableCerimoniali: [],
+  activeTimers: {},
+  setActiveTimers: () => {},
+  updateTimerState: () => {},
+  removeTimerState: () => {},
+  isLoading: false,
+  isLoadingList: false,
+  isLoadingDetail: false,
+  isSyncing: false,
+  selectCharacter: () => {},
+  fetchPersonaggi: () => {},
+  loadSkillsOnDemand: () => {},
+  loadInfusioniOnDemand: () => {},
+  loadTessitureOnDemand: () => {},
+  isStaff: false,
+  isMaster: false,
+  staffWorkMode: 'dashboard',
+  setStaffWorkMode: () => {},
+  isAdmin: false,
+  viewAll: false,
+  toggleViewAll: () => {},
+  adminPendingCount: 0,
+  userMessages: [],
+  unreadCount: 0,
+  fetchUserMessages: () => {},
+  handleMarkAsRead: () => {},
+  handleToggleRead: () => {},
+  handleDeleteMessage: () => {},
+  subscribeToPush: () => {},
+};
+
 export const useCharacter = () => {
   const context = useContext(CharacterContext);
   if (!context) throw new Error('useCharacter deve essere usato dentro un CharacterProvider');

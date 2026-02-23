@@ -1,6 +1,7 @@
 import React, { useRef, useLayoutEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { CharacterContext, WIKI_FALLBACK_CONTEXT } from './CharacterContext';
 import WidgetTier from './wg/WidgetTier';
 import WidgetAura from './wg/WidgetAura';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
@@ -14,12 +15,26 @@ import WidgetButtons from './wg/WidgetButtons';
 // WidgetButtons usa useNavigate e Link, quindi va avvolto in BrowserRouter.
 const RouterWrapper = ({ children }) => <BrowserRouter>{children}</BrowserRouter>;
 
+// I widget montati con createRoot non ereditano i context (Router, CharacterProvider).
+// Li avvolgiamo con Provider di fallback.
+const WikiContextWrapper = ({ children }) => (
+  <CharacterContext.Provider value={WIKI_FALLBACK_CONTEXT}>
+    {children}
+  </CharacterContext.Provider>
+);
+
 const getWidgetComponent = (widgetType, id) => {
-  const widgetWrapper = (children) => <div className="not-prose">{children}</div>;
+  const widgetWrapper = (children) => (
+    <WikiContextWrapper>
+      <div className="not-prose">{children}</div>
+    </WikiContextWrapper>
+  );
   const needsRouter = (children) => (
-    <RouterWrapper>
-      {widgetWrapper(children)}
-    </RouterWrapper>
+    <WikiContextWrapper>
+      <RouterWrapper>
+        <div className="not-prose">{children}</div>
+      </RouterWrapper>
+    </WikiContextWrapper>
   );
   switch (widgetType) {
     case 'TIER': return widgetWrapper(<WidgetTier id={id} />);
@@ -32,7 +47,7 @@ const getWidgetComponent = (widgetType, id) => {
     case 'SOCIAL': return widgetWrapper(<WidgetSocial />);
     case 'BUTTONS':
     case 'PULSANTI': return needsRouter(<WidgetButtons id={id} />);
-    default: return <span className="text-red-500 text-xs">[WIDGET IGNOTO: {widgetType}]</span>;
+    default: return widgetWrapper(<span className="text-red-500 text-xs">[WIDGET IGNOTO: {widgetType}]</span>);
   }
 };
 
