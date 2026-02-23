@@ -214,7 +214,7 @@ export default function WidgetButtons({ id }) {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
               {button.icon && (
-                <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg text-white`}>
+                <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg`}>
                   {Icon ? (
                     React.createElement(Icon, { size: sizePreset.iconSize, className: 'text-white' })
                   ) : (
