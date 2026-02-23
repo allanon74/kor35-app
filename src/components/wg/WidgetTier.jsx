@@ -3,6 +3,15 @@ import { getWikiTier } from '../../api';
 import AbilitaTable from '../wiki/AbilitaTable';
 import { CHROMATIC_STYLES } from '../../utils/chromaticStyles';
 
+/** Costruisce la stringa CSS per il gradiente (135deg) da una lista di colori hex */
+function gradientStyle(colors) {
+  if (!Array.isArray(colors) || colors.length === 0) return null;
+  const list = colors.filter(c => c && String(c).trim());
+  if (list.length === 0) return null;
+  if (list.length === 1) return list[0];
+  return `linear-gradient(135deg, ${list.join(', ')})`;
+}
+
 export default function WidgetTier({ id }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -23,12 +32,30 @@ export default function WidgetTier({ id }) {
     (a.nome || '').localeCompare(b.nome || '')
   );
 
+  const useGradient = Array.isArray(data.gradient_colors) && data.gradient_colors.length > 0;
+  const gradientBg = useGradient ? gradientStyle(data.gradient_colors) : null;
   const style = CHROMATIC_STYLES[data.color_style] || CHROMATIC_STYLES.default;
 
+  const headerStyle = gradientBg
+    ? { background: gradientBg, color: 'white' }
+    : undefined;
+  const headerClass = gradientBg
+    ? 'p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg'
+    : `${style.headerBg} ${style.headerText} p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg`;
+
+  const bodyClass = gradientBg
+    ? 'w-full p-2 text-gray-800 bg-gray-50'
+    : `w-full bg-gradient-to-b ${style.bg} ${style.text} p-2`;
+
+  const borderClass = gradientBg ? 'border-gray-300' : style.border;
+  const descClass = gradientBg
+    ? 'p-3 md:p-4 text-xs md:text-sm border-b border-gray-200 italic prose prose-sm max-w-none wrap-break-words text-gray-800 bg-gray-50'
+    : `p-3 md:p-4 bg-gradient-to-b ${style.bg} ${style.text} text-xs md:text-sm border-b ${style.border} italic prose prose-sm max-w-none wrap-break-words`;
+
   return (
-    <div className={`my-6 w-full max-w-full border ${style.border} rounded-lg bg-white shadow-sm break-inside-avoid overflow-hidden`}>
+    <div className={`my-6 w-full max-w-full border ${borderClass} rounded-lg bg-white shadow-sm break-inside-avoid overflow-hidden`}>
         {/* HEADER DEL TIER */}
-        <div className={`${style.headerBg} ${style.headerText} p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg`}>
+        <div className={headerClass} style={headerStyle}>
             <div className="flex flex-col">
                 <h3 className="text-base md:text-xl font-bold uppercase tracking-wider leading-tight">{data.nome}</h3>
                 {data.costo && (
@@ -42,15 +69,15 @@ export default function WidgetTier({ id }) {
 
         {/* DESCRIZIONE TIER */}
         {data.descrizione && (
-            <div 
-              className={`p-3 md:p-4 bg-gradient-to-b ${style.bg} ${style.text} text-xs md:text-sm border-b ${style.border} italic prose prose-sm max-w-none wrap-break-words`}
+            <div
+              className={descClass}
               dangerouslySetInnerHTML={{ __html: data.descrizione }}
             />
         )}
 
-        {/* GRIGLIA ABILITÀ con stile cromatico (sfondo e testo descrizione) */}
-        <div className={`w-full bg-gradient-to-b ${style.bg} ${style.text} p-2`}>
-            <AbilitaTable list={sortedList} chromaticStyle={style} />
+        {/* GRIGLIA ABILITÀ */}
+        <div className={bodyClass}>
+            <AbilitaTable list={sortedList} chromaticStyle={gradientBg ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500' } : style} />
         </div>
     </div>
   );

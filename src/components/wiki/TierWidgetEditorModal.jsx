@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Trash2 } from 'lucide-react';
 import { CHROMATIC_STYLES } from '../../utils/chromaticStyles';
 import { getWikiTierList, getWikiTierWidget } from '../../api';
 
+const DEFAULT_GRADIENT_COLOR = '#334155';
+
 /**
- * Modal per creare o modificare un Widget Tier (tier + opzioni di visualizzazione).
+ * Modal per creare o modificare un Widget Tier (tier + opzioni di visualizzazione, gradiente colori).
  */
 export default function TierWidgetEditorModal({ onClose, onSave, initialData = null }) {
   const [tiers, setTiers] = useState([]);
@@ -13,6 +15,11 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
   const [abilitiesCollapsedByDefault, setAbilitiesCollapsedByDefault] = useState(initialData?.abilities_collapsed_by_default ?? false);
   const [showDescription, setShowDescription] = useState(initialData?.show_description ?? true);
   const [colorStyle, setColorStyle] = useState(initialData?.color_style || 'default');
+  const [gradientColors, setGradientColors] = useState(
+    Array.isArray(initialData?.gradient_colors) && initialData.gradient_colors.length > 0
+      ? initialData.gradient_colors
+      : [DEFAULT_GRADIENT_COLOR]
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -31,6 +38,11 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
           setAbilitiesCollapsedByDefault(w.abilities_collapsed_by_default ?? false);
           setShowDescription(w.show_description ?? true);
           setColorStyle(w.color_style || 'default');
+          if (Array.isArray(w.gradient_colors) && w.gradient_colors.length > 0) {
+            setGradientColors(w.gradient_colors);
+          } else {
+            setGradientColors([DEFAULT_GRADIENT_COLOR]);
+          }
         })
         .catch(err => console.error('Errore caricamento widget tier:', err));
     }
@@ -50,6 +62,7 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
         abilities_collapsed_by_default: abilitiesCollapsedByDefault,
         show_description: showDescription,
         color_style: colorStyle || 'default',
+        gradient_colors: gradientColors.filter(c => c && String(c).trim()),
       };
       await onSave(payload, initialData?.id);
       onClose();
@@ -88,7 +101,7 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Stile colore</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Stile predefinito (se non usi gradiente)</label>
             <select
               value={colorStyle}
               onChange={e => setColorStyle(e.target.value)}
@@ -98,6 +111,65 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
                 <option key={key} value={key}>{CHROMATIC_STYLES[key].name}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Gradiente (uno o più colori)</label>
+            <p className="text-[11px] text-gray-500 mb-2">Se imposti almeno un colore, il widget userà un gradiente tra questi colori. Lascia un solo colore per un effetto uniforme.</p>
+            <div className="space-y-2">
+              {gradientColors.map((hex, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={hex.startsWith('#') ? hex : `#${hex}`}
+                    onChange={e => {
+                      const next = [...gradientColors];
+                      next[i] = e.target.value;
+                      setGradientColors(next);
+                    }}
+                    className="h-9 w-12 rounded border border-gray-300 cursor-pointer shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={hex}
+                    onChange={e => {
+                      const next = [...gradientColors];
+                      next[i] = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`;
+                      setGradientColors(next);
+                    }}
+                    placeholder="#hex"
+                    className="flex-1 border border-gray-300 px-2 py-1.5 rounded text-sm font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setGradientColors(prev => prev.filter((_, j) => j !== i))}
+                    disabled={gradientColors.length <= 1}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Rimuovi colore"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setGradientColors(prev => [...prev, DEFAULT_GRADIENT_COLOR])}
+                className="flex items-center gap-1.5 text-sm text-indigo-600 hover:bg-indigo-50 px-2 py-1.5 rounded"
+              >
+                <Plus size={14} />
+                Aggiungi colore
+              </button>
+            </div>
+            {gradientColors.length > 0 && (
+              <div
+                className="mt-2 h-8 rounded border border-gray-200"
+                style={{
+                  background: gradientColors.length === 1
+                    ? gradientColors[0]
+                    : `linear-gradient(135deg, ${gradientColors.join(', ')})`,
+                }}
+              />
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2 cursor-pointer">
