@@ -219,7 +219,7 @@ export default function WidgetButtons({ id }) {
               {button.icon && (
                 <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg`}>
                   {Icon ? (
-                    <Icon size={sizePreset.iconSize} />
+                    React.createElement(Icon, { size: sizePreset.iconSize })
                   ) : (
                     <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
                       ❌
@@ -275,7 +275,7 @@ export default function WidgetButtons({ id }) {
           {button.icon && (
             <div className={`${colorPreset.icon} text-white ${sizePreset.iconPadding} rounded-lg group-hover:scale-110 transition-transform`}>
               {Icon ? (
-                <Icon size={sizePreset.iconSize} />
+                React.createElement(Icon, { size: sizePreset.iconSize })
               ) : (
                 <div style={{ width: sizePreset.iconSize, height: sizePreset.iconSize }} className="bg-red-500 flex items-center justify-center text-white text-xs">
                   ❌
