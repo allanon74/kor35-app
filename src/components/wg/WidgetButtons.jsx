@@ -244,7 +244,7 @@ export default function WidgetButtons({ id }) {
         </>
       );
 
-      const className = `group relative overflow-hidden bg-linear-to-br ${colorPreset.gradient} text-white rounded-xl ${sizePreset.padding} shadow-lg hover:shadow-2xl transition-all transform hover:scale-105`;
+      const className = `group relative overflow-hidden bg-gradient-to-br ${colorPreset.gradient} text-white rounded-xl ${sizePreset.padding} shadow-lg hover:shadow-2xl transition-all transform hover:scale-105`;
 
       if (button.link_type === 'wiki') {
         return (
@@ -307,7 +307,7 @@ export default function WidgetButtons({ id }) {
         </>
       );
 
-      const className = `flex items-center gap-4 ${sizePreset.padding} bg-linear-to-r ${colorPreset.bg} border-2 ${colorPreset.border} rounded-lg hover:shadow-lg transition-all group`;
+      const className = `flex items-center gap-4 ${sizePreset.padding} bg-gradient-to-r ${colorPreset.bg} border-2 ${colorPreset.border} rounded-lg hover:shadow-lg transition-all group`;
 
       if (button.link_type === 'wiki') {
         return (
