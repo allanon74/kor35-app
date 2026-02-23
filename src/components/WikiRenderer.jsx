@@ -120,6 +120,47 @@ export default function WikiRenderer({ content }) {
         .wiki-content a.wiki-link:hover {
           color: #818cf8;
         }
+        /* Sezioni collassabili */
+        .wiki-content details.wiki-collapse {
+          margin: 1em 0;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #f9fafb;
+        }
+        .wiki-content details.wiki-collapse summary {
+          padding: 12px 16px;
+          background: linear-gradient(to bottom, #f3f4f6, #e5e7eb);
+          cursor: pointer;
+          font-weight: 600;
+          color: #374151;
+          user-select: none;
+          list-style: none;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .wiki-content details.wiki-collapse summary::-webkit-details-marker {
+          display: none;
+        }
+        .wiki-content details.wiki-collapse summary::before {
+          content: '▶';
+          font-size: 0.75em;
+          transition: transform 0.2s;
+        }
+        .wiki-content details.wiki-collapse[open] summary::before {
+          transform: rotate(90deg);
+        }
+        .wiki-content details.wiki-collapse summary:hover {
+          background: linear-gradient(to bottom, #e5e7eb, #d1d5db);
+        }
+        .wiki-content details.wiki-collapse[open] summary {
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .wiki-content details.wiki-collapse > *:not(summary) {
+          padding: 16px;
+          background: #fff;
+        }
       `}</style>
       <div className="wiki-content prose prose-red max-w-none text-gray-800">
         {parts.map((part, index) => {
