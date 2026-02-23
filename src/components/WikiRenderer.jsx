@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect } from 'react';
+import React, { useRef, useLayoutEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import WidgetTier from './wg/WidgetTier';
@@ -36,12 +36,7 @@ const getWidgetComponent = (widgetType, id) => {
   }
 };
 
-export default function WikiRenderer({ content }) {
-  const containerRef = useRef(null);
-
-  if (!content) return null;
-
-  // --- FUNZIONE DI PULIZIA PROFONDA ---
+function processWikiContent(content) {
   const cleanContent = (html) => {
     let currentHtml = html;
     let hasChanged = true;
@@ -56,26 +51,36 @@ export default function WikiRenderer({ content }) {
     }
     return currentHtml;
   };
-
-  // 1. Pulizia
-  let processedContent = cleanContent(content);
-
-  // 2. Rimuovi attributo "open" da details.wiki-collapse così partono sempre chiusi
-  processedContent = processedContent.replace(
+  let out = cleanContent(content);
+  out = out.replace(
     /<details\s+class=["']wiki-collapse["'][^>]*>/gi,
     '<details class="wiki-collapse">'
   );
-
-  // 3. Sostituisci widget con placeholder (mantiene la struttura HTML intatta, es. dentro <details>)
-  processedContent = processedContent.replace(
+  out = out.replace(
     /{{WIDGET_([A-Z_]+):(\d+)}}/g,
     (_, type, id) => `<span data-widget-mount data-type="${type}" data-id="${id}" class="wiki-widget-placeholder"></span>`
   );
+  return out;
+}
 
-  // Mount dei widget nei placeholder (dopo il render dell'HTML)
+export default function WikiRenderer({ content }) {
+  const containerRef = useRef(null);
+
+  if (!content) return null;
+
+  const processedContent = useMemo(
+    () => (content ? processWikiContent(content) : ''),
+    [content]
+  );
+
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !processedContent) return;
+
+    // Impostiamo l'HTML solo qui, così React non lo sovrascrive al re-render
+    // (dangerouslySetInnerHTML a ogni render cancellava i widget montati con createRoot)
+    container.innerHTML = processedContent;
+
     const placeholders = container.querySelectorAll('[data-widget-mount]');
     const roots = [];
     placeholders.forEach((ph) => {
@@ -85,8 +90,9 @@ export default function WikiRenderer({ content }) {
       root.render(getWidgetComponent(type, id));
       roots.push(root);
     });
+
     return () => roots.forEach((r) => r.unmount());
-  }, [content]);
+  }, [content, processedContent]);
 
   return (
     <>
@@ -174,7 +180,6 @@ export default function WikiRenderer({ content }) {
       <div
         ref={containerRef}
         className="wiki-content prose prose-red max-w-none text-gray-800"
-        dangerouslySetInnerHTML={{ __html: processedContent }}
       />
     </>
   );
