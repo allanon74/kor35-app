@@ -1,17 +1,21 @@
 import React from 'react';
 import PunteggioDisplay from '../PunteggioDisplay';
 
-export default function AbilitaTable({ list }) {
+export default function AbilitaTable({ list, chromaticStyle }) {
   if (!list || list.length === 0) return <p className="text-gray-500 italic text-sm p-2">Nessuna abilità elencata.</p>;
+
+  const cardBorder = chromaticStyle?.border ?? 'border-gray-200';
+  const headerBg = chromaticStyle?.headerBg ?? 'bg-gray-50';
+  const headerText = chromaticStyle?.headerText ?? 'text-red-900';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
       {list.map((item) => (
-        <div key={item.id} className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid">
+        <div key={item.id} className={`bg-white border ${cardBorder} rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid`}>
           
           {/* HEADER SCHEDA: Nome + Costo */}
-          <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2">
-            <span className="font-bold text-red-900 text-sm md:text-base leading-tight truncate">
+          <div className={`${headerBg} px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2`}>
+            <span className={`font-bold ${headerText} text-sm md:text-base leading-tight truncate`}>
               {item.nome}
             </span>
             

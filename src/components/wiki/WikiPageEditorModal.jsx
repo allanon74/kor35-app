@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, getWikiImageList, getWidgetButtonsList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiTierWidgetList, getWikiImageList, getWidgetButtonsList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick, Edit } from 'lucide-react'; 
 import ButtonWidgetEditorModal from './ButtonWidgetEditorModal';
@@ -30,6 +30,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // Widget Helper logic
   const [showWidgetHelper, setShowWidgetHelper] = useState(false);
   const [availableTiers, setAvailableTiers] = useState([]);
+  const [availableTierWidgets, setAvailableTierWidgets] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
   const [availableButtonWidgets, setAvailableButtonWidgets] = useState([]);
   const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier', 'image', 'buttons'
@@ -115,12 +116,14 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         getWikiTierList()
             .then(data => setAvailableTiers(data))
             .catch(err => console.error("Err loading tiers", err));
-        
+        // Carica Widget Tier (per modifica widget già usati)
+        getWikiTierWidgetList()
+            .then(data => setAvailableTierWidgets(Array.isArray(data) ? data : []))
+            .catch(() => setAvailableTierWidgets([]));
         // Carica Immagini
         getWikiImageList()
             .then(data => setAvailableImages(data))
             .catch(err => console.error("Err loading images", err));
-        
         // Carica Widget Buttons
         getWidgetButtonsList()
             .then(data => setAvailableButtonWidgets(data))
@@ -529,13 +532,49 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                 Configura e Inserisci Tier
                                             </button>
                                         </div>
+                                        {/* Widget Tier già usati in questa pagina: modifica senza creare un nuovo record */}
+                                        {(() => {
+                                            const usedIds = getUsedWidgetIds();
+                                            const usedWidgetIds = usedIds.tiers;
+                                            if (usedWidgetIds.length === 0) return null;
+                                            return (
+                                                <div className="p-2 border-b border-gray-200 bg-amber-50">
+                                                    <p className="text-[10px] font-bold text-amber-800 mb-1">Widget Tier in questa pagina</p>
+                                                    {usedWidgetIds.map(widgetId => {
+                                                        const widget = availableTierWidgets.find(w => w.id === widgetId);
+                                                        return (
+                                                            <div key={widgetId} className="flex items-center justify-between gap-2 py-1">
+                                                                <span className="text-xs text-gray-700 truncate">
+                                                                    {widget ? `#${widget.id} – ${widget.tier_nome || 'Tier'}` : `Widget #${widgetId}`}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (widget) setEditingTierWidget(widget);
+                                                                        setTierWidgetPreselectedTier(null);
+                                                                        setShowTierWidgetEditor(true);
+                                                                    }}
+                                                                    className="shrink-0 p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                                                    title="Modifica widget"
+                                                                >
+                                                                    <Edit size={12} />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                         {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
                                         {(() => {
                                             const usedIds = getUsedWidgetIds();
-                                            const sortedTiers = sortByUsage(availableTiers, usedIds.tiers);
+                                            const usedWidgetTierIds = availableTierWidgets
+                                                .filter(w => usedIds.tiers.includes(w.id))
+                                                .map(w => w.tier);
+                                            const sortedTiers = sortByUsage(availableTiers, usedWidgetTierIds);
                                             
                                             return sortedTiers.map(tier => {
-                                                const isUsed = usedIds.tiers.includes(tier.id);
+                                                const isUsed = usedWidgetTierIds.includes(tier.id);
                                                 return (
                                                     <button 
                                                         key={tier.id}
@@ -953,8 +992,13 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
             setEditingTierWidget(null);
             setTierWidgetPreselectedTier(null);
           }}
-          onSave={(widget) => {
-            insertWidget(`{{WIDGET_TIER:${widget.id}}}`);
+          onSave={async (widget) => {
+            if (!editingTierWidget) {
+              insertWidget(`{{WIDGET_TIER:${widget.id}}}`);
+            } else {
+              const updatedList = await getWikiTierWidgetList().catch(() => []);
+              setAvailableTierWidgets(Array.isArray(updatedList) ? updatedList : []);
+            }
             setShowTierWidgetEditor(false);
             setEditingTierWidget(null);
             setTierWidgetPreselectedTier(null);

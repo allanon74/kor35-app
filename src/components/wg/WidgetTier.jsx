@@ -29,8 +29,8 @@ export default function WidgetTier({ id }) {
   const showDescription = data.show_description !== false;
 
   const abilitiesContent = (
-    <div className="w-full bg-gray-50/30">
-      <AbilitaTable list={sortedList} />
+    <div className={`w-full bg-gradient-to-b ${style.bg} ${style.text} p-2`}>
+      <AbilitaTable list={sortedList} chromaticStyle={style} />
     </div>
   );
 
@@ -63,8 +63,8 @@ export default function WidgetTier({ id }) {
             className={`wiki-collapse-tier border-t ${style.border}`}
             open={!abilitiesCollapsedByDefault}
           >
-            <summary className="px-4 py-3 cursor-pointer font-semibold bg-gray-100 hover:bg-gray-200 transition-colors list-none flex items-center gap-2 [&::-webkit-details-marker]:hidden">
-              <span className="text-gray-500">▶</span>
+            <summary className={`px-4 py-3 cursor-pointer font-semibold ${style.headerBg} ${style.headerText} hover:opacity-90 transition-opacity list-none flex items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+              <span className="opacity-80">▶</span>
               Abilità elencate
             </summary>
             {abilitiesContent}
