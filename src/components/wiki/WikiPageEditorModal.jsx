@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, getWikiImageList, getWidgetButtonsList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiImageList, getWidgetButtonsList, getWikiTierWidgetList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiTierWidget, updateWikiTierWidget, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
-import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick, Edit } from 'lucide-react'; 
-import ButtonWidgetEditorModal from './ButtonWidgetEditorModal'; 
+import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick, Edit } from 'lucide-react';
+import ButtonWidgetEditorModal from './ButtonWidgetEditorModal';
+import TierWidgetEditorModal from './TierWidgetEditorModal'; 
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -30,10 +31,15 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   const [showWidgetHelper, setShowWidgetHelper] = useState(false);
   const [availableTiers, setAvailableTiers] = useState([]);
   const [tierSearch, setTierSearch] = useState('');
+  const [availableTierWidgets, setAvailableTierWidgets] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
   const [availableButtonWidgets, setAvailableButtonWidgets] = useState([]);
   const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier', 'image', 'buttons'
-  
+
+  // State per il modal widget tier (crea/modifica)
+  const [showTierWidgetEditor, setShowTierWidgetEditor] = useState(false);
+  const [editingTierWidget, setEditingTierWidget] = useState(null);
+
   // State per il modal del widget buttons
   const [showButtonWidgetEditor, setShowButtonWidgetEditor] = useState(false);
   const [editingButtonWidget, setEditingButtonWidget] = useState(null);
@@ -106,11 +112,14 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
 
   useEffect(() => {
     if (showWidgetHelper) {
-        // Carica Tier
+        // Carica Tier e Widget Tier
         getWikiTierList()
             .then(data => setAvailableTiers(data))
             .catch(err => console.error("Err loading tiers", err));
-        
+        getWikiTierWidgetList()
+            .then(data => setAvailableTierWidgets(data || []))
+            .catch(err => console.error("Err loading tier widgets", err));
+
         // Carica Immagini
         getWikiImageList()
             .then(data => setAvailableImages(data))
@@ -511,13 +520,107 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                             <div className="max-h-40 md:max-h-60 overflow-y-auto">
                                 {widgetHelperTab === 'tier' && (
                                     <>
+                                        {/* Widget Tier già usati in pagina: modifica */}
+                                        {(() => {
+                                            const usedIds = getUsedWidgetIds();
+                                            const usedTierIds = usedIds.tiers || [];
+                                            const widgetIdsSet = new Set((availableTierWidgets || []).map(w => w.id));
+                                            const usedWidgets = usedTierIds.filter(id => widgetIdsSet.has(id));
+                                            if (usedWidgets.length === 0) return null;
+                                            return (
+                                                <div className="p-2 border-b border-gray-200 bg-amber-50">
+                                                    <p className="text-xs font-bold text-gray-700 mb-1">Widget Tier in questa pagina</p>
+                                                    {usedWidgets.map(id => {
+                                                        const w = availableTierWidgets.find(x => x.id === id);
+                                                        return (
+                                                            <div key={id} className="flex justify-between items-center gap-1 py-1">
+                                                                <span className="text-xs truncate">{w?.tier_nome || `#${id}`}</span>
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setEditingTierWidget(w || { id });
+                                                                            setShowTierWidgetEditor(true);
+                                                                        }}
+                                                                        className="p-1 text-indigo-600 hover:bg-indigo-100 rounded"
+                                                                        title="Modifica widget tier"
+                                                                    >
+                                                                        <Edit size={12} />
+                                                                    </button>
+                                                                    <span className="text-[10px] px-1 rounded bg-gray-100">ID:{id}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+                                        {/* Crea nuovo widget tier */}
+                                        <div className="p-2 border-b border-gray-200 bg-indigo-50">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditingTierWidget(null);
+                                                    setShowTierWidgetEditor(true);
+                                                }}
+                                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                <MousePointerClick size={14} />
+                                                Crea / Configura Widget Tier
+                                            </button>
+                                        </div>
+                                        {/* Lista widget tier: inserisci o modifica */}
+                                        {availableTierWidgets.length > 0 && (
+                                            <div className="p-1 border-b border-gray-200">
+                                                <p className="text-xs font-bold text-gray-600 mb-1">Widget Tier esistenti</p>
+                                                {(() => {
+                                                    const usedIds = getUsedWidgetIds();
+                                                    const sorted = sortByUsage(availableTierWidgets, usedIds.tiers);
+                                                    return sorted.map(w => {
+                                                        const isUsed = usedIds.tiers.includes(w.id);
+                                                        return (
+                                                            <div
+                                                                key={w.id}
+                                                                className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group ${
+                                                                    isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
+                                                                }`}
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => insertWidget(`{{WIDGET_TIER:${w.id}}}`)}
+                                                                    className="flex-1 flex items-center gap-2 truncate"
+                                                                >
+                                                                    <span className={`font-bold truncate ${isUsed ? 'text-green-700' : 'text-gray-700'}`}>
+                                                                        {isUsed && <span className="text-green-600">✓ </span>}
+                                                                        {w.tier_nome || `Widget #${w.id}`}
+                                                                    </span>
+                                                                </button>
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => { setEditingTierWidget(w); setShowTierWidgetEditor(true); }}
+                                                                        className="p-1 text-indigo-600 hover:bg-indigo-100 rounded"
+                                                                        title="Modifica"
+                                                                    >
+                                                                        <Edit size={12} />
+                                                                    </button>
+                                                                    <span className="text-[10px] px-1 rounded bg-gray-100">ID:{w.id}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
+                                        )}
+                                        {/* Tier semplici (inserimento diretto per id tier) */}
                                         <div className="p-2 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                                            <p className="text-xs font-bold text-gray-600 mb-1">Inserisci tier semplice (senza opzioni)</p>
                                             <input
                                                 type="text"
                                                 placeholder="Cerca tier per nome..."
                                                 value={tierSearch}
                                                 onChange={(e) => setTierSearch(e.target.value)}
-                                                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                                             />
                                         </div>
                                         {availableTiers.length === 0 && <p className="p-2 text-xs text-gray-500">Caricamento...</p>}
@@ -527,27 +630,22 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                             const sortedTiers = [...availableTiers]
                                                 .filter(t => !searchLower || (t.nome || '').toLowerCase().includes(searchLower))
                                                 .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-                                            
                                             return sortedTiers.map(tier => {
                                                 const isUsed = usedIds.tiers.includes(tier.id);
                                                 return (
-                                                    <button 
+                                                    <button
                                                         key={tier.id}
                                                         type="button"
                                                         onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
-                                                        className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group transition-colors ${
+                                                        className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center ${
                                                             isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
                                                         }`}
                                                     >
-                                                        <span className={`font-bold group-hover:text-blue-800 truncate pr-2 flex items-center gap-2 ${
-                                                            isUsed ? 'text-green-700' : 'text-gray-700'
-                                                        }`}>
+                                                        <span className={`font-bold truncate pr-2 flex items-center gap-2 ${isUsed ? 'text-green-700' : 'text-gray-700'}`}>
                                                             {isUsed && <span className="text-green-600">✓</span>}
                                                             {tier.nome}
                                                         </span>
-                                                        <span className={`text-[10px] px-1 rounded ${
-                                                            isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
-                                                        }`}>
+                                                        <span className={`text-[10px] px-1 rounded ${isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
                                                             ID:{tier.id}
                                                         </span>
                                                     </button>
@@ -909,26 +1007,48 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
           onSave={async (widgetData) => {
             try {
               let response;
-              
               if (editingButtonWidget) {
-                // Modifica esistente
                 response = await updateWidgetButtons(editingButtonWidget.id, widgetData);
               } else {
-                // Nuovo widget
                 response = await createWidgetButtons(widgetData);
-                // Inserisci automaticamente solo se nuovo
                 insertWidget(`{{WIDGET_BUTTONS:${response.id}}}`);
               }
-              
-              // Ricarica la lista
               const updatedList = await getWidgetButtonsList();
               setAvailableButtonWidgets(updatedList);
-              
               setShowButtonWidgetEditor(false);
               setEditingButtonWidget(null);
             } catch (error) {
               console.error("Errore salvataggio widget buttons:", error);
               alert("Errore durante il salvataggio del widget. Controlla la console.");
+            }
+          }}
+        />
+      )}
+
+      {/* MODAL EDITOR WIDGET TIER */}
+      {showTierWidgetEditor && (
+        <TierWidgetEditorModal
+          initialData={editingTierWidget}
+          onClose={() => {
+            setShowTierWidgetEditor(false);
+            setEditingTierWidget(null);
+          }}
+          onSave={async (payload, existingId) => {
+            try {
+              let response;
+              if (existingId) {
+                response = await updateWikiTierWidget(existingId, payload);
+              } else {
+                response = await createWikiTierWidget(payload);
+                insertWidget(`{{WIDGET_TIER:${response.id}}}`);
+              }
+              const list = await getWikiTierWidgetList();
+              setAvailableTierWidgets(list || []);
+              setShowTierWidgetEditor(false);
+              setEditingTierWidget(null);
+            } catch (error) {
+              console.error("Errore salvataggio widget tier:", error);
+              throw error;
             }
           }}
         />

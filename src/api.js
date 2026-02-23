@@ -1377,6 +1377,32 @@ export const getWikiTierList = () => {
   return fetchPublic('/api/plot/api/public/wiki-tiers/');
 };
 
+// Lista widget Tier configurabili (per inserire / modificare in pagina)
+export const getWikiTierWidgetList = () => {
+  return fetchPublic('/api/plot/api/public/wiki-tier-widgets/');
+};
+
+// Dettaglio singolo widget Tier (per modifica)
+export const getWikiTierWidget = (id) => {
+  return fetchPublic(`/api/plot/api/public/wiki-tier-widgets/${id}/`);
+};
+
+// Crea widget Tier (Staff)
+export const createWikiTierWidget = (data, onLogout) => {
+  return fetchAuthenticated('/api/plot/api/staff/wiki-tiers/', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
+// Aggiorna widget Tier (Staff)
+export const updateWikiTierWidget = (id, data, onLogout) => {
+  return fetchAuthenticated(`/api/plot/api/staff/wiki-tiers/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
 // --- WIDGET IMMAGINI WIKI ---
 export const getWikiImage = (id) => {
   return fetchPublic(`/api/plot/api/public/wiki-immagini/${id}/`);
