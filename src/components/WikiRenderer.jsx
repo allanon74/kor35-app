@@ -124,25 +124,32 @@ export default function WikiRenderer({ content }) {
       <div className="wiki-content prose prose-red max-w-none text-gray-800">
         {parts.map((part, index) => {
           if (part.type === 'widget') {
+              // not-prose: esclude i widget dagli stili Typography (prose) che sovrascrivono
+              // colori e stili custom - es. icone Lucide nei pulsanti diventavano invisibili
+              const widgetWrapper = (children) => (
+                <div key={index} className="not-prose">
+                  {children}
+                </div>
+              );
               switch (part.widgetType) {
                   case 'TIER':
-                      return <WidgetTier key={index} id={part.id} />;
+                      return widgetWrapper(<WidgetTier id={part.id} />);
                   case 'AURA':
-                      return <WidgetAura key={index} id={part.id} />;
+                      return widgetWrapper(<WidgetAura id={part.id} />);
                   case 'TABELLA':
-                      return <WidgetTabellaAbilita key={index} id={part.id} />;
+                      return widgetWrapper(<WidgetTabellaAbilita id={part.id} />);
                   case 'IMAGE':
                   case 'IMMAGINE':
-                      return <WidgetImmagine key={index} id={part.id} />;
+                      return widgetWrapper(<WidgetImmagine id={part.id} />);
                   case 'CHI_SIAMO':
-                      return <WidgetChiSiamo key={index} />;
+                      return widgetWrapper(<WidgetChiSiamo />);
                   case 'EVENTI':
-                      return <WidgetEventi key={index} />;
+                      return widgetWrapper(<WidgetEventi />);
                   case 'SOCIAL':
-                      return <WidgetSocial key={index} />;
+                      return widgetWrapper(<WidgetSocial />);
                   case 'BUTTONS':
                   case 'PULSANTI':
-                      return <WidgetButtons key={index} id={part.id} />;
+                      return widgetWrapper(<WidgetButtons id={part.id} />);
                   default:
                       return (
                           <div key={index} className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">
