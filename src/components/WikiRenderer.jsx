@@ -29,41 +29,47 @@ function renderWidgetByType(type, id) {
   }
 }
 
+function cleanContent(html) {
+  let currentHtml = html;
+  let hasChanged = true;
+  const wrapperRegex = /<([a-z][a-z0-9]*)[^>]*>(?:[\s\u00A0]|&nbsp;|<br\/?>)*({{WIDGET_[A-Z_]+:\d+}})(?:[\s\u00A0]|&nbsp;|<br\/?>)*<\/\1>/gi;
+  while (hasChanged) {
+    const newHtml = currentHtml.replace(wrapperRegex, '$2');
+    if (newHtml !== currentHtml) currentHtml = newHtml;
+    else hasChanged = false;
+  }
+  return currentHtml;
+}
+
+function getFinalHtml(content) {
+  const processedContent = cleanContent(content);
+  let slotIndex = 0;
+  const htmlWithSlots = processedContent.replace(WIDGET_REGEX, (_, type, id) => {
+    const key = slotIndex++;
+    return `<div class="wiki-widget-slot" data-widget-type="${type}" data-widget-id="${id}" data-widget-key="${key}"></div>`;
+  });
+  return ensureDetailsClosed(htmlWithSlots);
+}
+
 export default function WikiRenderer({ content }) {
   const containerRef = useRef(null);
   const rootsRef = useRef([]);
 
   if (!content) return null;
 
-  // Pulizia wrapper attorno ai placeholder widget
-  const cleanContent = (html) => {
-    let currentHtml = html;
-    let hasChanged = true;
-    const wrapperRegex = /<([a-z][a-z0-9]*)[^>]*>(?:[\s\u00A0]|&nbsp;|<br\/?>)*({{WIDGET_[A-Z_]+:\d+}})(?:[\s\u00A0]|&nbsp;|<br\/?>)*<\/\1>/gi;
-    while (hasChanged) {
-      const newHtml = currentHtml.replace(wrapperRegex, '$2');
-      if (newHtml !== currentHtml) currentHtml = newHtml;
-      else hasChanged = false;
-    }
-    return currentHtml;
-  };
-
-  const processedContent = cleanContent(content);
-
-  // Sostituiamo ogni {{WIDGET_TYPE:id}} con un div-slot nell'HTML: la struttura (details/collapsible) resta intatta
-  let slotIndex = 0;
-  const htmlWithSlots = processedContent.replace(WIDGET_REGEX, (_, type, id) => {
-    const key = slotIndex++;
-    return `<div class="wiki-widget-slot" data-widget-type="${type}" data-widget-id="${id}" data-widget-key="${key}"></div>`;
-  });
-
-  const finalHtml = ensureDetailsClosed(htmlWithSlots);
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const slots = container.querySelectorAll('.wiki-widget-slot');
+
+    // Unmount previous widgets before replacing HTML
+    rootsRef.current.forEach((r) => r.unmount());
     rootsRef.current = [];
+
+    // Set HTML imperatively so React never overwrites it on re-render (fix: widgets no longer disappear)
+    const finalHtml = getFinalHtml(content);
+    container.innerHTML = finalHtml;
+
+    const slots = container.querySelectorAll('.wiki-widget-slot');
     slots.forEach((slot) => {
       const type = slot.getAttribute('data-widget-type');
       const id = slot.getAttribute('data-widget-id');
@@ -71,6 +77,7 @@ export default function WikiRenderer({ content }) {
       root.render(renderWidgetByType(type, id));
       rootsRef.current.push(root);
     });
+
     return () => {
       rootsRef.current.forEach((r) => r.unmount());
       rootsRef.current = [];
@@ -83,7 +90,6 @@ export default function WikiRenderer({ content }) {
       <div
         ref={containerRef}
         className="wiki-content prose prose-red max-w-none text-gray-800"
-        dangerouslySetInnerHTML={{ __html: finalHtml }}
       />
     </>
   );
