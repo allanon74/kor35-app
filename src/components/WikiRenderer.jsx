@@ -1,4 +1,5 @@
 import React from 'react';
+import { ensureDetailsClosed } from '../utils/htmlSanitizer';
 import WidgetTier from './wg/WidgetTier';
 import WidgetAura from './wg/WidgetAura';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
@@ -54,7 +55,7 @@ export default function WikiRenderer({ content }) {
     if (match.index > lastIndex) {
       parts.push({ 
         type: 'html', 
-        content: processedContent.substring(lastIndex, match.index) 
+        content: ensureDetailsClosed(processedContent.substring(lastIndex, match.index))
       });
     }
 
@@ -70,7 +71,7 @@ export default function WikiRenderer({ content }) {
 
   // Aggiungi eventuale HTML rimanente
   if (lastIndex < processedContent.length) {
-    parts.push({ type: 'html', content: processedContent.substring(lastIndex) });
+    parts.push({ type: 'html', content: ensureDetailsClosed(processedContent.substring(lastIndex)) });
   }
 
   // console.log("--- DEBUG WIKI RENDERER ---");

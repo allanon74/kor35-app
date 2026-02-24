@@ -1,3 +1,12 @@
+/** Rimuove l'attributo open da tutti i <details> nell'HTML (per avere collapsible chiusi di default). */
+export const ensureDetailsClosed = (html) => {
+    if (!html || typeof html !== 'string') return html || '';
+    return html.replace(/<details(\s[^>]*)>/gi, (_, attrs) => {
+        const cleaned = attrs.replace(/\s+open(?:\s*=\s*["'][^"']*["'])?/gi, '').replace(/\s+/g, ' ').trim();
+        return '<details' + (cleaned ? ' ' + cleaned : '') + '>';
+    }).replace(/<details>/gi, '<details>');
+};
+
 export const sanitizeHtml = (htmlContent) => {
     if (!htmlContent) return "";
 
@@ -24,6 +33,8 @@ export const sanitizeHtml = (htmlContent) => {
             // Opzionale: Rimuove attributi width/height da tabelle o div che rompono il layout
             el.removeAttribute('width');
             el.removeAttribute('height');
+            // Sezioni collapsible: chiuso di default (rimuove open)
+            if (el.tagName === 'DETAILS') el.removeAttribute('open');
         });
 
         // 3. RIMOZIONE PARAGRAFI VUOTI ECCESSIVI
