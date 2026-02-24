@@ -75,10 +75,24 @@ export default function WidgetTier({ id }) {
             />
         )}
 
-        {/* GRIGLIA ABILITÀ */}
-        <div className={bodyClass}>
+        {/* GRIGLIA ABILITÀ: collapsible se data.abilities_collapsible, aperto/chiuso da data.abilities_collapsed_by_default */}
+        {data.abilities_collapsible !== false ? (
+          <details
+            className={bodyClass}
+            open={data.abilities_collapsed_by_default === false}
+          >
+            <summary className="cursor-pointer font-semibold py-2 px-3 list-none flex items-center gap-2 [&::-webkit-details-marker]:hidden">
+              Abilità
+            </summary>
+            <div className="pt-0 px-2 pb-2">
+              <AbilitaTable list={sortedList} chromaticStyle={gradientBg ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500' } : style} />
+            </div>
+          </details>
+        ) : (
+          <div className={bodyClass}>
             <AbilitaTable list={sortedList} chromaticStyle={gradientBg ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500' } : style} />
-        </div>
+          </div>
+        )}
     </div>
   );
 }
