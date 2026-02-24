@@ -109,16 +109,5 @@ export const RICH_TEXT_SHARED_STYLES = `
   .wiki-content .wiki-widget-slot .wiki-widget-tier details > div {
     padding: 0;
     background: transparent;
-    color: inherit;
-  }
-  .wiki-content .wiki-widget-tier details > div *,
-  .wiki-content .wiki-widget-slot .wiki-widget-tier details > div * {
-    color: inherit;
-  }
-
-  /* Intestazione Tier: i codici cromatici hanno priorità su .prose (testo chiaro su sfondo scuro) */
-  .wiki-content .wiki-widget-tier .wiki-widget-tier__header,
-  .wiki-content .wiki-widget-tier .wiki-widget-tier__header * {
-    color: inherit;
   }
 `;

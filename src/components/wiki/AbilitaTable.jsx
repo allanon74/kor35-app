@@ -10,6 +10,8 @@ export default function AbilitaTable({ list, chromaticStyle }) {
   const bodyBg = chromaticStyle?.bg ?? null;
   const bodyText = chromaticStyle?.text ?? 'text-gray-700';
   const bodyClass = bodyBg ? `bg-gradient-to-b ${bodyBg} ${bodyText}` : bodyText;
+  const bodyTextColor = chromaticStyle?.bodyTextColor;
+  const bodyStyle = bodyTextColor ? { color: bodyTextColor } : undefined;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
@@ -32,8 +34,8 @@ export default function AbilitaTable({ list, chromaticStyle }) {
             </div>
           </div>
 
-          {/* CORPO SCHEDA: sfondo e testo con stile cromatico quando presente */}
-          <div className={`p-3 text-xs md:text-sm relative ${bodyClass} prose prose-sm max-w-none leading-snug prose-p:my-1`}>
+          {/* CORPO SCHEDA: sfondo e testo con stile cromatico; colore inline per contrasto (es. nero → testo chiaro) */}
+          <div className={`p-3 text-xs md:text-sm relative ${bodyClass} prose prose-sm max-w-none leading-snug prose-p:my-1`} style={bodyStyle}>
             
             {/* BADGE CARATTERISTICA (Flottante a destra) */}
             {item.caratteristica && typeof item.caratteristica === 'object' && (

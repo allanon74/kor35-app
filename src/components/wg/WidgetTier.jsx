@@ -37,24 +37,24 @@ export default function WidgetTier({ id }) {
   const style = CHROMATIC_STYLES[data.color_style] || CHROMATIC_STYLES.default;
 
   const headerStyle = gradientBg
-    ? { background: gradientBg, color: 'white' }
-    : undefined;
-  const headerClass = gradientBg
-    ? 'p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg'
-    : `${style.headerBg} ${style.headerText} p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg`;
+    ? { background: gradientBg, color: '#ffffff' }
+    : { background: style.headerBgColor, color: style.headerTextColor };
+  const headerClass = 'p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg';
 
+  const bodyStyle = gradientBg ? undefined : { color: style.bodyTextColor };
   const bodyClass = gradientBg
     ? 'w-full p-2 text-gray-800 bg-gray-50'
     : `w-full bg-gradient-to-b ${style.bg} ${style.text} p-2`;
 
   const borderClass = gradientBg ? 'border-gray-300' : style.border;
+  const descStyle = gradientBg ? undefined : { color: style.bodyTextColor };
   const descClass = gradientBg
     ? 'p-3 md:p-4 text-xs md:text-sm border-b border-gray-200 italic prose prose-sm max-w-none wrap-break-words text-gray-800 bg-gray-50'
     : `p-3 md:p-4 bg-gradient-to-b ${style.bg} ${style.text} text-xs md:text-sm border-b ${style.border} italic prose prose-sm max-w-none wrap-break-words`;
 
   return (
     <div className={`wiki-widget-tier my-6 w-full max-w-full border ${borderClass} rounded-lg bg-white shadow-sm break-inside-avoid overflow-hidden`}>
-        {/* HEADER DEL TIER */}
+        {/* HEADER DEL TIER: stili inline per contrasto (chiaro su scuro, scuro su chiaro) e per evitare override da .prose */}
         <div className={`wiki-widget-tier__header ${headerClass}`} style={headerStyle}>
             <div className="flex flex-col">
                 <h3 className="text-base md:text-xl font-bold uppercase tracking-wider leading-tight">{data.nome}</h3>
@@ -71,6 +71,7 @@ export default function WidgetTier({ id }) {
         {data.descrizione && (
             <div
               className={descClass}
+              style={descStyle}
               dangerouslySetInnerHTML={{ __html: data.descrizione }}
             />
         )}
@@ -79,6 +80,7 @@ export default function WidgetTier({ id }) {
         {data.abilities_collapsible !== false ? (
           <details
             className={bodyClass}
+            style={bodyStyle}
             open={data.abilities_collapsed_by_default === false}
           >
             <summary className="cursor-pointer font-semibold py-2 px-3 list-none flex items-center gap-2 [&::-webkit-details-marker]:hidden">
@@ -89,7 +91,7 @@ export default function WidgetTier({ id }) {
             </div>
           </details>
         ) : (
-          <div className={bodyClass}>
+          <div className={bodyClass} style={bodyStyle}>
             <AbilitaTable list={sortedList} chromaticStyle={gradientBg ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500' } : style} />
           </div>
         )}
