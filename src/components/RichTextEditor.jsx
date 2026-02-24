@@ -349,10 +349,10 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
 
     // Inserisce una sezione collapsible (details/summary) per le pagine Wiki
     const insertCollapsibleSection = () => {
-        const html = `<details class="wiki-collapsible" style="margin: 0.75em 0; border: 1px solid #4b5563; border-radius: 6px; overflow: hidden;">
-  <summary style="padding: 8px 12px; cursor: pointer; font-weight: 600; background: #374151; color: #e5e7eb;">Titolo sezione (clic per espandere)</summary>
-  <div style="padding: 12px; background: #1f2937;">
-    <p style="margin: 0 0 0.5em 0;">Contenuto della sezione. Modifica qui.</p>
+        const html = `<details class="wiki-collapsible" style="margin: 0.75em auto; width: 90%; max-width: 100%; border: 1px solid #9ca3af; border-radius: 6px; overflow: hidden; background: #e5e7eb;">
+  <summary style="padding: 10px 14px; cursor: pointer; font-weight: 600; background: #d1d5db; color: #111827;">Titolo sezione (clic per espandere)</summary>
+  <div style="padding: 14px; background: #e5e7eb; color: #111827;">
+    <p style="margin: 0 0 0.5em 0; color: #111827;">Contenuto della sezione. Modifica qui.</p>
   </div>
 </details>`;
         document.execCommand('insertHTML', false, html);
@@ -727,24 +727,28 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                     [contenteditable] a.wiki-link:hover {
                         color: #a5b4fc;
                     }
-                    /* Sezioni collapsible (details/summary) */
+                    /* Sezioni collapsible (details/summary): riquadro grigio chiaro, 90% larghezza, centrato */
                     [contenteditable] details.wiki-collapsible {
-                        margin: 0.75em 0;
-                        border: 1px solid #4b5563;
+                        margin: 0.75em auto;
+                        width: 90%;
+                        max-width: 100%;
+                        border: 1px solid #9ca3af;
                         border-radius: 6px;
                         overflow: hidden;
+                        background: #e5e7eb;
                     }
                     [contenteditable] details summary {
-                        padding: 8px 12px;
+                        padding: 10px 14px;
                         cursor: pointer;
                         font-weight: 600;
-                        background: #374151;
-                        color: #e5e7eb;
+                        background: #d1d5db;
+                        color: #111827;
                     }
                     [contenteditable] details summary::-webkit-details-marker { display: none; }
                     [contenteditable] details > div {
-                        padding: 12px;
-                        background: #1f2937;
+                        padding: 14px;
+                        background: #e5e7eb;
+                        color: #111827;
                     }
                 `}</style>
             </div>
