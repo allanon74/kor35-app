@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useContext, useLayoutEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ensureDetailsClosed } from '../utils/htmlSanitizer';
 import { RICH_TEXT_SHARED_STYLES } from '../styles/richTextSharedStyles';
+import { CharacterContext } from './CharacterContext';
 import WidgetTier from './wg/WidgetTier';
 import WidgetAura from './wg/WidgetAura';
 import WidgetTabellaAbilita from './wg/WidgetTabellaAbilita';
@@ -13,20 +14,28 @@ import WidgetButtons from './wg/WidgetButtons';
 
 const WIDGET_REGEX = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
 
-function renderWidgetByType(type, id) {
-  switch (type) {
-    case 'TIER': return <WidgetTier id={id} />;
-    case 'AURA': return <WidgetAura id={id} />;
-    case 'TABELLA': return <WidgetTabellaAbilita id={id} />;
-    case 'IMAGE':
-    case 'IMMAGINE': return <WidgetImmagine id={id} />;
-    case 'CHI_SIAMO': return <WidgetChiSiamo />;
-    case 'EVENTI': return <WidgetEventi />;
-    case 'SOCIAL': return <WidgetSocial />;
-    case 'BUTTONS':
-    case 'PULSANTI': return <WidgetButtons id={id} />;
-    default: return <div className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">[WIDGET IGNOTO: {type}]</div>;
-  }
+function renderWidgetByType(type, id, characterValue) {
+  const widget = (() => {
+    switch (type) {
+      case 'TIER': return <WidgetTier id={id} />;
+      case 'AURA': return <WidgetAura id={id} />;
+      case 'TABELLA': return <WidgetTabellaAbilita id={id} />;
+      case 'IMAGE':
+      case 'IMMAGINE': return <WidgetImmagine id={id} />;
+      case 'CHI_SIAMO': return <WidgetChiSiamo />;
+      case 'EVENTI': return <WidgetEventi />;
+      case 'SOCIAL': return <WidgetSocial />;
+      case 'BUTTONS':
+      case 'PULSANTI': return <WidgetButtons id={id} />;
+      default: return <div className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">[WIDGET IGNOTO: {type}]</div>;
+    }
+  })();
+  // I widget sono montati con createRoot in un albero separato: serve il Provider per useCharacter
+  return (
+    <CharacterContext.Provider value={characterValue}>
+      {widget}
+    </CharacterContext.Provider>
+  );
 }
 
 function cleanContent(html) {
@@ -54,10 +63,13 @@ function getFinalHtml(content) {
 export default function WikiRenderer({ content }) {
   const containerRef = useRef(null);
   const rootsRef = useRef([]);
+  const characterValue = useContext(CharacterContext);
 
-  if (!content) return null;
+  // Render container whenever we have content (string); empty string still gets a div so effect can run
+  const contentStr = content != null ? String(content) : '';
+  if (contentStr === '' && content == null) return null;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
@@ -66,7 +78,7 @@ export default function WikiRenderer({ content }) {
     rootsRef.current = [];
 
     // Set HTML imperatively so React never overwrites it on re-render (fix: widgets no longer disappear)
-    const finalHtml = getFinalHtml(content);
+    const finalHtml = getFinalHtml(contentStr);
     container.innerHTML = finalHtml;
 
     const slots = container.querySelectorAll('.wiki-widget-slot');
@@ -74,7 +86,7 @@ export default function WikiRenderer({ content }) {
       const type = slot.getAttribute('data-widget-type');
       const id = slot.getAttribute('data-widget-id');
       const root = createRoot(slot);
-      root.render(renderWidgetByType(type, id));
+      root.render(renderWidgetByType(type, id, characterValue));
       rootsRef.current.push(root);
     });
 
@@ -82,7 +94,7 @@ export default function WikiRenderer({ content }) {
       rootsRef.current.forEach((r) => r.unmount());
       rootsRef.current = [];
     };
-  }, [content]);
+  }, [contentStr, characterValue]);
 
   return (
     <>
