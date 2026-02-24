@@ -12,14 +12,24 @@ export default function AbilitaTable({ list, chromaticStyle }) {
   const bodyClass = bodyBg ? `bg-gradient-to-b ${bodyBg} ${bodyText}` : bodyText;
   const bodyTextColor = chromaticStyle?.bodyTextColor;
   const bodyStyle = bodyTextColor ? { color: bodyTextColor } : undefined;
+  const headerBgColor = chromaticStyle?.headerBgColor;
+  const headerTextColor = chromaticStyle?.headerTextColor;
+  const cardHeaderStyle =
+    headerBgColor != null && headerTextColor != null
+      ? { background: headerBgColor, color: headerTextColor }
+      : undefined;
+  const cardHeaderClass =
+    cardHeaderStyle
+      ? 'px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2'
+      : `${headerBg} ${headerText} px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2`;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
       {list.map((item) => (
         <div key={item.id} className={`bg-white border ${cardBorder} rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid`}>
           
-          {/* HEADER SCHEDA: Nome + Costo */}
-          <div className={`${headerBg} ${headerText} px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2`}>
+          {/* HEADER SCHEDA: stesso stile dell'intestazione principale del Tier (headerBgColor, headerTextColor) */}
+          <div className={cardHeaderClass} style={cardHeaderStyle}>
             <span className="font-bold text-sm md:text-base leading-tight truncate">
               {item.nome}
             </span>

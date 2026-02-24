@@ -148,3 +148,6 @@ export const CHROMATIC_STYLES = {
     text: 'text-fuchsia-900',
   },
 };
+
+// Alias: backend può inviare 'giallo' invece di 'yellow'
+CHROMATIC_STYLES.giallo = CHROMATIC_STYLES.yellow;
