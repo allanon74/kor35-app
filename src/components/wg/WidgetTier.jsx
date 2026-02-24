@@ -53,9 +53,9 @@ export default function WidgetTier({ id }) {
     : `p-3 md:p-4 bg-gradient-to-b ${style.bg} ${style.text} text-xs md:text-sm border-b ${style.border} italic prose prose-sm max-w-none wrap-break-words`;
 
   return (
-    <div className={`my-6 w-full max-w-full border ${borderClass} rounded-lg bg-white shadow-sm break-inside-avoid overflow-hidden`}>
+    <div className={`wiki-widget-tier my-6 w-full max-w-full border ${borderClass} rounded-lg bg-white shadow-sm break-inside-avoid overflow-hidden`}>
         {/* HEADER DEL TIER */}
-        <div className={headerClass} style={headerStyle}>
+        <div className={`wiki-widget-tier__header ${headerClass}`} style={headerStyle}>
             <div className="flex flex-col">
                 <h3 className="text-base md:text-xl font-bold uppercase tracking-wider leading-tight">{data.nome}</h3>
                 {data.costo && (

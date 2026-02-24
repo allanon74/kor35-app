@@ -82,4 +82,43 @@ export const RICH_TEXT_SHARED_STYLES = `
   .wiki-content details > div, .wiki-content details > div p, .wiki-content details > div * {
     color: inherit;
   }
+
+  /* Collapsible dentro i widget Tier: larghezza 100%, niente riquadro grigio, rispettano lo stile cromatico del plugin */
+  .wiki-content .wiki-widget-tier details,
+  .wiki-content .wiki-widget-slot .wiki-widget-tier details {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+  }
+  .wiki-content .wiki-widget-tier details summary,
+  .wiki-content .wiki-widget-slot .wiki-widget-tier details summary {
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+    color: inherit;
+    border: none;
+  }
+  .wiki-content .wiki-widget-tier details summary:hover,
+  .wiki-content .wiki-widget-slot .wiki-widget-tier details summary:hover {
+    background: transparent;
+  }
+  .wiki-content .wiki-widget-tier details > div,
+  .wiki-content .wiki-widget-slot .wiki-widget-tier details > div {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+  }
+  .wiki-content .wiki-widget-tier details > div *,
+  .wiki-content .wiki-widget-slot .wiki-widget-tier details > div * {
+    color: inherit;
+  }
+
+  /* Intestazione Tier: i codici cromatici hanno priorità su .prose (testo chiaro su sfondo scuro) */
+  .wiki-content .wiki-widget-tier .wiki-widget-tier__header,
+  .wiki-content .wiki-widget-tier .wiki-widget-tier__header * {
+    color: inherit;
+  }
 `;
