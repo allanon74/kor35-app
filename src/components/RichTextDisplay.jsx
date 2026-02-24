@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react'; 
+import React, { useMemo } from 'react';
 import { sanitizeHtml } from '../utils/htmlSanitizer';
-import { activateUser, deleteUser } from '../api'; // Importa le chiamate API
+import { activateUser, deleteUser } from '../api';
+import { RICH_TEXT_SHARED_STYLES } from '../styles/richTextSharedStyles';
 
 const RichTextDisplay = ({ content, onUpdate }) => {
     // 1. Sanitizzazione base dell'HTML
@@ -40,74 +41,7 @@ const RichTextDisplay = ({ content, onUpdate }) => {
 
     return (
         <>
-            <style>{`
-                .ql-editor-view ul {
-                    list-style-type: disc;
-                    margin: 0.5em 0;
-                    padding-left: 2em;
-                }
-                .ql-editor-view ol {
-                    list-style-type: decimal;
-                    margin: 0.5em 0;
-                    padding-left: 2em;
-                }
-                .ql-editor-view li {
-                    margin: 0.25em 0;
-                    display: list-item;
-                }
-                .ql-editor-view ul ul {
-                    list-style-type: circle;
-                    margin: 0.25em 0;
-                }
-                .ql-editor-view ul ul ul {
-                    list-style-type: square;
-                }
-                .ql-editor-view hr {
-                    border: none;
-                    border-top: 2px solid #4b5563;
-                    margin: 1em 0;
-                }
-                .ql-editor-view a.wiki-link {
-                    color: #818cf8;
-                    text-decoration: underline;
-                    cursor: pointer;
-                    transition: color 0.2s;
-                }
-                .ql-editor-view a.wiki-link:hover {
-                    color: #a5b4fc;
-                }
-                /* Sezioni collapsible (details/summary): riquadro grigio chiaro, 90% larghezza, centrato, testo nero */
-                .ql-editor-view details {
-                    margin: 0.75em auto;
-                    width: 90%;
-                    max-width: 100%;
-                    border: 1px solid #9ca3af;
-                    border-radius: 6px;
-                    overflow: hidden;
-                    background: #e5e7eb;
-                }
-                .ql-editor-view details summary {
-                    padding: 10px 14px;
-                    cursor: pointer;
-                    font-weight: 600;
-                    background: #d1d5db;
-                    color: #111827;
-                }
-                .ql-editor-view details summary::-webkit-details-marker { display: none; }
-                .ql-editor-view details summary:hover {
-                    background: #b8bcc4;
-                }
-                .ql-editor-view details > div {
-                    padding: 14px;
-                    background: #e5e7eb;
-                    color: #111827;
-                }
-                .ql-editor-view details > div,
-                .ql-editor-view details > div p,
-                .ql-editor-view details > div * {
-                    color: inherit;
-                }
-            `}</style>
+            <style>{RICH_TEXT_SHARED_STYLES}</style>
             <div 
                 className="ql-editor-view w-full"
                 style={{
