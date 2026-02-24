@@ -120,6 +120,39 @@ export default function WikiRenderer({ content }) {
         .wiki-content a.wiki-link:hover {
           color: #818cf8;
         }
+        /* Sezioni collapsible (details/summary): riquadro grigio chiaro, 90% larghezza, centrato, testo nero */
+        .wiki-content details {
+          margin: 0.75em auto;
+          width: 90%;
+          max-width: 100%;
+          border: 1px solid #9ca3af;
+          border-radius: 6px;
+          overflow: hidden;
+          background: #e5e7eb;
+        }
+        .wiki-content details summary {
+          padding: 10px 14px;
+          cursor: pointer;
+          font-weight: 600;
+          background: #d1d5db;
+          color: #111827;
+        }
+        .wiki-content details summary::-webkit-details-marker {
+          display: none;
+        }
+        .wiki-content details summary:hover {
+          background: #b8bcc4;
+        }
+        .wiki-content details > div {
+          padding: 14px;
+          background: #e5e7eb;
+          color: #111827;
+        }
+        .wiki-content details > div,
+        .wiki-content details > div p,
+        .wiki-content details > div * {
+          color: inherit;
+        }
       `}</style>
       <div className="wiki-content prose prose-red max-w-none text-gray-800">
         {parts.map((part, index) => {
