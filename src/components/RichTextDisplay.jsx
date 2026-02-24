@@ -76,6 +76,28 @@ const RichTextDisplay = ({ content, onUpdate }) => {
                 .ql-editor-view a.wiki-link:hover {
                     color: #a5b4fc;
                 }
+                /* Sezioni collapsible (details/summary) nelle pagine Wiki */
+                .ql-editor-view details {
+                    margin: 0.75em 0;
+                    border: 1px solid #4b5563;
+                    border-radius: 6px;
+                    overflow: hidden;
+                }
+                .ql-editor-view details summary {
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    background: #374151;
+                    color: #e5e7eb;
+                }
+                .ql-editor-view details summary::-webkit-details-marker { display: none; }
+                .ql-editor-view details summary:hover {
+                    background: #4b5563;
+                }
+                .ql-editor-view details > div {
+                    padding: 12px;
+                    background: #1f2937;
+                }
             `}</style>
             <div 
                 className="ql-editor-view w-full"

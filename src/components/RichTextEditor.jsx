@@ -4,7 +4,8 @@ import {
     List, ListOrdered, 
     AlignLeft, AlignCenter,
     Trash2, Paintbrush, Type, Heading, FileText,
-    Minus, Smile, Link as LinkIcon, Search
+    Minus, Smile, Link as LinkIcon, Search,
+    PanelTopClose
 } from 'lucide-react';
 import { getWikiMenu } from '../api';
 
@@ -346,6 +347,21 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
         execCommand('insertHorizontalRule');
     };
 
+    // Inserisce una sezione collapsible (details/summary) per le pagine Wiki
+    const insertCollapsibleSection = () => {
+        const html = `<details class="wiki-collapsible" style="margin: 0.75em 0; border: 1px solid #4b5563; border-radius: 6px; overflow: hidden;">
+  <summary style="padding: 8px 12px; cursor: pointer; font-weight: 600; background: #374151; color: #e5e7eb;">Titolo sezione (clic per espandere)</summary>
+  <div style="padding: 12px; background: #1f2937;">
+    <p style="margin: 0 0 0.5em 0;">Contenuto della sezione. Modifica qui.</p>
+  </div>
+</details>`;
+        document.execCommand('insertHTML', false, html);
+        if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+            editorRef.current.focus();
+        }
+    };
+
     // Inserisce un'emoji
     const insertEmoji = (emoji) => {
         document.execCommand('insertText', false, emoji);
@@ -532,6 +548,7 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                     {/* Gruppo Elementi Speciali */}
                     <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
                         <ToolbarButton icon={Minus} onClick={insertHorizontalRule} title="Riga Orizzontale" />
+                        <ToolbarButton icon={PanelTopClose} onClick={insertCollapsibleSection} title="Inserisci sezione collapsible" />
                         <ToolbarButton icon={LinkIcon} onClick={openLinkModal} title="Inserisci Link Wiki" />
                         <div className="relative">
                             <ToolbarButton 
@@ -709,6 +726,25 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                     }
                     [contenteditable] a.wiki-link:hover {
                         color: #a5b4fc;
+                    }
+                    /* Sezioni collapsible (details/summary) */
+                    [contenteditable] details.wiki-collapsible {
+                        margin: 0.75em 0;
+                        border: 1px solid #4b5563;
+                        border-radius: 6px;
+                        overflow: hidden;
+                    }
+                    [contenteditable] details summary {
+                        padding: 8px 12px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        background: #374151;
+                        color: #e5e7eb;
+                    }
+                    [contenteditable] details summary::-webkit-details-marker { display: none; }
+                    [contenteditable] details > div {
+                        padding: 12px;
+                        background: #1f2937;
                     }
                 `}</style>
             </div>
