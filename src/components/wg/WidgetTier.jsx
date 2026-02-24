@@ -87,12 +87,26 @@ export default function WidgetTier({ id }) {
               Abilità
             </summary>
             <div className="pt-0 px-2 pb-2">
-              <AbilitaTable list={sortedList} chromaticStyle={gradientBg ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500' } : style} />
+              <AbilitaTable
+                list={sortedList}
+                chromaticStyle={
+                  gradientBg
+                    ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500', headerStyle: { background: gradientBg, color: '#ffffff' } }
+                    : style
+                }
+              />
             </div>
           </details>
         ) : (
           <div className={bodyClass} style={bodyStyle}>
-            <AbilitaTable list={sortedList} chromaticStyle={gradientBg ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500' } : style} />
+            <AbilitaTable
+              list={sortedList}
+              chromaticStyle={
+                gradientBg
+                  ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500', headerStyle: { background: gradientBg, color: '#ffffff' } }
+                  : style
+              }
+            />
           </div>
         )}
     </div>

@@ -14,8 +14,11 @@ export default function AbilitaTable({ list, chromaticStyle }) {
   const bodyStyle = bodyTextColor ? { color: bodyTextColor } : undefined;
   const headerBgColor = chromaticStyle?.headerBgColor;
   const headerTextColor = chromaticStyle?.headerTextColor;
-  const cardHeaderStyle =
-    headerBgColor != null && headerTextColor != null
+  /** Se presente (es. gradiente dal widget tier), ha priorità su headerBgColor/headerTextColor */
+  const headerStyleOverride = chromaticStyle?.headerStyle;
+  const cardHeaderStyle = headerStyleOverride
+    ? headerStyleOverride
+    : headerBgColor != null && headerTextColor != null
       ? { background: headerBgColor, color: headerTextColor }
       : undefined;
   const cardHeaderClass =
