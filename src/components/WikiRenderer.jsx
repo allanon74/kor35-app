@@ -1,4 +1,5 @@
 import React, { useContext, useLayoutEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createRoot } from 'react-dom/client';
 import { ensureDetailsClosed } from '../utils/htmlSanitizer';
 import { RICH_TEXT_SHARED_STYLES } from '../styles/richTextSharedStyles';
@@ -10,11 +11,11 @@ import WidgetImmagine from './wg/WidgetImmagine';
 import WidgetChiSiamo from './wg/WidgetChiSiamo';
 import WidgetEventi from './wg/WidgetEventi';
 import WidgetSocial from './wg/WidgetSocial';
-import WidgetButtons from './wg/WidgetButtons';
+import { WidgetButtonsSlot } from './wg/WidgetButtons';
 
 const WIDGET_REGEX = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
 
-function renderWidgetByType(type, id, characterValue) {
+function renderWidgetByType(type, id, characterValue, navigate) {
   const widget = (() => {
     switch (type) {
       case 'TIER': return <WidgetTier id={id} />;
@@ -26,7 +27,7 @@ function renderWidgetByType(type, id, characterValue) {
       case 'EVENTI': return <WidgetEventi />;
       case 'SOCIAL': return <WidgetSocial />;
       case 'BUTTONS':
-      case 'PULSANTI': return <WidgetButtons id={id} />;
+      case 'PULSANTI': return <WidgetButtonsSlot id={id} navigate={navigate} />;
       default: return <div className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">[WIDGET IGNOTO: {type}]</div>;
     }
   })();
@@ -64,6 +65,7 @@ export default function WikiRenderer({ content }) {
   const containerRef = useRef(null);
   const rootsRef = useRef([]);
   const characterValue = useContext(CharacterContext);
+  const navigate = useNavigate();
 
   // Render container whenever we have content (string); empty string still gets a div so effect can run
   const contentStr = content != null ? String(content) : '';
@@ -86,7 +88,7 @@ export default function WikiRenderer({ content }) {
       const type = slot.getAttribute('data-widget-type');
       const id = slot.getAttribute('data-widget-id');
       const root = createRoot(slot);
-      root.render(renderWidgetByType(type, id, characterValue));
+      root.render(renderWidgetByType(type, id, characterValue, navigate));
       rootsRef.current.push(root);
     });
 
@@ -94,7 +96,7 @@ export default function WikiRenderer({ content }) {
       rootsRef.current.forEach((r) => r.unmount());
       rootsRef.current = [];
     };
-  }, [contentStr, characterValue]);
+  }, [contentStr, characterValue, navigate]);
 
   return (
     <>

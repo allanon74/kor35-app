@@ -129,22 +129,22 @@ const BUTTON_STYLES = {
   light: 'light'        // Stile più piccolo con sfondo chiaro (tipo home bottom)
 };
 
-export default function WidgetButtons({ id }) {
+/**
+ * Versione per slot wiki: riceve navigate e usa <a> al posto di <Link>
+ * (createRoot monta fuori dal Router, quindi useNavigate/Link non sono disponibili)
+ */
+export function WidgetButtonsSlot({ id, navigate }) {
+  return <WidgetButtonsCore id={id} navigate={navigate} useAnchorLinks={true} />;
+}
+
+function WidgetButtonsCore({ id, navigate, useAnchorLinks }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const result = await getWidgetButtons(id);
-        console.log('=== Widget Buttons Full Data ===');
-        console.log('Widget ID:', id);
-        console.log('Widget Data:', result);
-        console.log('Buttons Array:', result?.buttons);
-        console.log('First Button:', result?.buttons?.[0]);
-        console.log('Available Lucide Icons (sample):', Object.keys(LucideIcons).slice(0, 20));
-        console.log('================================');
         setData(result);
       } catch (error) {
         console.error('Errore caricamento widget buttons:', error);
@@ -173,11 +173,10 @@ export default function WidgetButtons({ id }) {
   }
 
   const handleButtonClick = (button, e) => {
-    if (button.link_type === 'app' && button.app_route) {
+    if (button.link_type === 'app' && button.app_route && navigate) {
       e.preventDefault();
       navigate(button.app_route);
     }
-    // Per link_type === 'wiki', il Link component gestirà automaticamente
   };
 
   const renderButton = (button, index) => {
@@ -185,15 +184,7 @@ export default function WidgetButtons({ id }) {
     const sizePreset = SIZE_PRESETS[button.size] || SIZE_PRESETS.medium;
     const style = button.style || BUTTON_STYLES.gradient;
 
-    // Debug: verifica dati pulsante
-    console.log(`Button ${index}:`, {
-      title: button.title,
-      icon: button.icon,
-      iconExists: button.icon && LucideIcons[button.icon],
-      iconComponent: button.icon ? LucideIcons[button.icon] : 'not found'
-    });
-
-    // Recupera l'icona da lucide-react - CORREZIONE: assicuriamoci che sia un componente valido
+    // Recupera l'icona da lucide-react
     const Icon = button.icon && LucideIcons[button.icon] ? LucideIcons[button.icon] : null;
 
     // Determina il link
@@ -232,6 +223,13 @@ export default function WidgetButtons({ id }) {
       const className = `group relative overflow-hidden bg-linear-to-br ${colorPreset.gradient} text-white rounded-xl ${sizePreset.padding} shadow-lg hover:shadow-2xl transition-all transform hover:scale-105`;
 
       if (button.link_type === 'wiki') {
+        if (useAnchorLinks) {
+          return (
+            <a key={index} href={linkTo} className={className}>
+              {content}
+            </a>
+          );
+        }
         return (
           <Link key={index} to={linkTo} className={className}>
             {content}
@@ -286,6 +284,13 @@ export default function WidgetButtons({ id }) {
       const className = `flex items-center gap-4 ${sizePreset.padding} bg-linear-to-r ${colorPreset.bg} border-2 ${colorPreset.border} rounded-lg hover:shadow-lg transition-all group`;
 
       if (button.link_type === 'wiki') {
+        if (useAnchorLinks) {
+          return (
+            <a key={index} href={linkTo} className={className}>
+              {content}
+            </a>
+          );
+        }
         return (
           <Link key={index} to={linkTo} className={className}>
             {content}
@@ -324,6 +329,11 @@ export default function WidgetButtons({ id }) {
       {data.buttons.map((button, index) => renderButton(button, index))}
     </div>
   );
+}
+
+export default function WidgetButtons({ id }) {
+  const navigate = useNavigate();
+  return <WidgetButtonsCore id={id} navigate={navigate} useAnchorLinks={false} />;
 }
 
 // Export dei preset per uso in altri componenti (es. modal di configurazione)
