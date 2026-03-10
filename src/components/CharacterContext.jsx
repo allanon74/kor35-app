@@ -153,17 +153,23 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, []);
 
   // *** CORREZIONE CRUCIALE ***
-  // Usiamo Promise.all per attendere che TUTTI i refetch siano completati
-  // prima di restituire il controllo al componente chiamante (es. AbilitaTab).
+  // Invalidazione + refetch esplicito della query personaggio così la UI (timer creazioni
+  // consumabili, pulsante "Aggiungi a inventario") si aggiorna subito senza ricaricare la pagina.
   const refreshCharacterData = useCallback(async () => {
-    await Promise.all([
-        refetchCharacterDetail(),
-        refetchSkills(),
-        refetchInfusioni(),
-        refetchTessiture(),
-        refetchCerimoniali()
-    ]);
-  }, [refetchCharacterDetail, refetchSkills, refetchInfusioni, refetchTessiture, refetchCerimoniali]);
+    const promises = [
+      refetchSkills(),
+      refetchInfusioni(),
+      refetchTessiture(),
+      refetchCerimoniali(),
+    ];
+    if (selectedCharacterId) {
+      queryClient.invalidateQueries({ queryKey: ['personaggio', selectedCharacterId] });
+      promises.push(queryClient.refetchQueries({ queryKey: ['personaggio', selectedCharacterId] }));
+    } else {
+      promises.push(refetchCharacterDetail());
+    }
+    await Promise.all(promises);
+  }, [selectedCharacterId, queryClient, refetchCharacterDetail, refetchSkills, refetchInfusioni, refetchTessiture, refetchCerimoniali]);
 
   const fetchPersonaggi = useCallback(() => {
     return refetchPersonaggiList();
