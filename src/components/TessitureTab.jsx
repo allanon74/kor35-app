@@ -42,6 +42,12 @@ const TessitureTab = ({ onLogout }) => {
     [creazioniInCorso]
   );
 
+  const fmtTime = (s) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+  };
+
   useEffect(() => {
     const byId = {};
     creazioniInCorso.forEach((c) => { byId[c.id] = c.secondi_rimanenti ?? 0; });
@@ -179,12 +185,6 @@ const TessitureTab = ({ onLogout }) => {
     const creazioneInCorso = creazioniInCorso.find((c) => c.tessitura_id === item.id);
     const creazionePronta = creazioniPronte.find((c) => c.tessitura_id === item.id);
     const secondi = creazioneInCorso ? (countdowns[creazioneInCorso.id] ?? creazioneInCorso.secondi_rimanenti ?? 0) : 0;
-
-    const fmtTime = (s) => {
-      const m = Math.floor(s / 60);
-      const sec = s % 60;
-      return `${m}:${sec < 10 ? '0' : ''}${sec}`;
-    };
 
     return (
       <li className="flex justify-between items-center py-2 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0">
@@ -395,6 +395,44 @@ const TessitureTab = ({ onLogout }) => {
                 </div>
             </div>
         </div>
+
+        {/* Creazioni consumabile in corso: visibile in cima alla scheda Tessiture */}
+        {(creazioniInCorso.length > 0 || creazioniPronte.length > 0) && (
+          <div className="mb-4 max-w-3xl mx-auto p-4 bg-gray-800/80 rounded-lg border border-cyan-700/50">
+            <h3 className="flex items-center gap-2 text-cyan-400 font-bold mb-3">
+              <Timer size={20} />
+              Creazioni consumabile in corso
+            </h3>
+            <ul className="space-y-2">
+              {creazioniPronte.map((c) => (
+                <li key={`pronta-${c.id}`} className="flex items-center justify-between py-2 px-3 rounded bg-green-900/30 border border-green-700/50">
+                  <span className="text-gray-200 font-medium">{c.tessitura_nome}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => handleCompletaConsumabile(c.id, e)}
+                    disabled={isCompletingConsumable === c.id}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold disabled:opacity-50"
+                  >
+                    {isCompletingConsumable === c.id ? <Loader2 className="animate-spin" size={16} /> : <PackageCheck size={16} />}
+                    Aggiungi a inventario
+                  </button>
+                </li>
+              ))}
+              {creazioniInCorso.map((c) => {
+                const secondi = countdowns[c.id] ?? c.secondi_rimanenti ?? 0;
+                return (
+                  <li key={`corso-${c.id}`} className="flex items-center justify-between py-2 px-3 rounded bg-amber-900/20 border border-amber-700/50">
+                    <span className="text-gray-200 font-medium">{c.tessitura_nome}</span>
+                    <span className="flex items-center gap-2 text-amber-400 font-mono text-sm">
+                      <Timer size={16} />
+                      {secondi > 0 ? fmtTime(secondi) : '...'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {/* Pulsante Proposte - NUOVA AGGIUNTA */}
         <div className="flex justify-end mb-6 max-w-3xl mx-auto">

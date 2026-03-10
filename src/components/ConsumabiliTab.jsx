@@ -1,16 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, Info, Zap, Calendar, X } from 'lucide-react';
+import { Loader2, Info, Zap, Calendar, X, Timer, PackageCheck } from 'lucide-react';
 import RichTextDisplay from './RichTextDisplay';
-import { consumaConsumabile } from '../api';
+import { consumaConsumabile, completaCreazioneConsumabile } from '../api';
 
 const ConsumabiliTab = ({ onLogout }) => {
   const { selectedCharacterData: char, selectedCharacterId, refreshCharacterData } = useCharacter();
   const [modalConsumabile, setModalConsumabile] = useState(null);
   const [modalAttivazione, setModalAttivazione] = useState(null);
   const [isConsumendo, setIsConsumendo] = useState(null);
+  const [countdowns, setCountdowns] = useState({});
+  const [isCompletingConsumable, setIsCompletingConsumable] = useState(null);
 
   const consumabili = char?.consumabili || [];
+  const creazioniInCorso = useMemo(() => char?.creazioni_consumabili_in_corso || [], [char?.creazioni_consumabili_in_corso]);
+  const creazioniPronte = useMemo(() => char?.creazioni_consumabili_pronte || [], [char?.creazioni_consumabili_pronte]);
+  const creazioniInCorsoKey = useMemo(
+    () => creazioniInCorso.map((c) => `${c.id}:${c.secondi_rimanenti}`).sort().join(','),
+    [creazioniInCorso]
+  );
+
+  useEffect(() => {
+    const byId = {};
+    creazioniInCorso.forEach((c) => { byId[c.id] = c.secondi_rimanenti ?? 0; });
+    setCountdowns((prev) => {
+      const next = { ...byId };
+      Object.keys(prev).forEach((id) => { if (next[id] === undefined && prev[id] > 0) next[id] = prev[id]; });
+      return next;
+    });
+  }, [char?.id, creazioniInCorsoKey]);
+
+  useEffect(() => {
+    const idsInCorso = new Set(creazioniInCorso.map((c) => c.id));
+    if (idsInCorso.size === 0) return;
+    const t = setInterval(() => {
+      setCountdowns((prev) => {
+        const next = {};
+        let anyZero = false;
+        for (const id of idsInCorso) {
+          const sec = prev[id] ?? 0;
+          const s = Math.max(0, sec - 1);
+          next[id] = s;
+          if (s === 0) anyZero = true;
+        }
+        if (anyZero) refreshCharacterData();
+        return Object.keys(next).length ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [creazioniInCorso, refreshCharacterData]);
+
+  const handleCompletaCreazione = async (creazioneId, e) => {
+    e?.stopPropagation();
+    if (isCompletingConsumable || !selectedCharacterId) return;
+    setIsCompletingConsumable(creazioneId);
+    try {
+      const data = await completaCreazioneConsumabile(selectedCharacterId, creazioneId, onLogout);
+      if (data?.error) throw new Error(data.error);
+      await refreshCharacterData();
+    } catch (err) {
+      alert(err?.message || 'Errore completamento creazione.');
+    } finally {
+      setIsCompletingConsumable(null);
+    }
+  };
+
+  const fmtTime = (s) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+  };
 
   const handleConsuma = async (item, e) => {
     e.stopPropagation();
@@ -55,6 +114,44 @@ const ConsumabiliTab = ({ onLogout }) => {
           (Occupano 1 slot COG se ne hai almeno uno)
         </span>
       </div>
+
+      {/* Creazioni in corso: timer e pronte da aggiungere */}
+      {(creazioniInCorso.length > 0 || creazioniPronte.length > 0) && (
+        <div className="mb-6 p-4 bg-gray-800/80 rounded-lg border border-cyan-700/50">
+          <h3 className="flex items-center gap-2 text-cyan-400 font-bold mb-3">
+            <Timer size={20} />
+            Creazioni in corso
+          </h3>
+          <ul className="space-y-2">
+            {creazioniPronte.map((c) => (
+              <li key={`pronta-${c.id}`} className="flex items-center justify-between py-2 px-3 rounded bg-green-900/30 border border-green-700/50">
+                <span className="text-gray-200 font-medium">{c.tessitura_nome}</span>
+                <button
+                  type="button"
+                  onClick={(e) => handleCompletaCreazione(c.id, e)}
+                  disabled={isCompletingConsumable === c.id}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold disabled:opacity-50"
+                >
+                  {isCompletingConsumable === c.id ? <Loader2 className="animate-spin" size={16} /> : <PackageCheck size={16} />}
+                  Aggiungi a inventario
+                </button>
+              </li>
+            ))}
+            {creazioniInCorso.map((c) => {
+              const secondi = countdowns[c.id] ?? c.secondi_rimanenti ?? 0;
+              return (
+                <li key={`corso-${c.id}`} className="flex items-center justify-between py-2 px-3 rounded bg-amber-900/20 border border-amber-700/50">
+                  <span className="text-gray-200 font-medium">{c.tessitura_nome}</span>
+                  <span className="flex items-center gap-2 text-amber-400 font-mono text-sm">
+                    <Timer size={16} />
+                    {secondi > 0 ? fmtTime(secondi) : '...'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {consumabili.length === 0 ? (
         <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-8 text-center text-gray-500">
