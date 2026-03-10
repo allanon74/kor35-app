@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
-import { fetchAuthenticated, getPersonaggiList } from '../api';
+import { fetchAuthenticated, getPersonaggiList } from '../../api';
 import { Loader2 } from 'lucide-react';
 
 const API_BASE = '/api/personaggi/api/staff';
