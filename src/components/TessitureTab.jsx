@@ -130,10 +130,11 @@ const TessitureTab = ({ onLogout }) => {
     setIsCompletingConsumable(creazioneId);
     try {
       const data = await completaCreazioneConsumabile(selectedCharacterId, creazioneId, onLogout);
-      if (data.error) throw new Error(data.error);
+      if (data?.error) throw new Error(data.error);
       await refreshCharacterData();
     } catch (err) {
-      alert(err.message || 'Errore completamento creazione.');
+      alert(err?.message || 'Errore completamento creazione.');
+      await refreshCharacterData();
     } finally {
       setIsCompletingConsumable(null);
     }

@@ -60,6 +60,7 @@ const ConsumabiliTab = ({ onLogout }) => {
       await refreshCharacterData();
     } catch (err) {
       alert(err?.message || 'Errore completamento creazione.');
+      await refreshCharacterData();
     } finally {
       setIsCompletingConsumable(null);
     }

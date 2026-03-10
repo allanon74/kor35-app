@@ -454,11 +454,12 @@ export const avviaCreazioneConsumabile = (tessituraId, personaggioId, onLogout) 
       body: JSON.stringify({ tessitura_id: tessituraId, personaggio_id: personaggioId }),
     },
     onLogout
-  ).then((r) => r.json());
+  );
 };
 
 /**
  * Completa una creazione consumabile scaduta e aggiunge il consumabile all'inventario.
+ * fetchAuthenticated restituisce già il body parsato, non la Response.
  */
 export const completaCreazioneConsumabile = (personaggioId, creazioneId, onLogout) => {
   return fetchAuthenticated(
@@ -468,7 +469,7 @@ export const completaCreazioneConsumabile = (personaggioId, creazioneId, onLogou
       body: JSON.stringify({ personaggio_id: personaggioId, creazione_id: creazioneId ?? null }),
     },
     onLogout
-  ).then((r) => r.json());
+  );
 };
 
 export const getModelliAura = (auraId) => {
