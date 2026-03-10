@@ -415,6 +415,20 @@ export const acquireTessitura = (tessituraId, personaggioId, onLogout) => {
 /**
  * Toggle favorite status di una tessitura.
  */
+export const consumaConsumabile = (consumabileId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggio/me/consuma_consumabile/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        consumabile_id: consumabileId,
+        personaggio_id: personaggioId,
+      }),
+    },
+    onLogout
+  );
+};
+
 export const toggleTessituraFavorite = (tessituraId, personaggioId, onLogout) => {
   return fetchAuthenticated(
     '/api/personaggi/api/personaggio/me/toggle_tessitura_favorite/', 
@@ -427,6 +441,34 @@ export const toggleTessituraFavorite = (tessituraId, personaggioId, onLogout) =>
     }, 
     onLogout
   );
+};
+
+/**
+ * Avvia la creazione di un consumabile da tessitura (Alchimia). Costo e tempo dipendono dall'aura della tessitura.
+ */
+export const avviaCreazioneConsumabile = (tessituraId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggio/me/avvia_creazione_consumabile/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ tessitura_id: tessituraId, personaggio_id: personaggioId }),
+    },
+    onLogout
+  ).then((r) => r.json());
+};
+
+/**
+ * Completa una creazione consumabile scaduta e aggiunge il consumabile all'inventario.
+ */
+export const completaCreazioneConsumabile = (personaggioId, creazioneId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggio/me/completa_creazione_consumabile/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ personaggio_id: personaggioId, creazione_id: creazioneId ?? null }),
+    },
+    onLogout
+  ).then((r) => r.json());
 };
 
 export const getModelliAura = (auraId) => {

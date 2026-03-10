@@ -1,9 +1,9 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Star } from 'lucide-react';
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Star, FlaskConical, PackageCheck, Timer } from 'lucide-react';
 import TecnicaDetailModal from './TecnicaDetailModal';
-import { acquireTessitura } from '../api.js';
+import { acquireTessitura, avviaCreazioneConsumabile, completaCreazioneConsumabile } from '../api.js';
 import { useOptimisticToggleTessituraFavorite } from '../hooks/useGameData';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
@@ -26,9 +26,51 @@ const TessitureTab = ({ onLogout }) => {
   
   const [modalItem, setModalItem] = useState(null);
   const [isAcquiring, setIsAcquiring] = useState(null);
+  const [isCreatingConsumable, setIsCreatingConsumable] = useState(null);
+  const [isCompletingConsumable, setIsCompletingConsumable] = useState(null);
+  const [countdowns, setCountdowns] = useState({}); // { creazioneId: secondiRimanenti }
 
   // Stato per gestire la visibilità del ProposalManager
   const [showProposals, setShowProposals] = useState(false);
+
+  // Sincronizza countdown con creazioni in corso dal server
+  const creazioniInCorso = useMemo(() => char?.creazioni_consumabili_in_corso || [], [char?.creazioni_consumabili_in_corso]);
+  const creazioniPronte = useMemo(() => char?.creazioni_consumabili_pronte || [], [char?.creazioni_consumabili_pronte]);
+  const valoreAlchimia = char?.valore_aura_alchimia ?? 0;
+  const creazioniInCorsoKey = useMemo(
+    () => creazioniInCorso.map((c) => `${c.id}:${c.secondi_rimanenti}`).sort().join(','),
+    [creazioniInCorso]
+  );
+
+  useEffect(() => {
+    const byId = {};
+    creazioniInCorso.forEach((c) => { byId[c.id] = c.secondi_rimanenti ?? 0; });
+    setCountdowns((prev) => {
+      const next = { ...byId };
+      Object.keys(prev).forEach((id) => { if (next[id] === undefined && prev[id] > 0) next[id] = prev[id]; });
+      return next;
+    });
+  }, [char?.id, creazioniInCorsoKey]);
+
+  useEffect(() => {
+    const idsInCorso = new Set(creazioniInCorso.map((c) => c.id));
+    if (idsInCorso.size === 0) return;
+    const t = setInterval(() => {
+      setCountdowns((prev) => {
+        const next = {};
+        let anyZero = false;
+        for (const id of idsInCorso) {
+          const sec = prev[id] ?? 0;
+          const s = Math.max(0, sec - 1);
+          next[id] = s;
+          if (s === 0) anyZero = true;
+        }
+        if (anyZero) refreshCharacterData();
+        return Object.keys(next).length ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [creazioniInCorso, refreshCharacterData]);
 
   // Hook per optimistic update del favorite
   const toggleFavoriteMutation = useOptimisticToggleTessituraFavorite();
@@ -57,6 +99,37 @@ const TessitureTab = ({ onLogout }) => {
       alert(`Errore: ${error.message}`);
     } finally {
       setIsAcquiring(null);
+    }
+  };
+
+  const handleCreaConsumabile = async (item, e) => {
+    e.stopPropagation();
+    if (isCreatingConsumable || !selectedCharacterId) return;
+    if (!window.confirm(`Avviare la creazione di un consumabile da "${item.nome}"? Il costo e il tempo dipendono dall\'aura della tessitura.`)) return;
+    setIsCreatingConsumable(item.id);
+    try {
+      const data = await avviaCreazioneConsumabile(item.id, selectedCharacterId, onLogout);
+      if (data.error) throw new Error(data.error);
+      await refreshCharacterData();
+    } catch (err) {
+      alert(err.message || 'Errore avvio creazione consumabile.');
+    } finally {
+      setIsCreatingConsumable(null);
+    }
+  };
+
+  const handleCompletaConsumabile = async (creazioneId, e) => {
+    e.stopPropagation();
+    if (isCompletingConsumable || !selectedCharacterId) return;
+    setIsCompletingConsumable(creazioneId);
+    try {
+      const data = await completaCreazioneConsumabile(selectedCharacterId, creazioneId, onLogout);
+      if (data.error) throw new Error(data.error);
+      await refreshCharacterData();
+    } catch (err) {
+      alert(err.message || 'Errore completamento creazione.');
+    } finally {
+      setIsCompletingConsumable(null);
     }
   };
 
@@ -102,6 +175,16 @@ const TessitureTab = ({ onLogout }) => {
     const iconUrl = item.aura_richiesta?.icona_url;
     const iconColor = item.aura_richiesta?.colore;
     const isFavorite = item.is_favorite || false;
+    const canShowCrea = item.livello <= valoreAlchimia;
+    const creazioneInCorso = creazioniInCorso.find((c) => c.tessitura_id === item.id);
+    const creazionePronta = creazioniPronte.find((c) => c.tessitura_id === item.id);
+    const secondi = creazioneInCorso ? (countdowns[creazioneInCorso.id] ?? creazioneInCorso.secondi_rimanenti ?? 0) : 0;
+
+    const fmtTime = (s) => {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+    };
 
     return (
       <li className="flex justify-between items-center py-2 px-2 hover:bg-gray-700/50 transition-colors rounded-sm border-b border-gray-700/50 last:border-0">
@@ -115,6 +198,34 @@ const TessitureTab = ({ onLogout }) => {
             <span className="font-bold text-gray-200 text-base">{item.nome}</span>
         </div>
         <div className="flex items-center gap-1">
+            {creazionePronta && (
+              <button
+                onClick={(e) => handleCompletaConsumabile(creazionePronta.id, e)}
+                disabled={isCompletingConsumable === creazionePronta.id}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-green-700 hover:bg-green-600 text-white"
+                title="Aggiungi consumabile all'inventario"
+              >
+                {isCompletingConsumable === creazionePronta.id ? <Loader2 className="animate-spin" size={14} /> : <PackageCheck size={14} />}
+                Aggiungi
+              </button>
+            )}
+            {!creazionePronta && creazioneInCorso && (
+              <span className="flex items-center gap-1.5 text-amber-400 text-xs font-mono px-2 py-1 rounded bg-amber-900/30" title="Creazione in corso">
+                <Timer size={14} />
+                {secondi > 0 ? fmtTime(secondi) : '...'}
+              </span>
+            )}
+            {!creazionePronta && !creazioneInCorso && canShowCrea && (
+              <button
+                onClick={(e) => handleCreaConsumabile(item, e)}
+                disabled={!!isCreatingConsumable}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-700 hover:bg-indigo-600 text-white"
+                title="Crea consumabile da questa tessitura (costo e tempo dipendono dall'aura)"
+              >
+                {isCreatingConsumable === item.id ? <Loader2 className="animate-spin" size={14} /> : <FlaskConical size={14} />}
+                Crea consumabile
+              </button>
+            )}
             <button
                 onClick={(e) => handleToggleFavorite(item, e)}
                 className={`p-2 rounded-full transition-all ${

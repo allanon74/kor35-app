@@ -7,7 +7,7 @@ import {
     Feather, Shield, MessageSquare, Users, 
     LayoutGrid, LogOut, ClipboardCheck,
     Skull, BookOpen, Menu, ChevronRight, Globe, // Aggiunto Globe
-    Layers, Globe2, Image, Package, QrCode,
+    Layers, Globe2, Image, Package, QrCode, Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -28,6 +28,7 @@ const AbilitaManager = lazy(() => import('./editors/AbilitaManager'));
 const TabellaManager = lazy(() => import('./editors/TabellaManager'));
 const ImmagineManager = lazy(() => import('./editors/ImmagineManager'));
 const InventarioManager = lazy(() => import('./editors/InventarioManager'));
+const EffettiCasualiManager = lazy(() => import('./editors/EffettiCasualiManager'));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -55,6 +56,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
         { id: 'tabelle', label: 'Gestione Tabelle', icon: <Layers size={24} />, color: 'bg-pink-700', component: TabellaManager },
         { id: 'immagini', label: 'Immagini Wiki', icon: <Image size={24} />, color: 'bg-teal-700', component: ImmagineManager },
         { id: 'inventari', label: 'Inventari', icon: <Package size={24} />, color: 'bg-slate-700', component: InventarioManager },
+        { id: 'effetti-casuali', label: 'Effetti Casuali', icon: <Sparkles size={24} />, color: 'bg-amber-700', component: EffettiCasualiManager },
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: AdminMessageTab },        
     ], []);
 
@@ -221,14 +223,14 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         if (activeTool === 'plot' || activeTool === 'qr-debug') {
                             return (
                                 <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
-                                    <Component onLogout={onLogout} />
+                                    <Component onLogout={onLogout} onBack={() => setActiveTool('home')} />
                                 </div>
                             );
                         }
                         return (
                             <div className="h-full w-full flex flex-col animate-in slide-in-from-right-4 duration-300">
                                 <Suspense fallback={<LoadingSpinner />}>
-                                    <Component onLogout={onLogout} />
+                                    <Component onLogout={onLogout} onBack={() => setActiveTool('home')} />
                                 </Suspense>
                             </div>
                         );

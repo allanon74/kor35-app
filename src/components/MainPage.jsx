@@ -15,14 +15,15 @@ import {
     Home, QrCode, Zap, TestTube2, Scroll, LogOut, Mail, Backpack, 
     Menu, X, UserCog, RefreshCw, Filter, DownloadCloud, ScrollText, 
     ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users,
-    Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight,
+    Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight, Package,
     Key, HelpCircle // <-- [MODIFICA] Icona HelpCircle aggiunta
 } from 'lucide-react';
 
 import AbilitaTab from './AbilitaTab.jsx';
 import MessaggiTab from './MessaggiTab.jsx';
 import InfusioniTab from './InfusioniTab.jsx'; 
-import TessitureTab from './TessitureTab.jsx'; 
+import TessitureTab from './TessitureTab.jsx';
+import ConsumabiliTab from './ConsumabiliTab.jsx';
 import CerimonialiTab from './CerimonialiTab.jsx'; 
 import AdminMessageTab from './AdminMessageTab.jsx';
 import InventoryTab from './InventoryTab.jsx';
@@ -48,6 +49,7 @@ const AVAILABLE_TABS = [
     { id: 'tessiture', label: 'Tessiture', icon: Scroll, component: TessitureTab },
     { id: 'infusioni', label: 'Infusioni', icon: TestTube2, component: InfusioniTab },
     { id: 'cerimoniali', label: 'Cerimoniali', icon: Users, component: CerimonialiTab },
+    { id: 'consumabili', label: 'Consumabili', icon: Package, component: ConsumabiliTab },
     { id: 'qr', label: 'Scanner', icon: QrCode, component: QrTab },
     { id: 'messaggi', label: 'Messaggi', icon: Mail, component: MessaggiTab },
     { id: 'logs', label: 'Diario', icon: ScrollText, component: LogViewer },
@@ -70,6 +72,7 @@ const TAB_TO_WIKI_SLUG = {
     'logs': 'diario',
     'transazioni': 'transazioni',
     'personaggi': 'gestione-personaggio',
+    'consumabili': 'consumabili',
     'home': 'gestione-personaggio',
     'game': 'navigazione-app',
 };
