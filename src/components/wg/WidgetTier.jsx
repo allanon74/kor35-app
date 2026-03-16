@@ -12,6 +12,31 @@ function gradientStyle(colors) {
   return `linear-gradient(135deg, ${list.join(', ')})`;
 }
 
+/** Ritorna true se il colore (hex) è "scuro" in base alla luminanza approssimata */
+function isColorDark(hex) {
+  if (!hex) return false;
+  const clean = String(hex).trim().replace('#', '');
+  if (clean.length !== 6) return false;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  // luminanza percettiva semplice
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance < 150; // soglia empirica: <150 consideriamo sfondo scuro
+}
+
+/** Valuta l'insieme dei colori del gradiente per decidere se il risultato è "scuro" */
+function isGradientDark(colors) {
+  if (!Array.isArray(colors) || colors.length === 0) return false;
+  const valid = colors
+    .map(c => String(c).trim())
+    .filter(c => c);
+  if (valid.length === 0) return false;
+  const darkCount = valid.filter(isColorDark).length;
+  // Se la maggioranza dei colori è scura, consideriamo il gradiente scuro
+  return darkCount >= valid.length / 2;
+}
+
 export default function WidgetTier({ id }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -32,12 +57,16 @@ export default function WidgetTier({ id }) {
     (a.nome || '').localeCompare(b.nome || '')
   );
 
-  const useGradient = Array.isArray(data.gradient_colors) && data.gradient_colors.length > 0;
-  const gradientBg = useGradient ? gradientStyle(data.gradient_colors) : null;
+  const gradientColors = Array.isArray(data.gradient_colors) ? data.gradient_colors : [];
+  const useGradient = gradientColors.length > 0;
+  const gradientBg = useGradient ? gradientStyle(gradientColors) : null;
   const style = CHROMATIC_STYLES[data.color_style] || CHROMATIC_STYLES.default;
 
+  const gradientIsDark = useGradient ? isGradientDark(gradientColors) : false;
+  const gradientHeaderTextColor = gradientIsDark ? '#ffffff' : '#111827';
+
   const headerStyle = gradientBg
-    ? { background: gradientBg, color: '#ffffff' }
+    ? { background: gradientBg, color: gradientHeaderTextColor }
     : { background: style.headerBgColor, color: style.headerTextColor };
   const headerClass = 'p-3 md:p-4 flex flex-row justify-between items-center gap-2 rounded-t-lg';
 
@@ -91,7 +120,12 @@ export default function WidgetTier({ id }) {
                 list={sortedList}
                 chromaticStyle={
                   gradientBg
-                    ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500', headerStyle: { background: gradientBg, color: '#ffffff' } }
+                    ? { 
+                        ...style, 
+                        text: gradientIsDark ? 'text-gray-100' : 'text-gray-800',
+                        icon: gradientIsDark ? 'bg-gray-200' : 'bg-gray-500',
+                        headerStyle: { background: gradientBg, color: gradientHeaderTextColor }
+                      }
                     : style
                 }
               />
@@ -103,7 +137,12 @@ export default function WidgetTier({ id }) {
               list={sortedList}
               chromaticStyle={
                 gradientBg
-                  ? { ...style, text: 'text-gray-800', icon: 'bg-gray-500', headerStyle: { background: gradientBg, color: '#ffffff' } }
+                  ? { 
+                      ...style, 
+                      text: gradientIsDark ? 'text-gray-100' : 'text-gray-800',
+                      icon: gradientIsDark ? 'bg-gray-200' : 'bg-gray-500',
+                      headerStyle: { background: gradientBg, color: gradientHeaderTextColor }
+                    }
                   : style
               }
             />
