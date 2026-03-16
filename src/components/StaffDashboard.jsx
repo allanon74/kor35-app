@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 // Import diretto di PlotTab per debug
 import PlotTab from './PlotTab';
 import QrDebugTab from './QrDebugTab'; // Import diretto anche per QrDebugTab
+import TabellaManager from './editors/TabellaManager'; // Import diretto per evitare chunk mancante
 
 // Lazy loading dei componenti per migliorare le performance iniziali
 const AdminMessageTab = lazy(() => import('./AdminMessageTab'));
@@ -25,7 +26,6 @@ const OggettoManager = lazy(() => import('./editors/OggettoManager'));
 const StaffProposalTab = lazy(() => import('./editors/StaffProposalTab'));
 const MostroManager = lazy(() => import('./editors/MostroManager'));
 const AbilitaManager = lazy(() => import('./editors/AbilitaManager'));
-const TabellaManager = lazy(() => import('./editors/TabellaManager'));
 const ImmagineManager = lazy(() => import('./editors/ImmagineManager'));
 const InventarioManager = lazy(() => import('./editors/InventarioManager'));
 const EffettiCasualiManager = lazy(() => import('./editors/EffettiCasualiManager'));
