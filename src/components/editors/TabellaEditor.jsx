@@ -21,7 +21,9 @@ const TabellaEditor = ({ tier, onSave, onCancel, onLogout }) => {
     // Stato form principale
     const [formData, setFormData] = useState({
         nome: tier?.nome || '',
-        tipo: tier?.tipo || 'CL', // Default sicuro
+        // Il backend accetta valori come 'G0', 'T1', 'T2', ecc.
+        // Usiamo 'G0' (Tabelle Generali) come default quando si crea una nuova tabella.
+        tipo: tier?.tipo || 'G0',
         descrizione: tier?.descrizione || '',
     });
 
