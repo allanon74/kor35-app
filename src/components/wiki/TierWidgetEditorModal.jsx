@@ -6,16 +6,16 @@ import { getWikiTierList, getWikiTierWidget } from '../../api';
 /** I 11 colori predefiniti per il gradiente (stessi temi degli stili cromatici) */
 const GRADIENT_PRESET_COLORS = [
   { key: 'default', name: 'Default (grigio)', hex: '#374151' },
-  { key: 'gray', name: 'Grigio', hex: '#4B5563' },
-  { key: 'white', name: 'Bianco', hex: '#FFFFFF' },
-  { key: 'red', name: 'Rosso', hex: '#B91C1C' },
+  { key: 'gray', name: 'Grigio', hex: '#b6cdd9' },
+  { key: 'white', name: 'Bianco', hex: '#F0F0F0' },
+  { key: 'red', name: 'Rosso', hex: '#FA0000' },
   { key: 'black', name: 'Nero', hex: '#111827' },
-  { key: 'ochre', name: 'Ocra', hex: '#B45309' },
-  { key: 'blue', name: 'Blu', hex: '#1D4ED8' },
-  { key: 'yellow', name: 'Giallo', hex: '#EAB308' },
-  { key: 'purple', name: 'Viola', hex: '#6D28D9' },
-  { key: 'green', name: 'Verde', hex: '#15803D' },
-  { key: 'porpora', name: 'Porpora', hex: '#4A044E' },
+  { key: 'ochre', name: 'Ocra', hex: '#c79e0b' },
+  { key: 'blue', name: 'Blu', hex: '#135cd1' },
+  { key: 'yellow', name: 'Giallo', hex: '#faf610' },
+  { key: 'purple', name: 'Viola', hex: '#efaaff' },
+  { key: 'green', name: 'Verde', hex: '#92fa88' },
+  { key: 'porpora', name: 'Porpora', hex: '#860050' },
 ];
 
 const DEFAULT_GRADIENT_HEX = GRADIENT_PRESET_COLORS[0].hex;
