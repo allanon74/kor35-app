@@ -3,10 +3,11 @@ import { X, Plus, Trash2 } from 'lucide-react';
 import { CHROMATIC_STYLES } from '../../utils/chromaticStyles';
 import { getWikiTierList, getWikiTierWidget } from '../../api';
 
-/** I 10 colori predefiniti per il gradiente (stessi temi degli stili cromatici) */
+/** I 11 colori predefiniti per il gradiente (stessi temi degli stili cromatici) */
 const GRADIENT_PRESET_COLORS = [
   { key: 'default', name: 'Default (grigio)', hex: '#374151' },
   { key: 'gray', name: 'Grigio', hex: '#4B5563' },
+  { key: 'white', name: 'Bianco', hex: '#FFFFFF' },
   { key: 'red', name: 'Rosso', hex: '#B91C1C' },
   { key: 'black', name: 'Nero', hex: '#111827' },
   { key: 'ochre', name: 'Ocra', hex: '#B45309' },
@@ -104,7 +105,7 @@ export default function TierWidgetEditorModal({ onClose, onSave, initialData = n
   const styleKeys = Object.keys(CHROMATIC_STYLES);
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
         <div className="p-4 border-b flex justify-between items-center">
           <h3 className="font-bold text-lg text-gray-800">
