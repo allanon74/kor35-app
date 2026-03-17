@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getWikiTierList, getWikiImageList, getWidgetButtonsList, getWikiTierWidgetList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiTierWidget, updateWikiTierWidget, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
+import { getWikiTierList, getWikiImageList, getWidgetButtonsList, getWikiTierWidgetList, getWikiMattoniWidgetList, createWikiImage, updateWikiImage, createWidgetButtons, updateWidgetButtons, createWikiTierWidget, updateWikiTierWidget, createWikiMattoniWidget, updateWikiMattoniWidget, createWikiPage, updateWikiPage, getWikiImageUrl } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import { Lock, Eye, GripVertical, Image as ImageIcon, Upload, X, MousePointerClick, Edit } from 'lucide-react';
 import ButtonWidgetEditorModal from './ButtonWidgetEditorModal';
 import TierWidgetEditorModal from './TierWidgetEditorModal'; 
+import MattoniWidgetEditorModal from './MattoniWidgetEditorModal';
 
 export default function WikiPageEditorModal({ onClose, onSuccess, initialData = null }) {
   const [formData, setFormData] = useState({
@@ -34,7 +35,8 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   const [availableTierWidgets, setAvailableTierWidgets] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
   const [availableButtonWidgets, setAvailableButtonWidgets] = useState([]);
-  const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier', 'image', 'buttons'
+  const [availableMattoniWidgets, setAvailableMattoniWidgets] = useState([]);
+  const [widgetHelperTab, setWidgetHelperTab] = useState('tier'); // 'tier', 'image', 'buttons', 'mattoni'
 
   // State per il modal widget tier (crea/modifica)
   const [showTierWidgetEditor, setShowTierWidgetEditor] = useState(false);
@@ -43,6 +45,9 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // State per il modal del widget buttons
   const [showButtonWidgetEditor, setShowButtonWidgetEditor] = useState(false);
   const [editingButtonWidget, setEditingButtonWidget] = useState(null);
+
+  const [showMattoniWidgetEditor, setShowMattoniWidgetEditor] = useState(false);
+  const [editingMattoniWidget, setEditingMattoniWidget] = useState(null);
   
   // State per il modal edit immagine
   const [showImageEditor, setShowImageEditor] = useState(false);
@@ -74,7 +79,8 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     const usedIds = {
       tiers: [],
       images: [],
-      buttons: []
+      buttons: [],
+      mattoni: [],
     };
 
     // Cerca pattern {{WIDGET_TIER:ID}}
@@ -93,6 +99,11 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
     const buttonMatches = content.matchAll(/\{\{WIDGET_(?:BUTTONS|PULSANTI):(\d+)\}\}/g);
     for (const match of buttonMatches) {
       usedIds.buttons.push(parseInt(match[1]));
+    }
+
+    const mattoniMatches = content.matchAll(/\{\{WIDGET_MATTONI:(\d+)\}\}/g);
+    for (const match of mattoniMatches) {
+      usedIds.mattoni.push(parseInt(match[1]));
     }
 
     return usedIds;
@@ -129,6 +140,10 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
         getWidgetButtonsList()
             .then(data => setAvailableButtonWidgets(data))
             .catch(err => console.error("Err loading button widgets", err));
+
+        getWikiMattoniWidgetList()
+            .then(data => setAvailableMattoniWidgets(data || []))
+            .catch(err => console.error("Err loading mattoni widgets", err));
     }
   }, [showWidgetHelper]);
 
@@ -514,6 +529,17 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                 >
                                     🔘 Pulsanti
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setWidgetHelperTab('mattoni')}
+                                    className={`flex-1 px-3 py-2 text-xs font-bold transition-colors ${
+                                        widgetHelperTab === 'mattoni'
+                                            ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    🧱 Mattoni
+                                </button>
                             </div>
                             
                             {/* Content Area */}
@@ -799,6 +825,107 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                         })()}
                                     </>
                                 )}
+
+                                {widgetHelperTab === 'mattoni' && (
+                                    <>
+                                        {(() => {
+                                            const usedIds = getUsedWidgetIds();
+                                            const usedMattoniIds = usedIds.mattoni || [];
+                                            const widgetIdsSet = new Set((availableMattoniWidgets || []).map(w => w.id));
+                                            const usedWidgets = usedMattoniIds.filter(x => widgetIdsSet.has(x));
+                                            if (usedWidgets.length === 0) return null;
+                                            return (
+                                                <div className="p-2 border-b border-gray-200 bg-amber-50">
+                                                    <p className="text-xs font-bold text-gray-700 mb-1">Widget Mattoni in questa pagina</p>
+                                                    {usedWidgets.map(wid => {
+                                                        const w = availableMattoniWidgets.find(x => x.id === wid);
+                                                        return (
+                                                            <div key={wid} className="flex justify-between items-center gap-1 py-1">
+                                                                <span className="text-xs truncate">{w?.title || `Widget #${wid}`}</span>
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setEditingMattoniWidget(w || { id: wid });
+                                                                            setShowMattoniWidgetEditor(true);
+                                                                        }}
+                                                                        className="p-1 text-indigo-600 hover:bg-indigo-100 rounded"
+                                                                        title="Modifica widget mattoni"
+                                                                    >
+                                                                        <Edit size={12} />
+                                                                    </button>
+                                                                    <span className="text-[10px] px-1 rounded bg-gray-100">ID:{wid}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+
+                                        <div className="p-2 border-b border-gray-200 bg-indigo-50">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditingMattoniWidget(null);
+                                                    setShowMattoniWidgetEditor(true);
+                                                }}
+                                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                <MousePointerClick size={14} />
+                                                Crea / Configura Widget Mattoni
+                                            </button>
+                                        </div>
+
+                                        {availableMattoniWidgets.length === 0 && (
+                                            <p className="p-2 text-xs text-gray-500">Nessun widget mattoni disponibile</p>
+                                        )}
+
+                                        {(() => {
+                                            const usedIds = getUsedWidgetIds();
+                                            const sorted = sortByUsage(availableMattoniWidgets, usedIds.mattoni);
+                                            return sorted.map(w => {
+                                                const isUsed = usedIds.mattoni.includes(w.id);
+                                                return (
+                                                    <div
+                                                        key={w.id}
+                                                        className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center group transition-colors ${
+                                                            isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
+                                                        }`}
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => insertWidget(`{{WIDGET_MATTONI:${w.id}}}`)}
+                                                            className="flex-1 flex items-center gap-2 truncate"
+                                                        >
+                                                            <span className={`font-bold group-hover:text-blue-800 truncate ${
+                                                                isUsed ? 'text-green-700' : 'text-gray-700'
+                                                            }`}>
+                                                                {isUsed && <span className="text-green-600">✓ </span>}
+                                                                {w.title || `Widget #${w.id}`}
+                                                            </span>
+                                                        </button>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { setEditingMattoniWidget(w); setShowMattoniWidgetEditor(true); }}
+                                                                className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                                                title="Modifica widget"
+                                                            >
+                                                                <Edit size={12} />
+                                                            </button>
+                                                            <span className={`text-[10px] px-1 rounded ${
+                                                                isUsed ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
+                                                            }`}>
+                                                                ID:{w.id}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1048,6 +1175,35 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
               setEditingTierWidget(null);
             } catch (error) {
               console.error("Errore salvataggio widget tier:", error);
+              throw error;
+            }
+          }}
+        />
+      )}
+
+      {/* MODAL EDITOR WIDGET MATTONI */}
+      {showMattoniWidgetEditor && (
+        <MattoniWidgetEditorModal
+          initialData={editingMattoniWidget}
+          onClose={() => {
+            setShowMattoniWidgetEditor(false);
+            setEditingMattoniWidget(null);
+          }}
+          onSave={async (payload, existingId) => {
+            try {
+              let response;
+              if (existingId) {
+                response = await updateWikiMattoniWidget(existingId, payload);
+              } else {
+                response = await createWikiMattoniWidget(payload);
+                insertWidget(`{{WIDGET_MATTONI:${response.id}}}`);
+              }
+              const list = await getWikiMattoniWidgetList();
+              setAvailableMattoniWidgets(list || []);
+              setShowMattoniWidgetEditor(false);
+              setEditingMattoniWidget(null);
+            } catch (error) {
+              console.error("Errore salvataggio widget mattoni:", error);
               throw error;
             }
           }}

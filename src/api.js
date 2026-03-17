@@ -1415,6 +1415,38 @@ export const getWikiTier = (id) => {
   return fetchPublic(`/api/plot/api/wiki/tier-display/${id}/`);
 };
 
+// --- WIDGET MATTONI ---
+export const getWikiMattoniWidgetDisplay = (id) => {
+  return fetchPublic(`/api/plot/api/wiki/mattoni-display/${id}/`);
+};
+
+export const getWikiPunteggi = (tipo) => {
+  const t = tipo ? String(tipo).trim() : '';
+  return fetchPublic(`/api/plot/api/wiki/punteggi/?tipo=${encodeURIComponent(t)}`);
+};
+
+export const getWikiMattoniWidgetList = () => {
+  return fetchPublic('/api/plot/api/public/wiki-mattoni-widgets/');
+};
+
+export const getWikiMattoniWidget = (id) => {
+  return fetchPublic(`/api/plot/api/public/wiki-mattoni-widgets/${id}/`);
+};
+
+export const createWikiMattoniWidget = (data, onLogout) => {
+  return fetchAuthenticated('/api/plot/api/staff/wiki-mattoni/', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
+export const updateWikiMattoniWidget = (id, data, onLogout) => {
+  return fetchAuthenticated(`/api/plot/api/staff/wiki-mattoni/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }, onLogout);
+};
+
 // Helper per avere la lista di tutti i Tier (per l'editor del Master)
 export const getWikiTierList = () => {
   return fetchPublic('/api/plot/api/public/wiki-tiers/');

@@ -12,6 +12,7 @@ import WidgetChiSiamo from './wg/WidgetChiSiamo';
 import WidgetEventi from './wg/WidgetEventi';
 import WidgetSocial from './wg/WidgetSocial';
 import { WidgetButtonsSlot } from './wg/WidgetButtons';
+import WidgetMattoni from './wg/WidgetMattoni';
 
 const WIDGET_REGEX = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
 
@@ -28,6 +29,7 @@ function renderWidgetByType(type, id, characterValue, navigate) {
       case 'SOCIAL': return <WidgetSocial />;
       case 'BUTTONS':
       case 'PULSANTI': return <WidgetButtonsSlot id={id} navigate={navigate} />;
+      case 'MATTONI': return <WidgetMattoni id={id} />;
       default: return <div className="text-red-500 text-xs p-2 border border-red-300 bg-red-50 font-mono">[WIDGET IGNOTO: {type}]</div>;
     }
   })();
