@@ -93,7 +93,7 @@ export default function WidgetMattoni({ id }) {
           Nessun mattone da mostrare.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
           {mattoni.map((m) => {
             const style = styleForMattoneColore(m?.colore);
             const iconUrl = iconUrlForMattone(m);
@@ -103,51 +103,73 @@ export default function WidgetMattoni({ id }) {
             const descrizione = m?.descrizione_mattone || m?.descrizione || '';
             const meta = m?.descrizione_metatalento || '';
 
+            // allineamento ai token/markup di AbilitaTable (widget Tier)
+            const cardBorder = style?.border ?? 'border-gray-200';
+            const bodyBg = style?.bg ?? null;
+            const bodyText = style?.text ?? 'text-gray-700';
+            const bodyClass = bodyBg ? `bg-gradient-to-b ${bodyBg} ${bodyText}` : bodyText;
+            const bodyStyle = style?.bodyTextColor ? { color: style.bodyTextColor } : undefined;
+            const cardHeaderStyle =
+              style?.headerBgColor != null && style?.headerTextColor != null
+                ? { background: style.headerBgColor, color: style.headerTextColor }
+                : undefined;
+
             return (
               <div
                 key={m.id}
-                className={`rounded-lg border ${style.border} bg-white shadow-sm overflow-hidden`}
+                className={`bg-white border ${cardBorder} rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid`}
               >
                 <div
-                  className="p-3 flex items-start gap-3"
-                  style={{ background: style.headerBgColor, color: style.headerTextColor }}
+                  className="px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2"
+                  style={cardHeaderStyle}
                 >
-                  <div className="shrink-0">
-                    {iconUrl ? (
-                      <img
-                        src={iconUrl}
-                        alt=""
-                        className="h-9 w-9 rounded bg-white/20 object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="h-9 w-9 rounded bg-white/20 flex items-center justify-center text-sm font-bold">
-                        {safeText(m?.sigla || m?.nome).slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-sm md:text-base font-bold leading-tight truncate">{m.nome}</div>
-                        <div className="text-[10px] md:text-xs opacity-90 mt-0.5 flex flex-wrap gap-x-2 gap-y-1">
-                          <span className="px-2 py-0.5 rounded bg-black/20">Tipo: {tipoLabel}</span>
-                          <span className="px-2 py-0.5 rounded bg-black/20">Aura: {auraName}</span>
-                          <span className="px-2 py-0.5 rounded bg-black/20">Caratt.: {carName}</span>
+                  <div className="min-w-0 flex items-center gap-2">
+                    <div className="shrink-0">
+                      {iconUrl ? (
+                        <img
+                          src={iconUrl}
+                          alt=""
+                          className="h-7 w-7 rounded bg-white/20 object-contain"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="h-7 w-7 rounded bg-white/20 flex items-center justify-center text-xs font-bold">
+                          {safeText(m?.sigla || m?.nome).slice(0, 1).toUpperCase()}
                         </div>
-                      </div>
-                      <div className="text-[10px] md:text-xs opacity-80 shrink-0">
-                        {m?.ordine != null ? `#${m.ordine}` : ''}
-                      </div>
+                      )}
                     </div>
+                    <span className="font-bold text-sm md:text-base leading-tight truncate">
+                      {m.nome}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-mono bg-white/20 border border-current border-opacity-30 px-1.5 py-0.5 rounded whitespace-nowrap">
+                      {tipoLabel}
+                    </span>
                   </div>
                 </div>
 
-                <div className={`p-3 bg-gradient-to-b ${style.bg} ${style.text} border-t ${style.border}`}>
+                <div
+                  className={`p-3 text-xs md:text-sm relative ${bodyClass} prose prose-sm max-w-none leading-snug prose-p:my-1`}
+                  style={bodyStyle}
+                >
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    <span className="text-[10px] md:text-xs bg-white/20 border border-current border-opacity-20 px-2 py-0.5 rounded">
+                      Aura: {auraName}
+                    </span>
+                    <span className="text-[10px] md:text-xs bg-white/20 border border-current border-opacity-20 px-2 py-0.5 rounded">
+                      Caratt.: {carName}
+                    </span>
+                    {m?.ordine != null && (
+                      <span className="text-[10px] md:text-xs bg-white/20 border border-current border-opacity-20 px-2 py-0.5 rounded">
+                        Ordine: {m.ordine}
+                      </span>
+                    )}
+                  </div>
+
                   {descrizione && (
                     <div
-                      className="prose prose-sm max-w-none wrap-break-words text-xs md:text-sm"
+                      className="prose prose-sm max-w-none leading-snug prose-inherit"
                       dangerouslySetInnerHTML={{ __html: descrizione }}
                     />
                   )}
@@ -155,7 +177,7 @@ export default function WidgetMattoni({ id }) {
                     <div className="mt-3 border-t border-black/10 pt-2">
                       <div className="text-[11px] md:text-xs font-bold opacity-80">Metatalento</div>
                       <div
-                        className="prose prose-sm max-w-none wrap-break-words text-xs md:text-sm"
+                        className="prose prose-sm max-w-none leading-snug prose-inherit"
                         dangerouslySetInnerHTML={{ __html: meta }}
                       />
                     </div>
