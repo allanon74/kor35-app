@@ -2,6 +2,32 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { getWikiMattoniWidgetDisplay } from '../../api';
 import { CHROMATIC_STYLES } from '../../utils/chromaticStyles';
 
+/** Mappa colore hex (come nel mattone) -> chiave stile Tier (CHROMATIC_STYLES) */
+const HEX_TO_CHROMATIC_KEY = {
+  '#860050': 'porpora',
+  '#fa0000': 'red',
+  '#c79e0b': 'ochre',
+  '#b6cdd9': 'gray',
+  '#135cd1': 'blue',
+  '#ffffff': 'white',
+  '#efaaff': 'purple',
+  '#92fa88': 'green',
+  '#000000': 'black',
+  '#faf610': 'yellow',
+};
+(function () {
+  const withHash = { ...HEX_TO_CHROMATIC_KEY };
+  Object.keys(withHash).forEach(hex => {
+    const noHash = hex.replace(/^#/, '').toLowerCase();
+    HEX_TO_CHROMATIC_KEY[noHash] = withHash[hex];
+  });
+})();
+function normalizeHex(h) {
+  if (h == null || h === '') return '';
+  const s = String(h).trim().toLowerCase();
+  return s.startsWith('#') ? s : `#${s}`;
+}
+
 function safeText(v) {
   return v == null ? '' : String(v);
 }
@@ -10,9 +36,14 @@ function iconUrlForMattone(m) {
   return m?.icona_url || m?.aura?.icona_url || m?.caratteristica_associata?.icona_url || null;
 }
 
-function styleForColorKey(key) {
-  const k = safeText(key).trim();
-  return CHROMATIC_STYLES[k] || CHROMATIC_STYLES.default;
+/** Ricava la chiave stile da colore (hex o nome chiave) e ritorna l'oggetto stile come nel Widget Tier. */
+function styleForMattoneColore(colore) {
+  const raw = safeText(colore).trim();
+  if (!raw) return CHROMATIC_STYLES.default;
+  const hex = normalizeHex(raw);
+  const keyFromHex = HEX_TO_CHROMATIC_KEY[hex] || HEX_TO_CHROMATIC_KEY[hex.replace('#', '')];
+  const styleKey = keyFromHex || raw.toLowerCase();
+  return CHROMATIC_STYLES[styleKey] || CHROMATIC_STYLES.default;
 }
 
 function sortKeyAuraOrdine(m) {
@@ -64,11 +95,11 @@ export default function WidgetMattoni({ id }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {mattoni.map((m) => {
-            const style = styleForColorKey(m?.colore);
+            const style = styleForMattoneColore(m?.colore);
             const iconUrl = iconUrlForMattone(m);
             const auraName = m?.aura?.nome || '—';
             const carName = m?.caratteristica_associata?.nome || '—';
-            const tipo = m?.tipo || '—';
+            const tipoLabel = m?.tipo_display || m?.tipo || '—';
             const descrizione = m?.descrizione_mattone || m?.descrizione || '';
             const meta = m?.descrizione_metatalento || '';
 
@@ -101,7 +132,7 @@ export default function WidgetMattoni({ id }) {
                       <div className="min-w-0">
                         <div className="text-sm md:text-base font-bold leading-tight truncate">{m.nome}</div>
                         <div className="text-[10px] md:text-xs opacity-90 mt-0.5 flex flex-wrap gap-x-2 gap-y-1">
-                          <span className="px-2 py-0.5 rounded bg-black/20">Tipo: {tipo}</span>
+                          <span className="px-2 py-0.5 rounded bg-black/20">Tipo: {tipoLabel}</span>
                           <span className="px-2 py-0.5 rounded bg-black/20">Aura: {auraName}</span>
                           <span className="px-2 py-0.5 rounded bg-black/20">Caratt.: {carName}</span>
                         </div>
@@ -113,7 +144,7 @@ export default function WidgetMattoni({ id }) {
                   </div>
                 </div>
 
-                <div className={`p-3 bg-gradient-to-b ${style.bg} ${style.text}`}>
+                <div className={`p-3 bg-gradient-to-b ${style.bg} ${style.text} border-t ${style.border}`}>
                   {descrizione && (
                     <div
                       className="prose prose-sm max-w-none wrap-break-words text-xs md:text-sm"
