@@ -67,9 +67,15 @@ function getHeaderHex(colore) {
 /** Stile header + body come le abilità Tier con gradiente: sfondo hex, testo bianco/nero, body bg-gray-50. */
 function cardStyleForMattone(colore) {
   const headerHex = getHeaderHex(colore);
-  const headerTextColor = isColorDark(headerHex) ? '#ffffff' : '#111827';
+  const darkBg = isColorDark(headerHex);
+  const headerTextColor = darkBg ? '#ffffff' : '#111827';
+  /** Icona monocromatica: bianca su sfondo scuro, nera su sfondo chiaro (stessa logica del titolo). */
+  const iconFilter = darkBg ? 'brightness(0) invert(1)' : 'brightness(0)';
+  const iconBoxClass = darkBg ? 'bg-white/20' : 'bg-black/10';
   return {
     headerStyle: { background: headerHex, color: headerTextColor },
+    iconFilter,
+    iconBoxClass,
     bodyClass: 'p-3 text-xs md:text-sm text-gray-800 bg-gray-50 prose prose-sm max-w-none leading-snug prose-p:my-1',
     bodyStyle: undefined,
     cardBorder: 'border-gray-300',
@@ -133,7 +139,8 @@ export default function WidgetMattoni({ id }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
           {mattoni.map((m) => {
-            const { headerStyle, bodyClass, bodyStyle, cardBorder } = cardStyleForMattone(m?.colore);
+            const { headerStyle, bodyClass, bodyStyle, cardBorder, iconFilter, iconBoxClass } =
+              cardStyleForMattone(m?.colore);
             const iconUrl = iconUrlForMattone(m);
             const auraName = m?.aura?.nome || '—';
             const carName = m?.caratteristica_associata?.nome || '—';
@@ -154,16 +161,17 @@ export default function WidgetMattoni({ id }) {
                   style={headerStyle}
                 >
                   <div className="min-w-0 flex items-center gap-2">
-                    <div className="shrink-0">
+                    <div className={`shrink-0 rounded overflow-hidden ${iconBoxClass}`}>
                       {iconUrl ? (
                         <img
                           src={iconUrl}
                           alt=""
-                          className="h-7 w-7 rounded bg-white/20 object-contain"
+                          className="h-7 w-7 object-contain p-0.5"
+                          style={{ filter: iconFilter }}
                           loading="lazy"
                         />
                       ) : (
-                        <div className="h-7 w-7 rounded bg-white/20 flex items-center justify-center text-xs font-bold">
+                        <div className="h-7 w-7 flex items-center justify-center text-xs font-bold">
                           {safeText(m?.sigla || m?.nome).slice(0, 1).toUpperCase()}
                         </div>
                       )}
