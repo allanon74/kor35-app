@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react';
+import { X } from 'lucide-react';
 import PunteggioDisplay from '../PunteggioDisplay';
 
 /** Colori hex dalla scheda (caratteristica 1, 2, 3) per sfondo header */
@@ -42,7 +44,6 @@ function isGradientDark(colors) {
   return darkCount >= valid.length / 2;
 }
 
-/** Stile header per la singola scheda: 1 colore → solido; 2–3 colori → gradiente; testo chiaro/scuro in base allo sfondo */
 function getItemHeaderStyle(item, chromaticStyle) {
   const colors = getAbilityColors(item);
   if (colors.length === 0) {
@@ -60,8 +61,16 @@ function getItemHeaderStyle(item, chromaticStyle) {
   return { background: bg, color: textColor };
 }
 
-export default function AbilitaTable({ list, chromaticStyle }) {
-  if (!list || list.length === 0) return <p className="text-gray-500 italic text-sm p-2">Nessuna abilità elencata.</p>;
+function getItemIsDark(item) {
+  const colors = getAbilityColors(item);
+  if (colors.length === 0) return false;
+  if (colors.length === 1) return isColorDark(colors[0]);
+  return isGradientDark(colors);
+}
+
+export default function AbilitaTable({ list, chromaticStyle, soloList = false }) {
+  const [selectedAbility, setSelectedAbility] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const cardBorder = chromaticStyle?.border ?? 'border-gray-200';
   const headerBg = chromaticStyle?.headerBg ?? 'bg-gray-50';
@@ -74,51 +83,208 @@ export default function AbilitaTable({ list, chromaticStyle }) {
 
   const cardHeaderClass = 'px-3 py-2 border-b border-gray-100 flex justify-between items-center gap-2';
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
-      {list.map((item) => {
-        const cardHeaderStyle = getItemHeaderStyle(item, chromaticStyle);
-        return (
-          <div key={item.id} className={`bg-white border ${cardBorder} rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid`}>
-            <div
-              className={cardHeaderStyle ? cardHeaderClass : `${cardHeaderClass} ${headerBg} ${headerText}`}
-              style={cardHeaderStyle || undefined}
-            >
-              <span className="font-bold text-sm md:text-base leading-tight truncate">
-                {item.nome}
-              </span>
-              <div className="flex items-center gap-2 shrink-0">
-                {item.costo && (
-                  <span className="text-xs font-mono bg-white/20 border border-current border-opacity-30 px-1.5 py-0.5 rounded whitespace-nowrap">
-                    Costo: {item.costo}
-                  </span>
-                )}
-              </div>
-            </div>
+  const openAbility = (item) => {
+    setSelectedAbility(item);
+    setIsModalOpen(true);
+  };
 
-            <div className={`p-3 text-xs md:text-sm relative ${bodyClass} prose prose-sm max-w-none leading-snug prose-p:my-1`} style={bodyStyle}>
-              {/* Badge caratteristiche 1, 2, 3 (se valorizzate) */}
-              {(item.caratteristica || item.caratteristica_2 || item.caratteristica_3) && (
-                <div className="float-right ml-2 mb-1 flex flex-wrap gap-1 justify-end">
-                  {item.caratteristica && typeof item.caratteristica === 'object' && (
-                    <PunteggioDisplay punteggio={item.caratteristica} value={null} size="badge" readOnly={true} iconType="inv_circle" />
-                  )}
-                  {item.caratteristica_2 && typeof item.caratteristica_2 === 'object' && (
-                    <PunteggioDisplay punteggio={item.caratteristica_2} value={null} size="badge" readOnly={true} iconType="inv_circle" />
-                  )}
-                  {item.caratteristica_3 && typeof item.caratteristica_3 === 'object' && (
-                    <PunteggioDisplay punteggio={item.caratteristica_3} value={null} size="badge" readOnly={true} iconType="inv_circle" />
-                  )}
-                </div>
+  const closeAbility = () => {
+    setIsModalOpen(false);
+    setSelectedAbility(null);
+  };
+
+  const abilityListItems = useMemo(() => {
+    if (!list || list.length === 0) return null;
+    return list.map((item) => {
+      const headerStyle = getItemHeaderStyle(item, chromaticStyle);
+      const isDark = getItemIsDark(item);
+      const iconFilter = isDark ? 'brightness(0) invert(1)' : 'brightness(0)';
+      const iconBoxClass = isDark ? 'bg-white/20' : 'bg-black/10';
+      const iconUrl = item?.caratteristica?.icona_url;
+      const iconTextColor = headerStyle?.color ?? (isDark ? '#ffffff' : '#111827');
+
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => openAbility(item)}
+          className={`w-full text-left bg-white border ${cardBorder} rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden break-inside-avoid`}
+        >
+          <div className="flex items-center gap-3 p-3" style={headerStyle || undefined}>
+            <div className={`h-8 w-8 rounded flex items-center justify-center ${iconBoxClass} shrink-0 overflow-hidden`}>
+              {iconUrl ? (
+                <img
+                  src={iconUrl}
+                  alt=""
+                  className="h-6 w-6 object-contain p-0.5"
+                  style={{ filter: iconFilter }}
+                  loading="lazy"
+                />
+              ) : (
+                <span style={{ color: iconTextColor, fontWeight: 800, fontSize: 12 }}>
+                  {String(item?.caratteristica?.sigla || item?.caratteristica?.nome || item.nome || '?').slice(0, 1).toUpperCase()}
+                </span>
               )}
-              <div
-                className="prose prose-sm max-w-none leading-snug prose-inherit"
-                dangerouslySetInnerHTML={{ __html: item.descrizione }}
-              />
             </div>
+            <span className="font-bold text-sm md:text-base leading-tight truncate" style={{ color: iconTextColor }}>
+              {item.nome}
+            </span>
           </div>
-        );
-      })}
-    </div>
+        </button>
+      );
+    });
+  }, [list, chromaticStyle, cardBorder]);
+
+  if (!list || list.length === 0) return <p className="text-gray-500 italic text-sm p-2">Nessuna abilità elencata.</p>;
+
+  return (
+    <>
+      {soloList ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 p-2">
+          {abilityListItems}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
+          {list.map((item) => {
+            const cardHeaderStyle = getItemHeaderStyle(item, chromaticStyle);
+            return (
+              <div
+                key={item.id}
+                className={`bg-white border ${cardBorder} rounded-lg shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow break-inside-avoid`}
+              >
+                <div
+                  className={cardHeaderStyle ? cardHeaderClass : `${cardHeaderClass} ${headerBg} ${headerText}`}
+                  style={cardHeaderStyle || undefined}
+                >
+                  <span className="font-bold text-sm md:text-base leading-tight truncate">
+                    {item.nome}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {item.costo && (
+                      <span className="text-xs font-mono bg-white/20 border border-current border-opacity-30 px-1.5 py-0.5 rounded whitespace-nowrap">
+                        Costo: {item.costo}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className={`p-3 text-xs md:text-sm relative ${bodyClass} prose prose-sm max-w-none leading-snug prose-p:my-1`}
+                  style={bodyStyle}
+                >
+                  {/* Badge caratteristiche 1, 2, 3 (se valorizzate) */}
+                  {(item.caratteristica || item.caratteristica_2 || item.caratteristica_3) && (
+                    <div className="float-right ml-2 mb-1 flex flex-wrap gap-1 justify-end">
+                      {item.caratteristica && typeof item.caratteristica === 'object' && (
+                        <PunteggioDisplay punteggio={item.caratteristica} value={null} size="badge" readOnly={true} iconType="inv_circle" />
+                      )}
+                      {item.caratteristica_2 && typeof item.caratteristica_2 === 'object' && (
+                        <PunteggioDisplay punteggio={item.caratteristica_2} value={null} size="badge" readOnly={true} iconType="inv_circle" />
+                      )}
+                      {item.caratteristica_3 && typeof item.caratteristica_3 === 'object' && (
+                        <PunteggioDisplay punteggio={item.caratteristica_3} value={null} size="badge" readOnly={true} iconType="inv_circle" />
+                      )}
+                    </div>
+                  )}
+
+                  <div
+                    className="prose prose-sm max-w-none leading-snug prose-inherit"
+                    dangerouslySetInnerHTML={{ __html: item.descrizione || '' }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={isModalOpen} onClose={closeAbility} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black/80" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="w-full max-w-2xl rounded-lg bg-white shadow-2xl border border-gray-200 overflow-hidden">
+            {selectedAbility && (
+              <>
+                {/*
+                  Header per-item con testo chiaro/scuro in base al colore (o gradiente).
+                  È lo stesso stile usato nelle card, ma rimpicciolito/centralizzato per il modal.
+                */}
+                {(() => {
+                  const headerStyle = getItemHeaderStyle(selectedAbility, chromaticStyle);
+                  const isDark = getItemIsDark(selectedAbility);
+                  const iconFilter = isDark ? 'brightness(0) invert(1)' : 'brightness(0)';
+                  const iconBoxClass = isDark ? 'bg-white/20' : 'bg-black/10';
+                  const iconUrl = selectedAbility?.caratteristica?.icona_url;
+                  const headerTextColor = headerStyle?.color ?? (isDark ? '#ffffff' : '#111827');
+                  return (
+                    <div style={headerStyle || undefined} className="px-4 py-3 border-b border-white/10">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`h-10 w-10 rounded flex items-center justify-center ${iconBoxClass} shrink-0 overflow-hidden`}>
+                            {iconUrl ? (
+                              <img
+                                src={iconUrl}
+                                alt=""
+                                className="h-8 w-8 object-contain p-0.5"
+                                style={{ filter: iconFilter }}
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span style={{ color: headerTextColor, fontWeight: 800, fontSize: 14 }}>
+                                {String(selectedAbility?.caratteristica?.sigla || selectedAbility?.caratteristica?.nome || selectedAbility.nome || '?').slice(0, 1).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-lg leading-tight truncate" style={{ color: headerTextColor }}>
+                              {selectedAbility.nome}
+                            </div>
+                            {selectedAbility.costo && (
+                              <div className="text-xs font-mono" style={{ color: headerTextColor, opacity: 0.9 }}>
+                                Costo: {selectedAbility.costo}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={closeAbility}
+                          className="p-2 rounded hover:brightness-110 transition-colors"
+                          aria-label="Chiudi"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className={`p-4 text-xs md:text-sm relative ${bodyClass} prose prose-sm max-w-none leading-snug prose-p:my-1`} style={bodyStyle}>
+                  {/* Badge caratteristiche 1, 2, 3 */}
+                  {(selectedAbility.caratteristica || selectedAbility.caratteristica_2 || selectedAbility.caratteristica_3) && (
+                    <div className="flex flex-wrap gap-2 justify-end mb-2">
+                      {selectedAbility.caratteristica && (
+                        <PunteggioDisplay punteggio={selectedAbility.caratteristica} value={null} size="badge" readOnly={true} iconType="inv_circle" />
+                      )}
+                      {selectedAbility.caratteristica_2 && (
+                        <PunteggioDisplay punteggio={selectedAbility.caratteristica_2} value={null} size="badge" readOnly={true} iconType="inv_circle" />
+                      )}
+                      {selectedAbility.caratteristica_3 && (
+                        <PunteggioDisplay punteggio={selectedAbility.caratteristica_3} value={null} size="badge" readOnly={true} iconType="inv_circle" />
+                      )}
+                    </div>
+                  )}
+
+                  <div
+                    className="prose prose-sm max-w-none leading-snug prose-inherit"
+                    dangerouslySetInnerHTML={{ __html: selectedAbility.descrizione || '' }}
+                  />
+                </div>
+              </>
+            )}
+          </DialogPanel>
+        </div>
+      </Dialog>
+    </>
   );
 }

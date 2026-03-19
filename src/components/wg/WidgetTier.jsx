@@ -57,6 +57,8 @@ export default function WidgetTier({ id }) {
     (a.nome || '').localeCompare(b.nome || '')
   );
 
+  const soloLista = data?.abilities_solo_list === true;
+
   const gradientColors = Array.isArray(data.gradient_colors) ? data.gradient_colors : [];
   const useGradient = gradientColors.length > 0;
   const gradientBg = useGradient ? gradientStyle(gradientColors) : null;
@@ -118,6 +120,7 @@ export default function WidgetTier({ id }) {
             <div className="pt-0 px-2 pb-2">
               <AbilitaTable
                 list={sortedList}
+                soloList={soloLista}
                 chromaticStyle={
                   gradientBg
                     ? { 
@@ -135,6 +138,7 @@ export default function WidgetTier({ id }) {
           <div className={bodyClass} style={bodyStyle}>
             <AbilitaTable
               list={sortedList}
+              soloList={soloLista}
               chromaticStyle={
                 gradientBg
                   ? { 
