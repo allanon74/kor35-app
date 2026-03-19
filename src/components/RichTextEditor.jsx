@@ -135,6 +135,22 @@ const CUSTOM_STYLES = [
         }
     },
     {
+        id: 'title-subsection',
+        label: '📑 Titolo Sottosezione',
+        css: {
+            fontSize: '1.15em',
+            fontWeight: '500',
+            color: '#a5b4fc',
+            borderLeft: '4px solid #6366f1',
+            paddingLeft: '12px',
+            marginTop: '8px',
+            marginBottom: '6px',
+            display: 'block',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+        }
+    },
+    {
         id: 'highlight-yellow',
         label: '📌 Evidenziato Giallo',
         css: {
