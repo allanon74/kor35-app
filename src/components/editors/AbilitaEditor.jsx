@@ -18,6 +18,8 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
         nome: '',
         descrizione: '',
         caratteristica: null,
+        caratteristica_2: null,
+        caratteristica_3: null,
         costo_pc: 0,
         costo_crediti: 0,
         is_tratto_aura: false,
@@ -53,6 +55,8 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
             const payload = {
                 ...formData,
                 caratteristica: formData.caratteristica ? parseInt(formData.caratteristica) : null,
+                caratteristica_2: formData.caratteristica_2 ? parseInt(formData.caratteristica_2) : null,
+                caratteristica_3: formData.caratteristica_3 ? parseInt(formData.caratteristica_3) : null,
                 aura_riferimento: formData.aura_riferimento ? parseInt(formData.aura_riferimento) : null,
                 tiers: formData.tiers.map(t => ({...t, tabella: parseInt(t.tabella)})),
                 requisiti: formData.requisiti.map(r => ({...r, requisito: parseInt(r.requisito)})),
@@ -125,9 +129,9 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                         />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                            <label className="text-xs text-gray-500 uppercase font-bold">Carat. Base</label>
+                            <label className="text-xs text-gray-500 uppercase font-bold">Caratteristica 1 (base)</label>
                             <select 
                                 className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white text-sm"
                                 value={formData.caratteristica || ""}
@@ -137,6 +141,30 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                                 {caratteristiche.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                             </select>
                         </div>
+                        <div>
+                            <label className="text-xs text-gray-500 uppercase font-bold">Caratteristica 2 (opz.)</label>
+                            <select 
+                                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white text-sm"
+                                value={formData.caratteristica_2 || ""}
+                                onChange={e => setFormData({...formData, caratteristica_2: e.target.value})}
+                            >
+                                <option value="">- Nessuna -</option>
+                                {caratteristiche.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500 uppercase font-bold">Caratteristica 3 (opz.)</label>
+                            <select 
+                                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white text-sm"
+                                value={formData.caratteristica_3 || ""}
+                                onChange={e => setFormData({...formData, caratteristica_3: e.target.value})}
+                            >
+                                <option value="">- Nessuna -</option>
+                                {caratteristiche.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs text-gray-500 uppercase font-bold">Costo PC</label>
                             <input 
