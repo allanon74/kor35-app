@@ -140,6 +140,9 @@ export default function WidgetMattoni({ id }) {
             const tipoLabel = m?.tipo_display || m?.tipo || '—';
             const descrizione = m?.descrizione_mattone || m?.descrizione || '';
             const meta = m?.descrizione_metatalento || '';
+            const mostraClassiArma = m?.mostra_classi_arma || 'nessuno';
+            const classiArmaMateria = Array.isArray(m?.classi_arma_materia) ? m.classi_arma_materia : [];
+            const classiArmaMod = Array.isArray(m?.classi_arma_mod) ? m.classi_arma_mod : [];
 
             return (
               <div
@@ -202,6 +205,33 @@ export default function WidgetMattoni({ id }) {
                         className="prose prose-sm max-w-none leading-snug prose-inherit"
                         dangerouslySetInnerHTML={{ __html: meta }}
                       />
+                    </div>
+                  )}
+
+                  {mostraClassiArma === 'materia' && classiArmaMateria.length > 0 && (
+                    <div className="mt-3 border-t border-black/10 pt-2">
+                      <div className="text-[11px] md:text-xs font-bold opacity-80">Classi di armi con questo castone</div>
+                      <ul className="mt-1 text-xs md:text-sm text-gray-800 list-disc list-inside space-y-0.5">
+                        {classiArmaMateria.map((c) => (
+                          <li key={c.id}>{c.nome}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {mostraClassiArma === 'mod' && classiArmaMod.length > 0 && (
+                    <div className="mt-3 border-t border-black/10 pt-2">
+                      <div className="text-[11px] md:text-xs font-bold opacity-80">Classi di armi con questo Nodo e massimale di mod installabili per tipologia di nodo</div>
+                      <ul className="mt-1 text-xs md:text-sm text-gray-800 space-y-0.5">
+                        {classiArmaMod.map((c) => (
+                          <li key={c.id}>
+                            <span className="font-medium">{c.nome}</span>
+                            {c.max_installabili != null && (
+                              <span className="ml-1 text-gray-600">— max {c.max_installabili} mod</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>
