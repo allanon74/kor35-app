@@ -281,6 +281,7 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
     const [filteredPages, setFilteredPages] = useState([]);
     const [pageFilter, setPageFilter] = useState('');
     const [loadingPages, setLoadingPages] = useState(false);
+    const [isHtmlMode, setIsHtmlMode] = useState(false);
     const savedSelectionRef = useRef(null);
 
     // Sincronizza il contenuto iniziale o esterno
@@ -514,6 +515,13 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
         savedSelectionRef.current = null;
     };
 
+    const toggleEditorMode = () => {
+        if (!isHtmlMode && editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+        }
+        setIsHtmlMode((prev) => !prev);
+    };
+
     const getCurrentTableContext = () => {
         const selection = window.getSelection();
         if (!selection.rangeCount) return null;
@@ -677,190 +685,213 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                 
                 {/* Toolbar */}
                 <div className="flex flex-wrap items-center gap-1 p-2 bg-gray-700 border-b border-gray-600">
-                    
-                    {/* Gruppo Paragrafi HTML */}
-                    <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
-                        <Heading size={16} className="text-gray-400" />
-                        <select 
-                            value={currentBlockType}
-                            onChange={(e) => changeBlockType(e.target.value)}
-                            className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                            title="Tipo di Paragrafo"
-                        >
-                            {HTML_BLOCKS.map(block => (
-                                <option key={block.value} value={block.tag}>
-                                    {block.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    {!isHtmlMode && (
+                        <>
+                            {/* Gruppo Paragrafi HTML */}
+                            <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
+                                <Heading size={16} className="text-gray-400" />
+                                <select 
+                                    value={currentBlockType}
+                                    onChange={(e) => changeBlockType(e.target.value)}
+                                    className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                    title="Tipo di Paragrafo"
+                                >
+                                    {HTML_BLOCKS.map(block => (
+                                        <option key={block.value} value={block.tag}>
+                                            {block.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
 
-                    {/* Gruppo Font Family */}
-                    <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
-                        <FileText size={16} className="text-gray-400" />
-                        <select 
-                            value={currentFont}
-                            onChange={(e) => changeFontFamily(e.target.value)}
-                            className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer max-w-[140px]"
-                            title="Tipo di Font"
-                        >
-                            {FONT_FAMILIES.map(font => (
-                                <option key={font.value} value={font.value}>
-                                    {font.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    
-                    {/* Gruppo Base */}
-                    <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
-                        <ToolbarButton icon={Bold} onClick={() => execCommand('bold')} title="Grassetto" />
-                        <ToolbarButton icon={Italic} onClick={() => execCommand('italic')} title="Corsivo" />
-                        <ToolbarButton icon={Underline} onClick={() => execCommand('underline')} title="Sottolineato" />
-                    </div>
+                            {/* Gruppo Font Family */}
+                            <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
+                                <FileText size={16} className="text-gray-400" />
+                                <select 
+                                    value={currentFont}
+                                    onChange={(e) => changeFontFamily(e.target.value)}
+                                    className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer max-w-[140px]"
+                                    title="Tipo di Font"
+                                >
+                                    {FONT_FAMILIES.map(font => (
+                                        <option key={font.value} value={font.value}>
+                                            {font.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            {/* Gruppo Base */}
+                            <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
+                                <ToolbarButton icon={Bold} onClick={() => execCommand('bold')} title="Grassetto" />
+                                <ToolbarButton icon={Italic} onClick={() => execCommand('italic')} title="Corsivo" />
+                                <ToolbarButton icon={Underline} onClick={() => execCommand('underline')} title="Sottolineato" />
+                            </div>
 
-                    {/* Gruppo Liste & Allineamento */}
-                    <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
-                        <ToolbarButton icon={List} onClick={() => execCommand('insertUnorderedList')} title="Lista Puntata" />
-                        <ToolbarButton icon={ListOrdered} onClick={() => execCommand('insertOrderedList')} title="Lista Numerata" />
-                        <ToolbarButton icon={AlignLeft} onClick={() => execCommand('justifyLeft')} title="Allinea Sinistra" />
-                        <ToolbarButton icon={AlignCenter} onClick={() => execCommand('justifyCenter')} title="Allinea Centro" />
-                    </div>
+                            {/* Gruppo Liste & Allineamento */}
+                            <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
+                                <ToolbarButton icon={List} onClick={() => execCommand('insertUnorderedList')} title="Lista Puntata" />
+                                <ToolbarButton icon={ListOrdered} onClick={() => execCommand('insertOrderedList')} title="Lista Numerata" />
+                                <ToolbarButton icon={AlignLeft} onClick={() => execCommand('justifyLeft')} title="Allinea Sinistra" />
+                                <ToolbarButton icon={AlignCenter} onClick={() => execCommand('justifyCenter')} title="Allinea Centro" />
+                            </div>
 
-                    {/* Gruppo Elementi Speciali */}
-                    <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
-                        <ToolbarButton icon={Minus} onClick={insertHorizontalRule} title="Riga Orizzontale" />
-                        <ToolbarButton icon={PanelTopClose} onClick={insertCollapsibleSection} title="Inserisci sezione collapsible" />
-                        <ToolbarButton icon={LinkIcon} onClick={openLinkModal} title="Inserisci Link Wiki" />
-                        <div className="relative">
-                            <ToolbarButton 
-                                icon={Smile} 
-                                onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-                                title="Inserisci Emoji" 
-                                active={showEmojiPicker}
-                            />
-                            {showEmojiPicker && (
-                                <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg p-3 z-50 w-[480px] max-h-[350px] overflow-y-auto">
-                                    <div className="grid grid-cols-12 gap-1">
-                                        {COMMON_EMOJIS.map((emoji, idx) => (
-                                            <button
-                                                key={idx}
-                                                type="button"
-                                                onClick={() => insertEmoji(emoji)}
-                                                className="text-xl hover:bg-gray-700 rounded p-2 transition-colors flex items-center justify-center min-w-[36px] min-h-[36px]"
-                                                title={emoji}
-                                            >
-                                                {emoji}
-                                            </button>
-                                        ))}
-                                    </div>
+                            {/* Gruppo Elementi Speciali */}
+                            <div className="flex gap-0.5 border-r border-gray-500 pr-2 mr-1">
+                                <ToolbarButton icon={Minus} onClick={insertHorizontalRule} title="Riga Orizzontale" />
+                                <ToolbarButton icon={PanelTopClose} onClick={insertCollapsibleSection} title="Inserisci sezione collapsible" />
+                                <ToolbarButton icon={LinkIcon} onClick={openLinkModal} title="Inserisci Link Wiki" />
+                                <div className="relative">
+                                    <ToolbarButton 
+                                        icon={Smile} 
+                                        onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                                        title="Inserisci Emoji" 
+                                        active={showEmojiPicker}
+                                    />
+                                    {showEmojiPicker && (
+                                        <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg p-3 z-50 w-[480px] max-h-[350px] overflow-y-auto">
+                                            <div className="grid grid-cols-12 gap-1">
+                                                {COMMON_EMOJIS.map((emoji, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => insertEmoji(emoji)}
+                                                        className="text-xl hover:bg-gray-700 rounded p-2 transition-colors flex items-center justify-center min-w-[36px] min-h-[36px]"
+                                                        title={emoji}
+                                                    >
+                                                        {emoji}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    </div>
+                            </div>
 
-                    {/* Gruppo Stile Avanzato */}
-                    <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
-                        {/* Selettore Dimensione Font */}
-                        <div className="relative group">
-                            <button type="button" title="Dimensione Testo" className="text-gray-300 hover:text-white p-1">
-                                <Type size={16} />
-                            </button>
-                            <select 
-                                className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={(e) => execCommand('fontSize', e.target.value)}
-                                defaultValue="3"
-                            >
-                                <option value="1">Molto Piccolo</option>
-                                <option value="2">Piccolo</option>
-                                <option value="3">Normale</option>
-                                <option value="4">Medio</option>
-                                <option value="5">Grande</option>
-                                <option value="6">Molto Grande</option>
-                                <option value="7">Enorme</option>
-                            </select>
-                        </div>
+                            {/* Gruppo Stile Avanzato */}
+                            <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
+                                {/* Selettore Dimensione Font */}
+                                <div className="relative group">
+                                    <button type="button" title="Dimensione Testo" className="text-gray-300 hover:text-white p-1">
+                                        <Type size={16} />
+                                    </button>
+                                    <select 
+                                        className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+                                        onChange={(e) => execCommand('fontSize', e.target.value)}
+                                        defaultValue="3"
+                                    >
+                                        <option value="1">Molto Piccolo</option>
+                                        <option value="2">Piccolo</option>
+                                        <option value="3">Normale</option>
+                                        <option value="4">Medio</option>
+                                        <option value="5">Grande</option>
+                                        <option value="6">Molto Grande</option>
+                                        <option value="7">Enorme</option>
+                                    </select>
+                                </div>
 
-                        {/* Selettore Colore */}
-                        <div className="relative">
-                            <ToolbarButton 
-                                icon={Paintbrush} 
-                                onClick={() => colorInputRef.current?.click()} 
-                                title="Colore Testo" 
-                            />
-                            <input 
-                                type="color" 
-                                ref={colorInputRef}
-                                className="absolute opacity-0 w-0 h-0" 
-                                onChange={(e) => execCommand('foreColor', e.target.value)}
-                            />
-                        </div>
-                    </div>
+                                {/* Selettore Colore */}
+                                <div className="relative">
+                                    <ToolbarButton 
+                                        icon={Paintbrush} 
+                                        onClick={() => colorInputRef.current?.click()} 
+                                        title="Colore Testo" 
+                                    />
+                                    <input 
+                                        type="color" 
+                                        ref={colorInputRef}
+                                        className="absolute opacity-0 w-0 h-0" 
+                                        onChange={(e) => execCommand('foreColor', e.target.value)}
+                                    />
+                                </div>
+                            </div>
 
-                    {/* Gruppo Stili Personalizzati */}
-                    <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
-                        <select 
-                            onChange={(e) => {
-                                if (e.target.value) {
-                                    const style = CUSTOM_STYLES.find(s => s.id === e.target.value);
-                                    if (style) applyCustomStyle(style);
-                                    e.target.value = ''; // Reset
-                                }
-                            }}
-                            className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                            title="Stili Personalizzati"
-                            defaultValue=""
-                        >
-                            <option value="">🎨 Stili Custom</option>
-                            {CUSTOM_STYLES.map(style => (
-                                <option key={style.id} value={style.id}>
-                                    {style.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                            {/* Gruppo Stili Personalizzati */}
+                            <div className="flex gap-1 items-center border-r border-gray-500 pr-2 mr-1">
+                                <select 
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            const style = CUSTOM_STYLES.find(s => s.id === e.target.value);
+                                            if (style) applyCustomStyle(style);
+                                            e.target.value = ''; // Reset
+                                        }
+                                    }}
+                                    className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                    title="Stili Personalizzati"
+                                    defaultValue=""
+                                >
+                                    <option value="">🎨 Stili Custom</option>
+                                    {CUSTOM_STYLES.map(style => (
+                                        <option key={style.id} value={style.id}>
+                                            {style.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
 
                     {/* Gruppo Utility */}
-                    <div className="flex gap-0.5 ml-auto">
-                        <div className="flex items-center gap-1 border-r border-gray-500 pr-2 mr-1">
-                            <select
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        insertTablePreset(e.target.value);
-                                        e.target.value = '';
-                                    }
-                                }}
-                                className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                                title="Inserisci tabella"
-                                defaultValue=""
-                            >
-                                <option value="">📊 Tabelle</option>
-                                <option value="grid">Con intestazione + righe alternate</option>
-                                <option value="duo">2 colonne Testo/Descrizione</option>
-                            </select>
-                            <SmallActionButton label="+Riga" onClick={addRowAfter} title="Aggiungi riga dopo" />
-                            <SmallActionButton label="-Riga" onClick={removeCurrentRow} title="Rimuovi riga corrente" />
-                            <SmallActionButton label="+Col" onClick={addColumnAfter} title="Aggiungi colonna dopo" />
-                            <SmallActionButton label="-Col" onClick={removeCurrentColumn} title="Rimuovi colonna corrente" />
-                        </div>
-                        <ToolbarButton 
-                            icon={Trash2} 
-                            onClick={() => execCommand('removeFormat')} 
-                            title="Rimuovi Formattazione" 
+                    <div className="flex gap-0.5 ml-auto items-center">
+                        {!isHtmlMode && (
+                            <div className="flex items-center gap-1 border-r border-gray-500 pr-2 mr-1">
+                                <select
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            insertTablePreset(e.target.value);
+                                            e.target.value = '';
+                                        }
+                                    }}
+                                    className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                    title="Inserisci tabella"
+                                    defaultValue=""
+                                >
+                                    <option value="">📊 Tabelle</option>
+                                    <option value="grid">Con intestazione + righe alternate</option>
+                                    <option value="duo">2 colonne Testo/Descrizione</option>
+                                </select>
+                                <SmallActionButton label="+Riga" onClick={addRowAfter} title="Aggiungi riga dopo" />
+                                <SmallActionButton label="-Riga" onClick={removeCurrentRow} title="Rimuovi riga corrente" />
+                                <SmallActionButton label="+Col" onClick={addColumnAfter} title="Aggiungi colonna dopo" />
+                                <SmallActionButton label="-Col" onClick={removeCurrentColumn} title="Rimuovi colonna corrente" />
+                            </div>
+                        )}
+                        {!isHtmlMode && (
+                            <ToolbarButton 
+                                icon={Trash2} 
+                                onClick={() => execCommand('removeFormat')} 
+                                title="Rimuovi Formattazione" 
+                            />
+                        )}
+                        <SmallActionButton
+                            label={isHtmlMode ? 'Modalita RichText' : 'Modalita HTML'}
+                            onClick={toggleEditorMode}
+                            title="Alterna visuale rich text e codice HTML"
+                            className="ml-1"
                         />
                     </div>
                 </div>
 
                 {/* Area di Editazione */}
-                <div
-                    ref={editorRef}
-                    contentEditable
-                    onInput={handleInput}
-                    onPaste={handlePaste}
-                    className="p-3 text-sm text-gray-200 outline-none overflow-y-auto min-h-[120px] max-h-[300px] leading-relaxed custom-scrollbar"
-                    style={{ whiteSpace: 'pre-wrap' }}
-                    data-placeholder={placeholder}
-                />
+                {isHtmlMode ? (
+                    <textarea
+                        value={value || ''}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="w-full p-3 text-sm text-gray-200 bg-gray-900 outline-none overflow-y-auto min-h-[120px] max-h-[300px] font-mono leading-relaxed custom-scrollbar"
+                        placeholder="Inserisci o modifica HTML..."
+                        spellCheck={false}
+                    />
+                ) : (
+                    <div
+                        ref={editorRef}
+                        contentEditable
+                        onInput={handleInput}
+                        onPaste={handlePaste}
+                        className="p-3 text-sm text-gray-200 outline-none overflow-y-auto min-h-[120px] max-h-[300px] leading-relaxed custom-scrollbar"
+                        style={{ whiteSpace: 'pre-wrap' }}
+                        data-placeholder={placeholder}
+                    />
+                )}
                 
                 <style>{`
                     [contenteditable]:empty:before {
