@@ -141,7 +141,7 @@ const CUSTOM_STYLES = [
             fontSize: '1.15em',
             fontWeight: '500',
             color: '#a5b4fc',
-            borderLeft: '4px solid #6366f1',
+            // borderLeft: '4px solid #6366f1',
             paddingLeft: '12px',
             marginTop: '8px',
             marginBottom: '6px',
@@ -254,6 +254,17 @@ const ToolbarButton = ({ icon: Icon, onClick, active, title }) => (
         }`}
     >
         <Icon size={16} />
+    </button>
+);
+
+const SmallActionButton = ({ label, onClick, title, className = '' }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        title={title}
+        className={`px-2 py-1 text-xs rounded bg-gray-800 border border-gray-600 text-gray-200 hover:bg-gray-700 hover:border-gray-500 transition-colors ${className}`}
+    >
+        {label}
     </button>
 );
 
@@ -503,6 +514,161 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
         savedSelectionRef.current = null;
     };
 
+    const getCurrentTableContext = () => {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return null;
+
+        const range = selection.getRangeAt(0);
+        const startNode = range.startContainer;
+        const element = startNode.nodeType === Node.ELEMENT_NODE ? startNode : startNode.parentElement;
+        if (!element) return null;
+
+        const cell = element.closest('td, th');
+        const row = element.closest('tr');
+        const table = element.closest('table');
+
+        if (!table || !row) return null;
+        return { table, row, cell };
+    };
+
+    const insertTablePreset = (preset) => {
+        const gridHtml = `
+<table data-table-style="grid" style="width: 100%; border-collapse: collapse; margin: 1em 0;">
+  <thead>
+    <tr>
+      <th>Intestazione 1</th>
+      <th>Intestazione 2</th>
+      <th>Intestazione 3</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Cella 1</td>
+      <td>Cella 2</td>
+      <td>Cella 3</td>
+    </tr>
+    <tr>
+      <td>Cella 4</td>
+      <td>Cella 5</td>
+      <td>Cella 6</td>
+    </tr>
+  </tbody>
+</table>
+<p><br></p>`;
+
+        const duoHtml = `
+<table data-table-style="duo" style="width: 100%; border-collapse: collapse; margin: 1em 0;">
+  <thead>
+    <tr>
+      <th>Testo</th>
+      <th>Descrizione</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Voce</td>
+      <td>Descrizione della voce</td>
+    </tr>
+    <tr>
+      <td>Voce</td>
+      <td>Descrizione della voce</td>
+    </tr>
+  </tbody>
+</table>
+<p><br></p>`;
+
+        document.execCommand('insertHTML', false, preset === 'grid' ? gridHtml : duoHtml);
+        if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+            editorRef.current.focus();
+        }
+    };
+
+    const addRowAfter = () => {
+        const context = getCurrentTableContext();
+        if (!context) {
+            alert('Posiziona il cursore dentro una tabella.');
+            return;
+        }
+
+        const { row } = context;
+        const newRow = row.cloneNode(true);
+        Array.from(newRow.cells).forEach((cell) => {
+            cell.innerHTML = '&nbsp;';
+        });
+        row.parentNode.insertBefore(newRow, row.nextSibling);
+
+        onChange(editorRef.current.innerHTML);
+        editorRef.current.focus();
+    };
+
+    const removeCurrentRow = () => {
+        const context = getCurrentTableContext();
+        if (!context) {
+            alert('Posiziona il cursore dentro una tabella.');
+            return;
+        }
+
+        const { table, row } = context;
+        const rows = table.querySelectorAll('tr');
+        if (rows.length <= 1) {
+            alert('La tabella deve avere almeno una riga.');
+            return;
+        }
+
+        row.remove();
+        onChange(editorRef.current.innerHTML);
+        editorRef.current.focus();
+    };
+
+    const addColumnAfter = () => {
+        const context = getCurrentTableContext();
+        if (!context || !context.cell) {
+            alert('Posiziona il cursore dentro una cella della tabella.');
+            return;
+        }
+
+        const { table, cell } = context;
+        const colIndex = cell.cellIndex;
+        const rows = table.querySelectorAll('tr');
+
+        rows.forEach((currentRow) => {
+            const baseCell = currentRow.cells[colIndex] || currentRow.cells[currentRow.cells.length - 1];
+            const tagName = baseCell && baseCell.tagName === 'TH' ? 'th' : 'td';
+            const newCell = document.createElement(tagName);
+            newCell.innerHTML = tagName === 'th' ? `Intestazione ${colIndex + 2}` : '&nbsp;';
+            currentRow.insertBefore(newCell, currentRow.cells[colIndex + 1] || null);
+        });
+
+        onChange(editorRef.current.innerHTML);
+        editorRef.current.focus();
+    };
+
+    const removeCurrentColumn = () => {
+        const context = getCurrentTableContext();
+        if (!context || !context.cell) {
+            alert('Posiziona il cursore dentro una cella della tabella.');
+            return;
+        }
+
+        const { table, cell } = context;
+        const colIndex = cell.cellIndex;
+        const firstRow = table.querySelector('tr');
+        if (!firstRow || firstRow.cells.length <= 1) {
+            alert('La tabella deve avere almeno una colonna.');
+            return;
+        }
+
+        table.querySelectorAll('tr').forEach((currentRow) => {
+            if (currentRow.cells[colIndex]) {
+                currentRow.deleteCell(colIndex);
+            }
+        });
+
+        onChange(editorRef.current.innerHTML);
+        editorRef.current.focus();
+    };
+
     return (
         <div className="flex flex-col gap-1 w-full">
             {label && <label className="text-sm font-medium text-gray-300 ml-1">{label}</label>}
@@ -656,6 +822,27 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
 
                     {/* Gruppo Utility */}
                     <div className="flex gap-0.5 ml-auto">
+                        <div className="flex items-center gap-1 border-r border-gray-500 pr-2 mr-1">
+                            <select
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        insertTablePreset(e.target.value);
+                                        e.target.value = '';
+                                    }
+                                }}
+                                className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                title="Inserisci tabella"
+                                defaultValue=""
+                            >
+                                <option value="">📊 Tabelle</option>
+                                <option value="grid">Con intestazione + righe alternate</option>
+                                <option value="duo">2 colonne Testo/Descrizione</option>
+                            </select>
+                            <SmallActionButton label="+Riga" onClick={addRowAfter} title="Aggiungi riga dopo" />
+                            <SmallActionButton label="-Riga" onClick={removeCurrentRow} title="Rimuovi riga corrente" />
+                            <SmallActionButton label="+Col" onClick={addColumnAfter} title="Aggiungi colonna dopo" />
+                            <SmallActionButton label="-Col" onClick={removeCurrentColumn} title="Rimuovi colonna corrente" />
+                        </div>
                         <ToolbarButton 
                             icon={Trash2} 
                             onClick={() => execCommand('removeFormat')} 
@@ -765,6 +952,49 @@ const RichTextEditor = ({ value, onChange, placeholder, label }) => {
                         padding: 14px;
                         background: #e5e7eb;
                         color: #111827;
+                    }
+
+                    /* Tabelle: preset griglia */
+                    [contenteditable] table[data-table-style="grid"] {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 1em 0;
+                    }
+                    [contenteditable] table[data-table-style="grid"] th,
+                    [contenteditable] table[data-table-style="grid"] td {
+                        border: 1px solid #4b5563;
+                        padding: 8px 10px;
+                    }
+                    [contenteditable] table[data-table-style="grid"] th {
+                        background: #374151;
+                        color: #f3f4f6;
+                        font-weight: 600;
+                        text-align: left;
+                    }
+                    [contenteditable] table[data-table-style="grid"] tbody tr:nth-child(even) {
+                        background: #1f2937;
+                    }
+                    [contenteditable] table[data-table-style="grid"] tbody tr:nth-child(odd) {
+                        background: #111827;
+                    }
+
+                    /* Tabelle: preset due colonne testo/descrizione */
+                    [contenteditable] table[data-table-style="duo"] {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 1em 0;
+                    }
+                    [contenteditable] table[data-table-style="duo"] th,
+                    [contenteditable] table[data-table-style="duo"] td {
+                        border: 0;
+                        border-bottom: 1px solid #4b5563;
+                        padding: 8px 10px;
+                        vertical-align: top;
+                    }
+                    [contenteditable] table[data-table-style="duo"] th {
+                        font-weight: 600;
+                        color: #f3f4f6;
+                        text-align: left;
                     }
                 `}</style>
             </div>

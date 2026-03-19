@@ -83,6 +83,70 @@ export const RICH_TEXT_SHARED_STYLES = `
     color: inherit;
   }
 
+  /* Tabelle: preset griglia (header + celle + righe alternate) */
+  .ql-editor-view table[data-table-style="grid"],
+  .wiki-content table[data-table-style="grid"] {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+  }
+  .ql-editor-view table[data-table-style="grid"] th,
+  .ql-editor-view table[data-table-style="grid"] td,
+  .wiki-content table[data-table-style="grid"] th,
+  .wiki-content table[data-table-style="grid"] td {
+    border: 1px solid #9ca3af;
+    padding: 8px 10px;
+    text-align: left;
+  }
+  .ql-editor-view table[data-table-style="grid"] th {
+    background: #374151;
+    color: #f3f4f6;
+    font-weight: 600;
+  }
+  .wiki-content table[data-table-style="grid"] th {
+    background: #e5e7eb;
+    color: #111827;
+    font-weight: 600;
+  }
+  .ql-editor-view table[data-table-style="grid"] tbody tr:nth-child(even) {
+    background: #1f2937;
+  }
+  .ql-editor-view table[data-table-style="grid"] tbody tr:nth-child(odd) {
+    background: #111827;
+  }
+  .wiki-content table[data-table-style="grid"] tbody tr:nth-child(even) {
+    background: #f9fafb;
+  }
+  .wiki-content table[data-table-style="grid"] tbody tr:nth-child(odd) {
+    background: #ffffff;
+  }
+
+  /* Tabelle: preset 2 colonne (solo separatori orizzontali) */
+  .ql-editor-view table[data-table-style="duo"],
+  .wiki-content table[data-table-style="duo"] {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+  }
+  .ql-editor-view table[data-table-style="duo"] th,
+  .ql-editor-view table[data-table-style="duo"] td,
+  .wiki-content table[data-table-style="duo"] th,
+  .wiki-content table[data-table-style="duo"] td {
+    border: 0;
+    border-bottom: 1px solid #9ca3af;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .ql-editor-view table[data-table-style="duo"] th {
+    color: #f3f4f6;
+    font-weight: 600;
+  }
+  .wiki-content table[data-table-style="duo"] th {
+    color: #111827;
+    font-weight: 600;
+  }
+
   /* Collapsible dentro i widget Tier: larghezza 100%, niente riquadro grigio, rispettano lo stile cromatico del plugin */
   .wiki-content .wiki-widget-tier details,
   .wiki-content .wiki-widget-slot .wiki-widget-tier details {
