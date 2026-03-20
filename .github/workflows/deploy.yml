@@ -1,46 +1,109 @@
-name: Deploy React App a KOR-35
+name: Safe Frontend Deploy
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref da deployare (branch/tag/SHA)"
+        required: false
+        default: "main"
+
+concurrency:
+  group: safe-frontend-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  production-deploy:
+    name: Production frontend deploy
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout Codice
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}
 
-    - name: Deploy su Server (Build su Server)
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.DEPLOY_HOST }}
-        username: ${{ secrets.DEPLOY_USER }}
-        key: ${{ secrets.DEPLOY_SSH_KEY }}
-        
-        # SCRIPT AGGIORNATO (con sudo)
-        script: |
-          # 0. Carica il profilo per trovare Node.js (aggiornato)
-          # Questo assicura che usi la versione 22.x
-          source /etc/profile
-          
-          # 1. Vai alla cartella del repository sul server
-          cd ${{ secrets.REPO_PATH_ON_SERVER }}
-          
-          # 2. Aggiorna il codice dal repository
-          git fetch origin main
-          git reset --hard origin/main
-          
-          # 3. Installa le dipendenze di Node.js
-          npm install
-          
-          # 4. Esegui la build di React
-          npm run build
-          
-          # 5. Svuota la cartella web (con sudo)
-          sudo rm -rf ${{ secrets.DEPLOY_TARGET_PATH }}/*
-          
-          # 6. Copia i file buildati (con sudo)
-          sudo cp -R dist/* ${{ secrets.DEPLOY_TARGET_PATH }}/
+      - name: Deploy frontend on production via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
+          script: |
+            REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
+            source /etc/profile
+            cd "${{ secrets.REPO_PATH_ON_SERVER }}"
+            git fetch --all --tags
+            git checkout "${REF}"
+            git reset --hard "${REF}"
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              npm install
+            fi
+            npm run build
+            sudo rm -rf "${{ secrets.DEPLOY_TARGET_PATH }}"/*
+            if [ -d dist ]; then
+              sudo cp -R dist/* "${{ secrets.DEPLOY_TARGET_PATH }}/"
+            elif [ -d build ]; then
+              sudo cp -R build/* "${{ secrets.DEPLOY_TARGET_PATH }}/"
+            else
+              echo "Nessuna cartella dist/build trovata dopo npm run build" >&2
+              exit 1
+            fi
+            if [ -n "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" ]; then
+              curl -fsS "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" >/dev/null
+            fi
+            echo "Production frontend deploy OK"
+
+  mirror-deploy:
+    name: Mirror Raspberry frontend deploy
+    runs-on: ubuntu-latest
+    needs: [production-deploy]
+    steps:
+      - name: Deploy frontend to mirror via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.MIRROR_SERVER_HOST }}
+          username: ${{ secrets.MIRROR_SERVER_USER }}
+          key: ${{ secrets.MIRROR_SERVER_SSH_KEY }}
+          port: ${{ secrets.MIRROR_SERVER_SSH_PORT || 22 }}
+          script: |
+            REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
+            FRONTEND_PATH="${{ secrets.MIRROR_FRONTEND_PATH || '/home/pi/kor35-replica/forntend_src' }}"
+            REACT_BUILD_PATH="${{ secrets.MIRROR_REACT_BUILD_PATH || '/home/pi/kor35-replica/react_build' }}"
+            MIRROR_POST_DEPLOY_CMD="${{ secrets.MIRROR_FRONTEND_POST_DEPLOY_COMMAND || '' }}"
+
+            source /etc/profile
+            cd "${FRONTEND_PATH}"
+            git fetch --all --tags
+            git checkout "${REF}"
+            git reset --hard "${REF}"
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              npm install
+            fi
+            npm run build
+
+            mkdir -p "${REACT_BUILD_PATH}"
+            if [ -d dist ]; then
+              rsync -a --delete dist/ "${REACT_BUILD_PATH}/"
+            elif [ -d build ]; then
+              rsync -a --delete build/ "${REACT_BUILD_PATH}/"
+            else
+              echo "Nessuna cartella dist/build trovata dopo npm run build" >&2
+              exit 1
+            fi
+
+            if [ -n "${MIRROR_POST_DEPLOY_CMD}" ]; then
+              eval "${MIRROR_POST_DEPLOY_CMD}"
+            fi
+
+            if [ -n "${{ secrets.MIRROR_FRONTEND_HEALTHCHECK_URL }}" ]; then
+              curl -fsS "${{ secrets.MIRROR_FRONTEND_HEALTHCHECK_URL }}" >/dev/null
+            fi
+            echo "Mirror frontend deploy OK"

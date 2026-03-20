@@ -14,3 +14,33 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Deploy automatico + mirror
+
+Workflow: `.github/workflows/deploy.yml`
+
+- Trigger automatico su push in `main`
+- Trigger manuale (`workflow_dispatch`) con input `ref`
+- Job `production-deploy`: build e deploy frontend su server principale
+- Job `mirror-deploy`: build e deploy frontend su Raspberry mirror (`forntend_src` -> `react_build`)
+
+Secrets principali:
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_SSH_PORT` (opzionale, default 22)
+- `REPO_PATH_ON_SERVER`
+- `DEPLOY_TARGET_PATH`
+- `FRONTEND_HEALTHCHECK_URL` (opzionale)
+
+Secrets mirror:
+
+- `MIRROR_SERVER_HOST`
+- `MIRROR_SERVER_USER`
+- `MIRROR_SERVER_SSH_KEY`
+- `MIRROR_SERVER_SSH_PORT` (opzionale, default 22)
+- `MIRROR_FRONTEND_PATH` (opzionale, default `/home/pi/kor35-replica/forntend_src`)
+- `MIRROR_REACT_BUILD_PATH` (opzionale, default `/home/pi/kor35-replica/react_build`)
+- `MIRROR_FRONTEND_POST_DEPLOY_COMMAND` (opzionale)
+- `MIRROR_FRONTEND_HEALTHCHECK_URL` (opzionale)
