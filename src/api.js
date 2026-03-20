@@ -1325,8 +1325,17 @@ export const staffDeleteMostroTemplate = (id, onLogout) => {
 
 // --- GESTIONE ABILITÀ ---
 
-export const staffGetAbilitaList = (onLogout) => {
-    return fetchAuthenticated('/api/personaggi/api/staff/abilita/', { method: 'GET' }, onLogout);
+export const staffGetAbilitaList = (onLogout, params = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('page_size', String(params.pageSize));
+    if (params.search) query.set('search', params.search);
+    if (params.isTrattoAura !== undefined && params.isTrattoAura !== null) {
+        query.set('is_tratto_aura', String(params.isTrattoAura));
+    }
+    const qs = query.toString();
+    const url = `/api/personaggi/api/staff/abilita/${qs ? `?${qs}` : ''}`;
+    return fetchAuthenticated(url, { method: 'GET' }, onLogout);
 };
 
 export const staffCreateAbilita = (data, onLogout) => {
