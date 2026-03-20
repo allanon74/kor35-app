@@ -37,8 +37,14 @@ jobs:
             source /etc/profile
             cd "${{ secrets.REPO_PATH_ON_SERVER }}"
             git fetch --all --tags
-            git checkout "${REF}"
-            git reset --hard "${REF}"
+            if git show-ref --verify --quiet "refs/remotes/origin/${REF}"; then
+              git checkout -B "${REF}" "origin/${REF}"
+              git reset --hard "origin/${REF}"
+            else
+              git checkout "${REF}"
+              git reset --hard "${REF}"
+            fi
+            echo "FRONTEND_DEPLOYED_SHA=$(git rev-parse HEAD)"
             if [ -f package-lock.json ]; then
               npm ci
             else
@@ -94,8 +100,14 @@ jobs:
             fi
             cd "${FRONTEND_PATH}"
             git fetch --all --tags
-            git checkout "${REF}"
-            git reset --hard "${REF}"
+            if git show-ref --verify --quiet "refs/remotes/origin/${REF}"; then
+              git checkout -B "${REF}" "origin/${REF}"
+              git reset --hard "origin/${REF}"
+            else
+              git checkout "${REF}"
+              git reset --hard "${REF}"
+            fi
+            echo "MIRROR_FRONTEND_DEPLOYED_SHA=$(git rev-parse HEAD)"
             if [ -f package-lock.json ]; then
               npm ci
             else
