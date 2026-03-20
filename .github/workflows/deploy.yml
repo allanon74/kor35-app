@@ -73,11 +73,25 @@ jobs:
           port: ${{ secrets.MIRROR_SERVER_SSH_PORT || 22 }}
           script: |
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
-            FRONTEND_PATH="${{ secrets.MIRROR_FRONTEND_PATH || '/home/pi/kor35-replica/forntend_src' }}"
+            FRONTEND_PATH="${{ secrets.MIRROR_FRONTEND_PATH || '/home/pi/kor35-replica/frontend_src' }}"
+            FRONTEND_PATH_LEGACY="/home/pi/kor35-replica/forntend_src"
             REACT_BUILD_PATH="${{ secrets.MIRROR_REACT_BUILD_PATH || '/home/pi/kor35-replica/react_build' }}"
+            FRONTEND_REPO_URL="${{ secrets.MIRROR_FRONTEND_REPO_URL || '' }}"
             MIRROR_POST_DEPLOY_CMD="${{ secrets.MIRROR_FRONTEND_POST_DEPLOY_COMMAND || '' }}"
 
             source /etc/profile
+            if [ ! -d "${FRONTEND_PATH}" ] && [ -d "${FRONTEND_PATH_LEGACY}" ]; then
+              FRONTEND_PATH="${FRONTEND_PATH_LEGACY}"
+            fi
+            if [ ! -d "${FRONTEND_PATH}" ]; then
+              if [ -n "${FRONTEND_REPO_URL}" ]; then
+                mkdir -p "$(dirname "${FRONTEND_PATH}")"
+                git clone "${FRONTEND_REPO_URL}" "${FRONTEND_PATH}"
+              else
+                echo "FRONTEND_PATH non esiste: ${FRONTEND_PATH}. Imposta MIRROR_FRONTEND_PATH corretto o MIRROR_FRONTEND_REPO_URL." >&2
+                exit 1
+              fi
+            fi
             cd "${FRONTEND_PATH}"
             git fetch --all --tags
             git checkout "${REF}"
