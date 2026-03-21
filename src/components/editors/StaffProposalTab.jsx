@@ -16,10 +16,6 @@ const StaffProposalTab = ({ onLogout }) => {
     const [staffNotes, setStaffNotes] = useState("");
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        loadProposals();
-    }, [loadProposals]);
-
     const loadProposals = useCallback(async () => {
         setLoading(true);
         try {
@@ -31,6 +27,10 @@ const StaffProposalTab = ({ onLogout }) => {
             setLoading(false);
         }
     }, [onLogout]);
+
+    useEffect(() => {
+        loadProposals();
+    }, [loadProposals]);
 
     const handleOpenDetail = useCallback((prop) => {
         setSelectedProposal(prop);
