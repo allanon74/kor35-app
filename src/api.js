@@ -1,4 +1,13 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://www.kor35.it';
+/**
+ * Base URL del backend. Default: stringa vuota = percorsi relativi (stesso host del frontend).
+ * Richiesto con reverse proxy (prod, mirror) che inoltra /api e /media a Django.
+ * Solo se serve un host diverso (caso raro): imposta VITE_API_URL al build.
+ */
+const _viteApi = import.meta.env.VITE_API_URL;
+export const API_BASE_URL =
+  _viteApi != null && String(_viteApi).trim() !== ''
+    ? String(_viteApi).replace(/\/$/, '')
+    : '';
 
 /**
  * Helper generico per le chiamate API autenticate.
@@ -1631,21 +1640,50 @@ export const updateTierAbilita = (tierId, abilitaList, onLogout) => {
 // Helper per ottenere l'URL dell'immagine ottimizzata
 // width = 0 ritorna l'originale
 export const getWikiImageUrl = (slug, width = 0) => {
-    // Nota: API_BASE_URL deve essere la root del backend (es. http://localhost:8000)
-    // Se usi il proxy di Vite, potrebbe essere solo ''
-    const baseUrl = API_BASE_URL; // Sostituisci con la tua URL vera o variabile env
-    return `${baseUrl}/api/plot/api/wiki/image/${slug}/?w=${width}`;
+    const baseUrl = API_BASE_URL;
+    const path = `/api/plot/api/wiki/image/${slug}/?w=${width}`;
+    return baseUrl ? `${baseUrl}${path}` : path;
 };
 
+/** Origine del backend configurato (per riscrivere URL media assoluti “estranei”). */
+function mediaApiOrigin() {
+    const raw = (API_BASE_URL || '').trim();
+    if (raw) {
+        try {
+            const href = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+            return new URL(href).origin;
+        } catch {
+            return null;
+        }
+    }
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        return window.location.origin;
+    }
+    return null;
+}
+
 /**
- * URL assoluto verso il backend per file media (icone, immagini upload, ecc.).
- * Stessa logica di IconaPunteggio: path relativo o /media/... → prefisso API_BASE_URL.
+ * URL verso il backend per file media (icone, immagini upload, ecc.).
+ * - Path relativo → prefisso API_BASE_URL (o origin finestra se base vuota).
+ * - URL assoluto con host diverso dal backend configurato → stesso path sull’API corrente
+ *   (evita che mirror/dev carichino media da produzione se il JSON contiene ancora URL assoluti).
  */
 export const resolveMediaUrl = (path) => {
     if (path == null || path === '') return null;
     const s = String(path).trim();
     if (!s) return null;
-    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('http://') || s.startsWith('https://')) {
+        try {
+            const mediaUrl = new URL(s);
+            const apiOrigin = mediaApiOrigin();
+            if (apiOrigin && mediaUrl.origin !== apiOrigin) {
+                return `${apiOrigin}${mediaUrl.pathname}${mediaUrl.search}${mediaUrl.hash}`;
+            }
+            return s;
+        } catch {
+            return s;
+        }
+    }
     const cleanBase = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
     const cleanPath = s.startsWith('/') ? s : `/${s}`;
     return `${cleanBase}${cleanPath}`;

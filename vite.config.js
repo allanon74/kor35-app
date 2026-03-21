@@ -82,7 +82,12 @@ export default defineConfig(({ command, mode }) => {
     },
     server: {
       host: true,
-      https: command === 'serve', 
+      https: command === 'serve',
+      // Con API_BASE_URL vuoto (default), fetch usa /api e /media relativi: qui in dev li proxy a Django.
+      proxy: command === 'serve' ? {
+        '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/media': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      } : undefined,
     }
   };
 });

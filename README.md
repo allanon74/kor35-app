@@ -40,7 +40,15 @@ Secrets mirror:
 - `MIRROR_SERVER_USER`
 - `MIRROR_SERVER_SSH_KEY`
 - `MIRROR_SERVER_SSH_PORT` (opzionale, default 22)
-- `MIRROR_FRONTEND_PATH` (opzionale, default `/home/pi/kor35-replica/forntend_src`)
+- `MIRROR_FRONTEND_PATH` (opzionale, default `/home/pi/kor35-replica/frontend_src`)
 - `MIRROR_REACT_BUILD_PATH` (opzionale, default `/home/pi/kor35-replica/react_build`)
 - `MIRROR_FRONTEND_POST_DEPLOY_COMMAND` (opzionale)
 - `MIRROR_FRONTEND_HEALTHCHECK_URL` (opzionale)
+
+### API e media: percorsi relativi (default)
+
+Il bundle usa **`API_BASE_URL` vuoto** di default: tutte le chiamate vanno a **`/api/...`** e i media a **`/media/...`** rispetto all’host da cui apri l’app (produzione, mirror, staging). Serve che il web server / reverse proxy sul quel host inoltri `/api` e `/media` a Django e serva lo static del frontend.
+
+- **Produzione e mirror**: non impostare `VITE_API_URL` al build (il workflow mirror fa `unset VITE_API_URL`).
+- **Sviluppo locale** (`npm run dev`): `vite.config.js` fa proxy di `/api` e `/media` verso `http://127.0.0.1:8000` così i percorsi relativi funzionano senza CORS.
+- **Solo eccezione**: se il frontend è servito da un host e l’API da un altro senza proxy, puoi impostare `VITE_API_URL` al build (URL assoluto del backend); non è lo schema consigliato per prod/mirror.

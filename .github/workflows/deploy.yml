@@ -113,6 +113,8 @@ jobs:
             else
               npm install
             fi
+            # Stesso schema di produzione: percorsi relativi (reverse proxy / stesso host serve static + Django)
+            unset VITE_API_URL
             npm run build
 
             mkdir -p "${REACT_BUILD_PATH}"
