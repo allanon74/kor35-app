@@ -1637,12 +1637,22 @@ export const getWikiImageUrl = (slug, width = 0) => {
     return `${baseUrl}/api/plot/api/wiki/image/${slug}/?w=${width}`;
 };
 
-// Funzione helper extra per le immagini "grezze" (es. se servono fuori dal resize)
-export const getMediaUrl = (path) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${API_BASE_URL}${path}`;
-}
+/**
+ * URL assoluto verso il backend per file media (icone, immagini upload, ecc.).
+ * Stessa logica di IconaPunteggio: path relativo o /media/... → prefisso API_BASE_URL.
+ */
+export const resolveMediaUrl = (path) => {
+    if (path == null || path === '') return null;
+    const s = String(path).trim();
+    if (!s) return null;
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    const cleanBase = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    const cleanPath = s.startsWith('/') ? s : `/${s}`;
+    return `${cleanBase}${cleanPath}`;
+};
+
+// Alias storico (immagini wiki, editor, widget immagine)
+export const getMediaUrl = (path) => resolveMediaUrl(path);
 
 /**
  * Registra un nuovo utente.

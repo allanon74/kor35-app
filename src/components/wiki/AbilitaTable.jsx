@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react';
 import { X } from 'lucide-react';
 import PunteggioDisplay from '../PunteggioDisplay';
+import { resolveMediaUrl } from '../../api';
 
 /** Colori hex dalla scheda (caratteristica 1, 2, 3) per sfondo header */
 function getAbilityColors(item) {
@@ -100,7 +101,7 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
       const isDark = getItemIsDark(item);
       const iconFilter = isDark ? 'brightness(0) invert(1)' : 'brightness(0)';
       const iconBoxClass = isDark ? 'bg-white/20' : 'bg-black/10';
-      const iconUrl = item?.caratteristica?.icona_url;
+      const iconUrl = resolveMediaUrl(item?.caratteristica?.icona_url);
       const iconTextColor = headerStyle?.color ?? (isDark ? '#ffffff' : '#111827');
 
       return (
@@ -213,7 +214,7 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
                   const isDark = getItemIsDark(selectedAbility);
                   const iconFilter = isDark ? 'brightness(0) invert(1)' : 'brightness(0)';
                   const iconBoxClass = isDark ? 'bg-white/20' : 'bg-black/10';
-                  const iconUrl = selectedAbility?.caratteristica?.icona_url;
+                  const iconUrl = resolveMediaUrl(selectedAbility?.caratteristica?.icona_url);
                   const headerTextColor = headerStyle?.color ?? (isDark ? '#ffffff' : '#111827');
                   return (
                     <div style={headerStyle || undefined} className="px-4 py-3 border-b border-white/10">

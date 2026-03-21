@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getWikiMattoniWidgetDisplay } from '../../api';
+import { getWikiMattoniWidgetDisplay, resolveMediaUrl } from '../../api';
 
 /**
  * Stessi hex usati nel widget Tier per i gradienti (sezione "gradienti").
@@ -141,7 +141,8 @@ export default function WidgetMattoni({ id }) {
           {mattoni.map((m) => {
             const { headerStyle, bodyClass, bodyStyle, cardBorder, iconFilter, iconBoxClass } =
               cardStyleForMattone(m?.colore);
-            const iconUrl = iconUrlForMattone(m);
+            const iconUrlRaw = iconUrlForMattone(m);
+            const iconUrl = resolveMediaUrl(iconUrlRaw);
             const auraName = m?.aura?.nome || '—';
             const carName = m?.caratteristica_associata?.nome || '—';
             const tipoLabel = m?.tipo_display || m?.tipo || '—';

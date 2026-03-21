@@ -1,5 +1,5 @@
 import React from 'react';
-import { API_BASE_URL } from '../api';
+import { resolveMediaUrl } from '../api';
 
 // Helper per il contrasto (ROBUSTO: gestisce anche hex a 3 cifre)
 export const getContrastColor = (hexColor) => {
@@ -27,12 +27,7 @@ export const getContrastColor = (hexColor) => {
 const IconaPunteggio = ({ url, color = '#000000', mode = 'normal', size = 'm', className = '' }) => {
   if (!url) return null;
 
-  let fullUrl = url;
-  if (!url.startsWith('http')) {
-      const cleanBase = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
-      const cleanPath = url.startsWith('/') ? url : `/${url}`;
-      fullUrl = `${cleanBase}${cleanPath}`;
-  }
+  const fullUrl = resolveMediaUrl(url) || url;
 
   const contrastColor = getContrastColor(color);
 
