@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
+import { Bell, Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
   socialDeletePost,
@@ -10,6 +10,7 @@ import {
   socialGetComments,
   socialGetKorpList,
   socialGetMyProfile,
+  socialGetNotifications,
   socialGetProfileByCharacter,
   socialGetPosts,
   socialToggleLike,
@@ -39,6 +40,9 @@ const SocialTab = ({ onLogout }) => {
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsUnread, setNotificationsUnread] = useState(0);
   const sentinelRef = useRef(null);
 
   const [postForm, setPostForm] = useState({
@@ -372,6 +376,38 @@ const SocialTab = ({ onLogout }) => {
   };
 
   const subtitle = useMemo(() => 'il social network numero 1 di tutta KOR!', []);
+  const notificationsSeenKey = useMemo(
+    () => `social_notifications_seen_at:${selectedCharacterId || 'none'}`,
+    [selectedCharacterId]
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!selectedCharacterId) return;
+    try {
+      const since = localStorage.getItem(notificationsSeenKey) || null;
+      const payload = await socialGetNotifications(selectedCharacterId, onLogout, { limit: 30, since });
+      setNotifications(Array.isArray(payload?.results) ? payload.results : []);
+      setNotificationsUnread(Number(payload?.unread_count || 0));
+    } catch (err) {
+      console.error('Errore caricamento notifiche social', err);
+    }
+  }, [selectedCharacterId, onLogout, notificationsSeenKey]);
+
+  useEffect(() => {
+    loadNotifications();
+    const id = window.setInterval(() => {
+      loadNotifications();
+    }, 30000);
+    return () => window.clearInterval(id);
+  }, [loadNotifications]);
+
+  const openActivityModal = async () => {
+    const seenAt = new Date().toISOString();
+    localStorage.setItem(notificationsSeenKey, seenAt);
+    setNotificationsUnread(0);
+    await loadNotifications();
+    setShowActivityModal(true);
+  };
 
   const renderTextWithMentions = (text, tags) => {
     if (!text) return null;
@@ -494,14 +530,30 @@ const SocialTab = ({ onLogout }) => {
               <p className="text-sm text-amber-100/80">{subtitle}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowComposer((s) => !s)}
-            className="inline-flex items-center gap-2 bg-indigo-700/90 hover:bg-indigo-600 rounded-lg px-3 py-2 text-sm font-bold"
-          >
-            <PlusSquare size={16} />
-            {showComposer ? 'Chiudi nuovo post' : 'Nuovo post'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowComposer((s) => !s)}
+              className="inline-flex items-center gap-2 bg-indigo-700/90 hover:bg-indigo-600 rounded-lg px-3 py-2 text-sm font-bold"
+            >
+              <PlusSquare size={16} />
+              {showComposer ? 'Chiudi nuovo post' : 'Nuovo post'}
+            </button>
+            <button
+              type="button"
+              onClick={openActivityModal}
+              className="relative inline-flex items-center gap-2 bg-gray-800/90 hover:bg-gray-700 rounded-lg px-3 py-2 text-sm font-bold border border-gray-600"
+              title="Attivita social"
+            >
+              <Bell size={16} />
+              Attivita
+              {notificationsUnread > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-rose-600 text-white text-[10px] leading-5 text-center">
+                  {notificationsUnread > 99 ? '99+' : notificationsUnread}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -656,12 +708,12 @@ const SocialTab = ({ onLogout }) => {
               </div>
             )}
             {post.immagine && (
-              <div className="w-full max-w-md mx-auto aspect-[4/5] rounded-lg overflow-hidden border border-gray-700 bg-black/40">
+              <div className="w-full max-w-md mx-auto aspect-4/5 rounded-lg overflow-hidden border border-gray-700 bg-black/40">
                 <img src={post.immagine} alt={post.titolo} className="h-full w-full object-cover" />
               </div>
             )}
             {post.video && (
-              <div className="w-full max-w-md mx-auto aspect-[4/5] rounded-lg overflow-hidden border border-gray-700 bg-black">
+              <div className="w-full max-w-md mx-auto aspect-4/5 rounded-lg overflow-hidden border border-gray-700 bg-black">
                 <video controls src={post.video} className="h-full w-full object-cover" />
               </div>
             )}
@@ -896,6 +948,41 @@ const SocialTab = ({ onLogout }) => {
             <button onClick={saveEditedPost} className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">
               Salva modifiche
             </button>
+          </div>
+        </div>
+      )}
+      {showActivityModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">Attivita social</h3>
+              <button onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-white">X</button>
+            </div>
+            <div className="overflow-auto space-y-2 pr-1">
+              {notifications.length === 0 && (
+                <div className="text-sm text-gray-400">Nessuna notifica recente.</div>
+              )}
+              {notifications.map((n, idx) => (
+                <button
+                  key={`n-${n.kind}-${n.post_id}-${n.created_at}-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    if (n.post_id) setExpandedPostId(n.post_id);
+                    setShowActivityModal(false);
+                  }}
+                  className="w-full text-left rounded-lg border border-gray-700 bg-gray-800/70 hover:bg-gray-800 p-3"
+                >
+                  <div className="text-xs text-gray-400 mb-1">{new Date(n.created_at).toLocaleString('it-IT')}</div>
+                  <div className="text-sm text-gray-100">
+                    {n.kind === 'like' && <span><b>{n.actor_name}</b> ha messo like al tuo post.</span>}
+                    {n.kind === 'comment' && <span><b>{n.actor_name}</b> ha commentato il tuo post.</span>}
+                    {n.kind === 'mention_post' && <span><b>{n.actor_name}</b> ti ha menzionato in un post.</span>}
+                    {n.kind === 'mention_comment' && <span><b>{n.actor_name}</b> ti ha menzionato in un commento.</span>}
+                  </div>
+                  {n.post_title && <div className="text-xs text-amber-200/80 mt-1">Post: {n.post_title}</div>}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

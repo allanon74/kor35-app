@@ -179,6 +179,15 @@ export const socialGetStaffEventReport = (eventoId, onLogout) => {
   return fetchAuthenticated(`/api/social/staff/event-report/${qp}`, { method: 'GET' }, onLogout);
 };
 
+export const socialGetNotifications = (personaggioId, onLogout, options = {}) => {
+  const params = new URLSearchParams();
+  if (personaggioId) params.set('personaggio_id', String(personaggioId));
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.since) params.set('since', String(options.since));
+  const qs = params.toString();
+  return fetchAuthenticated(`/api/social/notifications/${qs ? `?${qs}` : ''}`, { method: 'GET' }, onLogout);
+};
+
 // --- Funzioni API specifiche ---
 
 /**
