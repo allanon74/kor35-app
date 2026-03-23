@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 // --- LOGICA PWA ---
 import { useRegisterSW } from 'virtual:pwa-register/react'; 
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import HomeTab from './HomeTab.jsx';
 import QrTab from './QrTab.jsx';
@@ -82,7 +82,6 @@ const TAB_TO_WIKI_SLUG = {
 
 const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -165,6 +164,8 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   }, []);
 
   // Legge il tab dalla URL (deep-link): /app?tab=personaggi
+  // NB: solo in lettura. Evitiamo sync bidirezionale URL<->state
+  // per prevenire loop di navigazione in produzione.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const urlTab = params.get('tab');
@@ -172,20 +173,6 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       setActiveTab(urlTab);
     }
   }, [location.search, activeTab, isValidTabId]);
-
-  // Mantiene la URL sincronizzata col tab corrente.
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('tab') === activeTab) return;
-    params.set('tab', activeTab);
-    const nextSearch = params.toString();
-    const currentSearch = (location.search || '').replace(/^\?/, '');
-    if (nextSearch === currentSearch) return;
-    navigate(
-      { pathname: location.pathname, search: `?${nextSearch}` },
-      { replace: true }
-    );
-  }, [activeTab, location.pathname, location.search, navigate]);
 
   // --- [MODIFICA] POLLING MESSAGGI STAFF (Solo per Staff) ---
   useEffect(() => {
