@@ -188,6 +188,51 @@ export const socialGetNotifications = (personaggioId, onLogout, options = {}) =>
   return fetchAuthenticated(`/api/social/notifications/${qs ? `?${qs}` : ''}`, { method: 'GET' }, onLogout);
 };
 
+export const socialGetGroups = (personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${qp}`, { method: 'GET' }, onLogout);
+};
+
+export const socialCreateGroup = (payload, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${qp}`, { method: 'POST', body: JSON.stringify(payload) }, onLogout);
+};
+
+export const socialRequestJoinGroup = (groupId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/request_join/${qp}`, { method: 'POST' }, onLogout);
+};
+
+export const socialGetGroupPosts = (groupId, personaggioId, onLogout, page = 1, pageSize = 10) => {
+  const params = new URLSearchParams();
+  if (personaggioId) params.set('personaggio_id', String(personaggioId));
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  return fetchAuthenticated(`/api/social/groups/${groupId}/posts/?${params.toString()}`, { method: 'GET' }, onLogout);
+};
+
+export const socialCreateGroupPost = (groupId, formData, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/posts/${qp}`, { method: 'POST', body: formData }, onLogout);
+};
+
+export const socialGetGroupMessages = (groupId, personaggioId, onLogout, page = 1, pageSize = 20) => {
+  const params = new URLSearchParams();
+  if (personaggioId) params.set('personaggio_id', String(personaggioId));
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  return fetchAuthenticated(`/api/social/groups/${groupId}/messages/?${params.toString()}`, { method: 'GET' }, onLogout);
+};
+
+export const socialCreateGroupMessage = (groupId, testo, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/groups/${groupId}/messages/${qp}`,
+    { method: 'POST', body: JSON.stringify({ testo }) },
+    onLogout
+  );
+};
+
 // --- Funzioni API specifiche ---
 
 /**

@@ -2,17 +2,24 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
+  socialCreateGroup,
+  socialCreateGroupMessage,
+  socialCreateGroupPost,
   socialDeletePost,
   searchPersonaggi,
   sendPrivateMessage,
   socialCreateComment,
   socialCreatePost,
   socialGetComments,
+  socialGetGroupMessages,
+  socialGetGroupPosts,
+  socialGetGroups,
   socialGetKorpList,
   socialGetMyProfile,
   socialGetNotifications,
   socialGetProfileByCharacter,
   socialGetPosts,
+  socialRequestJoinGroup,
   socialToggleLike,
   socialUpdatePost,
   socialUpdateMyProfile,
@@ -43,6 +50,14 @@ const SocialTab = ({ onLogout }) => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
+  const [socialViewMode, setSocialViewMode] = useState('FEED');
+  const [groups, setGroups] = useState([]);
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [groupPosts, setGroupPosts] = useState([]);
+  const [groupMessages, setGroupMessages] = useState([]);
+  const [groupPostForm, setGroupPostForm] = useState({ titolo: '', testo: '', immagine: null, video: null });
+  const [groupMessageText, setGroupMessageText] = useState('');
+  const [groupCreateForm, setGroupCreateForm] = useState({ nome: '', descrizione: '', is_hidden: false, requires_approval: true });
   const sentinelRef = useRef(null);
 
   const [postForm, setPostForm] = useState({
@@ -100,6 +115,11 @@ const SocialTab = ({ onLogout }) => {
     };
   }, []);
 
+  const normalizeListPayload = useCallback((payload) => {
+    if (Array.isArray(payload)) return payload;
+    return Array.isArray(payload?.results) ? payload.results : [];
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -134,6 +154,44 @@ const SocialTab = ({ onLogout }) => {
   useEffect(() => {
     if (selectedCharacterId) loadAll();
   }, [selectedCharacterId, loadAll]);
+
+  const loadGroups = useCallback(async () => {
+    try {
+      const data = await socialGetGroups(selectedCharacterId, onLogout);
+      const list = normalizeListPayload(data);
+      setGroups(list);
+      if (!selectedGroupId && list.length > 0) setSelectedGroupId(list[0].id);
+    } catch (err) {
+      console.error('Errore caricamento gruppi', err);
+    }
+  }, [selectedCharacterId, onLogout, normalizeListPayload, selectedGroupId]);
+
+  useEffect(() => {
+    if (selectedCharacterId) loadGroups();
+  }, [selectedCharacterId, loadGroups]);
+
+  const selectedGroup = useMemo(
+    () => groups.find((g) => Number(g.id) === Number(selectedGroupId)) || null,
+    [groups, selectedGroupId]
+  );
+
+  const loadGroupDetail = useCallback(async () => {
+    if (!selectedGroupId) return;
+    try {
+      const [postsPayload, messagesPayload] = await Promise.all([
+        socialGetGroupPosts(selectedGroupId, selectedCharacterId, onLogout, 1, 10),
+        socialGetGroupMessages(selectedGroupId, selectedCharacterId, onLogout, 1, 20),
+      ]);
+      setGroupPosts(normalizeListPayload(postsPayload));
+      setGroupMessages(normalizeListPayload(messagesPayload));
+    } catch (err) {
+      console.error('Errore caricamento dettaglio gruppo', err);
+    }
+  }, [selectedGroupId, selectedCharacterId, onLogout, normalizeListPayload]);
+
+  useEffect(() => {
+    loadGroupDetail();
+  }, [loadGroupDetail]);
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
@@ -409,6 +467,64 @@ const SocialTab = ({ onLogout }) => {
     setShowActivityModal(true);
   };
 
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    if (!groupCreateForm.nome.trim()) return;
+    await socialCreateGroup(
+      {
+        nome: groupCreateForm.nome.trim(),
+        descrizione: groupCreateForm.descrizione || '',
+        is_hidden: Boolean(groupCreateForm.is_hidden),
+        requires_approval: Boolean(groupCreateForm.requires_approval),
+      },
+      selectedCharacterId,
+      onLogout
+    );
+    setGroupCreateForm({ nome: '', descrizione: '', is_hidden: false, requires_approval: true });
+    await loadGroups();
+  };
+
+  const handleRequestJoinGroup = async (groupId) => {
+    await socialRequestJoinGroup(groupId, selectedCharacterId, onLogout);
+    await loadGroups();
+  };
+
+  const handleGroupPostMediaChange = (file) => {
+    if (!file) {
+      setGroupPostForm((p) => ({ ...p, immagine: null, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('image/')) {
+      setGroupPostForm((p) => ({ ...p, immagine: file, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('video/')) {
+      setGroupPostForm((p) => ({ ...p, video: file, immagine: null }));
+      return;
+    }
+    alert('Formato non supportato. Usa una immagine o un video.');
+  };
+
+  const handleCreateGroupPost = async (e) => {
+    e.preventDefault();
+    if (!selectedGroupId) return;
+    const fd = new FormData();
+    fd.append('titolo', groupPostForm.titolo);
+    fd.append('testo', groupPostForm.testo || '');
+    if (groupPostForm.immagine) fd.append('immagine', groupPostForm.immagine);
+    if (groupPostForm.video) fd.append('video', groupPostForm.video);
+    await socialCreateGroupPost(selectedGroupId, fd, selectedCharacterId, onLogout);
+    setGroupPostForm({ titolo: '', testo: '', immagine: null, video: null });
+    await loadGroupDetail();
+  };
+
+  const handleCreateGroupMessage = async () => {
+    if (!selectedGroupId || !groupMessageText.trim()) return;
+    await socialCreateGroupMessage(selectedGroupId, groupMessageText.trim(), selectedCharacterId, onLogout);
+    setGroupMessageText('');
+    await loadGroupDetail();
+  };
+
   const renderTextWithMentions = (text, tags) => {
     if (!text) return null;
     const mapById = new Map((tags || []).map((t) => [String(t.personaggio_id), t.personaggio__nome || `#${t.personaggio_id}`]));
@@ -557,7 +673,24 @@ const SocialTab = ({ onLogout }) => {
         </div>
       </section>
 
-      {showComposer && (
+      <section className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSocialViewMode('FEED')}
+          className={`px-3 py-1.5 rounded-lg border text-sm ${socialViewMode === 'FEED' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+        >
+          Feed
+        </button>
+        <button
+          type="button"
+          onClick={() => setSocialViewMode('GROUPS')}
+          className={`px-3 py-1.5 rounded-lg border text-sm inline-flex items-center gap-1 ${socialViewMode === 'GROUPS' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+        >
+          <Users size={14} /> Gruppi
+        </button>
+      </section>
+
+      {socialViewMode === 'FEED' && showComposer && (
       <section className="grid grid-cols-1 gap-6">
         <form onSubmit={handleCreatePost} className="rounded-2xl border border-indigo-500/30 bg-gray-900/70 p-4 space-y-3 max-w-4xl">
           <div className="flex items-center gap-2 text-indigo-300 font-bold"><PlusSquare size={18} /> Nuovo Post</div>
@@ -622,6 +755,7 @@ const SocialTab = ({ onLogout }) => {
       </section>
       )}
 
+      {socialViewMode === 'FEED' && (
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-pink-300 font-bold"><Sparkles size={18} /> Feed Sociale</div>
@@ -839,6 +973,149 @@ const SocialTab = ({ onLogout }) => {
           </div>
         )}
       </section>
+      )}
+      {socialViewMode === 'GROUPS' && (
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-3 space-y-2">
+              <div className="text-sm font-bold text-amber-200">Crea gruppo</div>
+              <form onSubmit={handleCreateGroup} className="space-y-2">
+                <input
+                  className="w-full bg-gray-800 rounded p-2 border border-gray-700 text-sm"
+                  placeholder="Nome gruppo"
+                  value={groupCreateForm.nome}
+                  onChange={(e) => setGroupCreateForm((p) => ({ ...p, nome: e.target.value }))}
+                  required
+                />
+                <textarea
+                  className="w-full bg-gray-800 rounded p-2 border border-gray-700 text-sm min-h-16"
+                  placeholder="Descrizione"
+                  value={groupCreateForm.descrizione}
+                  onChange={(e) => setGroupCreateForm((p) => ({ ...p, descrizione: e.target.value }))}
+                />
+                <label className="flex items-center gap-2 text-xs text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={groupCreateForm.requires_approval}
+                    onChange={(e) => setGroupCreateForm((p) => ({ ...p, requires_approval: e.target.checked }))}
+                  />
+                  Richiede approvazione
+                </label>
+                {isAdmin && (
+                  <label className="flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={groupCreateForm.is_hidden}
+                      onChange={(e) => setGroupCreateForm((p) => ({ ...p, is_hidden: e.target.checked }))}
+                    />
+                    Gruppo invisibile (staff/admin)
+                  </label>
+                )}
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 text-sm font-bold">Crea</button>
+              </form>
+            </div>
+            <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-3 space-y-2">
+              <div className="text-sm font-bold text-pink-200">Gruppi disponibili</div>
+              {groups.length === 0 && <div className="text-xs text-gray-400">Nessun gruppo trovato.</div>}
+              {groups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => setSelectedGroupId(g.id)}
+                  className={`w-full text-left rounded p-2 border text-sm ${Number(selectedGroupId) === Number(g.id) ? 'bg-indigo-800/60 border-indigo-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+                >
+                  <div className="font-semibold">{g.nome}</div>
+                  <div className="text-[11px] text-gray-400">Membri: {g.members_count || 0} · Stato: {g.my_membership_status || 'none'}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="lg:col-span-2 space-y-3">
+            {!selectedGroup && <div className="text-gray-400">Seleziona un gruppo.</div>}
+            {selectedGroup && (
+              <>
+                <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-bold">{selectedGroup.nome}</h3>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap">{selectedGroup.descrizione || 'Nessuna descrizione.'}</p>
+                    </div>
+                    {!['ACTIVE', 'INVITED', 'REQUESTED'].includes(String(selectedGroup.my_membership_status || '')) && (
+                      <button
+                        type="button"
+                        onClick={() => handleRequestJoinGroup(selectedGroup.id)}
+                        className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-xs font-bold"
+                      >
+                        Richiedi ingresso
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {selectedGroup.my_membership_status === 'ACTIVE' ? (
+                  <>
+                    <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
+                      <div className="text-sm font-bold text-indigo-200">Nuovo post nel gruppo</div>
+                      <form onSubmit={handleCreateGroupPost} className="space-y-2">
+                        <input
+                          className="w-full bg-gray-800 rounded p-2 border border-gray-700 text-sm"
+                          placeholder="Titolo"
+                          value={groupPostForm.titolo}
+                          onChange={(e) => setGroupPostForm((p) => ({ ...p, titolo: e.target.value }))}
+                          required
+                        />
+                        <textarea
+                          className="w-full bg-gray-800 rounded p-2 border border-gray-700 text-sm min-h-20"
+                          placeholder="Testo"
+                          value={groupPostForm.testo}
+                          onChange={(e) => setGroupPostForm((p) => ({ ...p, testo: e.target.value }))}
+                        />
+                        <input type="file" accept="image/*,video/*" onChange={(e) => handleGroupPostMediaChange(e.target.files?.[0] || null)} />
+                        <button className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm font-bold">Pubblica nel gruppo</button>
+                      </form>
+                    </div>
+                    <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-2">
+                      <div className="text-sm font-bold text-pink-200">Post del gruppo</div>
+                      {groupPosts.length === 0 && <div className="text-xs text-gray-400">Nessun post nel gruppo.</div>}
+                      {groupPosts.map((p) => (
+                        <div key={p.id} className="rounded border border-gray-700 bg-gray-800/70 p-2">
+                          <div className="text-sm font-semibold">{p.titolo}</div>
+                          <div className="text-xs text-gray-400">{p.autore_nome} · {new Date(p.created_at).toLocaleString('it-IT')}</div>
+                          {p.testo && <div className="text-sm text-gray-300 whitespace-pre-wrap mt-1">{p.testo}</div>}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-2">
+                      <div className="text-sm font-bold text-amber-200">Chat gruppo</div>
+                      <div className="max-h-64 overflow-auto space-y-2 pr-1">
+                        {groupMessages.map((m) => (
+                          <div key={m.id} className="rounded border border-gray-700 bg-gray-800/70 p-2">
+                            <div className="text-xs text-gray-400">{m.autore_nome} · {new Date(m.created_at).toLocaleString('it-IT')}</div>
+                            <div className="text-sm text-gray-200 whitespace-pre-wrap">{m.testo}</div>
+                          </div>
+                        ))}
+                        {groupMessages.length === 0 && <div className="text-xs text-gray-400">Nessun messaggio.</div>}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          className="flex-1 bg-gray-800 rounded p-2 border border-gray-700 text-sm"
+                          placeholder="Scrivi messaggio..."
+                          value={groupMessageText}
+                          onChange={(e) => setGroupMessageText(e.target.value)}
+                        />
+                        <button onClick={handleCreateGroupMessage} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 text-sm">Invia</button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 text-sm text-gray-300">
+                    Per vedere post e chat devi essere membro attivo del gruppo.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      )}
       </div>
       {showMyProfileModal && (
       <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
