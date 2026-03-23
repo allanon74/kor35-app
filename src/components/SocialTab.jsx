@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Heart, MessageCircle, PlusSquare, Send, Sparkles, Users } from 'lucide-react';
+import { Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
+  socialDeletePost,
   searchPersonaggi,
   sendPrivateMessage,
   socialCreateComment,
@@ -12,11 +13,12 @@ import {
   socialGetProfileByCharacter,
   socialGetPosts,
   socialToggleLike,
+  socialUpdatePost,
   socialUpdateMyProfile,
 } from '../api';
 
 const SocialTab = ({ onLogout }) => {
-  const { selectedCharacterId } = useCharacter();
+  const { selectedCharacterId, isAdmin } = useCharacter();
   const [posts, setPosts] = useState([]);
   const [korpList, setKorpList] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -26,6 +28,8 @@ const SocialTab = ({ onLogout }) => {
   const [newCommentByPost, setNewCommentByPost] = useState({});
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [commentMentionSuggestions, setCommentMentionSuggestions] = useState({});
+  const [editingPost, setEditingPost] = useState(null);
 
   const [postForm, setPostForm] = useState({
     titolo: '',
@@ -115,12 +119,37 @@ const SocialTab = ({ onLogout }) => {
     setMentionSuggestions(Array.isArray(res) ? res : []);
   };
 
+  const loadMentionSuggestions = async (query) => {
+    if (!query) return [];
+    const res = await searchPersonaggi(query, selectedCharacterId);
+    return Array.isArray(res) ? res : [];
+  };
+
   const insertMention = (personaggio) => {
     setPostForm((p) => ({
       ...p,
       testo: `${p.testo.replace(/@([A-Za-z0-9_]{1,30})$/, '')}@${personaggio.id} `,
     }));
     setMentionSuggestions([]);
+  };
+
+  const updateCommentWithMentions = async (postId, nextText) => {
+    setNewCommentByPost((prev) => ({ ...prev, [postId]: nextText }));
+    const match = nextText.match(/@([A-Za-z0-9_]{1,30})$/);
+    if (!match) {
+      setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: [] }));
+      return;
+    }
+    const suggestions = await loadMentionSuggestions(match[1]);
+    setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: suggestions }));
+  };
+
+  const insertMentionInComment = (postId, personaggio) => {
+    setNewCommentByPost((prev) => ({
+      ...prev,
+      [postId]: `${(prev[postId] || '').replace(/@([A-Za-z0-9_]{1,30})$/, '')}@${personaggio.id} `,
+    }));
+    setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: [] }));
   };
 
   const handleToggleLike = async (postId) => {
@@ -147,6 +176,7 @@ const SocialTab = ({ onLogout }) => {
     const comments = await socialGetComments(postId, onLogout);
     setCommentsByPost((prev) => ({ ...prev, [postId]: comments || [] }));
     setNewCommentByPost((prev) => ({ ...prev, [postId]: '' }));
+    setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: [] }));
     await loadAll();
   };
 
@@ -168,6 +198,48 @@ const SocialTab = ({ onLogout }) => {
     );
     setDmText('');
     alert('Messaggio inviato.');
+  };
+
+  const startEditPost = (post) => {
+    setEditingPost({
+      id: post.id,
+      titolo: post.titolo || '',
+      testo: post.testo || '',
+      visibilita: post.visibilita || 'PUB',
+      korp_visibilita: post.korp_visibilita || '',
+      immagine: null,
+      video: null,
+    });
+  };
+
+  const saveEditedPost = async () => {
+    if (!editingPost) return;
+    const fd = new FormData();
+    fd.append('titolo', editingPost.titolo || '');
+    fd.append('testo', editingPost.testo || '');
+    fd.append('visibilita', editingPost.visibilita || 'PUB');
+    if (editingPost.visibilita === 'KORP' && editingPost.korp_visibilita) {
+      fd.append('korp_visibilita', editingPost.korp_visibilita);
+    } else {
+      fd.append('korp_visibilita', '');
+    }
+    if (editingPost.immagine) {
+      fd.append('immagine', editingPost.immagine);
+      fd.append('video', '');
+    }
+    if (editingPost.video) {
+      fd.append('video', editingPost.video);
+      fd.append('immagine', '');
+    }
+    await socialUpdatePost(editingPost.id, fd, onLogout);
+    setEditingPost(null);
+    await loadAll();
+  };
+
+  const removePost = async (postId) => {
+    if (!window.confirm('Eliminare definitivamente questo post?')) return;
+    await socialDeletePost(postId, onLogout);
+    await loadAll();
   };
 
   const handleSaveProfile = async (e) => {
@@ -296,7 +368,17 @@ const SocialTab = ({ onLogout }) => {
             {post.testo && <p className="text-gray-200 whitespace-pre-wrap">{post.testo}</p>}
             {post.tags?.length > 0 && (
               <div className="text-xs text-amber-300/90">
-                Tag: {post.tags.map((t) => `@${t.personaggio_id}`).join(' ')}
+                Tag:{' '}
+                {post.tags.map((t) => (
+                  <button
+                    key={`pt-${post.id}-${t.personaggio_id}`}
+                    type="button"
+                    onClick={() => openProfile(t.personaggio_id)}
+                    className="mr-2 underline decoration-dotted hover:text-amber-100"
+                  >
+                    @{t.personaggio__nome || t.personaggio_id}
+                  </button>
+                ))}
               </div>
             )}
             {post.immagine && <img src={post.immagine} alt={post.titolo} className="max-h-96 rounded-lg w-full object-cover border border-gray-700" />}
@@ -321,6 +403,24 @@ const SocialTab = ({ onLogout }) => {
                   <Copy size={16} /> Link
                 </button>
               )}
+              {isAdmin && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => startEditPost(post)}
+                    className="inline-flex items-center gap-1 text-sm text-indigo-300 hover:text-indigo-200"
+                  >
+                    <Pencil size={16} /> Modifica
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removePost(post.id)}
+                    className="inline-flex items-center gap-1 text-sm text-red-300 hover:text-red-200"
+                  >
+                    <Trash2 size={16} /> Elimina
+                  </button>
+                </>
+              )}
             </div>
             {expandedPostId === post.id && (
               <div className="pt-2 border-t border-gray-700 space-y-2">
@@ -329,7 +429,16 @@ const SocialTab = ({ onLogout }) => {
                     <span className="font-semibold text-gray-200">{c.autore_nome}:</span> <span className="text-gray-300">{c.testo}</span>
                     {c.tags?.length > 0 && (
                       <span className="text-xs text-amber-300/90 ml-2">
-                        {c.tags.map((t) => `@${t.personaggio_id}`).join(' ')}
+                        {c.tags.map((t) => (
+                          <button
+                            key={`ct-${c.id}-${t.personaggio_id}`}
+                            type="button"
+                            onClick={() => openProfile(t.personaggio_id)}
+                            className="mr-2 underline decoration-dotted hover:text-amber-100"
+                          >
+                            @{t.personaggio__nome || t.personaggio_id}
+                          </button>
+                        ))}
                       </span>
                     )}
                   </div>
@@ -339,10 +448,27 @@ const SocialTab = ({ onLogout }) => {
                     className="flex-1 bg-gray-800 rounded p-2 border border-gray-700 text-sm"
                     placeholder="Scrivi un commento..."
                     value={newCommentByPost[post.id] || ''}
-                    onChange={(e) => setNewCommentByPost((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                    onChange={(e) => updateCommentWithMentions(post.id, e.target.value)}
                   />
                   <button onClick={() => submitComment(post.id)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 text-sm">Invia</button>
                 </div>
+                {(commentMentionSuggestions[post.id] || []).length > 0 && (
+                  <div className="bg-gray-800 border border-gray-700 rounded p-2 text-sm">
+                    <div className="text-xs text-gray-400 mb-1">Suggerimenti tag commento:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {(commentMentionSuggestions[post.id] || []).map((p) => (
+                        <button
+                          key={`cm-${post.id}-${p.id}`}
+                          type="button"
+                          onClick={() => insertMentionInComment(post.id, p)}
+                          className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                        >
+                          {p.nome} <span className="text-xs text-gray-400">@{p.id}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </article>
@@ -380,6 +506,53 @@ const SocialTab = ({ onLogout }) => {
           )}
         </div>
       </div>
+      )}
+      {editingPost && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">Modifica post (admin)</h3>
+              <button onClick={() => setEditingPost(null)} className="text-gray-400 hover:text-white">X</button>
+            </div>
+            <input
+              className="w-full bg-gray-800 rounded p-2 border border-gray-700"
+              value={editingPost.titolo}
+              onChange={(e) => setEditingPost((p) => ({ ...p, titolo: e.target.value }))}
+            />
+            <textarea
+              className="w-full bg-gray-800 rounded p-2 border border-gray-700 min-h-24"
+              value={editingPost.testo}
+              onChange={(e) => setEditingPost((p) => ({ ...p, testo: e.target.value }))}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <select
+                className="bg-gray-800 rounded p-2 border border-gray-700"
+                value={editingPost.visibilita}
+                onChange={(e) => setEditingPost((p) => ({ ...p, visibilita: e.target.value }))}
+              >
+                <option value="PUB">Pubblico</option>
+                <option value="KORP">Solo KORP</option>
+              </select>
+              {editingPost.visibilita === 'KORP' && (
+                <select
+                  className="bg-gray-800 rounded p-2 border border-gray-700"
+                  value={editingPost.korp_visibilita}
+                  onChange={(e) => setEditingPost((p) => ({ ...p, korp_visibilita: e.target.value }))}
+                >
+                  <option value="">Seleziona KORP</option>
+                  {korpList.map((k) => <option key={k.id} value={k.id}>{k.nome}</option>)}
+                </select>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              <input type="file" accept="image/*" onChange={(e) => setEditingPost((p) => ({ ...p, immagine: e.target.files?.[0] || null, video: null }))} />
+              <input type="file" accept="video/*" onChange={(e) => setEditingPost((p) => ({ ...p, video: e.target.files?.[0] || null, immagine: null }))} />
+            </div>
+            <button onClick={saveEditedPost} className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">
+              Salva modifiche
+            </button>
+          </div>
+        </div>
       )}
     </>
   );

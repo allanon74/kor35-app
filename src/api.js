@@ -160,6 +160,14 @@ export const socialGetPublicPostBySlug = (slug) => {
   return fetchPublic(`/api/social/public/posts/${slug}/`);
 };
 
+export const socialUpdatePost = (postId, formData, onLogout) => {
+  return fetchAuthenticated(`/api/social/posts/${postId}/`, { method: 'PATCH', body: formData }, onLogout);
+};
+
+export const socialDeletePost = (postId, onLogout) => {
+  return fetchAuthenticated(`/api/social/posts/${postId}/`, { method: 'DELETE' }, onLogout);
+};
+
 // --- Funzioni API specifiche ---
 
 /**
