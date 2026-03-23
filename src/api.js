@@ -805,6 +805,21 @@ export const searchPersonaggi = (query, currentCharacterId, infusioneId = null) 
   return fetchAuthenticated(url, { method: 'GET' });
 };
 
+export const getPreferredPersonaggio = (onLogout) => {
+  return fetchAuthenticated('/api/personaggi/api/personaggi/preferred/', { method: 'GET' }, onLogout);
+};
+
+export const setPreferredPersonaggio = (preferredPersonaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggi/preferred/',
+    {
+      method: 'POST',
+      body: JSON.stringify({ preferred_personaggio_id: preferredPersonaggioId || null }),
+    },
+    onLogout
+  );
+};
+
 /**
  * Invia un messaggio privato
  */

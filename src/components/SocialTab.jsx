@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
+import { Bell, Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Star, Trash2, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
   socialAcceptGroupInvite,
@@ -37,7 +37,7 @@ import {
 
 const SocialTab = ({ onLogout, onOpenMessages }) => {
   const PAGE_SIZE = 10;
-  const { selectedCharacterId, isAdmin } = useCharacter();
+  const { selectedCharacterId, isAdmin, personaggiList, selectCharacter, preferredCharacterId } = useCharacter();
   const [posts, setPosts] = useState([]);
   const [korpList, setKorpList] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -444,10 +444,65 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   };
 
   const subtitle = useMemo(() => 'il social network numero 1 di tutta KOR!', []);
+  const feedPrefsKey = useMemo(
+    () => `social_feed_prefs:${selectedCharacterId || 'none'}`,
+    [selectedCharacterId]
+  );
+  const groupPrefsKey = useMemo(
+    () => `social_group_prefs:${selectedCharacterId || 'none'}`,
+    [selectedCharacterId]
+  );
   const notificationsSeenKey = useMemo(
     () => `social_notifications_seen_at:${selectedCharacterId || 'none'}`,
     [selectedCharacterId]
   );
+
+  useEffect(() => {
+    if (!selectedCharacterId) return;
+    try {
+      const raw = localStorage.getItem(feedPrefsKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.filter && ['ALL', 'PUB', 'KORP', 'MINE'].includes(parsed.filter)) {
+        setFeedFilter(parsed.filter);
+      }
+      if (parsed?.sort && ['RECENT', 'DISCUSSED'].includes(parsed.sort)) {
+        setFeedSort(parsed.sort);
+      }
+    } catch (err) {
+      // Ignore malformed local preference payloads.
+    }
+  }, [feedPrefsKey, selectedCharacterId]);
+
+  useEffect(() => {
+    if (!selectedCharacterId) return;
+    localStorage.setItem(feedPrefsKey, JSON.stringify({ filter: feedFilter, sort: feedSort }));
+  }, [feedPrefsKey, feedFilter, feedSort, selectedCharacterId]);
+
+  useEffect(() => {
+    if (!selectedCharacterId) return;
+    try {
+      const raw = localStorage.getItem(groupPrefsKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.mode && ['FEED', 'GROUPS'].includes(parsed.mode)) {
+        setSocialViewMode(parsed.mode);
+      }
+      if (parsed?.selectedGroupId) {
+        setSelectedGroupId(parsed.selectedGroupId);
+      }
+    } catch (err) {
+      // Ignore malformed local preference payloads.
+    }
+  }, [groupPrefsKey, selectedCharacterId]);
+
+  useEffect(() => {
+    if (!selectedCharacterId) return;
+    localStorage.setItem(
+      groupPrefsKey,
+      JSON.stringify({ mode: socialViewMode, selectedGroupId: selectedGroupId || null })
+    );
+  }, [groupPrefsKey, socialViewMode, selectedGroupId, selectedCharacterId]);
 
   const loadNotifications = useCallback(async () => {
     if (!selectedCharacterId) return;
@@ -778,9 +833,29 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
             <div>
               <h2 className="text-3xl font-black italic text-amber-300 tracking-wide">Fame-stagram</h2>
               <p className="text-sm text-amber-100/80">{subtitle}</p>
+              <div className="text-xs text-gray-300 mt-1 inline-flex items-center gap-1">
+                <span>PG attivo: {profile?.personaggio_nome || `#${selectedCharacterId}`}</span>
+                {String(preferredCharacterId || '') === String(selectedCharacterId) && (
+                  <span className="inline-flex items-center gap-1 text-amber-300">
+                    <Star size={12} fill="currentColor" /> Preferito
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <select
+              className="bg-gray-800/90 rounded-lg px-2 py-2 text-sm border border-gray-600 max-w-48"
+              value={selectedCharacterId || ''}
+              onChange={(e) => selectCharacter(e.target.value)}
+              title="Cambio rapido personaggio"
+            >
+              {personaggiList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome} {String(preferredCharacterId || '') === String(p.id) ? '★' : ''}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => setShowComposer((s) => !s)}

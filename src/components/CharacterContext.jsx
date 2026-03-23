@@ -6,7 +6,9 @@ import {
   deleteMessage, 
   getAdminPendingProposalsCount, 
   saveWebPushSubscription, 
-  fetchAuthenticated 
+  fetchAuthenticated,
+  getPreferredPersonaggio,
+  setPreferredPersonaggio,
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
@@ -50,6 +52,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   
   // --- STATI GLOBALI UI ---
   const [selectedCharacterId, setSelectedCharacterId] = useState(() => localStorage.getItem('kor35_last_char_id') || '');
+  const [preferredCharacterId, setPreferredCharacterId] = useState(() => localStorage.getItem('kor35_preferred_char_id') || '');
   const [isStaff] = useState(() => localStorage.getItem('kor35_is_staff') === 'true');
 // Riconosciamo se è un Master (Admin di Django) o uno Staffer semplice
   const [isMaster] = useState(() => localStorage.getItem('kor35_is_master') === 'true');
@@ -138,19 +141,72 @@ export const CharacterProvider = ({ children, onLogout }) => {
   // --- LOGICA SELEZIONE AUTOMATICA PG ---
   useEffect(() => {
     if (!selectedCharacterId && personaggiList.length > 0) {
+        const preferredId = preferredCharacterId || localStorage.getItem('kor35_preferred_char_id');
         const lastId = localStorage.getItem('kor35_last_char_id');
-        const targetId = (lastId && personaggiList.some(p => p.id.toString() === lastId)) 
-                         ? lastId 
-                         : personaggiList[0].id;
+        const targetId = (preferredId && personaggiList.some(p => p.id.toString() === preferredId))
+                         ? preferredId
+                         : ((lastId && personaggiList.some(p => p.id.toString() === lastId))
+                           ? lastId
+                           : personaggiList[0].id);
         setSelectedCharacterId(targetId);
     }
-  }, [personaggiList, selectedCharacterId]);
+  }, [personaggiList, selectedCharacterId, preferredCharacterId]);
+
+  useEffect(() => {
+    if (!preferredCharacterId) return;
+    const exists = personaggiList.some((p) => p.id.toString() === preferredCharacterId.toString());
+    if (!exists) {
+      setPreferredCharacterId('');
+      localStorage.removeItem('kor35_preferred_char_id');
+    }
+  }, [personaggiList, preferredCharacterId]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadPreferredFromServer = async () => {
+      try {
+        const data = await getPreferredPersonaggio(onLogout);
+        const serverPreferred = data?.preferred_personaggio_id;
+        if (!mounted || !serverPreferred) return;
+        const normalized = String(serverPreferred);
+        setPreferredCharacterId(normalized);
+        localStorage.setItem('kor35_preferred_char_id', normalized);
+      } catch (err) {
+        // fallback locale: nessun blocco UI
+      }
+    };
+    loadPreferredFromServer();
+    return () => {
+      mounted = false;
+    };
+  }, [onLogout]);
 
   // --- AZIONI CONTEXT ---
   const handleSelectCharacter = useCallback((id) => {
     setSelectedCharacterId(id);
     if(id) localStorage.setItem('kor35_last_char_id', id);
   }, []);
+
+  const setPreferredCharacter = useCallback((id) => {
+    const persist = async (value) => {
+      try {
+        await setPreferredPersonaggio(value || null, onLogout);
+      } catch (err) {
+        // fallback locale: l'utente mantiene la preferenza sul dispositivo corrente
+      }
+    };
+
+    if (!id) {
+      setPreferredCharacterId('');
+      localStorage.removeItem('kor35_preferred_char_id');
+      persist(null);
+      return;
+    }
+    const normalized = String(id);
+    setPreferredCharacterId(normalized);
+    localStorage.setItem('kor35_preferred_char_id', normalized);
+    persist(Number(normalized));
+  }, [onLogout]);
 
   // *** CORREZIONE CRUCIALE ***
   // Invalidazione + refetch esplicito della query personaggio così la UI (timer creazioni
@@ -322,6 +378,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     personaggiList,
     punteggiList,
     selectedCharacterId,
+    preferredCharacterId,
     
     characterData: selectedCharacterData, 
     selectedCharacterData,
@@ -342,6 +399,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     isSyncing: mutatingCount > 0,
     
     selectCharacter: handleSelectCharacter,
+    setPreferredCharacter,
     refreshCharacterData,
     fetchPersonaggi, 
     

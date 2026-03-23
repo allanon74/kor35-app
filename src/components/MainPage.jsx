@@ -15,7 +15,7 @@ import {
     Home, QrCode, Zap, TestTube2, Scroll, LogOut, Mail, Backpack, 
     Menu, X, UserCog, RefreshCw, Filter, DownloadCloud, ScrollText, 
     ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users, Sparkles,
-    Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight, Package,
+    Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight, Package, Star,
     Key, HelpCircle // <-- [MODIFICA] Icona HelpCircle aggiunta
 } from 'lucide-react';
 
@@ -139,11 +139,13 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const {
     personaggiList,
     selectedCharacterId,
+    preferredCharacterId,
     selectedCharacterData,
     refreshCharacterData,
     activeTimers,      
     removeTimerState,  
     selectCharacter,
+    setPreferredCharacter,
     fetchPersonaggi,
     isLoading,
     isAdmin,
@@ -363,10 +365,27 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                 >
                     {personaggiList.map(p => (
                         <option key={p.id} value={p.id}>
-                            {p.nome} {p.is_main ? '(Main)' : ''}
+                            {p.nome} {String(preferredCharacterId || '') === String(p.id) ? '★ Preferito' : ''}
                         </option>
                     ))}
                 </select>
+                {!!selectedCharacterId && (
+                    <label className="mt-2 inline-flex items-center gap-2 text-xs text-gray-300">
+                        <input
+                            type="checkbox"
+                            checked={String(preferredCharacterId || '') === String(selectedCharacterId)}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    setPreferredCharacter(selectedCharacterId);
+                                } else {
+                                    setPreferredCharacter('');
+                                }
+                            }}
+                            className="w-4 h-4 rounded text-indigo-500 focus:ring-indigo-500"
+                        />
+                        Usa questo personaggio come preferito
+                    </label>
+                )}
 
                 {/* 2. ADMIN VIEW ALL TOGGLE */}
                 {isAdmin && (
@@ -552,7 +571,12 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                 {selectedCharacterData ? (
                     <div className="flex flex-col items-center justify-center animate-fadeIn">
                         <span className="text-xs text-gray-500 uppercase tracking-widest leading-none mb-0.5">Operativo</span>
-                        <span className="font-bold text-white text-base tracking-wide drop-shadow-md">{selectedCharacterData.nome}</span>
+                        <span className="font-bold text-white text-base tracking-wide drop-shadow-md inline-flex items-center gap-1.5">
+                            {selectedCharacterData.nome}
+                            {String(preferredCharacterId || '') === String(selectedCharacterId) && (
+                                <Star size={14} className="text-amber-400" fill="currentColor" />
+                            )}
+                        </span>
                     </div>
                 ) : <span className="text-gray-500 italic text-sm animate-pulse">Seleziona Personaggio</span>}
               </div>
