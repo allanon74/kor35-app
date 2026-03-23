@@ -2,14 +2,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
+  socialApproveGroupMember,
   socialCreateGroup,
   socialCreateGroupMessage,
   socialCreateGroupPost,
   socialDeletePost,
+  socialGetGroupMembers,
   searchPersonaggi,
   sendPrivateMessage,
   socialCreateComment,
   socialCreatePost,
+  socialInviteGroupMember,
   socialGetComments,
   socialGetGroupMessages,
   socialGetGroupPosts,
@@ -19,7 +22,9 @@ import {
   socialGetNotifications,
   socialGetProfileByCharacter,
   socialGetPosts,
+  socialRejectGroupMember,
   socialRequestJoinGroup,
+  socialSetGroupMemberRole,
   socialToggleLike,
   socialUpdatePost,
   socialUpdateMyProfile,
@@ -55,9 +60,12 @@ const SocialTab = ({ onLogout }) => {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [groupPosts, setGroupPosts] = useState([]);
   const [groupMessages, setGroupMessages] = useState([]);
+  const [groupMembers, setGroupMembers] = useState([]);
   const [groupPostForm, setGroupPostForm] = useState({ titolo: '', testo: '', immagine: null, video: null });
   const [groupMessageText, setGroupMessageText] = useState('');
   const [groupCreateForm, setGroupCreateForm] = useState({ nome: '', descrizione: '', is_hidden: false, requires_approval: true });
+  const [groupInviteQuery, setGroupInviteQuery] = useState('');
+  const [groupInviteSuggestions, setGroupInviteSuggestions] = useState([]);
   const sentinelRef = useRef(null);
 
   const [postForm, setPostForm] = useState({
@@ -184,6 +192,8 @@ const SocialTab = ({ onLogout }) => {
       ]);
       setGroupPosts(normalizeListPayload(postsPayload));
       setGroupMessages(normalizeListPayload(messagesPayload));
+      const membersPayload = await socialGetGroupMembers(selectedGroupId, selectedCharacterId, onLogout);
+      setGroupMembers(Array.isArray(membersPayload) ? membersPayload : []);
     } catch (err) {
       console.error('Errore caricamento dettaglio gruppo', err);
     }
@@ -522,6 +532,56 @@ const SocialTab = ({ onLogout }) => {
     if (!selectedGroupId || !groupMessageText.trim()) return;
     await socialCreateGroupMessage(selectedGroupId, groupMessageText.trim(), selectedCharacterId, onLogout);
     setGroupMessageText('');
+    await loadGroupDetail();
+  };
+
+  const isGroupAdminOrStaff = useMemo(
+    () => isAdmin || String(selectedGroup?.my_role || '') === 'ADMIN',
+    [isAdmin, selectedGroup]
+  );
+
+  const pendingMembers = useMemo(
+    () => groupMembers.filter((m) => ['REQUESTED', 'INVITED'].includes(String(m.status || ''))),
+    [groupMembers]
+  );
+
+  const activeMembers = useMemo(
+    () => groupMembers.filter((m) => String(m.status || '') === 'ACTIVE'),
+    [groupMembers]
+  );
+
+  const loadInviteSuggestions = async (query) => {
+    if (!query || query.length < 2) {
+      setGroupInviteSuggestions([]);
+      return;
+    }
+    const res = await searchPersonaggi(query, selectedCharacterId);
+    setGroupInviteSuggestions(Array.isArray(res) ? res : []);
+  };
+
+  const handleInviteMember = async (personaggioId) => {
+    if (!selectedGroupId) return;
+    await socialInviteGroupMember(selectedGroupId, personaggioId, selectedCharacterId, onLogout);
+    setGroupInviteQuery('');
+    setGroupInviteSuggestions([]);
+    await loadGroupDetail();
+  };
+
+  const handleApproveMember = async (personaggioId) => {
+    if (!selectedGroupId) return;
+    await socialApproveGroupMember(selectedGroupId, personaggioId, selectedCharacterId, onLogout);
+    await loadGroupDetail();
+  };
+
+  const handleRejectMember = async (personaggioId) => {
+    if (!selectedGroupId) return;
+    await socialRejectGroupMember(selectedGroupId, personaggioId, selectedCharacterId, onLogout);
+    await loadGroupDetail();
+  };
+
+  const handleSetRole = async (personaggioId, role) => {
+    if (!selectedGroupId) return;
+    await socialSetGroupMemberRole(selectedGroupId, personaggioId, role, selectedCharacterId, onLogout);
     await loadGroupDetail();
   };
 
@@ -1053,6 +1113,63 @@ const SocialTab = ({ onLogout }) => {
                 </div>
                 {selectedGroup.my_membership_status === 'ACTIVE' ? (
                   <>
+                    {isGroupAdminOrStaff && (
+                      <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
+                        <div className="text-sm font-bold text-fuchsia-200">Gestione membri</div>
+                        <div className="space-y-2">
+                          <div className="text-xs text-gray-400">Invita personaggio</div>
+                          <input
+                            className="w-full bg-gray-800 rounded p-2 border border-gray-700 text-sm"
+                            placeholder="Cerca personaggio..."
+                            value={groupInviteQuery}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setGroupInviteQuery(v);
+                              loadInviteSuggestions(v);
+                            }}
+                          />
+                          {groupInviteSuggestions.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {groupInviteSuggestions.map((p) => (
+                                <button
+                                  key={`inv-${p.id}`}
+                                  type="button"
+                                  onClick={() => handleInviteMember(p.id)}
+                                  className="px-2 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-xs"
+                                >
+                                  Invita {p.nome} (@{p.id})
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-xs text-gray-400">Richieste/Inviti pendenti</div>
+                          {pendingMembers.length === 0 && <div className="text-xs text-gray-500">Nessuna richiesta pendente.</div>}
+                          {pendingMembers.map((m) => (
+                            <div key={`pm-${m.id}`} className="rounded border border-gray-700 bg-gray-800/70 p-2 flex items-center justify-between gap-2">
+                              <div className="text-xs">{m.personaggio_nome} · {m.status}</div>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => handleApproveMember(m.personaggio)} className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-xs">Approva</button>
+                                <button onClick={() => handleRejectMember(m.personaggio)} className="px-2 py-1 rounded bg-rose-700 hover:bg-rose-600 text-xs">Rifiuta</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-xs text-gray-400">Membri attivi</div>
+                          {activeMembers.map((m) => (
+                            <div key={`am-${m.id}`} className="rounded border border-gray-700 bg-gray-800/70 p-2 flex items-center justify-between gap-2">
+                              <div className="text-xs">{m.personaggio_nome} · {m.ruolo}</div>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => handleSetRole(m.personaggio, 'ADMIN')} className="px-2 py-1 rounded bg-violet-700 hover:bg-violet-600 text-xs">Admin</button>
+                                <button onClick={() => handleSetRole(m.personaggio, 'MEMBER')} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-xs">Membro</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
                       <div className="text-sm font-bold text-indigo-200">Nuovo post nel gruppo</div>
                       <form onSubmit={handleCreateGroupPost} className="space-y-2">

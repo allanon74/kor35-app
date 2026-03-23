@@ -233,6 +233,47 @@ export const socialCreateGroupMessage = (groupId, testo, personaggioId, onLogout
   );
 };
 
+export const socialGetGroupMembers = (groupId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/members/${qp}`, { method: 'GET' }, onLogout);
+};
+
+export const socialInviteGroupMember = (groupId, personaggioTargetId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/groups/${groupId}/invite/${qp}`,
+    { method: 'POST', body: JSON.stringify({ personaggio_target_id: personaggioTargetId }) },
+    onLogout
+  );
+};
+
+export const socialApproveGroupMember = (groupId, personaggioTargetId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/groups/${groupId}/approve_member/${qp}`,
+    { method: 'POST', body: JSON.stringify({ personaggio_target_id: personaggioTargetId }) },
+    onLogout
+  );
+};
+
+export const socialRejectGroupMember = (groupId, personaggioTargetId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/groups/${groupId}/reject_member/${qp}`,
+    { method: 'POST', body: JSON.stringify({ personaggio_target_id: personaggioTargetId }) },
+    onLogout
+  );
+};
+
+export const socialSetGroupMemberRole = (groupId, personaggioTargetId, ruolo, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/groups/${groupId}/set_member_role/${qp}`,
+    { method: 'POST', body: JSON.stringify({ personaggio_target_id: personaggioTargetId, ruolo }) },
+    onLogout
+  );
+};
+
 // --- Funzioni API specifiche ---
 
 /**
