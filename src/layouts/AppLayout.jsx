@@ -11,7 +11,7 @@ const AppLayout = ({ token, onLogout }) => {
   
   // Stato per gestire quale interfaccia mostrare (solo per lo staff)
   // 'staff' = Dashboard Master | 'player' = Interfaccia Giocatore
-  const [viewMode, setViewMode] = useState('staff'); 
+  const [viewMode, setViewMode] = useState('player'); 
 
   // Memorizza quale tool aprire nella dashboard (default 'home')
   const [dashboardInitialTool, setDashboardInitialTool] = useState('home');
@@ -37,8 +37,8 @@ const AppLayout = ({ token, onLogout }) => {
       return;
     }
 
-    // Default staff: apri dashboard master.
-    setViewMode('staff');
+    // Default staff senza mode esplicito: resta/entra in vista player.
+    setViewMode('player');
   }, [isStaff, location.search]);
 
   // Effetto: Se l'utente non è staff, forziamo sempre la vista player
@@ -56,7 +56,10 @@ const AppLayout = ({ token, onLogout }) => {
     } else {
       params.delete('tool');
     }
-    navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+    const nextSearch = params.toString();
+    const currentSearch = (location.search || '').replace(/^\?/, '');
+    if (nextSearch === currentSearch) return;
+    navigate({ pathname: location.pathname, search: `?${nextSearch}` }, { replace: true });
   };
 
   // Render: Vista Master (Solo se è staff E siamo in modalità staff)
