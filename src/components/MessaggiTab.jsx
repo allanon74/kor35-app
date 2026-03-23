@@ -9,7 +9,7 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-const MessaggiTab = ({ onLogout }) => {
+const MessaggiTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) => {
   const { selectedCharacterData: char, viewAll, unreadCount, fetchUserMessages, selectedCharacterId } = useCharacter();
 
   // Refresh messaggi quando si apre la tab
@@ -66,7 +66,11 @@ const MessaggiTab = ({ onLogout }) => {
         <Tab.Panels>
           <Tab.Panel className="focus:outline-none animate-fadeIn">
             {/* Passiamo le props necessarie al componente figlio esistente */}
-            <PlayerMessageTab onLogout={onLogout} />
+            <PlayerMessageTab
+              onLogout={onLogout}
+              composeTarget={composeTarget}
+              onComposeTargetConsumed={onComposeTargetConsumed}
+            />
           </Tab.Panel>
           
           {showAdminTab && (

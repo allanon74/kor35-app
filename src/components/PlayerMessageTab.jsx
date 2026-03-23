@@ -5,7 +5,7 @@ import ComposeMessageModal from './ComposeMessageModal';
 import RichTextDisplay from './RichTextDisplay';
 import { fetchAuthenticated } from '../api';
 
-const PlayerMessageTab = ({ onLogout }) => {
+const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) => {
     const { 
         selectedCharacterData: char, 
         userMessages, 
@@ -26,6 +26,13 @@ const PlayerMessageTab = ({ onLogout }) => {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [userMessages]);
+
+    useEffect(() => {
+        if (!composeTarget) return;
+        setReplyToRecipient(composeTarget);
+        setIsComposeOpen(true);
+        if (onComposeTargetConsumed) onComposeTargetConsumed();
+    }, [composeTarget, onComposeTargetConsumed]);
 
     const toggleMessageExpansion = (msgId) => {
         setExpandedMessages(prev => ({

@@ -12,7 +12,6 @@ import {
   socialDeletePost,
   socialGetGroupMembers,
   searchPersonaggi,
-  sendPrivateMessage,
   socialCreateComment,
   socialCreatePost,
   socialInviteGroupMember,
@@ -36,7 +35,7 @@ import {
   socialDeclineGroupInvite,
 } from '../api';
 
-const SocialTab = ({ onLogout }) => {
+const SocialTab = ({ onLogout, onOpenMessages }) => {
   const PAGE_SIZE = 10;
   const { selectedCharacterId, isAdmin } = useCharacter();
   const [posts, setPosts] = useState([]);
@@ -83,7 +82,6 @@ const SocialTab = ({ onLogout }) => {
     immagine: null,
     video: null,
   });
-  const [dmText, setDmText] = useState('');
 
   const handlePostMediaChange = (file) => {
     if (!file) {
@@ -361,21 +359,16 @@ const SocialTab = ({ onLogout }) => {
   const openProfile = async (personaggioId) => {
     const data = await socialGetProfileByCharacter(personaggioId, onLogout);
     setSelectedProfile(data);
-    setDmText('');
   };
 
-  const sendDmFromProfile = async () => {
-    if (!selectedProfile?.personaggio || !dmText.trim()) return;
-    await sendPrivateMessage(
-      {
-        destinatario_id: selectedProfile.personaggio,
-        titolo: 'Messaggio da Fame-stagram',
-        testo: dmText.trim(),
-      },
-      onLogout
-    );
-    setDmText('');
-    alert('Messaggio inviato.');
+  const openUnifiedComposerFromProfile = () => {
+    if (!selectedProfile?.personaggio) return;
+    onOpenMessages?.({
+      id: selectedProfile.personaggio,
+      nome: selectedProfile.personaggio_nome || `PG ${selectedProfile.personaggio}`,
+      isStaff: false,
+    });
+    setSelectedProfile(null);
   };
 
   const startEditPost = (post) => {
@@ -828,6 +821,13 @@ const SocialTab = ({ onLogout }) => {
           className={`px-3 py-1.5 rounded-lg border text-sm inline-flex items-center gap-1 ${socialViewMode === 'GROUPS' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
         >
           <Users size={14} /> Gruppi
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenMessages?.()}
+          className="px-3 py-1.5 rounded-lg border text-sm inline-flex items-center gap-1 bg-gray-800 border-gray-700 hover:bg-gray-700"
+        >
+          <MessageCircle size={14} /> Apri Messaggi
         </button>
       </section>
 
@@ -1387,14 +1387,8 @@ const SocialTab = ({ onLogout }) => {
           </div>
           {selectedProfile.personaggio !== Number(selectedCharacterId) && (
             <div className="space-y-2 pt-2 border-t border-gray-700">
-              <textarea
-                className="w-full bg-gray-800 rounded p-2 border border-gray-700 min-h-20"
-                placeholder="Scrivi un messaggio privato..."
-                value={dmText}
-                onChange={(e) => setDmText(e.target.value)}
-              />
-              <button onClick={sendDmFromProfile} className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm">
-                <Send size={14} /> Invia messaggio privato
+              <button onClick={openUnifiedComposerFromProfile} className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm">
+                <Send size={14} /> Apri messaggi privati
               </button>
             </div>
           )}

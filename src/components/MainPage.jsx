@@ -93,6 +93,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   // --- [MODIFICA] Stato per Modale Wiki Help ---
   const [isWikiHelpOpen, setIsWikiHelpOpen] = useState(false);
   const [currentWikiSlug, setCurrentWikiSlug] = useState(null);
+  const [messageComposeTarget, setMessageComposeTarget] = useState(null);
   
   // STATO SHORTCUTS (Default salvagente)
   const [userShortcuts, setUserShortcuts] = useState(DEFAULT_SHORTCUTS);
@@ -264,6 +265,12 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     setIsMenuOpen(false);
   }, []);
 
+  const openUnifiedMessages = useCallback((recipient = null) => {
+    setMessageComposeTarget(recipient || null);
+    setActiveTab('messaggi');
+    setIsMenuOpen(false);
+  }, []);
+
   // --- [MODIFICA] Funzione per aprire il modal di aiuto ---
   const openWikiHelp = useCallback(() => {
     const wikiSlug = TAB_TO_WIKI_SLUG[activeTab];
@@ -320,6 +327,18 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
         if (tabDef.id === 'qr') return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
         if (tabDef.id === 'logs' || tabDef.id === 'transazioni') return <div className="p-4 h-full overflow-y-auto animate-fadeIn"><Component charId={selectedCharacterId} onLogout={onLogout} /></div>;
         
+        if (tabDef.id === 'social') {
+            return <Component onLogout={onLogout} onOpenMessages={openUnifiedMessages} />;
+        }
+        if (tabDef.id === 'messaggi') {
+            return (
+                <Component
+                    onLogout={onLogout}
+                    composeTarget={messageComposeTarget}
+                    onComposeTargetConsumed={() => setMessageComposeTarget(null)}
+                />
+            );
+        }
         return <Component onLogout={onLogout} />;
     }
     return <HomeTab onLogout={onLogout} />;
@@ -523,7 +542,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       <div className="flex-1 flex flex-col min-w-0 relative">
           
           {/* --- HEADER --- */}
-          <header className="relative flex justify-between items-center p-3 bg-gray-800 shadow-md shrink-0 border-b border-gray-700 z-10 h-16 backdrop-blur-sm bg-gray-800/95">
+          <header className="relative flex justify-between items-center p-3 shadow-md shrink-0 border-b border-gray-700 z-10 h-16 backdrop-blur-sm bg-gray-800/95">
               <div className="flex items-center gap-3 z-20">
                   <img src="/pwa-512x512.png" alt="Logo" className="w-9 h-9 object-contain drop-shadow-lg" />
                   <h1 className="text-xl font-black italic hidden sm:block text-blue-400">KOR-35</h1>
