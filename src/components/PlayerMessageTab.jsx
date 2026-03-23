@@ -77,6 +77,10 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
                         const isStaff = msg.mittente_is_staff;
                         const isExpanded = expandedMessages[msg.id];
                         const isRead = msg.letto;
+                        const isOutgoing = Number(msg.mittente_personaggio_id) === Number(selectedCharacterId);
+                        const transferCounterpartName = isOutgoing
+                            ? (msg.destinatario_personaggio || 'destinatario sconosciuto')
+                            : (msg.mittente_personaggio_nome || msg.mittente_nome || 'mittente sconosciuto');
 
                         return (
                             <div 
@@ -152,7 +156,10 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
 
                                     {/* Allegati transazionali */}
                                     {(Number(msg.crediti_allegati || 0) > 0 || (msg.oggetti_allegati_snapshot || []).length > 0) && (
-                                        <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
+                                        <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                                            <span className="px-2 py-0.5 rounded-full bg-slate-700/80 text-slate-100 border border-slate-500/30">
+                                                {isOutgoing ? `Inviato a ${transferCounterpartName}` : `Ricevuto da ${transferCounterpartName}`}
+                                            </span>
                                             {Number(msg.crediti_allegati || 0) > 0 && (
                                                 <span className="px-2 py-0.5 rounded-full bg-emerald-700/80 text-emerald-100 border border-emerald-500/30">
                                                     +{Number(msg.crediti_allegati)} crediti
