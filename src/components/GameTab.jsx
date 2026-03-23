@@ -12,20 +12,8 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-// --- WIDGET DANNI (Aggiornato per PS - Punti Guscio) - VARIANTE 1 MOBILE ---
+// --- WIDGET DANNI (corpo delocalizzato: PV singolo) ---
 const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
-    // Zone del corpo (5 zone per PV)
-    const zones = [
-        { id: 'PV_TR', name: 'Tronco', d: "M68,58 L68,100 L94,106 L106,106 L132,100 L132,58 L116,52 L84,52 Z M68,100 L74,155 L88,162 L112,162 L126,155 L132,100 Z", cx: 100, cy: 110 },
-        { id: 'PV_RA', name: 'Braccio Dx', d: "M132,58 L142,64 L150,82 L154,105 L156,130 L157,158 L154,162 L146,160 L144,130 L140,105 L134,76 Z", cx: 145, cy: 110 },
-        { id: 'PV_LA', name: 'Braccio Sx', d: "M68,58 L58,64 L50,82 L46,105 L44,130 L43,158 L46,162 L54,160 L56,130 L60,105 L66,76 Z", cx: 53, cy: 110 },
-        { id: 'PV_RL', name: 'Gamba Dx', d: "M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z", cx: 122, cy: 235 },
-        { id: 'PV_LL', name: 'Gamba Sx', d: "M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z", cx: 78, cy: 235 },
-    ];
-
-
-
-
     const getZoneColor = (current) => {
         if (current <= 0) return '#ef4444';
         if (current < maxHp / 2) return '#eab308';
@@ -71,23 +59,29 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
 
                 {/* LAYER 3: CORPO */}
                 <g className="filter drop-shadow-md">
-                    {/* Testa (non cliccabile) */}
-                    <circle cx="100" cy="25" r="20" fill="#4b5563" stroke="#9ca3af" strokeWidth="2"/>
-                    
-                    {/* Collo (non cliccabile) */}
-                    <rect x="88" y="42" width="24" height="16" rx="4" fill="#4b5563" stroke="#9ca3af" strokeWidth="1.5"/>
-                    {zones.map(z => {
-                        const val = stats[z.id];
-                        return (
-                            <g key={z.id} onClick={() => onHit(z.id, maxHp)} className="cursor-pointer transition-all" style={{'--hover-stroke': 'white'}}>
-                                <path d={z.d} fill={getZoneColor(val)} stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinejoin="round" className="transition-all hover:opacity-80 hover:stroke-white" style={{strokeWidth: '2px'}} onMouseEnter={(e) => e.currentTarget.style.strokeWidth = '3px'} onMouseLeave={(e) => e.currentTarget.style.strokeWidth = '2px'} />
-                                <text x={z.cx} y={z.cy} fill="white" fontSize="12" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{textShadow: '0px 2px 4px black'}}>{val}</text>
-                            </g>
-                        );
-                    })}
+                    <g onClick={() => onHit('PV_CUR', maxHp)} className="cursor-pointer transition-all">
+                        {/* Testa */}
+                        <circle cx="100" cy="25" r="20" fill={getZoneColor(stats['PV_CUR'])} stroke="#e5e7eb" strokeWidth="2" />
+                        {/* Collo */}
+                        <rect x="88" y="42" width="24" height="16" rx="4" fill={getZoneColor(stats['PV_CUR'])} stroke="#e5e7eb" strokeWidth="1.5" />
+                        {/* Tronco */}
+                        <path d="M68,58 L68,100 L94,106 L106,106 L132,100 L132,58 L116,52 L84,52 Z M68,100 L74,155 L88,162 L112,162 L126,155 L132,100 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                        {/* Braccia */}
+                        <path d="M132,58 L142,64 L150,82 L154,105 L156,130 L157,158 L154,162 L146,160 L144,130 L140,105 L134,76 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                        <path d="M68,58 L58,64 L50,82 L46,105 L44,130 L43,158 L46,162 L54,160 L56,130 L60,105 L66,76 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                        {/* Gambe */}
+                        <path d="M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                        <path d="M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                        <text x="100" y="170" fill="white" fontSize="22" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
+                            {stats['PV_CUR']}
+                        </text>
+                        <text x="100" y="188" fill="#e5e7eb" fontSize="9" textAnchor="middle" pointerEvents="none" fontWeight="bold">
+                            PV
+                        </text>
+                    </g>
                 </g>
             </svg>
-            {stats['PV_TR'] <= 0 && (
+            {stats['PV_CUR'] <= 0 && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-900/90 text-white px-4 py-2 rounded-xl border-2 border-red-500 animate-pulse text-center shadow-2xl z-20">
                     <AlertCircle className="mx-auto mb-1 text-red-400" />
                     <span className="font-black text-lg uppercase tracking-widest">COMA</span>
@@ -103,11 +97,7 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     const rows = [
         { id: 'PS_CUR', label: 'Guscio (PS)', max: maxShell, color: 'text-purple-400' },
         { id: 'PA_CUR', label: 'Armatura', max: maxArmor, color: 'text-emerald-400' },
-        { id: 'PV_TR', label: 'Tronco', max: maxHp, color: 'text-blue-400' },
-        { id: 'PV_RA', label: 'Br. Dx', max: maxHp, color: 'text-blue-300' },
-        { id: 'PV_LA', label: 'Br. Sx', max: maxHp, color: 'text-blue-300' },
-        { id: 'PV_RL', label: 'Gb. Dx', max: maxHp, color: 'text-blue-300' },
-        { id: 'PV_LL', label: 'Gb. Sx', max: maxHp, color: 'text-blue-300' },
+        { id: 'PV_CUR', label: 'Punti Vita', max: maxHp, color: 'text-blue-400' },
     ];
 
     return (
@@ -356,11 +346,7 @@ const GameTab = ({ onNavigate }) => {
 
     const tempStats = char.statistiche_temporanee || {};
     const tacticalStats = {
-        'PV_TR': tempStats['PV_TR'] !== undefined ? tempStats['PV_TR'] : maxHP,
-        'PV_RA': tempStats['PV_RA'] !== undefined ? tempStats['PV_RA'] : maxHP,
-        'PV_LA': tempStats['PV_LA'] !== undefined ? tempStats['PV_LA'] : maxHP,
-        'PV_RL': tempStats['PV_RL'] !== undefined ? tempStats['PV_RL'] : maxHP,
-        'PV_LL': tempStats['PV_LL'] !== undefined ? tempStats['PV_LL'] : maxHP,
+        'PV_CUR': tempStats['PV_CUR'] !== undefined ? tempStats['PV_CUR'] : maxHP,
         'PA_CUR': tempStats['PA_CUR'] !== undefined ? tempStats['PA_CUR'] : maxArmor,
         'PS_CUR': tempStats['PS_CUR'] !== undefined ? tempStats['PS_CUR'] : maxShell,
         'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
