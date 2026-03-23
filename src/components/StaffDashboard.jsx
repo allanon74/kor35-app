@@ -29,6 +29,7 @@ const AbilitaManager = lazy(() => import('./editors/AbilitaManager'));
 const ImmagineManager = lazy(() => import('./editors/ImmagineManager'));
 const InventarioManager = lazy(() => import('./editors/InventarioManager'));
 const EffettiCasualiManager = lazy(() => import('./editors/EffettiCasualiManager'));
+const SocialEventReportTab = lazy(() => import('./editors/SocialEventReportTab'));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -61,6 +62,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
         { id: 'immagini', label: 'Immagini Wiki', icon: <Image size={24} />, color: 'bg-teal-700', component: ImmagineManager },
         { id: 'inventari', label: 'Inventari', icon: <Package size={24} />, color: 'bg-slate-700', component: InventarioManager },
         { id: 'effetti-casuali', label: 'Effetti Casuali', icon: <Sparkles size={24} />, color: 'bg-amber-700', component: EffettiCasualiManager },
+        { id: 'social-report', label: 'Report Social Eventi', icon: <Sparkles size={24} />, color: 'bg-fuchsia-700', component: SocialEventReportTab },
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: AdminMessageTab },        
     ], []);
 

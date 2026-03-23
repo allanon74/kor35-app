@@ -168,6 +168,11 @@ export const socialDeletePost = (postId, onLogout) => {
   return fetchAuthenticated(`/api/social/posts/${postId}/`, { method: 'DELETE' }, onLogout);
 };
 
+export const socialGetStaffEventReport = (eventoId, onLogout) => {
+  const qp = eventoId ? `?evento_id=${eventoId}` : '';
+  return fetchAuthenticated(`/api/social/staff/event-report/${qp}`, { method: 'GET' }, onLogout);
+};
+
 // --- Funzioni API specifiche ---
 
 /**
