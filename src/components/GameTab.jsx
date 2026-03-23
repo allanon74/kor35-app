@@ -3,7 +3,7 @@ import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
     Star, MessageSquare, Briefcase, Backpack, AlertCircle, Plus, Minus,
-    ChevronDown, ChevronUp, Hexagon, Activity, Weight 
+    ChevronDown, ChevronUp, Hexagon, Activity, Weight, Sparkles
 } from 'lucide-react';
 
 import { 
@@ -505,7 +505,7 @@ const GameTab = ({ onNavigate }) => {
             </section>
 
             {/* Link Navigazione */}
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="grid grid-cols-3 gap-3 mt-4">
                 <button onClick={() => onNavigate('messaggi')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-indigo-400 font-bold text-xs"><MessageSquare size={16} /> Messaggi</div>
                     {unreadCount > 0 ? <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{unreadCount}</span> : <span className="text-gray-600 text-xs">-</span>}
@@ -513,6 +513,10 @@ const GameTab = ({ onNavigate }) => {
                 <button onClick={() => onNavigate('transazioni')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
                     <div className="flex gap-2 text-amber-400 font-bold text-xs"><Briefcase size={16} /> Lavori</div>
                     {char.lavori_pendenti_count > 0 ? <span className="bg-amber-500 text-black text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">{char.lavori_pendenti_count}</span> : <span className="text-gray-600 text-xs">-</span>}
+                </button>
+                <button onClick={() => onNavigate('social')} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between shadow items-center hover:bg-gray-750 transition-colors">
+                    <div className="flex gap-2 text-pink-400 font-bold text-xs"><Sparkles size={16} /> Social</div>
+                    <span className="text-gray-600 text-xs">↗</span>
                 </button>
             </div>
 

@@ -82,6 +82,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
         { label: '----------------', icon: null, action: () => {} },
         // Aggiunto Wiki come elemento della lista, ma con proprietà 'link'
         { label: 'Wiki Pubblica', icon: <Globe size={18}/>, link: '/', active: false },
+        { label: 'Vai al Social', icon: <Sparkles size={18}/>, link: '/app?mode=player&tab=social', active: false },
         { label: 'Vai a Personaggi', icon: <Users size={18}/>, action: onSwitchToPlayer, active: false }
     ], [activeTool, toolsConfig, handleToolSelect, onSwitchToPlayer]);
 
@@ -215,6 +216,14 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
                                 >
                                     <BookOpen size={40} className="text-gray-600 group-hover:text-gray-300 transition-colors" />
                                     <span className="font-bold text-gray-500 group-hover:text-white uppercase tracking-wider text-xs text-center">Vai alla Wiki</span>
+                                </Link>
+
+                                <Link 
+                                    to="/app?mode=player&tab=social" 
+                                    className="bg-gray-800 border-2 border-dashed border-gray-700 p-6 rounded-2xl hover:bg-gray-750 hover:border-gray-500 transition-all flex flex-col items-center justify-center gap-4 aspect-square group"
+                                >
+                                    <Sparkles size={40} className="text-gray-600 group-hover:text-pink-300 transition-colors" />
+                                    <span className="font-bold text-gray-500 group-hover:text-white uppercase tracking-wider text-xs text-center">Vai al Social</span>
                                 </Link>
                             </div>
                         </div>

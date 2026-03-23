@@ -14,7 +14,7 @@ import packageInfo from '../../package.json';
 import { 
     Home, QrCode, Zap, TestTube2, Scroll, LogOut, Mail, Backpack, 
     Menu, X, UserCog, RefreshCw, Filter, DownloadCloud, ScrollText, 
-    ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users,
+    ArrowRightLeft, Gamepad2, Loader2, ExternalLink, Tag, Users, Sparkles,
     Pin, PinOff, Briefcase, ClipboardCheck, Globe, ChevronRight, Package,
     Key, HelpCircle // <-- [MODIFICA] Icona HelpCircle aggiunta
 } from 'lucide-react';
@@ -32,6 +32,7 @@ import TransazioniViewer from './TransazioniViewer.jsx';
 import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; 
 import PersonaggiTab from './PersonaggiTab.jsx';
+import SocialTab from './SocialTab.jsx';
 
 // --- [MODIFICA] Import Modale Password ---
 import PasswordChangeModal from './PasswordChangeModal.jsx';
@@ -55,6 +56,7 @@ const AVAILABLE_TABS = [
     { id: 'logs', label: 'Diario', icon: ScrollText, component: LogViewer },
     { id: 'transazioni', label: 'Transazioni', icon: ArrowRightLeft, component: TransazioniViewer },
     { id: 'personaggi', label: 'Personaggi', icon: Users, component: PersonaggiTab }, 
+    { id: 'social', label: 'Fame-stagram', icon: Sparkles, component: SocialTab },
 ];
 
 const DEFAULT_SHORTCUTS = ['inventario', 'abilita', 'messaggi', 'qr'];
@@ -72,6 +74,7 @@ const TAB_TO_WIKI_SLUG = {
     'logs': 'diario',
     'transazioni': 'transazioni',
     'personaggi': 'gestione-personaggio',
+    'social': 'social',
     'consumabili': 'consumabili',
     'home': 'gestione-personaggio',
     'game': 'navigazione-app',

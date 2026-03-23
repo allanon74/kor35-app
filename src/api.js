@@ -110,6 +110,48 @@ export const fetchPublic = async (endpoint, options = {}) => {
   }
 };
 
+// --- SOCIAL (Fame-stagram) ---
+export const socialGetPosts = (personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/posts/${qp}`, { method: 'GET' }, onLogout);
+};
+
+export const socialCreatePost = (formData, personaggioId, onLogout) => {
+  const endpoint = `/api/social/posts/${personaggioId ? `?personaggio_id=${personaggioId}` : ''}`;
+  return fetchAuthenticated(endpoint, { method: 'POST', body: formData }, onLogout);
+};
+
+export const socialToggleLike = (postId, personaggioId, onLogout) => {
+  const endpoint = `/api/social/posts/${postId}/like/${personaggioId ? `?personaggio_id=${personaggioId}` : ''}`;
+  return fetchAuthenticated(endpoint, { method: 'POST' }, onLogout);
+};
+
+export const socialGetComments = (postId, onLogout) => {
+  return fetchAuthenticated(`/api/social/posts/${postId}/comments/`, { method: 'GET' }, onLogout);
+};
+
+export const socialCreateComment = (postId, testo, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    `/api/social/posts/${postId}/comments/${personaggioId ? `?personaggio_id=${personaggioId}` : ''}`,
+    { method: 'POST', body: JSON.stringify({ testo }) },
+    onLogout
+  );
+};
+
+export const socialGetMyProfile = (personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/profile/me/${qp}`, { method: 'GET' }, onLogout);
+};
+
+export const socialUpdateMyProfile = (formData, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/profile/me/${qp}`, { method: 'PATCH', body: formData }, onLogout);
+};
+
+export const socialGetKorpList = (onLogout) => {
+  return fetchAuthenticated('/api/personaggi/api/korp/', { method: 'GET' }, onLogout);
+};
+
 // --- Funzioni API specifiche ---
 
 /**
