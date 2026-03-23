@@ -26,6 +26,7 @@ const SocialTab = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [expandedPostId, setExpandedPostId] = useState(null);
   const [commentsByPost, setCommentsByPost] = useState({});
+  const [commentsMetaByPost, setCommentsMetaByPost] = useState({});
   const [newCommentByPost, setNewCommentByPost] = useState({});
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -76,6 +77,16 @@ const SocialTab = ({ onLogout }) => {
   });
 
   const normalizePostsPayload = useCallback((payload) => {
+    if (Array.isArray(payload)) {
+      return { items: payload, hasNext: false };
+    }
+    return {
+      items: Array.isArray(payload?.results) ? payload.results : [],
+      hasNext: Boolean(payload?.next),
+    };
+  }, []);
+
+  const normalizeCommentsPayload = useCallback((payload) => {
     if (Array.isArray(payload)) {
       return { items: payload, hasNext: false };
     }
@@ -202,15 +213,53 @@ const SocialTab = ({ onLogout }) => {
     }
     setExpandedPostId(postId);
     if (!commentsByPost[postId]) {
-      const comments = await socialGetComments(postId, onLogout);
-      setCommentsByPost((prev) => ({ ...prev, [postId]: comments || [] }));
+      const payload = await socialGetComments(postId, onLogout, 1, 10);
+      const normalized = normalizeCommentsPayload(payload);
+      setCommentsByPost((prev) => ({ ...prev, [postId]: normalized.items }));
+      setCommentsMetaByPost((prev) => ({
+        ...prev,
+        [postId]: { page: 1, hasMore: normalized.hasNext, loadingMore: false },
+      }));
     }
   };
 
   const ensureCommentsLoaded = async (postId) => {
     if (!commentsByPost[postId]) {
-      const comments = await socialGetComments(postId, onLogout);
-      setCommentsByPost((prev) => ({ ...prev, [postId]: comments || [] }));
+      const payload = await socialGetComments(postId, onLogout, 1, 10);
+      const normalized = normalizeCommentsPayload(payload);
+      setCommentsByPost((prev) => ({ ...prev, [postId]: normalized.items }));
+      setCommentsMetaByPost((prev) => ({
+        ...prev,
+        [postId]: { page: 1, hasMore: normalized.hasNext, loadingMore: false },
+      }));
+    }
+  };
+
+  const loadMoreComments = async (postId) => {
+    const meta = commentsMetaByPost[postId];
+    if (!meta || meta.loadingMore || !meta.hasMore) return;
+    const nextPage = (meta.page || 1) + 1;
+    setCommentsMetaByPost((prev) => ({
+      ...prev,
+      [postId]: { ...meta, loadingMore: true },
+    }));
+    try {
+      const payload = await socialGetComments(postId, onLogout, nextPage, 10);
+      const normalized = normalizeCommentsPayload(payload);
+      setCommentsByPost((prev) => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), ...normalized.items],
+      }));
+      setCommentsMetaByPost((prev) => ({
+        ...prev,
+        [postId]: { page: nextPage, hasMore: normalized.hasNext, loadingMore: false },
+      }));
+    } catch (err) {
+      console.error('Errore caricamento commenti aggiuntivi', err);
+      setCommentsMetaByPost((prev) => ({
+        ...prev,
+        [postId]: { ...meta, loadingMore: false },
+      }));
     }
   };
 
@@ -218,8 +267,13 @@ const SocialTab = ({ onLogout }) => {
     const text = (newCommentByPost[postId] || '').trim();
     if (!text) return;
     await socialCreateComment(postId, text, selectedCharacterId, onLogout);
-    const comments = await socialGetComments(postId, onLogout);
-    setCommentsByPost((prev) => ({ ...prev, [postId]: comments || [] }));
+    const payload = await socialGetComments(postId, onLogout, 1, 10);
+    const normalized = normalizeCommentsPayload(payload);
+    setCommentsByPost((prev) => ({ ...prev, [postId]: normalized.items }));
+    setCommentsMetaByPost((prev) => ({
+      ...prev,
+      [postId]: { page: 1, hasMore: normalized.hasNext, loadingMore: false },
+    }));
     setNewCommentByPost((prev) => ({ ...prev, [postId]: '' }));
     setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: [] }));
     await loadAll();
@@ -685,9 +739,13 @@ const SocialTab = ({ onLogout }) => {
               >
                 {expandedPostId === post.id ? 'Nascondi commenti' : 'Mostra commenti'}
               </button>
-              {expandedPostId === post.id && (
+              {(() => {
+                const loadedComments = commentsByPost[post.id] || [];
+                const commentsToRender =
+                  expandedPostId === post.id ? loadedComments : loadedComments.slice(-2);
+                return (
               <div className="space-y-2">
-                {(commentsByPost[post.id] || []).map((c) => (
+                {commentsToRender.map((c) => (
                   <div key={c.id} className="text-sm bg-gray-800/70 rounded p-2">
                     <span className="font-semibold text-gray-200">{c.autore_nome}:</span>{' '}
                     <span className="text-gray-300">{renderTextWithMentions(c.testo, c.tags)}</span>
@@ -707,8 +765,19 @@ const SocialTab = ({ onLogout }) => {
                     )}
                   </div>
                 ))}
+                {expandedPostId === post.id && commentsMetaByPost[post.id]?.hasMore && (
+                  <button
+                    type="button"
+                    onClick={() => loadMoreComments(post.id)}
+                    disabled={commentsMetaByPost[post.id]?.loadingMore}
+                    className="text-xs text-indigo-300 hover:text-indigo-200 underline decoration-dotted disabled:opacity-60"
+                  >
+                    {commentsMetaByPost[post.id]?.loadingMore ? 'Caricamento...' : 'Carica altri commenti'}
+                  </button>
+                )}
               </div>
-              )}
+                );
+              })()}
             </div>
           </article>
         ))}

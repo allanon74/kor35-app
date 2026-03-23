@@ -129,8 +129,11 @@ export const socialToggleLike = (postId, personaggioId, onLogout) => {
   return fetchAuthenticated(endpoint, { method: 'POST' }, onLogout);
 };
 
-export const socialGetComments = (postId, onLogout) => {
-  return fetchAuthenticated(`/api/social/posts/${postId}/comments/`, { method: 'GET' }, onLogout);
+export const socialGetComments = (postId, onLogout, page = 1, pageSize = 10) => {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  return fetchAuthenticated(`/api/social/posts/${postId}/comments/?${params.toString()}`, { method: 'GET' }, onLogout);
 };
 
 export const socialCreateComment = (postId, testo, personaggioId, onLogout) => {
