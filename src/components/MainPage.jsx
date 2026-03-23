@@ -178,8 +178,11 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     const params = new URLSearchParams(location.search);
     if (params.get('tab') === activeTab) return;
     params.set('tab', activeTab);
+    const nextSearch = params.toString();
+    const currentSearch = (location.search || '').replace(/^\?/, '');
+    if (nextSearch === currentSearch) return;
     navigate(
-      { pathname: location.pathname, search: `?${params.toString()}` },
+      { pathname: location.pathname, search: `?${nextSearch}` },
       { replace: true }
     );
   }, [activeTab, location.pathname, location.search, navigate]);
@@ -209,12 +212,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     return () => clearInterval(interval);
   }, [isStaff, onLogout]);
 
-  // --- EFFETTO REINDIRIZZAMENTO ---
-  useEffect(() => {
-      if (!selectedCharacterId && activeTab !== 'personaggi') {
-          setActiveTab('personaggi');
-      }
-  }, [selectedCharacterId, activeTab]);
+  // Nota: non forziamo piu il tab "personaggi" quando manca selectedCharacterId.
+  // Il rendering dei tab gestisce gia il fallback "Nessun Personaggio Selezionato"
+  // evitando loop di navigazione URL/tab.
 
   // CARICAMENTO PREFERENZE UI DAL DB
   useEffect(() => {
