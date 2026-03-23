@@ -32,6 +32,7 @@ const SocialTab = ({ onLogout }) => {
   const [commentMentionSuggestions, setCommentMentionSuggestions] = useState({});
   const [editingPost, setEditingPost] = useState(null);
   const [feedFilter, setFeedFilter] = useState('ALL');
+  const [feedSort, setFeedSort] = useState('RECENT');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showComposer, setShowComposer] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
@@ -344,12 +345,24 @@ const SocialTab = ({ onLogout }) => {
   };
 
   const filteredPosts = useMemo(() => {
-    if (feedFilter === 'ALL') return posts;
-    if (feedFilter === 'PUB') return posts.filter((p) => p.visibilita === 'PUB');
-    if (feedFilter === 'KORP') return posts.filter((p) => p.visibilita === 'KORP');
-    if (feedFilter === 'MINE') return posts.filter((p) => Number(p.autore) === Number(selectedCharacterId));
-    return posts;
-  }, [posts, feedFilter, selectedCharacterId]);
+    let list = posts;
+    if (feedFilter === 'PUB') list = posts.filter((p) => p.visibilita === 'PUB');
+    if (feedFilter === 'KORP') list = posts.filter((p) => p.visibilita === 'KORP');
+    if (feedFilter === 'MINE') list = posts.filter((p) => Number(p.autore) === Number(selectedCharacterId));
+
+    const sorted = [...list];
+    if (feedSort === 'DISCUSSED') {
+      sorted.sort((a, b) => {
+        const bScore = Number(b.comments_count || 0) * 3 + Number(b.likes_count || 0);
+        const aScore = Number(a.comments_count || 0) * 3 + Number(a.likes_count || 0);
+        if (bScore !== aScore) return bScore - aScore;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      return sorted;
+    }
+    sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return sorted;
+  }, [posts, feedFilter, selectedCharacterId, feedSort]);
 
   const visiblePosts = useMemo(
     () => filteredPosts.slice(0, visibleCount),
@@ -385,7 +398,7 @@ const SocialTab = ({ onLogout }) => {
   return (
     <>
       <div className="p-4 md:p-6 space-y-6 bg-linear-to-b from-gray-900 to-[#20131f] min-h-full">
-      <section className="rounded-2xl border border-amber-400/30 bg-black/20 p-4 shadow-xl">
+      <section className="sticky top-2 z-20 rounded-2xl border border-amber-400/30 bg-black/60 backdrop-blur p-4 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
@@ -486,7 +499,7 @@ const SocialTab = ({ onLogout }) => {
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-pink-300 font-bold"><Sparkles size={18} /> Feed Sociale</div>
-          <div className="flex flex-wrap gap-2 text-xs">
+          <div className="flex flex-wrap gap-2 text-xs items-center">
             {[
               { id: 'ALL', label: 'Tutti' },
               { id: 'PUB', label: 'Pubblici' },
@@ -502,9 +515,34 @@ const SocialTab = ({ onLogout }) => {
                 {f.label}
               </button>
             ))}
+            <div className="w-px h-5 bg-gray-700 mx-1" />
+            <button
+              type="button"
+              onClick={() => setFeedSort('RECENT')}
+              className={`px-2 py-1 rounded border ${feedSort === 'RECENT' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+            >
+              Piu recenti
+            </button>
+            <button
+              type="button"
+              onClick={() => setFeedSort('DISCUSSED')}
+              className={`px-2 py-1 rounded border ${feedSort === 'DISCUSSED' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+            >
+              Piu discussi
+            </button>
           </div>
         </div>
-        {loading && <div className="text-gray-400">Caricamento feed...</div>}
+        {loading && (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, idx) => (
+              <div key={`sk-${idx}`} className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 animate-pulse space-y-3">
+                <div className="h-5 bg-gray-700 rounded w-1/3" />
+                <div className="h-4 bg-gray-800 rounded w-2/3" />
+                <div className="h-64 bg-gray-800 rounded" />
+              </div>
+            ))}
+          </div>
+        )}
         {!loading && filteredPosts.length === 0 && <div className="text-gray-400">Nessun post per questo filtro.</div>}
         {visiblePosts.map((post) => (
           <article key={post.id} className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
@@ -522,6 +560,11 @@ const SocialTab = ({ onLogout }) => {
                 {post.visibilita === 'KORP' ? 'Solo KORP' : 'Pubblico'}
               </span>
             </div>
+            {post.evento_titolo && (
+              <div className="inline-flex items-center text-[11px] px-2 py-1 rounded border border-amber-400/40 bg-amber-900/20 text-amber-200">
+                Evento: {post.evento_titolo}
+              </div>
+            )}
             {post.testo && <p className="text-gray-200">{renderTextWithMentions(post.testo, post.tags)}</p>}
             {post.tags?.length > 0 && (
               <div className="text-xs text-amber-300/90">
