@@ -2,10 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
+  socialAcceptGroupInvite,
   socialApproveGroupMember,
   socialCreateGroup,
   socialCreateGroupMessage,
   socialCreateGroupPost,
+  socialDeleteGroupMessage,
+  socialDeleteGroupPost,
   socialDeletePost,
   socialGetGroupMembers,
   searchPersonaggi,
@@ -22,12 +25,15 @@ import {
   socialGetNotifications,
   socialGetProfileByCharacter,
   socialGetPosts,
+  socialLeaveGroup,
   socialRejectGroupMember,
   socialRequestJoinGroup,
   socialSetGroupMemberRole,
   socialToggleLike,
+  socialUpdateGroupPost,
   socialUpdatePost,
   socialUpdateMyProfile,
+  socialDeclineGroupInvite,
 } from '../api';
 
 const SocialTab = ({ onLogout }) => {
@@ -60,6 +66,7 @@ const SocialTab = ({ onLogout }) => {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [groupPosts, setGroupPosts] = useState([]);
   const [groupMessages, setGroupMessages] = useState([]);
+  const [editingGroupPost, setEditingGroupPost] = useState(null);
   const [groupMembers, setGroupMembers] = useState([]);
   const [groupPostForm, setGroupPostForm] = useState({ titolo: '', testo: '', immagine: null, video: null });
   const [groupMessageText, setGroupMessageText] = useState('');
@@ -193,7 +200,7 @@ const SocialTab = ({ onLogout }) => {
       setGroupPosts(normalizeListPayload(postsPayload));
       setGroupMessages(normalizeListPayload(messagesPayload));
       const membersPayload = await socialGetGroupMembers(selectedGroupId, selectedCharacterId, onLogout);
-      setGroupMembers(Array.isArray(membersPayload) ? membersPayload : []);
+      setGroupMembers(normalizeListPayload(membersPayload));
     } catch (err) {
       console.error('Errore caricamento dettaglio gruppo', err);
     }
@@ -528,6 +535,62 @@ const SocialTab = ({ onLogout }) => {
     await loadGroupDetail();
   };
 
+  const startEditGroupPost = (post) => {
+    setEditingGroupPost({
+      id: post.id,
+      titolo: post.titolo || '',
+      testo: post.testo || '',
+      immagine: null,
+      video: null,
+    });
+  };
+
+  const handleEditGroupPostMediaChange = (file) => {
+    if (!file) {
+      setEditingGroupPost((p) => ({ ...p, immagine: null, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('image/')) {
+      setEditingGroupPost((p) => ({ ...p, immagine: file, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('video/')) {
+      setEditingGroupPost((p) => ({ ...p, video: file, immagine: null }));
+    }
+  };
+
+  const saveGroupPostEdit = async () => {
+    if (!selectedGroupId || !editingGroupPost) return;
+    const fd = new FormData();
+    fd.append('titolo', editingGroupPost.titolo || '');
+    fd.append('testo', editingGroupPost.testo || '');
+    if (editingGroupPost.immagine) {
+      fd.append('immagine', editingGroupPost.immagine);
+      fd.append('video', '');
+    }
+    if (editingGroupPost.video) {
+      fd.append('video', editingGroupPost.video);
+      fd.append('immagine', '');
+    }
+    await socialUpdateGroupPost(selectedGroupId, editingGroupPost.id, fd, selectedCharacterId, onLogout);
+    setEditingGroupPost(null);
+    await loadGroupDetail();
+  };
+
+  const removeGroupPost = async (postId) => {
+    if (!selectedGroupId) return;
+    if (!window.confirm('Eliminare questo post di gruppo?')) return;
+    await socialDeleteGroupPost(selectedGroupId, postId, selectedCharacterId, onLogout);
+    await loadGroupDetail();
+  };
+
+  const removeGroupMessage = async (messageId) => {
+    if (!selectedGroupId) return;
+    if (!window.confirm('Eliminare questo messaggio di gruppo?')) return;
+    await socialDeleteGroupMessage(selectedGroupId, messageId, selectedCharacterId, onLogout);
+    await loadGroupDetail();
+  };
+
   const handleCreateGroupMessage = async () => {
     if (!selectedGroupId || !groupMessageText.trim()) return;
     await socialCreateGroupMessage(selectedGroupId, groupMessageText.trim(), selectedCharacterId, onLogout);
@@ -582,6 +645,24 @@ const SocialTab = ({ onLogout }) => {
   const handleSetRole = async (personaggioId, role) => {
     if (!selectedGroupId) return;
     await socialSetGroupMemberRole(selectedGroupId, personaggioId, role, selectedCharacterId, onLogout);
+    await loadGroupDetail();
+  };
+
+  const handleAcceptInvite = async (groupId) => {
+    await socialAcceptGroupInvite(groupId, selectedCharacterId, onLogout);
+    await loadGroups();
+    await loadGroupDetail();
+  };
+
+  const handleDeclineInvite = async (groupId) => {
+    await socialDeclineGroupInvite(groupId, selectedCharacterId, onLogout);
+    await loadGroups();
+    await loadGroupDetail();
+  };
+
+  const handleLeaveGroup = async (groupId) => {
+    await socialLeaveGroup(groupId, selectedCharacterId, onLogout);
+    await loadGroups();
     await loadGroupDetail();
   };
 
@@ -1109,6 +1190,21 @@ const SocialTab = ({ onLogout }) => {
                         Richiedi ingresso
                       </button>
                     )}
+                    {selectedGroup.my_membership_status === 'INVITED' && (
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => handleAcceptInvite(selectedGroup.id)} className="bg-emerald-700 hover:bg-emerald-600 rounded px-3 py-2 text-xs font-bold">
+                          Accetta invito
+                        </button>
+                        <button type="button" onClick={() => handleDeclineInvite(selectedGroup.id)} className="bg-rose-700 hover:bg-rose-600 rounded px-3 py-2 text-xs font-bold">
+                          Rifiuta invito
+                        </button>
+                      </div>
+                    )}
+                    {selectedGroup.my_membership_status === 'ACTIVE' && (
+                      <button type="button" onClick={() => handleLeaveGroup(selectedGroup.id)} className="bg-gray-700 hover:bg-gray-600 rounded px-3 py-2 text-xs font-bold">
+                        Lascia gruppo
+                      </button>
+                    )}
                   </div>
                 </div>
                 {selectedGroup.my_membership_status === 'ACTIVE' ? (
@@ -1196,7 +1292,15 @@ const SocialTab = ({ onLogout }) => {
                       {groupPosts.map((p) => (
                         <div key={p.id} className="rounded border border-gray-700 bg-gray-800/70 p-2">
                           <div className="text-sm font-semibold">{p.titolo}</div>
-                          <div className="text-xs text-gray-400">{p.autore_nome} · {new Date(p.created_at).toLocaleString('it-IT')}</div>
+                          <div className="text-xs text-gray-400 flex items-center justify-between gap-2">
+                            <span>{p.autore_nome} · {new Date(p.created_at).toLocaleString('it-IT')}</span>
+                            {(isGroupAdminOrStaff || Number(p.autore) === Number(selectedCharacterId)) && (
+                              <span className="flex items-center gap-2">
+                                <button type="button" onClick={() => startEditGroupPost(p)} className="text-indigo-300 hover:text-indigo-200"><Pencil size={14} /></button>
+                                <button type="button" onClick={() => removeGroupPost(p.id)} className="text-red-300 hover:text-red-200"><Trash2 size={14} /></button>
+                              </span>
+                            )}
+                          </div>
                           {p.testo && <div className="text-sm text-gray-300 whitespace-pre-wrap mt-1">{p.testo}</div>}
                         </div>
                       ))}
@@ -1206,7 +1310,12 @@ const SocialTab = ({ onLogout }) => {
                       <div className="max-h-64 overflow-auto space-y-2 pr-1">
                         {groupMessages.map((m) => (
                           <div key={m.id} className="rounded border border-gray-700 bg-gray-800/70 p-2">
-                            <div className="text-xs text-gray-400">{m.autore_nome} · {new Date(m.created_at).toLocaleString('it-IT')}</div>
+                            <div className="text-xs text-gray-400 flex items-center justify-between gap-2">
+                              <span>{m.autore_nome} · {new Date(m.created_at).toLocaleString('it-IT')}</span>
+                              {(isGroupAdminOrStaff || Number(m.autore) === Number(selectedCharacterId)) && (
+                                <button type="button" onClick={() => removeGroupMessage(m.id)} className="text-red-300 hover:text-red-200"><Trash2 size={14} /></button>
+                              )}
+                            </div>
                             <div className="text-sm text-gray-200 whitespace-pre-wrap">{m.testo}</div>
                           </div>
                         ))}
@@ -1340,6 +1449,30 @@ const SocialTab = ({ onLogout }) => {
               </div>
             </div>
             <button onClick={saveEditedPost} className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">
+              Salva modifiche
+            </button>
+          </div>
+        </div>
+      )}
+      {editingGroupPost && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">Modifica post gruppo</h3>
+              <button onClick={() => setEditingGroupPost(null)} className="text-gray-400 hover:text-white">X</button>
+            </div>
+            <input
+              className="w-full bg-gray-800 rounded p-2 border border-gray-700"
+              value={editingGroupPost.titolo}
+              onChange={(e) => setEditingGroupPost((p) => ({ ...p, titolo: e.target.value }))}
+            />
+            <textarea
+              className="w-full bg-gray-800 rounded p-2 border border-gray-700 min-h-24"
+              value={editingGroupPost.testo}
+              onChange={(e) => setEditingGroupPost((p) => ({ ...p, testo: e.target.value }))}
+            />
+            <input type="file" accept="image/*,video/*" onChange={(e) => handleEditGroupPostMediaChange(e.target.files?.[0] || null)} />
+            <button onClick={saveGroupPostEdit} className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">
               Salva modifiche
             </button>
           </div>

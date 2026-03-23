@@ -216,6 +216,16 @@ export const socialCreateGroupPost = (groupId, formData, personaggioId, onLogout
   return fetchAuthenticated(`/api/social/groups/${groupId}/posts/${qp}`, { method: 'POST', body: formData }, onLogout);
 };
 
+export const socialUpdateGroupPost = (groupId, postId, formData, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/posts/${postId}/${qp}`, { method: 'PATCH', body: formData }, onLogout);
+};
+
+export const socialDeleteGroupPost = (groupId, postId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/posts/${postId}/${qp}`, { method: 'DELETE' }, onLogout);
+};
+
 export const socialGetGroupMessages = (groupId, personaggioId, onLogout, page = 1, pageSize = 20) => {
   const params = new URLSearchParams();
   if (personaggioId) params.set('personaggio_id', String(personaggioId));
@@ -231,6 +241,11 @@ export const socialCreateGroupMessage = (groupId, testo, personaggioId, onLogout
     { method: 'POST', body: JSON.stringify({ testo }) },
     onLogout
   );
+};
+
+export const socialDeleteGroupMessage = (groupId, messageId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/messages/${messageId}/${qp}`, { method: 'DELETE' }, onLogout);
 };
 
 export const socialGetGroupMembers = (groupId, personaggioId, onLogout) => {
@@ -272,6 +287,21 @@ export const socialSetGroupMemberRole = (groupId, personaggioTargetId, ruolo, pe
     { method: 'POST', body: JSON.stringify({ personaggio_target_id: personaggioTargetId, ruolo }) },
     onLogout
   );
+};
+
+export const socialAcceptGroupInvite = (groupId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/accept_invite/${qp}`, { method: 'POST' }, onLogout);
+};
+
+export const socialDeclineGroupInvite = (groupId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/decline_invite/${qp}`, { method: 'POST' }, onLogout);
+};
+
+export const socialLeaveGroup = (groupId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/groups/${groupId}/leave/${qp}`, { method: 'POST' }, onLogout);
 };
 
 // --- Funzioni API specifiche ---
