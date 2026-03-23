@@ -10,6 +10,7 @@ import PublicLayout from './layouts/PublicLayout';
 
 // Pages
 import WikiPage from './pages/WikiPage';
+import SocialPublicPostPage from './pages/SocialPublicPostPage';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('kor35_token'));
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/" element={<PublicLayout token={token} />}>
             <Route index element={<WikiPage slug="home" />} />
             <Route path="regolamento/:slug" element={<WikiPage />} />
+            <Route path="social/post/:slug" element={<SocialPublicPostPage />} />
             <Route 
               path="login" 
               element={

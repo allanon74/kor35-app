@@ -156,6 +156,10 @@ export const socialGetProfileByCharacter = (personaggioId, onLogout) => {
   return fetchAuthenticated(`/api/social/profiles/${personaggioId}/`, { method: 'GET' }, onLogout);
 };
 
+export const socialGetPublicPostBySlug = (slug) => {
+  return fetchPublic(`/api/social/public/posts/${slug}/`);
+};
+
 // --- Funzioni API specifiche ---
 
 /**
