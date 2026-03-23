@@ -30,6 +30,7 @@ const SocialTab = ({ onLogout }) => {
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [commentMentionSuggestions, setCommentMentionSuggestions] = useState({});
   const [editingPost, setEditingPost] = useState(null);
+  const [feedFilter, setFeedFilter] = useState('ALL');
 
   const [postForm, setPostForm] = useState({
     titolo: '',
@@ -258,6 +259,54 @@ const SocialTab = ({ onLogout }) => {
 
   const subtitle = useMemo(() => 'il social network numero 1 di tutta KOR!', []);
 
+  const renderTextWithMentions = (text, tags) => {
+    if (!text) return null;
+    const mapById = new Map((tags || []).map((t) => [String(t.personaggio_id), t.personaggio__nome || `#${t.personaggio_id}`]));
+    const parts = [];
+    const regex = /@([A-Za-z0-9_]+)/g;
+    let last = 0;
+    let m;
+    while ((m = regex.exec(text)) !== null) {
+      const start = m.index;
+      const end = regex.lastIndex;
+      const token = m[1];
+      if (start > last) parts.push({ type: 'text', value: text.slice(last, start) });
+      if (/^\d+$/.test(token) && mapById.has(token)) {
+        parts.push({ type: 'mention', id: Number(token), label: mapById.get(token), raw: m[0] });
+      } else {
+        parts.push({ type: 'text', value: m[0] });
+      }
+      last = end;
+    }
+    if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
+    return (
+      <span className="whitespace-pre-wrap">
+        {parts.map((p, idx) =>
+          p.type === 'mention' ? (
+            <button
+              key={`m-${idx}-${p.id}`}
+              type="button"
+              onClick={() => openProfile(p.id)}
+              className="underline decoration-dotted text-amber-300 hover:text-amber-100"
+            >
+              @{p.label}
+            </button>
+          ) : (
+            <React.Fragment key={`t-${idx}`}>{p.value}</React.Fragment>
+          )
+        )}
+      </span>
+    );
+  };
+
+  const filteredPosts = useMemo(() => {
+    if (feedFilter === 'ALL') return posts;
+    if (feedFilter === 'PUB') return posts.filter((p) => p.visibilita === 'PUB');
+    if (feedFilter === 'KORP') return posts.filter((p) => p.visibilita === 'KORP');
+    if (feedFilter === 'MINE') return posts.filter((p) => Number(p.autore) === Number(selectedCharacterId));
+    return posts;
+  }, [posts, feedFilter, selectedCharacterId]);
+
   if (!selectedCharacterId) {
     return <div className="p-6 text-gray-300">Seleziona un personaggio per usare Fame-stagram.</div>;
   }
@@ -346,10 +395,29 @@ const SocialTab = ({ onLogout }) => {
       </section>
 
       <section className="space-y-4">
-        <div className="flex items-center gap-2 text-pink-300 font-bold"><Sparkles size={18} /> Feed Sociale</div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-pink-300 font-bold"><Sparkles size={18} /> Feed Sociale</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {[
+              { id: 'ALL', label: 'Tutti' },
+              { id: 'PUB', label: 'Pubblici' },
+              { id: 'KORP', label: 'Solo KORP' },
+              { id: 'MINE', label: 'I miei' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFeedFilter(f.id)}
+                className={`px-2 py-1 rounded border ${feedFilter === f.id ? 'bg-indigo-600 border-indigo-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {loading && <div className="text-gray-400">Caricamento feed...</div>}
-        {!loading && posts.length === 0 && <div className="text-gray-400">Ancora nessun post.</div>}
-        {posts.map((post) => (
+        {!loading && filteredPosts.length === 0 && <div className="text-gray-400">Nessun post per questo filtro.</div>}
+        {filteredPosts.map((post) => (
           <article key={post.id} className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
             <div className="flex justify-between items-start gap-3">
               <div>
@@ -365,7 +433,7 @@ const SocialTab = ({ onLogout }) => {
                 {post.visibilita === 'KORP' ? 'Solo KORP' : 'Pubblico'}
               </span>
             </div>
-            {post.testo && <p className="text-gray-200 whitespace-pre-wrap">{post.testo}</p>}
+            {post.testo && <p className="text-gray-200">{renderTextWithMentions(post.testo, post.tags)}</p>}
             {post.tags?.length > 0 && (
               <div className="text-xs text-amber-300/90">
                 Tag:{' '}
@@ -426,7 +494,8 @@ const SocialTab = ({ onLogout }) => {
               <div className="pt-2 border-t border-gray-700 space-y-2">
                 {(commentsByPost[post.id] || []).map((c) => (
                   <div key={c.id} className="text-sm bg-gray-800/70 rounded p-2">
-                    <span className="font-semibold text-gray-200">{c.autore_nome}:</span> <span className="text-gray-300">{c.testo}</span>
+                    <span className="font-semibold text-gray-200">{c.autore_nome}:</span>{' '}
+                    <span className="text-gray-300">{renderTextWithMentions(c.testo, c.tags)}</span>
                     {c.tags?.length > 0 && (
                       <span className="text-xs text-amber-300/90 ml-2">
                         {c.tags.map((t) => (
