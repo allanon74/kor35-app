@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 // --- LOGICA PWA ---
 import { useRegisterSW } from 'virtual:pwa-register/react'; 
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import HomeTab from './HomeTab.jsx';
 import QrTab from './QrTab.jsx';
@@ -78,6 +78,8 @@ const TAB_TO_WIKI_SLUG = {
 };
 
 const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -152,6 +154,32 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   useEffect(() => {
     if (token) fetchPersonaggi();
   }, [token, fetchPersonaggi]);
+
+  const isValidTabId = useCallback((tabId) => {
+    if (!tabId) return false;
+    if (tabId === 'game' || tabId === 'home' || tabId === 'admin_msg') return true;
+    return AVAILABLE_TABS.some(t => t.id === tabId);
+  }, []);
+
+  // Legge il tab dalla URL (deep-link): /app?tab=personaggi
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlTab = params.get('tab');
+    if (isValidTabId(urlTab) && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [location.search, activeTab, isValidTabId]);
+
+  // Mantiene la URL sincronizzata col tab corrente.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab') === activeTab) return;
+    params.set('tab', activeTab);
+    navigate(
+      { pathname: location.pathname, search: `?${params.toString()}` },
+      { replace: true }
+    );
+  }, [activeTab, location.pathname, location.search, navigate]);
 
   // --- [MODIFICA] POLLING MESSAGGI STAFF (Solo per Staff) ---
   useEffect(() => {

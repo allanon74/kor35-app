@@ -37,9 +37,13 @@ const LoadingSpinner = () => (
     </div>
 );
 
-const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) => {
+const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onToolChange }) => {
     const [activeTool, setActiveTool] = useState(initialTool); 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    React.useEffect(() => {
+        setActiveTool(initialTool);
+    }, [initialTool]);
 
     // Configurazione dei Tools disponibili (Memoized)
     const toolsConfig = useMemo(() => [
@@ -62,8 +66,9 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
 
     const handleToolSelect = useCallback((id) => {
         setActiveTool(id);
+        if (onToolChange) onToolChange(id);
         setIsMenuOpen(false);
-    }, []);
+    }, [onToolChange]);
 
     // Configurazione unificata degli elementi della sidebar (Memoized)
     const sidebarItems = useMemo(() => [
@@ -161,7 +166,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home' }) =>
                         <div className="flex items-center gap-2">
                             {/* Tasto Home Rapido */}
                             {activeTool !== 'home' && (
-                                <button onClick={() => setActiveTool('home')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors" title="Dashboard">
+                                <button onClick={() => handleToolSelect('home')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors" title="Dashboard">
                                     <LayoutGrid size={20}/>
                                 </button>
                             )}
