@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Heart, MessageCircle, Pencil, PlusSquare, Send, Sparkles, Trash2, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
@@ -18,6 +18,7 @@ import {
 } from '../api';
 
 const SocialTab = ({ onLogout }) => {
+  const PAGE_SIZE = 10;
   const { selectedCharacterId, isAdmin } = useCharacter();
   const [posts, setPosts] = useState([]);
   const [korpList, setKorpList] = useState([]);
@@ -31,6 +32,10 @@ const SocialTab = ({ onLogout }) => {
   const [commentMentionSuggestions, setCommentMentionSuggestions] = useState({});
   const [editingPost, setEditingPost] = useState(null);
   const [feedFilter, setFeedFilter] = useState('ALL');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [showComposer, setShowComposer] = useState(false);
+  const [showMyProfileModal, setShowMyProfileModal] = useState(false);
+  const sentinelRef = useRef(null);
 
   const [postForm, setPostForm] = useState({
     titolo: '',
@@ -164,6 +169,13 @@ const SocialTab = ({ onLogout }) => {
       return;
     }
     setExpandedPostId(postId);
+    if (!commentsByPost[postId]) {
+      const comments = await socialGetComments(postId, onLogout);
+      setCommentsByPost((prev) => ({ ...prev, [postId]: comments || [] }));
+    }
+  };
+
+  const ensureCommentsLoaded = async (postId) => {
     if (!commentsByPost[postId]) {
       const comments = await socialGetComments(postId, onLogout);
       setCommentsByPost((prev) => ({ ...prev, [postId]: comments || [] }));
@@ -307,6 +319,33 @@ const SocialTab = ({ onLogout }) => {
     return posts;
   }, [posts, feedFilter, selectedCharacterId]);
 
+  const visiblePosts = useMemo(
+    () => filteredPosts.slice(0, visibleCount),
+    [filteredPosts, visibleCount]
+  );
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [feedFilter, posts]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        setVisibleCount((prev) => {
+          if (prev >= filteredPosts.length) return prev;
+          return Math.min(prev + PAGE_SIZE, filteredPosts.length);
+        });
+      },
+      { root: null, rootMargin: '300px 0px', threshold: 0.01 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [filteredPosts.length]);
+
   if (!selectedCharacterId) {
     return <div className="p-6 text-gray-300">Seleziona un personaggio per usare Fame-stagram.</div>;
   }
@@ -315,12 +354,41 @@ const SocialTab = ({ onLogout }) => {
     <>
       <div className="p-4 md:p-6 space-y-6 bg-linear-to-b from-gray-900 to-[#20131f] min-h-full">
       <section className="rounded-2xl border border-amber-400/30 bg-black/20 p-4 shadow-xl">
-        <h2 className="text-3xl font-black italic text-amber-300 tracking-wide">Fame-stagram</h2>
-        <p className="text-sm text-amber-100/80">{subtitle}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowMyProfileModal(true)}
+              className="h-12 w-12 rounded-full border border-amber-300/40 overflow-hidden bg-gray-800 hover:border-amber-200 transition"
+              title="Apri il mio profilo social"
+            >
+              {profile?.foto_principale ? (
+                <img src={profile.foto_principale} alt="Profilo" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-amber-200 font-bold">
+                  {(profile?.personaggio_nome || '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+            </button>
+            <div>
+              <h2 className="text-3xl font-black italic text-amber-300 tracking-wide">Fame-stagram</h2>
+              <p className="text-sm text-amber-100/80">{subtitle}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowComposer((s) => !s)}
+            className="inline-flex items-center gap-2 bg-indigo-700/90 hover:bg-indigo-600 rounded-lg px-3 py-2 text-sm font-bold"
+          >
+            <PlusSquare size={16} />
+            {showComposer ? 'Chiudi nuovo post' : 'Nuovo post'}
+          </button>
+        </div>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <form onSubmit={handleCreatePost} className="rounded-2xl border border-indigo-500/30 bg-gray-900/70 p-4 space-y-3">
+      {showComposer && (
+      <section className="grid grid-cols-1 gap-6">
+        <form onSubmit={handleCreatePost} className="rounded-2xl border border-indigo-500/30 bg-gray-900/70 p-4 space-y-3 max-w-4xl">
           <div className="flex items-center gap-2 text-indigo-300 font-bold"><PlusSquare size={18} /> Nuovo Post</div>
           <input
             className="w-full bg-gray-800 rounded p-2 border border-gray-700"
@@ -374,25 +442,8 @@ const SocialTab = ({ onLogout }) => {
           </div>
           <button className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">Pubblica</button>
         </form>
-
-        <form onSubmit={handleSaveProfile} className="rounded-2xl border border-amber-500/30 bg-gray-900/70 p-4 space-y-3">
-          <div className="flex items-center gap-2 text-amber-300 font-bold"><Users size={18} /> Profilo Social</div>
-          <div className="text-xs text-gray-400">
-            <div>Nome: <span className="text-gray-200">{profile?.personaggio_nome || '-'}</span></div>
-            <div>KORP: <span className="text-gray-200">{profile?.korp_nome || '-'}</span></div>
-            <div>Segno zodiacale: <span className="text-gray-200">{profile?.segno_zodiacale || '-'}</span></div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <input className="bg-gray-800 rounded p-2 border border-gray-700" placeholder="Regione" value={profileForm.regione} onChange={(e) => setProfileForm((p) => ({ ...p, regione: e.target.value }))} />
-            <input className="bg-gray-800 rounded p-2 border border-gray-700" placeholder="Prefettura" value={profileForm.prefettura} onChange={(e) => setProfileForm((p) => ({ ...p, prefettura: e.target.value }))} />
-          </div>
-          <input className="w-full bg-gray-800 rounded p-2 border border-gray-700" placeholder="Professioni" value={profileForm.professioni} onChange={(e) => setProfileForm((p) => ({ ...p, professioni: e.target.value }))} />
-          <input className="w-full bg-gray-800 rounded p-2 border border-gray-700" placeholder="Era di provenienza" value={profileForm.era_provenienza} onChange={(e) => setProfileForm((p) => ({ ...p, era_provenienza: e.target.value }))} />
-          <textarea className="w-full bg-gray-800 rounded p-2 border border-gray-700 min-h-20" placeholder="Descrizione" value={profileForm.descrizione} onChange={(e) => setProfileForm((p) => ({ ...p, descrizione: e.target.value }))} />
-          <input type="file" accept="image/*" onChange={(e) => setProfileForm((p) => ({ ...p, foto_principale: e.target.files?.[0] || null }))} />
-          <button className="w-full bg-amber-700 hover:bg-amber-600 rounded p-2 font-bold">Salva Profilo</button>
-        </form>
       </section>
+      )}
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -417,7 +468,7 @@ const SocialTab = ({ onLogout }) => {
         </div>
         {loading && <div className="text-gray-400">Caricamento feed...</div>}
         {!loading && filteredPosts.length === 0 && <div className="text-gray-400">Nessun post per questo filtro.</div>}
-        {filteredPosts.map((post) => (
+        {visiblePosts.map((post) => (
           <article key={post.id} className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
             <div className="flex justify-between items-start gap-3">
               <div>
@@ -490,8 +541,43 @@ const SocialTab = ({ onLogout }) => {
                 </>
               )}
             </div>
-            {expandedPostId === post.id && (
-              <div className="pt-2 border-t border-gray-700 space-y-2">
+            <div className="pt-2 border-t border-gray-700 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 bg-gray-800 rounded p-2 border border-gray-700 text-sm"
+                  placeholder="Scrivi un commento..."
+                  value={newCommentByPost[post.id] || ''}
+                  onFocus={() => ensureCommentsLoaded(post.id)}
+                  onChange={(e) => updateCommentWithMentions(post.id, e.target.value)}
+                />
+                <button onClick={() => submitComment(post.id)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 text-sm">Invia</button>
+              </div>
+              {(commentMentionSuggestions[post.id] || []).length > 0 && (
+                <div className="bg-gray-800 border border-gray-700 rounded p-2 text-sm">
+                  <div className="text-xs text-gray-400 mb-1">Suggerimenti tag commento:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(commentMentionSuggestions[post.id] || []).map((p) => (
+                      <button
+                        key={`cm-${post.id}-${p.id}`}
+                        type="button"
+                        onClick={() => insertMentionInComment(post.id, p)}
+                        className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                      >
+                        {p.nome} <span className="text-xs text-gray-400">@{p.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => toggleComments(post.id)}
+                className="text-xs text-sky-300 hover:text-sky-200 underline decoration-dotted"
+              >
+                {expandedPostId === post.id ? 'Nascondi commenti' : 'Mostra commenti'}
+              </button>
+              {expandedPostId === post.id && (
+              <div className="space-y-2">
                 {(commentsByPost[post.id] || []).map((c) => (
                   <div key={c.id} className="text-sm bg-gray-800/70 rounded p-2">
                     <span className="font-semibold text-gray-200">{c.autore_nome}:</span>{' '}
@@ -512,38 +598,44 @@ const SocialTab = ({ onLogout }) => {
                     )}
                   </div>
                 ))}
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 bg-gray-800 rounded p-2 border border-gray-700 text-sm"
-                    placeholder="Scrivi un commento..."
-                    value={newCommentByPost[post.id] || ''}
-                    onChange={(e) => updateCommentWithMentions(post.id, e.target.value)}
-                  />
-                  <button onClick={() => submitComment(post.id)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 text-sm">Invia</button>
-                </div>
-                {(commentMentionSuggestions[post.id] || []).length > 0 && (
-                  <div className="bg-gray-800 border border-gray-700 rounded p-2 text-sm">
-                    <div className="text-xs text-gray-400 mb-1">Suggerimenti tag commento:</div>
-                    <div className="flex flex-wrap gap-2">
-                      {(commentMentionSuggestions[post.id] || []).map((p) => (
-                        <button
-                          key={`cm-${post.id}-${p.id}`}
-                          type="button"
-                          onClick={() => insertMentionInComment(post.id, p)}
-                          className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
-                        >
-                          {p.nome} <span className="text-xs text-gray-400">@{p.id}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-            )}
+              )}
+            </div>
           </article>
         ))}
+        {!loading && filteredPosts.length > visiblePosts.length && (
+          <div ref={sentinelRef} className="py-5 text-center text-gray-400 text-sm">
+            Caricamento post precedenti...
+          </div>
+        )}
       </section>
       </div>
+      {showMyProfileModal && (
+      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold">Il mio profilo social</h3>
+            <button onClick={() => setShowMyProfileModal(false)} className="text-gray-400 hover:text-white">X</button>
+          </div>
+          <form onSubmit={handleSaveProfile} className="space-y-3">
+            <div className="text-xs text-gray-400">
+              <div>Nome: <span className="text-gray-200">{profile?.personaggio_nome || '-'}</span></div>
+              <div>KORP: <span className="text-gray-200">{profile?.korp_nome || '-'}</span></div>
+              <div>Segno zodiacale: <span className="text-gray-200">{profile?.segno_zodiacale || '-'}</span></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <input className="bg-gray-800 rounded p-2 border border-gray-700" placeholder="Regione" value={profileForm.regione} onChange={(e) => setProfileForm((p) => ({ ...p, regione: e.target.value }))} />
+              <input className="bg-gray-800 rounded p-2 border border-gray-700" placeholder="Prefettura" value={profileForm.prefettura} onChange={(e) => setProfileForm((p) => ({ ...p, prefettura: e.target.value }))} />
+            </div>
+            <input className="w-full bg-gray-800 rounded p-2 border border-gray-700" placeholder="Professioni" value={profileForm.professioni} onChange={(e) => setProfileForm((p) => ({ ...p, professioni: e.target.value }))} />
+            <input className="w-full bg-gray-800 rounded p-2 border border-gray-700" placeholder="Era di provenienza" value={profileForm.era_provenienza} onChange={(e) => setProfileForm((p) => ({ ...p, era_provenienza: e.target.value }))} />
+            <textarea className="w-full bg-gray-800 rounded p-2 border border-gray-700 min-h-20" placeholder="Descrizione" value={profileForm.descrizione} onChange={(e) => setProfileForm((p) => ({ ...p, descrizione: e.target.value }))} />
+            <input type="file" accept="image/*" onChange={(e) => setProfileForm((p) => ({ ...p, foto_principale: e.target.files?.[0] || null }))} />
+            <button className="w-full bg-amber-700 hover:bg-amber-600 rounded p-2 font-bold">Salva Profilo</button>
+          </form>
+        </div>
+      </div>
+      )}
       {selectedProfile && (
       <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
         <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
