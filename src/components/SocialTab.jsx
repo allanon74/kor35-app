@@ -47,6 +47,22 @@ const SocialTab = ({ onLogout }) => {
   });
   const [dmText, setDmText] = useState('');
 
+  const handlePostMediaChange = (file) => {
+    if (!file) {
+      setPostForm((p) => ({ ...p, immagine: null, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('image/')) {
+      setPostForm((p) => ({ ...p, immagine: file, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('video/')) {
+      setPostForm((p) => ({ ...p, video: file, immagine: null }));
+      return;
+    }
+    alert('Formato non supportato. Usa una immagine o un video.');
+  };
+
   const [profileForm, setProfileForm] = useState({
     regione: '',
     prefettura: '',
@@ -249,6 +265,22 @@ const SocialTab = ({ onLogout }) => {
     await loadAll();
   };
 
+  const handleEditMediaChange = (file) => {
+    if (!file) {
+      setEditingPost((p) => ({ ...p, immagine: null, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('image/')) {
+      setEditingPost((p) => ({ ...p, immagine: file, video: null }));
+      return;
+    }
+    if (String(file.type || '').startsWith('video/')) {
+      setEditingPost((p) => ({ ...p, video: file, immagine: null }));
+      return;
+    }
+    alert('Formato non supportato. Usa una immagine o un video.');
+  };
+
   const removePost = async (postId) => {
     if (!window.confirm('Eliminare definitivamente questo post?')) return;
     await socialDeletePost(postId, onLogout);
@@ -436,9 +468,15 @@ const SocialTab = ({ onLogout }) => {
               </select>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-            <input type="file" accept="image/*" onChange={(e) => setPostForm((p) => ({ ...p, immagine: e.target.files?.[0] || null, video: null }))} />
-            <input type="file" accept="video/*" onChange={(e) => setPostForm((p) => ({ ...p, video: e.target.files?.[0] || null, immagine: null }))} />
+          <div className="text-sm space-y-1">
+            <input
+              type="file"
+              accept="image/*,video/*"
+              onChange={(e) => handlePostMediaChange(e.target.files?.[0] || null)}
+            />
+            <div className="text-xs text-gray-400">
+              Carica una foto o un video (uno solo per post).
+            </div>
           </div>
           <button className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">Pubblica</button>
         </form>
@@ -500,8 +538,16 @@ const SocialTab = ({ onLogout }) => {
                 ))}
               </div>
             )}
-            {post.immagine && <img src={post.immagine} alt={post.titolo} className="max-h-96 rounded-lg w-full object-cover border border-gray-700" />}
-            {post.video && <video controls src={post.video} className="max-h-96 rounded-lg w-full border border-gray-700" />}
+            {post.immagine && (
+              <div className="w-full max-w-md mx-auto aspect-[4/5] rounded-lg overflow-hidden border border-gray-700 bg-black/40">
+                <img src={post.immagine} alt={post.titolo} className="h-full w-full object-cover" />
+              </div>
+            )}
+            {post.video && (
+              <div className="w-full max-w-md mx-auto aspect-[4/5] rounded-lg overflow-hidden border border-gray-700 bg-black">
+                <video controls src={post.video} className="h-full w-full object-cover" />
+              </div>
+            )}
             <div className="flex gap-3">
               <button onClick={() => handleToggleLike(post.id)} className="inline-flex items-center gap-1 text-sm text-rose-300 hover:text-rose-200">
                 <Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count || 0}
@@ -705,9 +751,15 @@ const SocialTab = ({ onLogout }) => {
                 </select>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-              <input type="file" accept="image/*" onChange={(e) => setEditingPost((p) => ({ ...p, immagine: e.target.files?.[0] || null, video: null }))} />
-              <input type="file" accept="video/*" onChange={(e) => setEditingPost((p) => ({ ...p, video: e.target.files?.[0] || null, immagine: null }))} />
+            <div className="text-sm space-y-1">
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => handleEditMediaChange(e.target.files?.[0] || null)}
+              />
+              <div className="text-xs text-gray-400">
+                Carica una foto o un video (uno solo per post).
+              </div>
             </div>
             <button onClick={saveEditedPost} className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">
               Salva modifiche
