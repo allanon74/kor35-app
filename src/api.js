@@ -111,9 +111,12 @@ export const fetchPublic = async (endpoint, options = {}) => {
 };
 
 // --- SOCIAL (Fame-stagram) ---
-export const socialGetPosts = (personaggioId, onLogout) => {
-  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
-  return fetchAuthenticated(`/api/social/posts/${qp}`, { method: 'GET' }, onLogout);
+export const socialGetPosts = (personaggioId, onLogout, page = 1, pageSize = 10) => {
+  const params = new URLSearchParams();
+  if (personaggioId) params.set('personaggio_id', String(personaggioId));
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  return fetchAuthenticated(`/api/social/posts/?${params.toString()}`, { method: 'GET' }, onLogout);
 };
 
 export const socialCreatePost = (formData, personaggioId, onLogout) => {

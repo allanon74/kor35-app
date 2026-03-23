@@ -33,7 +33,9 @@ const SocialTab = ({ onLogout }) => {
   const [editingPost, setEditingPost] = useState(null);
   const [feedFilter, setFeedFilter] = useState('ALL');
   const [feedSort, setFeedSort] = useState('RECENT');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [feedPage, setFeedPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const sentinelRef = useRef(null);
@@ -73,15 +75,28 @@ const SocialTab = ({ onLogout }) => {
     foto_principale: null,
   });
 
+  const normalizePostsPayload = useCallback((payload) => {
+    if (Array.isArray(payload)) {
+      return { items: payload, hasNext: false };
+    }
+    return {
+      items: Array.isArray(payload?.results) ? payload.results : [],
+      hasNext: Boolean(payload?.next),
+    };
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const [postsData, korpData, profileData] = await Promise.all([
-        socialGetPosts(selectedCharacterId, onLogout),
+        socialGetPosts(selectedCharacterId, onLogout, 1, PAGE_SIZE),
         socialGetKorpList(onLogout),
         socialGetMyProfile(selectedCharacterId, onLogout),
       ]);
-      setPosts(Array.isArray(postsData) ? postsData : []);
+      const normalized = normalizePostsPayload(postsData);
+      setPosts(normalized.items);
+      setFeedPage(1);
+      setHasMorePosts(normalized.hasNext);
       setKorpList(Array.isArray(korpData) ? korpData : []);
       setProfile(profileData || null);
       if (profileData) {
@@ -99,7 +114,7 @@ const SocialTab = ({ onLogout }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCharacterId, onLogout]);
+  }, [selectedCharacterId, onLogout, normalizePostsPayload]);
 
   useEffect(() => {
     if (selectedCharacterId) loadAll();
@@ -364,14 +379,22 @@ const SocialTab = ({ onLogout }) => {
     return sorted;
   }, [posts, feedFilter, selectedCharacterId, feedSort]);
 
-  const visiblePosts = useMemo(
-    () => filteredPosts.slice(0, visibleCount),
-    [filteredPosts, visibleCount]
-  );
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [feedFilter, posts]);
+  const loadNextPosts = useCallback(async () => {
+    if (loading || loadingMorePosts || !hasMorePosts) return;
+    const nextPage = feedPage + 1;
+    setLoadingMorePosts(true);
+    try {
+      const payload = await socialGetPosts(selectedCharacterId, onLogout, nextPage, PAGE_SIZE);
+      const normalized = normalizePostsPayload(payload);
+      setPosts((prev) => [...prev, ...normalized.items]);
+      setFeedPage(nextPage);
+      setHasMorePosts(normalized.hasNext);
+    } catch (err) {
+      console.error('Errore caricamento pagina successiva feed', err);
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  }, [loading, loadingMorePosts, hasMorePosts, feedPage, selectedCharacterId, onLogout, normalizePostsPayload]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -380,16 +403,13 @@ const SocialTab = ({ onLogout }) => {
       (entries) => {
         const first = entries[0];
         if (!first?.isIntersecting) return;
-        setVisibleCount((prev) => {
-          if (prev >= filteredPosts.length) return prev;
-          return Math.min(prev + PAGE_SIZE, filteredPosts.length);
-        });
+        loadNextPosts();
       },
       { root: null, rootMargin: '300px 0px', threshold: 0.01 }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [filteredPosts.length]);
+  }, [loadNextPosts]);
 
   if (!selectedCharacterId) {
     return <div className="p-6 text-gray-300">Seleziona un personaggio per usare Fame-stagram.</div>;
@@ -544,7 +564,7 @@ const SocialTab = ({ onLogout }) => {
           </div>
         )}
         {!loading && filteredPosts.length === 0 && <div className="text-gray-400">Nessun post per questo filtro.</div>}
-        {visiblePosts.map((post) => (
+        {filteredPosts.map((post) => (
           <article key={post.id} className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
             <div className="flex justify-between items-start gap-3">
               <div>
@@ -692,9 +712,9 @@ const SocialTab = ({ onLogout }) => {
             </div>
           </article>
         ))}
-        {!loading && filteredPosts.length > visiblePosts.length && (
+        {!loading && hasMorePosts && (
           <div ref={sentinelRef} className="py-5 text-center text-gray-400 text-sm">
-            Caricamento post precedenti...
+            {loadingMorePosts ? 'Caricamento post precedenti...' : 'Scorri per caricare altri post'}
           </div>
         )}
       </section>
