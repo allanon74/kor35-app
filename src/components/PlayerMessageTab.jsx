@@ -150,6 +150,22 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
                                         </div>
                                     )}
 
+                                    {/* Allegati transazionali */}
+                                    {(Number(msg.crediti_allegati || 0) > 0 || (msg.oggetti_allegati_snapshot || []).length > 0) && (
+                                        <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
+                                            {Number(msg.crediti_allegati || 0) > 0 && (
+                                                <span className="px-2 py-0.5 rounded-full bg-emerald-700/80 text-emerald-100 border border-emerald-500/30">
+                                                    +{Number(msg.crediti_allegati)} crediti
+                                                </span>
+                                            )}
+                                            {(msg.oggetti_allegati_snapshot || []).length > 0 && (
+                                                <span className="px-2 py-0.5 rounded-full bg-amber-700/80 text-amber-100 border border-amber-500/30">
+                                                    {(msg.oggetti_allegati_snapshot || []).length} oggetti allegati
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* Contenuto Rich Text con Logica "Leggi tutto" via CSS */}
                                     <div 
                                         className={`text-sm prose prose-invert max-w-none wrap-break-words relative transition-all duration-300 cursor-pointer ${!isExpanded ? 'max-h-24 overflow-hidden' : ''}`}
@@ -166,6 +182,19 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
                                     {!isExpanded && (
                                         <div className="text-xs text-center text-gray-400 mt-1 italic">
                                             Clicca per espandere
+                                        </div>
+                                    )}
+
+                                    {isExpanded && (msg.oggetti_allegati_snapshot || []).length > 0 && (
+                                        <div className="mt-2 p-2 rounded border border-gray-600/60 bg-black/20">
+                                            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Oggetti allegati</div>
+                                            <ul className="space-y-1">
+                                                {msg.oggetti_allegati_snapshot.map((item, idx) => (
+                                                    <li key={`${msg.id}-item-${item?.id || idx}`} className="text-xs text-gray-200">
+                                                        {item?.nome || `Oggetto ${item?.id || idx + 1}`}
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         </div>
                                     )}
                                 </div>
