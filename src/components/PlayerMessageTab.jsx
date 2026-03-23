@@ -19,6 +19,9 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
     const [replyToRecipient, setReplyToRecipient] = useState(null); // Per pre-compilare destinatario
     const [expandedMessages, setExpandedMessages] = useState({}); // Gestione espansione
     const messagesEndRef = useRef(null);
+    const transferableItems = (char?.oggetti || []).filter(
+        (item) => item && item.id && item.tipo_oggetto === 'FIS' && !item.is_equipaggiato
+    );
 
     // Scroll automatico in basso all'apertura
     useEffect(() => {
@@ -204,6 +207,8 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
                     fetchUserMessages(selectedCharacterId);
                 }}
                 onLogout={onLogout}
+                availableTransferItems={transferableItems}
+                currentCredits={char?.crediti || 0}
             />
         </div>
     );

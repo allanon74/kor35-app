@@ -4,7 +4,16 @@ import { searchPersonaggi, fetchAuthenticated } from '../api';
 import RichTextEditor from './RichTextEditor';
 import { Shield, User, X } from 'lucide-react';
 
-const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSent, onLogout, replyToRecipient }) => {
+const ComposeMessageModal = ({
+  isOpen,
+  onClose,
+  currentCharacterId,
+  onMessageSent,
+  onLogout,
+  replyToRecipient,
+  availableTransferItems = [],
+  currentCredits = 0,
+}) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
@@ -14,6 +23,9 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
   
   const [titolo, setTitolo] = useState('');
   const [testo, setTesto] = useState(''); // HTML content
+  const [includeTransfer, setIncludeTransfer] = useState(false);
+  const [creditiToSend, setCreditiToSend] = useState('');
+  const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(''); 
 
@@ -24,6 +36,9 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
         setResults([]);
         setTitolo('');
         setTesto('');
+        setIncludeTransfer(false);
+        setCreditiToSend('');
+        setSelectedItemIds([]);
         setError('');
         
         // Se c'è un destinatario pre-impostato (risposta)
@@ -83,6 +98,20 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
         return;
     }
 
+    const parsedCrediti = includeTransfer ? Math.max(0, Number(creditiToSend || 0)) : 0;
+    if (includeTransfer && !Number.isFinite(parsedCrediti)) {
+      setError("Importo crediti non valido.");
+      return;
+    }
+    if (parsedCrediti > Number(currentCredits || 0)) {
+      setError("Crediti insufficienti per questo invio.");
+      return;
+    }
+    if (isStaffMessage && (parsedCrediti > 0 || selectedItemIds.length > 0)) {
+      setError("Non puoi allegare crediti/oggetti nei messaggi allo staff.");
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -90,9 +119,12 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
         const payload = {
             // Se Staff Message è true, destinatario è NULL
             destinatario_id: isStaffMessage ? null : selectedRecipient.id,
+            mittente_personaggio_id: currentCharacterId ? Number(currentCharacterId) : null,
             titolo: titolo,
             testo: testo,
-            is_staff_message: isStaffMessage // Flag per il backend
+            is_staff_message: isStaffMessage, // Flag per il backend
+            crediti_da_inviare: parsedCrediti,
+            oggetti_ids: includeTransfer ? selectedItemIds : [],
         };
 
         await fetchAuthenticated('/api/personaggi/api/messaggi/send/', {
@@ -107,6 +139,12 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
     } finally {
         setLoading(false);
     }
+  };
+
+  const toggleItemSelection = (itemId) => {
+    setSelectedItemIds((prev) =>
+      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
+    );
   };
 
   return (
@@ -137,6 +175,9 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
                         if(e.target.checked) {
                             setSelectedRecipient(null);
                             setQuery('');
+                            setIncludeTransfer(false);
+                            setCreditiToSend('');
+                            setSelectedItemIds([]);
                         }
                     }}
                     disabled={replyToRecipient?.isStaff} // Disabilita se stiamo rispondendo allo staff
@@ -206,6 +247,72 @@ const ComposeMessageModal = ({ isOpen, onClose, currentCharacterId, onMessageSen
                 required
               />
             </div>
+
+            {!isStaffMessage && (
+              <div className="rounded border border-gray-700 bg-gray-900/40 p-3 space-y-3">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeTransfer}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setIncludeTransfer(enabled);
+                      if (!enabled) {
+                        setCreditiToSend('');
+                        setSelectedItemIds([]);
+                      }
+                    }}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  />
+                  Allega crediti e/o oggetti
+                </label>
+
+                {includeTransfer && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs uppercase tracking-wide text-gray-400 mb-1">
+                        Crediti (disponibili: {Number(currentCredits || 0)})
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={creditiToSend}
+                        onChange={(e) => setCreditiToSend(e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs uppercase tracking-wide text-gray-400 mb-1">
+                        Oggetti da inviare
+                      </label>
+                      <div className="max-h-32 overflow-y-auto border border-gray-700 rounded bg-gray-900">
+                        {availableTransferItems.length === 0 ? (
+                          <div className="p-2 text-xs text-gray-500">Nessun oggetto trasferibile.</div>
+                        ) : (
+                          availableTransferItems.map((item) => (
+                            <label
+                              key={item.id}
+                              className="flex items-center gap-2 p-2 border-b border-gray-800 last:border-b-0 cursor-pointer hover:bg-gray-800/60"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedItemIds.includes(item.id)}
+                                onChange={() => toggleItemSelection(item.id)}
+                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                              />
+                              <span className="text-sm text-gray-200">{item.nome || `Oggetto ${item.id}`}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Editor */}
             <div className="h-64 sm:h-80 text-black rounded overflow-hidden">
