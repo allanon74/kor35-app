@@ -152,6 +152,10 @@ export const socialGetKorpList = (onLogout) => {
   return fetchAuthenticated('/api/personaggi/api/korp/', { method: 'GET' }, onLogout);
 };
 
+export const socialGetProfileByCharacter = (personaggioId, onLogout) => {
+  return fetchAuthenticated(`/api/social/profiles/${personaggioId}/`, { method: 'GET' }, onLogout);
+};
+
 // --- Funzioni API specifiche ---
 
 /**

@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Heart, MessageCircle, PlusSquare, Sparkles, Users } from 'lucide-react';
+import { Copy, Heart, MessageCircle, PlusSquare, Send, Sparkles, Users } from 'lucide-react';
 import { useCharacter } from './CharacterContext';
 import {
+  searchPersonaggi,
+  sendPrivateMessage,
   socialCreateComment,
   socialCreatePost,
   socialGetComments,
   socialGetKorpList,
   socialGetMyProfile,
+  socialGetProfileByCharacter,
   socialGetPosts,
   socialToggleLike,
   socialUpdateMyProfile,
@@ -21,6 +24,8 @@ const SocialTab = ({ onLogout }) => {
   const [expandedPostId, setExpandedPostId] = useState(null);
   const [commentsByPost, setCommentsByPost] = useState({});
   const [newCommentByPost, setNewCommentByPost] = useState({});
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
 
   const [postForm, setPostForm] = useState({
     titolo: '',
@@ -30,6 +35,7 @@ const SocialTab = ({ onLogout }) => {
     immagine: null,
     video: null,
   });
+  const [dmText, setDmText] = useState('');
 
   const [profileForm, setProfileForm] = useState({
     regione: '',
@@ -96,6 +102,27 @@ const SocialTab = ({ onLogout }) => {
     await loadAll();
   };
 
+  const updatePostTextWithMentions = async (nextText) => {
+    setPostForm((p) => ({ ...p, testo: nextText }));
+    const match = nextText.match(/@([A-Za-z0-9_]{1,30})$/);
+    if (!match) {
+      setMentionSuggestions([]);
+      return;
+    }
+    const q = match[1];
+    if (!q) return;
+    const res = await searchPersonaggi(q, selectedCharacterId);
+    setMentionSuggestions(Array.isArray(res) ? res : []);
+  };
+
+  const insertMention = (personaggio) => {
+    setPostForm((p) => ({
+      ...p,
+      testo: `${p.testo.replace(/@([A-Za-z0-9_]{1,30})$/, '')}@${personaggio.id} `,
+    }));
+    setMentionSuggestions([]);
+  };
+
   const handleToggleLike = async (postId) => {
     await socialToggleLike(postId, selectedCharacterId, onLogout);
     await loadAll();
@@ -123,6 +150,26 @@ const SocialTab = ({ onLogout }) => {
     await loadAll();
   };
 
+  const openProfile = async (personaggioId) => {
+    const data = await socialGetProfileByCharacter(personaggioId, onLogout);
+    setSelectedProfile(data);
+    setDmText('');
+  };
+
+  const sendDmFromProfile = async () => {
+    if (!selectedProfile?.personaggio || !dmText.trim()) return;
+    await sendPrivateMessage(
+      {
+        destinatario_id: selectedProfile.personaggio,
+        titolo: 'Messaggio da Fame-stagram',
+        testo: dmText.trim(),
+      },
+      onLogout
+    );
+    setDmText('');
+    alert('Messaggio inviato.');
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     const fd = new FormData();
@@ -144,7 +191,8 @@ const SocialTab = ({ onLogout }) => {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-linear-to-b from-gray-900 to-[#20131f] min-h-full">
+    <>
+      <div className="p-4 md:p-6 space-y-6 bg-linear-to-b from-gray-900 to-[#20131f] min-h-full">
       <section className="rounded-2xl border border-amber-400/30 bg-black/20 p-4 shadow-xl">
         <h2 className="text-3xl font-black italic text-amber-300 tracking-wide">Fame-stagram</h2>
         <p className="text-sm text-amber-100/80">{subtitle}</p>
@@ -164,8 +212,20 @@ const SocialTab = ({ onLogout }) => {
             className="w-full bg-gray-800 rounded p-2 border border-gray-700 min-h-24"
             placeholder="Testo del post..."
             value={postForm.testo}
-            onChange={(e) => setPostForm((p) => ({ ...p, testo: e.target.value }))}
+            onChange={(e) => updatePostTextWithMentions(e.target.value)}
           />
+          {mentionSuggestions.length > 0 && (
+            <div className="bg-gray-800 border border-gray-700 rounded p-2 text-sm">
+              <div className="text-xs text-gray-400 mb-1">Suggerimenti tag (@):</div>
+              <div className="flex flex-wrap gap-2">
+                {mentionSuggestions.map((p) => (
+                  <button key={p.id} type="button" onClick={() => insertMention(p)} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">
+                    {p.nome} <span className="text-xs text-gray-400">@{p.id}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <select
               className="bg-gray-800 rounded p-2 border border-gray-700"
@@ -222,13 +282,23 @@ const SocialTab = ({ onLogout }) => {
             <div className="flex justify-between items-start gap-3">
               <div>
                 <h3 className="font-bold text-lg">{post.titolo}</h3>
-                <p className="text-xs text-gray-400">{post.autore_nome} · {new Date(post.created_at).toLocaleString('it-IT')}</p>
+                <p className="text-xs text-gray-400">
+                  <button type="button" onClick={() => openProfile(post.autore)} className="underline decoration-dotted hover:text-white">
+                    {post.autore_nome}
+                  </button>{' '}
+                  · {new Date(post.created_at).toLocaleString('it-IT')}
+                </p>
               </div>
               <span className="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-600">
                 {post.visibilita === 'KORP' ? 'Solo KORP' : 'Pubblico'}
               </span>
             </div>
             {post.testo && <p className="text-gray-200 whitespace-pre-wrap">{post.testo}</p>}
+            {post.tags?.length > 0 && (
+              <div className="text-xs text-amber-300/90">
+                Tag: {post.tags.map((t) => `@${t.personaggio_id}`).join(' ')}
+              </div>
+            )}
             {post.immagine && <img src={post.immagine} alt={post.titolo} className="max-h-96 rounded-lg w-full object-cover border border-gray-700" />}
             {post.video && <video controls src={post.video} className="max-h-96 rounded-lg w-full border border-gray-700" />}
             <div className="flex gap-3">
@@ -238,12 +308,30 @@ const SocialTab = ({ onLogout }) => {
               <button onClick={() => toggleComments(post.id)} className="inline-flex items-center gap-1 text-sm text-sky-300 hover:text-sky-200">
                 <MessageCircle size={16} /> {post.comments_count || 0}
               </button>
+              {post.public_url && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(post.public_url);
+                    alert('Link pubblico copiato.');
+                  }}
+                  className="inline-flex items-center gap-1 text-sm text-amber-300 hover:text-amber-200"
+                  title={post.public_url}
+                >
+                  <Copy size={16} /> Link
+                </button>
+              )}
             </div>
             {expandedPostId === post.id && (
               <div className="pt-2 border-t border-gray-700 space-y-2">
                 {(commentsByPost[post.id] || []).map((c) => (
                   <div key={c.id} className="text-sm bg-gray-800/70 rounded p-2">
                     <span className="font-semibold text-gray-200">{c.autore_nome}:</span> <span className="text-gray-300">{c.testo}</span>
+                    {c.tags?.length > 0 && (
+                      <span className="text-xs text-amber-300/90 ml-2">
+                        {c.tags.map((t) => `@${t.personaggio_id}`).join(' ')}
+                      </span>
+                    )}
                   </div>
                 ))}
                 <div className="flex gap-2">
@@ -260,7 +348,40 @@ const SocialTab = ({ onLogout }) => {
           </article>
         ))}
       </section>
-    </div>
+      </div>
+      {selectedProfile && (
+      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold">Profilo social: {selectedProfile.personaggio_nome}</h3>
+            <button onClick={() => setSelectedProfile(null)} className="text-gray-400 hover:text-white">X</button>
+          </div>
+          <div className="text-sm text-gray-300 space-y-1">
+            <div>KORP: <span className="text-white">{selectedProfile.korp_nome || '-'}</span></div>
+            <div>Segno: <span className="text-white">{selectedProfile.segno_zodiacale || '-'}</span></div>
+            <div>Regione: <span className="text-white">{selectedProfile.regione || '-'}</span></div>
+            <div>Prefettura: <span className="text-white">{selectedProfile.prefettura || '-'}</span></div>
+            <div>Professioni: <span className="text-white">{selectedProfile.professioni || '-'}</span></div>
+            <div>Era: <span className="text-white">{selectedProfile.era_provenienza || '-'}</span></div>
+            <div>Descrizione: <span className="text-white">{selectedProfile.descrizione || '-'}</span></div>
+          </div>
+          {selectedProfile.personaggio !== Number(selectedCharacterId) && (
+            <div className="space-y-2 pt-2 border-t border-gray-700">
+              <textarea
+                className="w-full bg-gray-800 rounded p-2 border border-gray-700 min-h-20"
+                placeholder="Scrivi un messaggio privato..."
+                value={dmText}
+                onChange={(e) => setDmText(e.target.value)}
+              />
+              <button onClick={sendDmFromProfile} className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm">
+                <Send size={14} /> Invia messaggio privato
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      )}
+    </>
   );
 };
 
