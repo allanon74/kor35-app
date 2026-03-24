@@ -1313,7 +1313,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       {socialViewMode === 'GROUPS' && (
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="space-y-3">
-            <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-3 space-y-2">
+            <div className="rounded-2xl border border-amber-500/25 bg-gray-900/85 p-3 space-y-2 shadow-[0_8px_28px_rgba(0,0,0,0.26)]">
               <div className="text-sm font-bold text-amber-200">Crea gruppo</div>
               <form onSubmit={handleCreateGroup} className="space-y-2">
                 <input
@@ -1347,10 +1347,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                     Gruppo invisibile (staff/admin)
                   </label>
                 )}
-                <button className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 text-sm font-bold">Crea</button>
+                <button className="w-full bg-linear-to-r from-indigo-700 to-fuchsia-700 hover:from-indigo-600 hover:to-fuchsia-600 rounded p-2 text-sm font-bold">Crea</button>
               </form>
             </div>
-            <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-3 space-y-2">
+            <div className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-3 space-y-2 shadow-[0_8px_28px_rgba(0,0,0,0.24)]">
               <div className="text-sm font-bold text-pink-200">Gruppi disponibili</div>
               {groups.length === 0 && <div className="text-xs text-gray-400">Nessun gruppo trovato.</div>}
               {groups.map((g) => (
@@ -1358,7 +1358,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                   key={g.id}
                   type="button"
                   onClick={() => setSelectedGroupId(g.id)}
-                  className={`w-full text-left rounded p-2 border text-sm ${Number(selectedGroupId) === Number(g.id) ? 'bg-indigo-800/60 border-indigo-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+                  className={`w-full text-left rounded p-2 border text-sm ${Number(selectedGroupId) === Number(g.id) ? 'bg-fuchsia-900/50 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
                 >
                   <div className="font-semibold">{g.nome}</div>
                   <div className="text-[11px] text-gray-400">Membri: {g.members_count || 0} · Stato: {g.my_membership_status || 'none'}</div>
@@ -1370,17 +1370,17 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
             {!selectedGroup && <div className="text-gray-400">Seleziona un gruppo.</div>}
             {selectedGroup && (
               <>
-                <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4">
+                <div className="rounded-2xl border border-amber-500/25 bg-gray-900/85 p-4 shadow-[0_8px_28px_rgba(0,0,0,0.24)]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-bold">{selectedGroup.nome}</h3>
+                      <h3 className="text-lg font-bold text-amber-100">{selectedGroup.nome}</h3>
                       <p className="text-sm text-gray-300 whitespace-pre-wrap">{selectedGroup.descrizione || 'Nessuna descrizione.'}</p>
                     </div>
                     {!['ACTIVE', 'INVITED', 'REQUESTED'].includes(String(selectedGroup.my_membership_status || '')) && (
                       <button
                         type="button"
                         onClick={() => handleRequestJoinGroup(selectedGroup.id)}
-                        className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-xs font-bold"
+                        className="bg-linear-to-r from-indigo-700 to-fuchsia-700 hover:from-indigo-600 hover:to-fuchsia-600 rounded px-3 py-2 text-xs font-bold"
                       >
                         Richiedi ingresso
                       </button>
@@ -1405,7 +1405,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 {selectedGroup.my_membership_status === 'ACTIVE' ? (
                   <>
                     {isGroupAdminOrStaff && (
-                      <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
+                      <div className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-4 space-y-3 shadow-[0_8px_28px_rgba(0,0,0,0.22)]">
                         <div className="text-sm font-bold text-fuchsia-200">Gestione membri</div>
                         <div className="space-y-2">
                           <div className="text-xs text-gray-400">Invita personaggio</div>
@@ -1461,7 +1461,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                         </div>
                       </div>
                     )}
-                    <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
+                      <div className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-4 space-y-3 shadow-[0_8px_28px_rgba(0,0,0,0.22)]">
                       <div className="text-sm font-bold text-indigo-200">Nuovo post nel gruppo</div>
                       <form onSubmit={handleCreateGroupPost} className="space-y-2">
                         <input
@@ -1478,10 +1478,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                           onChange={(e) => setGroupPostForm((p) => ({ ...p, testo: e.target.value }))}
                         />
                         <input type="file" accept="image/*,video/*" onChange={(e) => handleGroupPostMediaChange(e.target.files?.[0] || null)} />
-                        <button className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm font-bold">Pubblica nel gruppo</button>
+                        <button className="bg-linear-to-r from-indigo-700 to-fuchsia-700 hover:from-indigo-600 hover:to-fuchsia-600 rounded px-3 py-2 text-sm font-bold">Pubblica nel gruppo</button>
                       </form>
                     </div>
-                    <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-2">
+                    <div className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-4 space-y-2 shadow-[0_8px_28px_rgba(0,0,0,0.22)]">
                       <div className="text-sm font-bold text-pink-200">Post del gruppo</div>
                       {groupPosts.length === 0 && <div className="text-xs text-gray-400">Nessun post nel gruppo.</div>}
                       {groupPosts.map((p) => (
@@ -1500,7 +1500,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                         </div>
                       ))}
                     </div>
-                    <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-2">
+                    <div className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-4 space-y-2 shadow-[0_8px_28px_rgba(0,0,0,0.22)]">
                       <div className="text-sm font-bold text-amber-200">Chat gruppo</div>
                       <div className="max-h-64 overflow-auto space-y-2 pr-1">
                         {groupMessages.map((m) => (
@@ -1523,12 +1523,12 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                           value={groupMessageText}
                           onChange={(e) => setGroupMessageText(e.target.value)}
                         />
-                        <button onClick={handleCreateGroupMessage} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 text-sm">Invia</button>
+                        <button onClick={handleCreateGroupMessage} className="bg-linear-to-r from-indigo-700 to-fuchsia-700 hover:from-indigo-600 hover:to-fuchsia-600 rounded px-3 text-sm">Invia</button>
                       </div>
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 text-sm text-gray-300">
+                  <div className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-4 text-sm text-gray-300">
                     Per vedere post e chat devi essere membro attivo del gruppo.
                   </div>
                 )}
