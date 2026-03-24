@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { X, Loader2 } from 'lucide-react';
 import { acquireAbilita } from '../api';
 
 const PREFIX_ARCH = 'archetipo - ';
@@ -55,6 +55,25 @@ function idsTrattiInnatiSlot(abilitaPossedute, slot) {
     .map((ab) => ab.id);
 }
 
+/**
+ * Un solo record per nome visualizzato (evita doppi "Umano" da duplicati in DB o livelli diversi).
+ */
+function dedupeArchetipiPerNomeVisualizzato(list, selectedId) {
+  const byKey = new Map();
+  const score = (t) => {
+    let s = 0;
+    if (selectedId && t.id === selectedId) s += 100;
+    if (t.livello_riferimento === 0) s += 10;
+    return s;
+  };
+  for (const t of list) {
+    const key = stripRazzaPrefix(t.nome).toLowerCase().trim() || String(t.id);
+    const cur = byKey.get(key);
+    if (!cur || score(t) > score(cur)) byKey.set(key, t);
+  }
+  return Array.from(byKey.values());
+}
+
 export function useRazzaDisplay(abilitaPossedute) {
   return useMemo(() => {
     const arch = (abilitaPossedute || []).find(
@@ -67,7 +86,32 @@ export function useRazzaDisplay(abilitaPossedute) {
   }, [abilitaPossedute]);
 }
 
-export function RazzaCollapsible({
+/** Riga nome + descrizione HTML (stessa resa per archetipo e forma) */
+function TraitOptionRow({ nomeDisplay, descrizione, selected, accent }) {
+  const borderSelected =
+    accent === 'forma' ? 'border-cyan-600/50 bg-cyan-950/20' : 'border-amber-600/50 bg-amber-950/20';
+  const textSelected = accent === 'forma' ? 'text-cyan-100' : 'text-amber-100';
+
+  return (
+    <div
+      className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-left text-sm px-3 py-2 rounded-md border ${
+        selected ? `${borderSelected} ${textSelected}` : 'border-gray-600 bg-gray-900 text-gray-200'
+      }`}
+    >
+      <span className="font-medium shrink-0">{nomeDisplay}</span>
+      {descrizione ? (
+        <span
+          className="text-gray-400 text-sm prose prose-invert prose-sm max-w-none leading-snug [&_p]:inline [&_p]:my-0 [&_ul]:inline [&_ol]:inline"
+          dangerouslySetInnerHTML={{ __html: descrizione }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function RazzaModal({
+  isOpen,
+  onClose,
   personaggioId,
   abilitaPossedute,
   punteggiBase,
@@ -76,9 +120,24 @@ export function RazzaCollapsible({
   onLogout,
   onUpdated,
 }) {
-  const [open, setOpen] = useState(false);
   const [loadingId, setLoadingId] = useState(null);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setError(null);
+      setLoadingId(null);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !loadingId) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, loadingId, onClose]);
 
   const ainVal = useMemo(() => {
     if (!auraInnataRecord?.nome || !punteggiBase) return 0;
@@ -87,7 +146,7 @@ export function RazzaCollapsible({
 
   const tratti = auraInnataRecord?.tratti_disponibili || [];
 
-  const archetipi = useMemo(() => {
+  const archetipiAll = useMemo(() => {
     const list = tratti.filter((t) => t.livello_riferimento === 0 || t.livello_riferimento === 1);
     return [...list].sort((a, b) => {
       const la = a.livello_riferimento ?? 0;
@@ -96,7 +155,8 @@ export function RazzaCollapsible({
       return String(a.nome || '').localeCompare(String(b.nome || ''), 'it');
     });
   }, [tratti]);
-  const forme = useMemo(() => tratti.filter((t) => t.livello_riferimento === 2), [tratti]);
+
+  const formeAll = useMemo(() => tratti.filter((t) => t.livello_riferimento === 2), [tratti]);
 
   const excludeArchIds = useMemo(() => idsTrattiInnatiSlot(abilitaPossedute, 'archetipo'), [abilitaPossedute]);
   const excludeFormIds = useMemo(() => idsTrattiInnatiSlot(abilitaPossedute, 'forma'), [abilitaPossedute]);
@@ -151,6 +211,26 @@ export function RazzaCollapsible({
     [ainVal, scoresForm]
   );
 
+  const archetipiVisibili = useMemo(() => {
+    const deduped = dedupeArchetipiPerNomeVisualizzato(archetipiAll, archetipoSelezionato?.id);
+    const selId = archetipoSelezionato?.id;
+    return deduped
+      .filter((t) => (selId && t.id === selId) || archetipoAbilitato(t))
+      .sort((a, b) => {
+        const la = a.livello_riferimento ?? 0;
+        const lb = b.livello_riferimento ?? 0;
+        if (la !== lb) return la - lb;
+        return String(a.nome || '').localeCompare(String(b.nome || ''), 'it');
+      });
+  }, [archetipiAll, archetipoSelezionato?.id, archetipoAbilitato]);
+
+  const formeVisibili = useMemo(() => {
+    const selId = formaSelezionata?.id;
+    return formeAll
+      .filter((t) => (selId && t.id === selId) || formaAbilitata(t))
+      .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'it'));
+  }, [formeAll, formaSelezionata?.id, formaAbilitata]);
+
   const handlePick = async (trait) => {
     setError(null);
     setLoadingId(trait.id);
@@ -164,109 +244,134 @@ export function RazzaCollapsible({
     }
   };
 
-  if (!auraInnataRecord) return null;
+  if (!isOpen || !auraInnataRecord) return null;
 
   return (
-    <details
-      className="mt-4 mb-6 bg-gray-800/80 rounded-lg border border-gray-700 shadow-inner group"
-      open={open}
-      onToggle={(e) => setOpen(e.target.open)}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="razza-modal-title"
+      onClick={(e) => e.target === e.currentTarget && !loadingId && onClose()}
     >
-      <summary className="list-none flex items-center justify-between gap-2 p-3 cursor-pointer select-none text-lg font-semibold text-gray-200 hover:bg-gray-750 rounded-lg [&::-webkit-details-marker]:hidden">
-        <span>Razza</span>
-        <ChevronDown
-          size={22}
-          className={`text-gray-400 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`}
-        />
-      </summary>
-
-      <div className="px-3 pb-4 pt-1 border-t border-gray-700 space-y-4">
-        {error && (
-          <div className="text-sm text-red-300 bg-red-950/40 border border-red-800/60 rounded-md p-2">{error}</div>
-        )}
-
-        <div>
-          <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">Archetipo</p>
-          <p className="text-sm text-gray-300 mb-2">
-            Attuale:{' '}
-            <span className="text-amber-200 font-medium">
-              {archetipoSelezionato ? stripRazzaPrefix(archetipoSelezionato.nome) : 'Umano'}
-            </span>
-          </p>
-          <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
-            {archetipi.length === 0 && (
-              <p className="text-xs text-gray-500">Nessun archetipo configurato sull&apos;aura innata.</p>
-            )}
-            {archetipi.map((trait) => {
-              const ok = archetipoAbilitato(trait);
-              const sel = archetipoSelezionato?.id === trait.id;
-              const implicitUmano = !archetipoSelezionato && trait.livello_riferimento === 0;
-              return (
-                <button
-                  key={trait.id}
-                  type="button"
-                  disabled={!ok || sel || implicitUmano || loadingId}
-                  onClick={() => handlePick(trait)}
-                  className={`text-left text-sm px-3 py-2 rounded-md border transition-colors ${
-                    sel || implicitUmano
-                      ? 'border-amber-600/50 bg-amber-950/20 text-amber-100'
-                      : ok
-                        ? 'border-gray-600 bg-gray-900 hover:border-gray-500 text-gray-200'
-                        : 'border-gray-800 bg-gray-900/50 text-gray-600 cursor-not-allowed'
-                  }`}
-                >
-                  <span className="font-medium">{stripRazzaPrefix(trait.nome)}</span>
-                  {loadingId === trait.id && <Loader2 className="inline ml-2 w-4 h-4 animate-spin align-middle" />}
-                  {!ok && (
-                    <span className="block text-[10px] text-gray-500 mt-0.5">Requisiti non soddisfatti</span>
-                  )}
-                </button>
-              );
-            })}
+      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 rounded-t-xl shrink-0">
+          <div>
+            <h3 id="razza-modal-title" className="text-xl font-bold text-amber-400">
+              Razza
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Archetipo:{' '}
+              <span className="text-amber-200/90">
+                {archetipoSelezionato ? stripRazzaPrefix(archetipoSelezionato.nome) : 'Umano'}
+              </span>
+              {ainVal >= 2 && (
+                <>
+                  {' · '}
+                  Forma:{' '}
+                  <span className="text-cyan-200/90">
+                    {formaSelezionata ? stripRazzaPrefix(formaSelezionata.nome) : 'Nessuna'}
+                  </span>
+                </>
+              )}
+            </p>
           </div>
+          <button
+            type="button"
+            disabled={!!loadingId}
+            onClick={onClose}
+            className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white disabled:opacity-50"
+            aria-label="Chiudi"
+          >
+            <X size={24} />
+          </button>
         </div>
 
-        {ainVal >= 2 && forme.length > 0 && (
+        <div className="p-4 overflow-y-auto space-y-6 flex-1">
+          {error && (
+            <div className="text-sm text-red-300 bg-red-900/50 border border-red-500/50 rounded-md p-2">{error}</div>
+          )}
+
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">Forma</p>
-            <p className="text-sm text-gray-300 mb-2">
-              Attuale:{' '}
-              <span className="text-cyan-200 font-medium">
-                {formaSelezionata ? stripRazzaPrefix(formaSelezionata.nome) : 'Nessuna'}
-              </span>
-            </p>
-            <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
-              {forme.map((trait) => {
-                const ok = formaAbilitata(trait);
-                const sel = formaSelezionata?.id === trait.id;
-                return (
-                  <button
-                    key={trait.id}
-                    type="button"
-                    disabled={!ok || sel || loadingId}
-                    onClick={() => handlePick(trait)}
-                    className={`text-left text-sm px-3 py-2 rounded-md border transition-colors ${
-                      sel
-                        ? 'border-cyan-600/50 bg-cyan-950/20 text-cyan-100'
-                        : ok
-                          ? 'border-gray-600 bg-gray-900 hover:border-gray-500 text-gray-200'
-                          : 'border-gray-800 bg-gray-900/50 text-gray-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <span className="font-medium">{stripRazzaPrefix(trait.nome)}</span>
-                    {loadingId === trait.id && <Loader2 className="inline ml-2 w-4 h-4 animate-spin align-middle" />}
-                    {!ok && (
-                      <span className="block text-[10px] text-gray-500 mt-0.5">Requisiti non soddisfatti</span>
-                    )}
-                  </button>
-                );
-              })}
+            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Archetipo</p>
+            <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto pr-1">
+              {archetipiVisibili.length === 0 ? (
+                <p className="text-xs text-slate-500">Nessun archetipo disponibile con i tuoi requisiti.</p>
+              ) : (
+                archetipiVisibili.map((trait) => {
+                  const sel = archetipoSelezionato?.id === trait.id;
+                  const implicitUmano = !archetipoSelezionato && trait.livello_riferimento === 0;
+                  const disabled = sel || implicitUmano || loadingId;
+                  return (
+                    <button
+                      key={trait.id}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => !disabled && handlePick(trait)}
+                      className={`text-left rounded-md transition-colors w-full ${
+                        disabled ? 'cursor-default opacity-95' : 'hover:brightness-110 cursor-pointer'
+                      }`}
+                    >
+                      <div className="relative">
+                        <TraitOptionRow
+                          nomeDisplay={stripRazzaPrefix(trait.nome)}
+                          descrizione={trait.descrizione}
+                          selected={sel || implicitUmano}
+                          accent="archetipo"
+                        />
+                        {loadingId === trait.id && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-amber-400" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
-        )}
+
+          {ainVal >= 2 && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Forma</p>
+              <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto pr-1">
+                {formeVisibili.length === 0 ? (
+                  <p className="text-xs text-slate-500">Nessuna forma disponibile con i tuoi requisiti.</p>
+                ) : (
+                  formeVisibili.map((trait) => {
+                    const sel = formaSelezionata?.id === trait.id;
+                    const disabled = sel || loadingId;
+                    return (
+                      <button
+                        key={trait.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => !disabled && handlePick(trait)}
+                        className={`text-left rounded-md transition-colors w-full ${
+                          disabled ? 'cursor-default opacity-95' : 'hover:brightness-110 cursor-pointer'
+                        }`}
+                      >
+                        <div className="relative">
+                          <TraitOptionRow
+                            nomeDisplay={stripRazzaPrefix(trait.nome)}
+                            descrizione={trait.descrizione}
+                            selected={sel}
+                            accent="forma"
+                          />
+                          {loadingId === trait.id && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-cyan-400" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </details>
+    </div>
   );
 }
 
-export default RazzaCollapsible;
+export default RazzaModal;

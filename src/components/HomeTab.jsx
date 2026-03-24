@@ -6,7 +6,7 @@ import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
 import ActiveItemWidget from './ActiveItemWidget'; // <--- IMPORT WIDGET
 import StatisticaModificatoriModal from './StatisticaModificatoriModal'; // <--- IMPORT MODAL
-import RazzaCollapsible, { useRazzaDisplay } from './RazzaCollapsible';
+import RazzaModal, { useRazzaDisplay } from './RazzaCollapsible';
 
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
@@ -47,6 +47,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
   
   // State per la modal dei modificatori
   const [modalStatistica, setModalStatistica] = useState(null);
+  const [razzaModalOpen, setRazzaModalOpen] = useState(false);
 
   const {
     id: personaggioId,
@@ -198,10 +199,21 @@ const CharacterSheet = memo(({ data, onLogout }) => {
           Razza: <span className="text-gray-200 font-medium">{archetipoLabel}</span>
         </p>
         {formaLabel && <p className="text-xs text-gray-500 mt-1">{formaLabel}</p>}
+        {auraInnataRecord && (
+          <button
+            type="button"
+            onClick={() => setRazzaModalOpen(true)}
+            className="mt-3 text-xs font-semibold uppercase tracking-wider text-amber-500/90 hover:text-amber-400 underline-offset-2 hover:underline"
+          >
+            Modifica archetipo e forma
+          </button>
+        )}
       </div>
 
       {auraInnataRecord && (
-        <RazzaCollapsible
+        <RazzaModal
+          isOpen={razzaModalOpen}
+          onClose={() => setRazzaModalOpen(false)}
           personaggioId={personaggioId}
           abilitaPossedute={abilita_possedute}
           punteggiBase={punteggi_base}
