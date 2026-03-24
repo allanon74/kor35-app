@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { X, LogOut, ChevronDown, ChevronRight } from 'lucide-react';
 import versionData from '../../package.json'; 
 
@@ -36,6 +37,37 @@ const Sidebar = ({ isOpen, onClose, title, items, onLogout }) => {
                         // Separatore
                         if (item.label.includes('---')) return <div key={idx} className="h-px bg-gray-800 my-2 mx-4"></div>;
 
+                        const buttonClasses = `w-full flex items-center justify-between p-4 rounded-xl font-bold transition-all ${
+                            item.active
+                            ? 'bg-indigo-600 text-white shadow-lg'
+                            : 'text-gray-400 hover:bg-gray-900 hover:text-white'
+                        }`;
+
+                        const content = (
+                            <>
+                                <div className="flex items-center gap-3">
+                                    {item.icon}
+                                    <span className="text-sm uppercase tracking-wide truncate">{item.label}</span>
+                                </div>
+                                {hasSubItems && (
+                                    isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>
+                                )}
+                            </>
+                        );
+
+                        if (item.link) {
+                            return (
+                                <Link
+                                    key={idx}
+                                    to={item.link}
+                                    className={buttonClasses}
+                                    onClick={onClose}
+                                >
+                                    {content}
+                                </Link>
+                            );
+                        }
+
                         return (
                             <div key={idx} className="flex flex-col">
                                 <button 
@@ -47,19 +79,9 @@ const Sidebar = ({ isOpen, onClose, title, items, onLogout }) => {
                                             onClose(); 
                                         }
                                     }}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl font-bold transition-all ${
-                                        item.active 
-                                        ? 'bg-indigo-600 text-white shadow-lg' 
-                                        : 'text-gray-400 hover:bg-gray-900 hover:text-white'
-                                    }`}
+                                    className={buttonClasses}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        {item.icon}
-                                        <span className="text-sm uppercase tracking-wide truncate">{item.label}</span>
-                                    </div>
-                                    {hasSubItems && (
-                                        isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>
-                                    )}
+                                    {content}
                                 </button>
 
                                 {/* Sottovoci (Tools) */}

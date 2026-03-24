@@ -327,10 +327,16 @@ export default function PublicLayout({ token }) {
                 </Link>
             </div>
           ) : (
-             !location.pathname.includes('login') && 
-             <Link to="/login" className="bg-red-700 hover:bg-red-600 px-4 py-2 rounded text-white transition text-sm font-medium">
-                Login
-             </Link>
+             <div className="flex items-center gap-2">
+               {!location.pathname.includes('login') && (
+                 <Link to="/login" className="bg-red-700 hover:bg-red-600 px-4 py-2 rounded text-white transition text-sm font-medium">
+                    Login
+                 </Link>
+               )}
+               <Link to="/app?tab=social" className="bg-red-700 text-white px-3 py-1.5 rounded font-bold hover:bg-red-600 transition text-sm flex items-center gap-2 shadow-sm">
+                 <span>✨</span> <span className="hidden sm:inline">Fame-stagram</span>
+               </Link>
+             </div>
           )}
         </div>
       </header>

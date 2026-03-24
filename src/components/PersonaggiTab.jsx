@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { 
     createPersonaggio, 
     updatePersonaggio, 
@@ -13,6 +14,7 @@ import {
 import RichTextEditor from './RichTextEditor';
 
 const PersonaggiTab = ({ onLogout, onSelectChar }) => {
+    const navigate = useNavigate();
     // Rimosso setPersonaggiList dal destructuring perché non esposto dal context
     const { 
         personaggiList, 
@@ -191,6 +193,13 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 </h2>
                 
                 <div className="flex gap-2">
+                    <button
+                        onClick={() => navigate('/app?tab=social')}
+                        className="flex items-center gap-2 px-4 py-2 bg-fuchsia-700 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-fuchsia-600 transition-colors shadow-lg"
+                        title="Apri Fame-stagram"
+                    >
+                        ✨ Social
+                    </button>
                     {(isAdmin || isStaff) && (
                         <button 
                             onClick={toggleViewAll} 
