@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback, memo, lazy, Suspense } from 'rea
 import GenericHeader from './GenericHeader';
 import Sidebar from './Sidebar';
 import versionData from '../../package.json'; 
+import { socialGetNotifications } from '../api';
+import { useCharacter } from './CharacterContext';
 import { 
     Map, Scroll, FlaskConical, Gavel, 
     Feather, Shield, MessageSquare, Users, 
@@ -41,10 +43,37 @@ const LoadingSpinner = () => (
 const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onToolChange }) => {
     const [activeTool, setActiveTool] = useState(initialTool); 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [socialUnreadCount, setSocialUnreadCount] = useState(0);
+    const { selectedCharacterId } = useCharacter();
 
     React.useEffect(() => {
         setActiveTool(initialTool);
     }, [initialTool]);
+
+    React.useEffect(() => {
+        let interval;
+        if (!selectedCharacterId) {
+            setSocialUnreadCount(0);
+            return undefined;
+        }
+        const notificationsSeenKey = `social_notifications_seen_at:${selectedCharacterId}`;
+        const checkSocialNotifications = async () => {
+            try {
+                const since = localStorage.getItem(notificationsSeenKey);
+                const data = await socialGetNotifications(selectedCharacterId, onLogout, {
+                    limit: 30,
+                    since: since || undefined,
+                });
+                const unread = Number(data?.unread_count || 0);
+                setSocialUnreadCount(Number.isFinite(unread) ? unread : 0);
+            } catch (e) {
+                console.error('Errore check notifiche social (staff)', e);
+            }
+        };
+        checkSocialNotifications();
+        interval = setInterval(checkSocialNotifications, 60000);
+        return () => clearInterval(interval);
+    }, [selectedCharacterId, onLogout]);
 
     // Configurazione dei Tools disponibili (Memoized)
     const toolsConfig = useMemo(() => [
@@ -84,9 +113,15 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
         { label: '----------------', icon: null, action: () => {} },
         // Aggiunto Wiki come elemento della lista, ma con proprietà 'link'
         { label: 'Wiki Pubblica', icon: <Globe size={18}/>, link: '/', active: false },
-        { label: 'Vai al Social', icon: <Sparkles size={18}/>, link: '/app?mode=player&tab=social', active: false },
+        {
+            label: 'Vai al Social',
+            icon: <Sparkles size={18}/>,
+            link: '/app?mode=player&tab=social',
+            active: false,
+            badgeCount: socialUnreadCount,
+        },
         { label: 'Vai a Personaggi', icon: <Users size={18}/>, action: onSwitchToPlayer, active: false }
-    ], [activeTool, toolsConfig, handleToolSelect, onSwitchToPlayer]);
+    ], [activeTool, toolsConfig, handleToolSelect, onSwitchToPlayer, socialUnreadCount]);
 
     // Funzione helper per renderizzare un singolo item della sidebar (Memoized)
     const renderSidebarItem = useCallback((item, idx) => {
@@ -106,7 +141,14 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
                     </div>
                     <span className="text-xs uppercase tracking-wide truncate">{item.label}</span>
                 </div>
-                {item.active && <ChevronRight size={14} className="opacity-50"/>}
+                <div className="flex items-center gap-2">
+                    {Number(item.badgeCount || 0) > 0 && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold text-white rounded-full bg-pink-600">
+                            {item.badgeCount}
+                        </span>
+                    )}
+                    {item.active && <ChevronRight size={14} className="opacity-50"/>}
+                </div>
             </>
         );
 
@@ -196,7 +238,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
                                         onClick={() => setActiveTool(tool.id)}
                                         className={`${tool.color} p-6 rounded-2xl shadow-xl hover:scale-[1.02] hover:shadow-2xl transition-all duration-200 flex flex-col items-center justify-center gap-4 aspect-square border-t border-white/10 group relative overflow-hidden active:scale-95`}
                                     >
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
+                                        <div className="absolute inset-0 bg-linear-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
                                         <div className="text-white drop-shadow-md transform group-hover:-translate-y-1 transition-transform duration-300 z-10">
                                             {React.cloneElement(tool.icon, { size: 40 })}
                                         </div>
