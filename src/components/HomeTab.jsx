@@ -6,7 +6,7 @@ import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
 import ActiveItemWidget from './ActiveItemWidget'; // <--- IMPORT WIDGET
 import StatisticaModificatoriModal from './StatisticaModificatoriModal'; // <--- IMPORT MODAL
-import RazzaModal, { useRazzaDisplay } from './RazzaCollapsible';
+import RazzaModal, { useRazzaDisplay, stripRazzaPrefix } from './RazzaCollapsible';
 
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
@@ -68,6 +68,28 @@ const CharacterSheet = memo(({ data, onLogout }) => {
   );
 
   const { archetipoLabel, formaLabel } = useRazzaDisplay(abilita_possedute);
+
+  /** Nome e descrizione archetipo/forma per il riepilogo in fondo scheda */
+  const razzaRiepilogo = useMemo(() => {
+    const isTrattoInnita = (ab) =>
+      ab?.is_tratto_aura &&
+      ab?.aura_riferimento &&
+      String(ab.aura_riferimento.sigla || '').toUpperCase() === 'AIN';
+    const arch = (abilita_possedute || []).find(
+      (ab) => isTrattoInnita(ab) && (ab.livello_riferimento === 0 || ab.livello_riferimento === 1)
+    );
+    const forma = (abilita_possedute || []).find((ab) => isTrattoInnita(ab) && ab.livello_riferimento === 2);
+    const tratti = auraInnataRecord?.tratti_disponibili || [];
+    const umanoCatalogo = tratti.find(
+      (t) => t.livello_riferimento === 0 && stripRazzaPrefix(t.nome).toLowerCase() === 'umano'
+    );
+    return {
+      archetipoNome: arch ? stripRazzaPrefix(arch.nome) : 'Umano',
+      archetipoDescrizione: arch?.descrizione || umanoCatalogo?.descrizione || null,
+      formaNome: forma ? stripRazzaPrefix(forma.nome) : null,
+      formaDescrizione: forma?.descrizione || null,
+    };
+  }, [abilita_possedute, auraInnataRecord]);
 
   // --- LOGICA FILTRO OGGETTI ATTIVI ---
   const activeItems = useMemo(() => {
@@ -196,9 +218,15 @@ const CharacterSheet = memo(({ data, onLogout }) => {
       <div className="text-center mb-6">
         <h2 className="text-4xl font-bold text-indigo-400 mb-2 animate-fadeIn drop-shadow-lg">{nome}</h2>
         <p className="text-sm text-gray-400">
-          Razza: <span className="text-gray-200 font-medium">{archetipoLabel}</span>
+          Razza:{' '}
+          <span className="text-gray-200 font-medium">{archetipoLabel}</span>
+          {formaLabel ? (
+            <>
+              {' '}
+              <span className="text-gray-200 font-medium">{formaLabel}</span>
+            </>
+          ) : null}
         </p>
-        {formaLabel && <p className="text-xs text-gray-500 mt-1">{formaLabel}</p>}
         {auraInnataRecord && (
           <button
             type="button"
@@ -406,6 +434,42 @@ const CharacterSheet = memo(({ data, onLogout }) => {
             })}
           </div>
         </details>
+      )}
+
+      {auraInnataRecord && (
+        <div className="mt-10 pt-6 border-t border-gray-700">
+          <h3 className="text-xl font-semibold text-gray-200 mb-4 border-b border-gray-700 pb-2">
+            Razza
+          </h3>
+          <div className="flex flex-col lg:flex-row gap-8 lg:items-start">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-500/90 mb-2">
+                Archetipo
+              </p>
+              <p className="text-lg font-bold text-gray-100 mb-2">{razzaRiepilogo.archetipoNome}</p>
+              {razzaRiepilogo.archetipoDescrizione ? (
+                <div
+                  className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none leading-relaxed prose-p:my-1.5 prose-headings:text-gray-200"
+                  dangerouslySetInnerHTML={{ __html: razzaRiepilogo.archetipoDescrizione }}
+                />
+              ) : null}
+            </div>
+            {razzaRiepilogo.formaNome ? (
+              <div className="flex-1 min-w-0 pt-6 border-t border-gray-700 lg:pt-0 lg:border-t-0 lg:border-l lg:border-gray-700 lg:pl-8">
+                <p className="text-xs font-semibold uppercase tracking-wider text-cyan-500/90 mb-2">
+                  Forma
+                </p>
+                <p className="text-lg font-bold text-gray-100 mb-2">{razzaRiepilogo.formaNome}</p>
+                {razzaRiepilogo.formaDescrizione ? (
+                  <div
+                    className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none leading-relaxed prose-p:my-1.5 prose-headings:text-gray-200"
+                    dangerouslySetInnerHTML={{ __html: razzaRiepilogo.formaDescrizione }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
       )}
 
       {/* Modal Modificatori */}

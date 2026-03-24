@@ -231,6 +231,34 @@ export function RazzaModal({
       .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'it'));
   }, [formeAll, formaSelezionata?.id, formaAbilitata]);
 
+  /** Tratto catalogo Umano (liv.0), per descrizione quando il PG non ha riga DB archetipo */
+  const traitUmanoCatalogo = useMemo(
+    () =>
+      archetipiAll.find(
+        (t) =>
+          t.livello_riferimento === 0 && stripRazzaPrefix(t.nome).toLowerCase() === 'umano'
+      ),
+    [archetipiAll]
+  );
+
+  const archetipiAltri = useMemo(() => {
+    return archetipiVisibili.filter((t) => {
+      if (archetipoSelezionato?.id != null && String(t.id) === String(archetipoSelezionato.id))
+        return false;
+      if (!archetipoSelezionato) {
+        const umanoL0 =
+          t.livello_riferimento === 0 && stripRazzaPrefix(t.nome).toLowerCase() === 'umano';
+        if (umanoL0) return false;
+      }
+      return true;
+    });
+  }, [archetipiVisibili, archetipoSelezionato]);
+
+  const formeAltri = useMemo(() => {
+    const sid = formaSelezionata?.id;
+    return formeVisibili.filter((t) => sid == null || String(t.id) !== String(sid));
+  }, [formeVisibili, formaSelezionata?.id]);
+
   const handlePick = async (trait) => {
     setError(null);
     setLoadingId(trait.id);
@@ -267,7 +295,7 @@ export function RazzaModal({
               </span>
               {ainVal >= 2 && (
                 <>
-                  {' · '}
+                  {' '}
                   Forma:{' '}
                   <span className="text-cyan-200/90">
                     {formaSelezionata ? stripRazzaPrefix(formaSelezionata.nome) : 'Nessuna'}
@@ -293,77 +321,103 @@ export function RazzaModal({
           )}
 
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Archetipo</p>
-            <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto pr-1">
-              {archetipiVisibili.length === 0 ? (
-                <p className="text-xs text-slate-500">Nessun archetipo disponibile con i tuoi requisiti.</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Archetipo attuale</p>
+            <div className="mb-4">
+              {archetipoSelezionato ? (
+                <TraitOptionRow
+                  nomeDisplay={stripRazzaPrefix(archetipoSelezionato.nome)}
+                  descrizione={archetipoSelezionato.descrizione}
+                  selected
+                  accent="archetipo"
+                />
               ) : (
-                archetipiVisibili.map((trait) => {
-                  const sel = archetipoSelezionato?.id === trait.id;
-                  const implicitUmano = !archetipoSelezionato && trait.livello_riferimento === 0;
-                  const disabled = sel || implicitUmano || loadingId;
-                  return (
-                    <button
-                      key={trait.id}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => !disabled && handlePick(trait)}
-                      className={`text-left rounded-md transition-colors w-full ${
-                        disabled ? 'cursor-default opacity-95' : 'hover:brightness-110 cursor-pointer'
-                      }`}
-                    >
-                      <div className="relative">
-                        <TraitOptionRow
-                          nomeDisplay={stripRazzaPrefix(trait.nome)}
-                          descrizione={trait.descrizione}
-                          selected={sel || implicitUmano}
-                          accent="archetipo"
-                        />
-                        {loadingId === trait.id && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-amber-400" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
+                <TraitOptionRow
+                  nomeDisplay="Umano"
+                  descrizione={traitUmanoCatalogo?.descrizione}
+                  selected
+                  accent="archetipo"
+                />
+              )}
+            </div>
+
+            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2 border-t border-slate-700/80 pt-4">
+              Altri archetipi
+            </p>
+            <div className="flex flex-col gap-2 max-h-[36vh] overflow-y-auto pr-1">
+              {archetipiAltri.length === 0 ? (
+                <p className="text-xs text-slate-500">Nessun altro archetipo selezionabile.</p>
+              ) : (
+                archetipiAltri.map((trait) => (
+                  <button
+                    key={trait.id}
+                    type="button"
+                    disabled={!!loadingId}
+                    onClick={() => handlePick(trait)}
+                    className="text-left rounded-md transition-colors w-full hover:brightness-110 cursor-pointer disabled:opacity-60"
+                  >
+                    <div className="relative">
+                      <TraitOptionRow
+                        nomeDisplay={stripRazzaPrefix(trait.nome)}
+                        descrizione={trait.descrizione}
+                        selected={false}
+                        accent="archetipo"
+                      />
+                      {loadingId === trait.id && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-amber-400" />
+                      )}
+                    </div>
+                  </button>
+                ))
               )}
             </div>
           </div>
 
           {ainVal >= 2 && (
             <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Forma</p>
-              <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto pr-1">
-                {formeVisibili.length === 0 ? (
-                  <p className="text-xs text-slate-500">Nessuna forma disponibile con i tuoi requisiti.</p>
+              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Forma attuale</p>
+              <div className="mb-4">
+                {formaSelezionata ? (
+                  <TraitOptionRow
+                    nomeDisplay={stripRazzaPrefix(formaSelezionata.nome)}
+                    descrizione={formaSelezionata.descrizione}
+                    selected
+                    accent="forma"
+                  />
                 ) : (
-                  formeVisibili.map((trait) => {
-                    const sel = formaSelezionata?.id === trait.id;
-                    const disabled = sel || loadingId;
-                    return (
-                      <button
-                        key={trait.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => !disabled && handlePick(trait)}
-                        className={`text-left rounded-md transition-colors w-full ${
-                          disabled ? 'cursor-default opacity-95' : 'hover:brightness-110 cursor-pointer'
-                        }`}
-                      >
-                        <div className="relative">
-                          <TraitOptionRow
-                            nomeDisplay={stripRazzaPrefix(trait.nome)}
-                            descrizione={trait.descrizione}
-                            selected={sel}
-                            accent="forma"
-                          />
-                          {loadingId === trait.id && (
-                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-cyan-400" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })
+                  <p className="text-sm text-slate-400 px-1 py-2 rounded-md border border-slate-700/60 bg-slate-900/40">
+                    Nessuna forma selezionata.
+                  </p>
+                )}
+              </div>
+
+              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2 border-t border-slate-700/80 pt-4">
+                Altre forme
+              </p>
+              <div className="flex flex-col gap-2 max-h-[36vh] overflow-y-auto pr-1">
+                {formeAltri.length === 0 ? (
+                  <p className="text-xs text-slate-500">Non ci sono altre forme selezionabili.</p>
+                ) : (
+                  formeAltri.map((trait) => (
+                    <button
+                      key={trait.id}
+                      type="button"
+                      disabled={!!loadingId}
+                      onClick={() => handlePick(trait)}
+                      className="text-left rounded-md transition-colors w-full hover:brightness-110 cursor-pointer disabled:opacity-60"
+                    >
+                      <div className="relative">
+                        <TraitOptionRow
+                          nomeDisplay={stripRazzaPrefix(trait.nome)}
+                          descrizione={trait.descrizione}
+                          selected={false}
+                          accent="forma"
+                        />
+                        {loadingId === trait.id && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-cyan-400" />
+                        )}
+                      </div>
+                    </button>
+                  ))
                 )}
               </div>
             </div>
