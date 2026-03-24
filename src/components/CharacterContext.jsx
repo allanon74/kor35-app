@@ -126,17 +126,17 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const { 
       data: acquirableInfusioni = [], 
       refetch: refetchInfusioni 
-  } = useAcquirableInfusioni(selectedCharacterId);
+  } = useAcquirableInfusioni(selectedCharacterId, onLogout);
 
   const { 
       data: acquirableTessiture = [], 
       refetch: refetchTessiture 
-  } = useAcquirableTessiture(selectedCharacterId);
+  } = useAcquirableTessiture(selectedCharacterId, onLogout);
 
   const { 
       data: acquirableCerimoniali = [], 
       refetch: refetchCerimoniali 
-  } = useAcquirableCerimoniali(selectedCharacterId);
+  } = useAcquirableCerimoniali(selectedCharacterId, onLogout);
 
   // --- LOGICA SELEZIONE AUTOMATICA PG ---
   useEffect(() => {
@@ -375,6 +375,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
 
   // --- VALUE DEL CONTEXT ---
   const value = {
+    onLogout,
     personaggiList,
     punteggiList,
     selectedCharacterId,

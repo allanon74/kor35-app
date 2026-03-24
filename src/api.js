@@ -90,6 +90,21 @@ export const fetchAuthenticated = async (endpoint, options = {}, onLogout) => {
 };
 
 
+/**
+ * Revisioni leggere per cache condizionale (max updated_at lato server).
+ * @param {string[]} parts - es. ['punteggi_all', 'personaggi_list:0', 'personaggio:42']
+ * @returns {Record<string, string|null>}
+ */
+export const fetchCacheRevision = async (parts, onLogout) => {
+  if (!parts || parts.length === 0) return {};
+  const q = parts.join(',');
+  return fetchAuthenticated(
+    `/api/personaggi/api/cache-revision/?q=${encodeURIComponent(q)}`,
+    { method: 'GET' },
+    onLogout
+  );
+};
+
 export const fetchPublic = async (endpoint, options = {}) => {
   const headers = {
     'Content-Type': 'application/json',

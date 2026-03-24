@@ -12,73 +12,168 @@ import {
   getForgingQueue, 
   getShopItems,
   fetchAuthenticated,
+  fetchCacheRevision,
   equipaggiaOggetto,
   assemblaOggetto,
   smontaOggetto,
   completeForging,
   getAcquirableCerimoniali,
 } from '../api';
+import { getRevision, setRevision } from '../queryRevisionStore';
+
+/**
+ * Se la revisione server coincide con l'ultima nota, riusa i dati in cache React Query
+ * senza rifare il GET pesante.
+ */
+async function loadWithRevisionGate({ queryClient, queryKey, revisionPart, onLogout, fetchFull }) {
+  let revMap;
+  try {
+    revMap = await fetchCacheRevision([revisionPart], onLogout);
+  } catch {
+    const data = await fetchFull();
+    return data;
+  }
+  const serverRev = revMap[revisionPart];
+  const cached = queryClient.getQueryData(queryKey);
+  const prevRev = getRevision(revisionPart);
+  if (cached != null && serverRev != null && prevRev === serverRev) {
+    return cached;
+  }
+  const data = await fetchFull();
+  if (serverRev != null) setRevision(revisionPart, serverRev);
+  return data;
+}
 
 // --- HOOKS DI LETTURA (QUERY) ---
 
 export const usePunteggi = (onLogout) => {
+  const queryClient = useQueryClient();
+  const revisionPart = 'punteggi_all';
   return useQuery({
     queryKey: ['punteggi'],
-    queryFn: () => getPunteggiList(onLogout),
-    staleTime: Infinity, 
-    refetchOnWindowFocus: false,
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['punteggi'],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getPunteggiList(onLogout),
+      }),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
 export const usePersonaggiList = (onLogout, viewAll) => {
+  const queryClient = useQueryClient();
+  const revisionPart = `personaggi_list:${viewAll ? '1' : '0'}`;
   return useQuery({
     queryKey: ['personaggi_list', viewAll],
-    queryFn: () => getPersonaggiList(onLogout, viewAll),
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['personaggi_list', viewAll],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getPersonaggiList(onLogout, viewAll),
+      }),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
 export const usePersonaggioDetail = (id, onLogout) => {
+  const queryClient = useQueryClient();
+  const revisionPart = id ? `personaggio:${id}` : '';
   return useQuery({
     queryKey: ['personaggio', String(id)], 
-    queryFn: () => getPersonaggioDetail(id, onLogout),
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['personaggio', String(id)],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getPersonaggioDetail(id, onLogout),
+      }),
     enabled: !!id, 
-    staleTime: 1000 * 60 * 5, 
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
 export const useAcquirableSkills = (id, onLogout) => {
+  const queryClient = useQueryClient();
+  const revisionPart = id ? `personaggio:${id}` : '';
   return useQuery({
     queryKey: ['abilita_acquistabili', id],
-    queryFn: () => getAcquirableSkills(onLogout, id),
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['abilita_acquistabili', id],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getAcquirableSkills(onLogout, id),
+      }),
     enabled: !!id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
-export const useAcquirableInfusioni = (id) => {
+export const useAcquirableInfusioni = (id, onLogout) => {
+  const queryClient = useQueryClient();
+  const revisionPart = id ? `personaggio:${id}` : '';
   return useQuery({
     queryKey: ['infusioni_acquistabili', id],
-    queryFn: () => getAcquirableInfusioni(id),
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['infusioni_acquistabili', id],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getAcquirableInfusioni(id),
+      }),
     enabled: !!id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
-export const useAcquirableTessiture = (id) => {
+export const useAcquirableTessiture = (id, onLogout) => {
+  const queryClient = useQueryClient();
+  const revisionPart = id ? `personaggio:${id}` : '';
   return useQuery({
     queryKey: ['tessiture_acquistabili', id],
-    queryFn: () => getAcquirableTessiture(id),
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['tessiture_acquistabili', id],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getAcquirableTessiture(id),
+      }),
     enabled: !!id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
-export const useAcquirableCerimoniali = (id) => {
+export const useAcquirableCerimoniali = (id, onLogout) => {
+  const queryClient = useQueryClient();
+  const revisionPart = id ? `personaggio:${id}` : '';
   return useQuery({
     queryKey: ['cerimoniali_acquistabili', id],
-    queryFn: () => getAcquirableCerimoniali(id), // <--- Chiamata API
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['cerimoniali_acquistabili', id],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getAcquirableCerimoniali(id),
+      }),
     enabled: !!id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -110,11 +205,21 @@ export const useForgingQueue = (charId) => {
   });
 };
 
-export const useShopItems = () => {
+export const useShopItems = (onLogout) => {
+  const queryClient = useQueryClient();
+  const revisionPart = 'negozio_listino';
   return useQuery({
     queryKey: ['shop_items'],
-    queryFn: getShopItems,
-    staleTime: 1000 * 60 * 5, 
+    queryFn: () =>
+      loadWithRevisionGate({
+        queryClient,
+        queryKey: ['shop_items'],
+        revisionPart,
+        onLogout,
+        fetchFull: () => getShopItems(),
+      }),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 

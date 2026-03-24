@@ -5,8 +5,8 @@ import { useShopItems, useOptimisticBuyShopItem } from '../hooks/useGameData';
 import { useCharacter } from './CharacterContext';
 
 const ShopModal = ({ onClose }) => {
-  const { data: items, isLoading } = useShopItems();
-  const { selectedCharacterData: char, refreshCharacterData } = useCharacter();
+  const { onLogout, selectedCharacterData: char, refreshCharacterData } = useCharacter();
+  const { data: items, isLoading } = useShopItems(onLogout);
   const buyMutation = useOptimisticBuyShopItem();
 
   const handleBuy = useCallback(async (item) => {
