@@ -144,6 +144,24 @@ export const socialCreateComment = (postId, testo, personaggioId, onLogout) => {
   );
 };
 
+export const socialUpdateComment = (postId, commentId, testo, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/posts/${postId}/comments/${commentId}/${qp}`,
+    { method: 'PATCH', body: JSON.stringify({ testo }) },
+    onLogout
+  );
+};
+
+export const socialDeleteComment = (postId, commentId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/posts/${postId}/comments/${commentId}/${qp}`,
+    { method: 'DELETE' },
+    onLogout
+  );
+};
+
 export const socialGetMyProfile = (personaggioId, onLogout) => {
   const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
   return fetchAuthenticated(`/api/social/profile/me/${qp}`, { method: 'GET' }, onLogout);

@@ -14,6 +14,7 @@ import {
   searchPersonaggi,
   socialCreateComment,
   socialCreatePost,
+  socialDeleteComment,
   socialInviteGroupMember,
   socialGetComments,
   socialGetGroupMessages,
@@ -29,6 +30,7 @@ import {
   socialRequestJoinGroup,
   socialSetGroupMemberRole,
   socialToggleLike,
+  socialUpdateComment,
   socialUpdateGroupPost,
   socialUpdatePost,
   socialUpdateMyProfile,
@@ -46,6 +48,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [commentsByPost, setCommentsByPost] = useState({});
   const [commentsMetaByPost, setCommentsMetaByPost] = useState({});
   const [newCommentByPost, setNewCommentByPost] = useState({});
+  const [editingCommentByPost, setEditingCommentByPost] = useState({});
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [commentMentionSuggestions, setCommentMentionSuggestions] = useState({});
@@ -353,6 +356,51 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     }));
     setNewCommentByPost((prev) => ({ ...prev, [postId]: '' }));
     setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: [] }));
+    await loadAll();
+  };
+
+  const startEditComment = (postId, comment) => {
+    setEditingCommentByPost((prev) => ({
+      ...prev,
+      [postId]: { id: comment.id, testo: comment.testo || '' },
+    }));
+  };
+
+  const cancelEditComment = (postId) => {
+    setEditingCommentByPost((prev) => {
+      const next = { ...prev };
+      delete next[postId];
+      return next;
+    });
+  };
+
+  const saveEditedComment = async (postId) => {
+    const draft = editingCommentByPost[postId];
+    if (!draft || !draft.id) return;
+    const text = String(draft.testo || '').trim();
+    if (!text) return;
+    await socialUpdateComment(postId, draft.id, text, selectedCharacterId, onLogout);
+    const payload = await socialGetComments(postId, onLogout, 1, 10);
+    const normalized = normalizeCommentsPayload(payload);
+    setCommentsByPost((prev) => ({ ...prev, [postId]: normalized.items }));
+    setCommentsMetaByPost((prev) => ({
+      ...prev,
+      [postId]: { page: 1, hasMore: normalized.hasNext, loadingMore: false },
+    }));
+    cancelEditComment(postId);
+    await loadAll();
+  };
+
+  const removeComment = async (postId, commentId) => {
+    if (!window.confirm('Eliminare questo commento?')) return;
+    await socialDeleteComment(postId, commentId, selectedCharacterId, onLogout);
+    const payload = await socialGetComments(postId, onLogout, 1, 10);
+    const normalized = normalizeCommentsPayload(payload);
+    setCommentsByPost((prev) => ({ ...prev, [postId]: normalized.items }));
+    setCommentsMetaByPost((prev) => ({
+      ...prev,
+      [postId]: { page: 1, hasMore: normalized.hasNext, loadingMore: false },
+    }));
     await loadAll();
   };
 
@@ -1149,8 +1197,64 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               <div className="space-y-2">
                 {commentsToRender.map((c) => (
                   <div key={c.id} className="text-sm bg-gray-800/70 rounded p-2">
-                    <span className="font-semibold text-gray-200">{c.autore_nome}:</span>{' '}
-                    <span className="text-gray-300">{renderTextWithMentions(c.testo, c.tags)}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-semibold text-gray-200">{c.autore_nome}:</span>{' '}
+                        {editingCommentByPost[post.id]?.id === c.id ? (
+                          <textarea
+                            className="mt-1 w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 text-sm min-h-16"
+                            value={editingCommentByPost[post.id]?.testo || ''}
+                            onChange={(e) =>
+                              setEditingCommentByPost((prev) => ({
+                                ...prev,
+                                [post.id]: { ...prev[post.id], testo: e.target.value },
+                              }))
+                            }
+                          />
+                        ) : (
+                          <span className="text-gray-300">{renderTextWithMentions(c.testo, c.tags)}</span>
+                        )}
+                      </div>
+                      {(isAdmin || Number(c.autore) === Number(selectedCharacterId)) && (
+                        <div className="flex items-center gap-1">
+                          {editingCommentByPost[post.id]?.id === c.id ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => saveEditedComment(post.id)}
+                                className="text-[11px] px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500"
+                              >
+                                Salva
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => cancelEditComment(post.id)}
+                                className="text-[11px] px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                              >
+                                Annulla
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEditComment(post.id, c)}
+                                className="inline-flex items-center gap-1 text-xs text-indigo-300 hover:text-indigo-200"
+                              >
+                                <Pencil size={13} /> Mod
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeComment(post.id, c.id)}
+                                className="inline-flex items-center gap-1 text-xs text-red-300 hover:text-red-200"
+                              >
+                                <Trash2 size={13} /> Del
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {c.tags?.length > 0 && (
                       <span className="text-xs text-amber-300/90 ml-2">
                         {c.tags.map((t) => (
