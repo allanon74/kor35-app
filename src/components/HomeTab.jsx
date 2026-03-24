@@ -10,7 +10,6 @@ import StatisticaModificatoriModal from './StatisticaModificatoriModal'; // <---
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
 import TransazioniViewer from './TransazioniViewer';
-import RazzaSchedaPanel from './RazzaSchedaPanel';
 
 // --- Componenti Helper ---
 
@@ -43,7 +42,7 @@ const LoadingComponent = () => (
 // --- Componente Scheda ---
 
 const CharacterSheet = memo(({ data, onLogout }) => {
-  const { punteggiList, subscribeToPush, fetchCharacterData } = useCharacter();
+  const { punteggiList, subscribeToPush, fetchCharacterData } = useCharacter(); // <--- AGGIUNTO fetchCharacterData
   
   // State per la modal dei modificatori
   const [modalStatistica, setModalStatistica] = useState(null);
@@ -56,8 +55,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     punteggi_base,
     statistiche_base_dict,
     modificatori_calcolati, 
-    abilita_possedute,
-    razza,
+    abilita_possedute, 
     oggetti,
     // log_eventi <-- RIMOSSO: Ora gestito da LogViewer
   } = data;
@@ -187,13 +185,6 @@ const CharacterSheet = memo(({ data, onLogout }) => {
       )}
 
       <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center animate-fadeIn drop-shadow-lg">{nome}</h2>
-
-      <RazzaSchedaPanel
-        personaggioId={personaggioId}
-        razza={razza}
-        onLogout={onLogout}
-        onRefresh={fetchCharacterData}
-      />
       
       {/* --- NUOVA SEZIONE: DISPOSITIVI ATTIVI --- */}
       {activeItems && activeItems.length > 0 && (

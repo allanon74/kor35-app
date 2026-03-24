@@ -401,7 +401,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
     selectCharacter: handleSelectCharacter,
     setPreferredCharacter,
     refreshCharacterData,
-    fetchCharacterData: refreshCharacterData,
     fetchPersonaggi, 
     
     loadSkillsOnDemand: () => {}, 

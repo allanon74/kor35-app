@@ -495,18 +495,6 @@ export const acquireAbilita = (abilitaId, characterId, onLogout) => {
 };
 
 /**
- * Opzioni e stato razza (archetipo/forma) per la scheda personaggio.
- */
-export const getTrattiRazzaOpzioni = (characterId, onLogout) => {
-  const q = new URLSearchParams({ char_id: String(characterId) });
-  return fetchAuthenticated(
-    `/api/personaggi/api/personaggio/me/tratti_razza_opzioni/?${q.toString()}`,
-    { method: 'GET' },
-    onLogout
-  );
-};
-
-/**
  * Recupera la lista di tutti i punteggi (Caratteristiche, Statistiche, ecc).
  */
 export const getPunteggiList = (onLogout) => {
