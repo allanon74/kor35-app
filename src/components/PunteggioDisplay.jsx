@@ -70,7 +70,13 @@ const PunteggioDisplay = ({
       : null;
 
   const needsSelection = !readOnly && isAura && userValue > 0 && hasModelsAvailable && !selectedModelName;
-  const hasTraitsConfig = !readOnly && punteggio.configurazione_livelli && punteggio.configurazione_livelli.length > 0;
+  // Aura innata (AIN): scelta razza solo dalla sezione dedicata in scheda, non dal tile aura
+  const isAuraInnata = String(punteggio.sigla || '').toUpperCase() === 'AIN';
+  const hasTraitsConfig =
+    !readOnly &&
+    !isAuraInnata &&
+    punteggio.configurazione_livelli &&
+    punteggio.configurazione_livelli.length > 0;
 
   const handleContainerClick = () => {
     if (readOnly) return;

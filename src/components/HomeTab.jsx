@@ -6,6 +6,7 @@ import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
 import ActiveItemWidget from './ActiveItemWidget'; // <--- IMPORT WIDGET
 import StatisticaModificatoriModal from './StatisticaModificatoriModal'; // <--- IMPORT MODAL
+import RazzaCollapsible, { useRazzaDisplay } from './RazzaCollapsible';
 
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
@@ -42,7 +43,7 @@ const LoadingComponent = () => (
 // --- Componente Scheda ---
 
 const CharacterSheet = memo(({ data, onLogout }) => {
-  const { punteggiList, subscribeToPush, fetchCharacterData } = useCharacter(); // <--- AGGIUNTO fetchCharacterData
+  const { punteggiList, subscribeToPush, refreshCharacterData } = useCharacter();
   
   // State per la modal dei modificatori
   const [modalStatistica, setModalStatistica] = useState(null);
@@ -59,6 +60,13 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     oggetti,
     // log_eventi <-- RIMOSSO: Ora gestito da LogViewer
   } = data;
+
+  const auraInnataRecord = useMemo(
+    () => (punteggiList || []).find((p) => p.tipo === 'AU' && String(p.sigla || '').toUpperCase() === 'AIN'),
+    [punteggiList]
+  );
+
+  const { archetipoLabel, formaLabel } = useRazzaDisplay(abilita_possedute);
 
   // --- LOGICA FILTRO OGGETTI ATTIVI ---
   const activeItems = useMemo(() => {
@@ -184,7 +192,25 @@ const CharacterSheet = memo(({ data, onLogout }) => {
          </div>
       )}
 
-      <h2 className="text-4xl font-bold text-indigo-400 mb-6 text-center animate-fadeIn drop-shadow-lg">{nome}</h2>
+      <div className="text-center mb-6">
+        <h2 className="text-4xl font-bold text-indigo-400 mb-2 animate-fadeIn drop-shadow-lg">{nome}</h2>
+        <p className="text-sm text-gray-400">
+          Razza: <span className="text-gray-200 font-medium">{archetipoLabel}</span>
+        </p>
+        {formaLabel && <p className="text-xs text-gray-500 mt-1">{formaLabel}</p>}
+      </div>
+
+      {auraInnataRecord && (
+        <RazzaCollapsible
+          personaggioId={personaggioId}
+          abilitaPossedute={abilita_possedute}
+          punteggiBase={punteggi_base}
+          punteggiList={punteggiList}
+          auraInnataRecord={auraInnataRecord}
+          onLogout={onLogout}
+          onUpdated={refreshCharacterData}
+        />
+      )}
       
       {/* --- NUOVA SEZIONE: DISPOSITIVI ATTIVI --- */}
       {activeItems && activeItems.length > 0 && (
@@ -198,7 +224,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
               <ActiveItemWidget 
                 key={item.id} 
                 item={item} 
-                onUpdate={fetchCharacterData} 
+                onUpdate={refreshCharacterData} 
               />
             ))}
           </div>
