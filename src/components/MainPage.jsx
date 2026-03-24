@@ -8,7 +8,7 @@ import QrTab from './QrTab.jsx';
 import QrResultModal from './QrResultModal.jsx';
 import { useCharacter } from './CharacterContext';
 import { TimerOverlay } from './TimerOverlay';
-import { fetchAuthenticated, fetchStaffMessages } from '../api'; // <-- [MODIFICA] Import fetchStaffMessages
+import { fetchAuthenticated, fetchStaffMessages, socialGetNotifications } from '../api'; // <-- [MODIFICA] Import fetchStaffMessages
 import packageInfo from '../../package.json';
 
 import { 
@@ -89,6 +89,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   // --- [MODIFICA] Stato per Modale Password e Notifiche Staff ---
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [staffUnreadCount, setStaffUnreadCount] = useState(0);
+  const [socialUnreadCount, setSocialUnreadCount] = useState(0);
   
   // --- [MODIFICA] Stato per Modale Wiki Help ---
   const [isWikiHelpOpen, setIsWikiHelpOpen] = useState(false);
@@ -201,6 +202,31 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     }
     return () => clearInterval(interval);
   }, [isStaff, onLogout]);
+
+  useEffect(() => {
+    let interval;
+    if (!selectedCharacterId) {
+      setSocialUnreadCount(0);
+      return undefined;
+    }
+    const notificationsSeenKey = `social_notifications_seen_at:${selectedCharacterId}`;
+    const checkSocialNotifications = async () => {
+      try {
+        const since = localStorage.getItem(notificationsSeenKey);
+        const data = await socialGetNotifications(selectedCharacterId, onLogout, {
+          limit: 30,
+          since: since || undefined,
+        });
+        const unread = Number(data?.unread_count || 0);
+        setSocialUnreadCount(Number.isFinite(unread) ? unread : 0);
+      } catch (e) {
+        console.error('Errore check notifiche social', e);
+      }
+    };
+    checkSocialNotifications();
+    interval = setInterval(checkSocialNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [selectedCharacterId, onLogout]);
 
   // Nota: non forziamo piu il tab "personaggi" quando manca selectedCharacterId.
   // Il rendering dei tab gestisce gia il fallback "Nessun Personaggio Selezionato"
@@ -425,6 +451,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                             badgeCount = unreadCount; 
                             badgeColor = 'bg-purple-600';
                         }
+                    } else if (tab.id === 'social') {
+                        badgeCount = socialUnreadCount;
+                        badgeColor = 'bg-pink-600';
                     }
 
                     return (
@@ -660,6 +689,9 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                         showDot = true;
                         dotColor = 'bg-purple-500';
                     }
+                } else if (tab.id === 'social' && socialUnreadCount > 0) {
+                    showDot = true;
+                    dotColor = 'bg-pink-500';
                 }
                 
                 return (
