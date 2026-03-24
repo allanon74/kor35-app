@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { staffGetAbilitaList, staffDeleteAbilita } from '../../api';
 import MasterGenericList from './MasterGenericList';
 
@@ -10,74 +10,96 @@ const AbilitaList = ({ onAdd, onEdit, onLogout }) => {
     const [pageSize] = useState(50);
     const [hasNext, setHasNext] = useState(false);
     const [hasPrev, setHasPrev] = useState(false);
+    const [query, setQuery] = useState({ search: '', isTrattoAura: undefined });
 
-    // 1. Caricamento Dati
-    const loadData = async (targetPage = page) => {
-        setLoading(true);
-        try {
-            const data = await staffGetAbilitaList(onLogout, { page: targetPage, pageSize });
-
-            // Compatibilita: gestisce sia risposta paginata DRF che array legacy.
-            if (Array.isArray(data)) {
-                setItems(data || []);
-                setTotalCount(data?.length || 0);
-                setHasNext(false);
-                setHasPrev(false);
-                setPage(1);
-            } else {
-                setItems(data?.results || []);
-                setTotalCount(data?.count || 0);
-                setHasNext(Boolean(data?.next));
-                setHasPrev(Boolean(data?.previous));
-                setPage(targetPage);
-            }
-        } catch (error) {
-            console.error("Errore caricamento abilità:", error);
-        } finally {
-            setLoading(false);
+    const handleServerQueryChange = useCallback(({ search, activeFilters }) => {
+        const types = activeFilters.is_tratto_aura || [];
+        let isTrattoAura;
+        if (types.length === 1) {
+            isTrattoAura = types[0];
         }
-    };
+        const s = (search || '').trim();
+        setQuery((prev) => {
+            if (prev.search === s && prev.isTrattoAura === isTrattoAura) {
+                return prev;
+            }
+            setPage(1);
+            return { search: s, isTrattoAura };
+        });
+    }, []);
 
     useEffect(() => {
-        loadData(1);
-    }, [onLogout, pageSize]);
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            try {
+                const data = await staffGetAbilitaList(onLogout, {
+                    page,
+                    pageSize,
+                    search: query.search || undefined,
+                    isTrattoAura: query.isTrattoAura,
+                });
+                if (cancelled) return;
 
-    // 2. Gestione Cancellazione
+                if (Array.isArray(data)) {
+                    setItems(data || []);
+                    setTotalCount(data?.length || 0);
+                    setHasNext(false);
+                    setHasPrev(false);
+                } else {
+                    setItems(data?.results || []);
+                    setTotalCount(data?.count || 0);
+                    setHasNext(Boolean(data?.next));
+                    setHasPrev(Boolean(data?.previous));
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    console.error('Errore caricamento abilità:', error);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [onLogout, page, pageSize, query.search, query.isTrattoAura]);
+
     const handleDelete = async (id) => {
         if (!window.confirm("Sei sicuro di voler eliminare questa abilità?")) return;
         try {
             await staffDeleteAbilita(id, onLogout);
-            // Aggiorna la lista locale rimuovendo l'elemento
-            setItems(prev => prev.filter(item => item.id !== id));
-            setTotalCount(prev => Math.max(0, prev - 1));
+            setItems((prev) => prev.filter((item) => item.id !== id));
+            setTotalCount((prev) => Math.max(0, prev - 1));
         } catch (error) {
             alert("Errore durante l'eliminazione: " + error.message);
         }
     };
-    
+
     const columns = [
         { key: 'nome', header: 'Nome', width: '30%', render: (row) => <span className="font-bold text-white">{row.nome}</span> },
         { key: 'costo_pc', header: 'Costo PC', width: '15%', align: 'center', render: (row) => row.costo_pc },
         { key: 'costo_crediti', header: 'Crediti', width: '15%', align: 'center', render: (row) => row.costo_crediti },
-        { 
-            key: 'tipo', 
-            header: 'Tipo', 
+        {
+            key: 'tipo',
+            header: 'Tipo',
             width: '20%',
             align: 'center',
-            render: (row) => row.is_tratto_aura ? 
+            render: (row) => row.is_tratto_aura ?
                 <span className="text-purple-400 text-[10px] font-bold px-2 py-0.5 bg-purple-900/50 rounded border border-purple-500/30 uppercase tracking-wide">
                     AURA {row.aura_riferimento?.nome} (Lv.{row.livello_riferimento})
-                </span> : 
-                <span className="text-gray-500 text-xs">-</span> 
+                </span> :
+                <span className="text-gray-500 text-xs">-</span>
         }
     ];
 
-    // Configurazione filtri (Opzionale, ma utile)
     const filterConfig = [
-        { 
-            key: 'is_tratto_aura', 
-            label: 'Tipo', 
-            options: [{ id: true, label: 'Tratti Aura' }, { id: false, label: 'Standard' }] 
+        {
+            key: 'is_tratto_aura',
+            label: 'Tipo',
+            options: [{ id: true, label: 'Tratti Aura' }, { id: false, label: 'Standard' }]
         }
     ];
 
@@ -93,6 +115,8 @@ const AbilitaList = ({ onAdd, onEdit, onLogout }) => {
                 columns={columns}
                 filterConfig={filterConfig}
                 sortLogic={(a, b) => (a.nome || "").localeCompare(b.nome || "")}
+                serverDrivenFiltering
+                onServerQueryChange={handleServerQueryChange}
             />
             <div className="flex items-center justify-between text-xs text-gray-400 px-1">
                 <span>{`Totale: ${totalCount}`}</span>
@@ -100,7 +124,7 @@ const AbilitaList = ({ onAdd, onEdit, onLogout }) => {
                     <button
                         type="button"
                         disabled={loading || !hasPrev}
-                        onClick={() => loadData(page - 1)}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
                         className="px-3 py-1 rounded border border-gray-700 disabled:opacity-40 hover:border-gray-500"
                     >
                         Precedente
@@ -109,7 +133,7 @@ const AbilitaList = ({ onAdd, onEdit, onLogout }) => {
                     <button
                         type="button"
                         disabled={loading || !hasNext}
-                        onClick={() => loadData(page + 1)}
+                        onClick={() => setPage((p) => p + 1)}
                         className="px-3 py-1 rounded border border-gray-700 disabled:opacity-40 hover:border-gray-500"
                     >
                         Successiva

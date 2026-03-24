@@ -1,9 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { staffCreateAbilita, staffUpdateAbilita, getPunteggiList, getAbilitaOptions, getTiersList } from '../../api';
+import { staffCreateAbilita, staffUpdateAbilita, staffGetAbilita, getPunteggiList, getAbilitaOptions, getTiersList } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import StatModInline from './inlines/StatModInline';
 import GenericRelationInline from './inlines/GenericRelationInline';
 import SearchableSelect from './SearchableSelect';
+
+const EMPTY_ABILITA_FORM = {
+    nome: '',
+    descrizione: '',
+    caratteristica: null,
+    caratteristica_2: null,
+    caratteristica_3: null,
+    costo_pc: 0,
+    costo_crediti: 0,
+    is_tratto_aura: false,
+    aura_riferimento: null,
+    livello_riferimento: 0,
+    tiers: [],
+    requisiti: [],
+    punteggi_assegnati: [],
+    prerequisiti: [],
+    statistiche: []
+};
+
+/** La lista staff restituisce righe senza relazioni annidate: senza merge, .map sugli inline va in errore. */
+function mergeAbilitaFormState(initialData) {
+    if (!initialData) {
+        return { ...EMPTY_ABILITA_FORM };
+    }
+    return {
+        ...EMPTY_ABILITA_FORM,
+        ...initialData,
+        tiers: Array.isArray(initialData.tiers) ? initialData.tiers : [],
+        requisiti: Array.isArray(initialData.requisiti) ? initialData.requisiti : [],
+        punteggi_assegnati: Array.isArray(initialData.punteggi_assegnati) ? initialData.punteggi_assegnati : [],
+        prerequisiti: Array.isArray(initialData.prerequisiti) ? initialData.prerequisiti : [],
+        statistiche: Array.isArray(initialData.statistiche) ? initialData.statistiche : [],
+    };
+}
 
 const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     const [punteggi, setPunteggi] = useState([]); 
@@ -14,23 +48,30 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     const auraOptions = punteggi.filter(p => p.tipo === 'AU');
     const elementOptions = punteggi.filter(p => p.tipo === 'EL' || p.tipo === 'MA'); // 'EL' o 'MA' a seconda di come codifichi gli elementi/materie nel DB
 
-    const [formData, setFormData] = useState(initialData || {
-        nome: '',
-        descrizione: '',
-        caratteristica: null,
-        caratteristica_2: null,
-        caratteristica_3: null,
-        costo_pc: 0,
-        costo_crediti: 0,
-        is_tratto_aura: false,
-        aura_riferimento: null,
-        livello_riferimento: 0,
-        tiers: [], 
-        requisiti: [], 
-        punteggi_assegnati: [],
-        prerequisiti: [], 
-        statistiche: [] 
-    });
+    const initialKey = initialData?.id ?? 'new';
+    const [formData, setFormData] = useState(() => mergeAbilitaFormState(initialData));
+
+    useEffect(() => {
+        setFormData(mergeAbilitaFormState(initialData));
+    }, [initialKey]);
+
+    useEffect(() => {
+        const editId = initialData?.id;
+        if (!editId) return undefined;
+        let cancelled = false;
+        (async () => {
+            try {
+                const full = await staffGetAbilita(editId, onLogout);
+                if (cancelled || !full || String(full.id) !== String(editId)) return;
+                setFormData(mergeAbilitaFormState(full));
+            } catch (err) {
+                console.error('Errore caricamento dettaglio abilità', err);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [initialData?.id, onLogout]);
 
     useEffect(() => {
         const loadResources = async () => {
@@ -52,16 +93,21 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
 
     const handleSave = async () => {
         try {
+            const tiers = formData.tiers || [];
+            const requisiti = formData.requisiti || [];
+            const punteggiAssegnati = formData.punteggi_assegnati || [];
+            const prerequisiti = formData.prerequisiti || [];
+
             const payload = {
                 ...formData,
                 caratteristica: formData.caratteristica ? parseInt(formData.caratteristica) : null,
                 caratteristica_2: formData.caratteristica_2 ? parseInt(formData.caratteristica_2) : null,
                 caratteristica_3: formData.caratteristica_3 ? parseInt(formData.caratteristica_3) : null,
                 aura_riferimento: formData.aura_riferimento ? parseInt(formData.aura_riferimento) : null,
-                tiers: formData.tiers.map(t => ({...t, tabella: parseInt(t.tabella)})),
-                requisiti: formData.requisiti.map(r => ({...r, requisito: parseInt(r.requisito)})),
-                punteggi_assegnati: formData.punteggi_assegnati.map(p => ({...p, punteggio: parseInt(p.punteggio)})),
-                prerequisiti: formData.prerequisiti.map(p => ({...p, prerequisito: parseInt(p.prerequisito)})),
+                tiers: tiers.map(t => ({...t, tabella: parseInt(t.tabella)})),
+                requisiti: requisiti.map(r => ({...r, requisito: parseInt(r.requisito)})),
+                punteggi_assegnati: punteggiAssegnati.map(p => ({...p, punteggio: parseInt(p.punteggio)})),
+                prerequisiti: prerequisiti.map(p => ({...p, prerequisito: parseInt(p.prerequisito)})),
                 // Statistiche è già gestito come array di oggetti da StatModInline
             };
 

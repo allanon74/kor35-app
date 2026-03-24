@@ -4,8 +4,8 @@ import SearchableSelect from '../SearchableSelect'; // <--- IMPORTA IL NUOVO COM
 
 const GenericRelationInline = ({ 
     title, 
-    items, 
-    options, 
+    items = [], 
+    options = [], 
     valueKey = 'valore', 
     targetKey, 
     onChange, 

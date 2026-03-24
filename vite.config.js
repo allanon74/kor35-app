@@ -14,6 +14,11 @@ export default defineConfig(({ command, mode }) => {
       strategies: 'injectManifest', // Usa il nostro service worker custom
       srcDir: 'src',                // Cartella dove si trova il file sorgente
       filename: 'sw.js',            // Nome del file sorgente (creato nel passo precedente)
+      // Workbox rifiuta di precachare file > 2 MiB (default). Il bundle principale può superarlo.
+      // https://vite-pwa-org.netlify.app/guide/faq.html#missing-assets-from-sw-precache-manifest
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
+      },
       // ------------------------------------------
       
       registerType: 'autoUpdate', // Aggiorna l'app appena c'è una nuova versione

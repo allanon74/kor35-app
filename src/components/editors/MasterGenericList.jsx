@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
 import { Search, Pencil, Trash2, Plus, FilterX, QrCode } from 'lucide-react';
 
@@ -14,13 +14,22 @@ const MasterGenericList = ({
   filterConfig = [], 
   columns = [],
   sortLogic,
-  emptyMessage = "Seleziona dei filtri o cerca per visualizzare i dati."
+  emptyMessage = "Seleziona dei filtri o cerca per visualizzare i dati.",
+  /** Se true, ricerca e filtri non riducono `items` in locale: il parent deve ricaricare dal server (es. lista abilità paginata). */
+  serverDrivenFiltering = false,
+  /** Chiamato quando cambiano termine di ricerca (debounced) o filtri attivi. */
+  onServerQueryChange = null,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState({});
   
   // Debounce del search term per migliorare le performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  useEffect(() => {
+    if (!serverDrivenFiltering || !onServerQueryChange) return;
+    onServerQueryChange({ search: debouncedSearchTerm, activeFilters });
+  }, [serverDrivenFiltering, onServerQueryChange, debouncedSearchTerm, activeFilters]);
 
   const toggleFilter = useCallback((key, val) => {
     setActiveFilters(prev => {
@@ -36,6 +45,10 @@ const MasterGenericList = ({
   }, []);
 
   const filteredItems = useMemo(() => {
+    if (serverDrivenFiltering) {
+      return sortLogic ? [...items].sort(sortLogic) : items;
+    }
+
     const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
     // Rimossa la logica che nasconde i dati quando ci sono filtri configurati
     // I dati vengono sempre mostrati, i filtri sono opzionali
@@ -56,7 +69,7 @@ const MasterGenericList = ({
     });
 
     return sortLogic ? [...filtered].sort(sortLogic) : filtered;
-  }, [items, debouncedSearchTerm, activeFilters, sortLogic, filterConfig]);
+  }, [items, debouncedSearchTerm, activeFilters, sortLogic, filterConfig, serverDrivenFiltering]);
 
   return (
     // H-FULL e FLEX-COL sono cruciali per bloccare l'altezza e scrollare dentro

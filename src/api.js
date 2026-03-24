@@ -1589,6 +1589,11 @@ export const staffGetAbilitaList = (onLogout, params = {}) => {
     return fetchAuthenticated(url, { method: 'GET' }, onLogout);
 };
 
+/** Dettaglio completo (inlines incluse) per l'editor staff — necessario prima di PATCH per non azzerare relazioni. */
+export const staffGetAbilita = (id, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/staff/abilita/${id}/`, { method: 'GET' }, onLogout);
+};
+
 export const staffCreateAbilita = (data, onLogout) => {
     return fetchAuthenticated('/api/personaggi/api/staff/abilita/', {
         method: 'POST',
