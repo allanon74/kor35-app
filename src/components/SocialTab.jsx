@@ -874,8 +874,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
 
   return (
     <>
-      <div className="p-3 md:p-6 space-y-4 md:space-y-6 bg-linear-to-b from-gray-900 to-[#20131f] min-h-full">
-      <section className="sticky top-1 z-20 rounded-2xl border border-amber-400/30 bg-black/70 backdrop-blur-md p-3 md:p-4 shadow-xl">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6 bg-linear-to-b from-[#120d17] via-[#2b1424] to-[#100c14] min-h-full">
+      <section className="sticky top-1 z-20 rounded-3xl border border-amber-300/50 bg-linear-to-r from-[#1a101d]/95 via-[#2a1622]/95 to-[#1a101d]/95 backdrop-blur-md p-3 md:p-4 shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
           <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
             <button
@@ -893,7 +893,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               )}
             </button>
             <div className="min-w-0">
-              <h2 className="text-xl md:text-3xl font-black italic text-amber-300 tracking-wide leading-tight">Fame-stagram</h2>
+              <h2 className="text-xl md:text-3xl font-black italic text-amber-200 tracking-wide leading-tight drop-shadow">Fame-stagram</h2>
               <p className="text-[11px] md:text-sm text-amber-100/80 truncate">{subtitle}</p>
               <div className="text-xs text-gray-300 mt-1 inline-flex items-center gap-1">
                 <span>PG attivo: {profile?.personaggio_nome || `#${selectedCharacterId}`}</span>
@@ -1035,7 +1035,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
 
       {socialViewMode === 'FEED' && (
       <section className="space-y-4">
-        <div className="sticky top-[86px] md:top-[96px] z-10 rounded-xl border border-gray-700/70 bg-gray-950/80 backdrop-blur px-2 py-2">
+        <div className="sticky top-[86px] md:top-[96px] z-10 rounded-2xl border border-amber-400/30 bg-[#1b1420]/90 backdrop-blur px-2 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-pink-300 font-bold"><Sparkles size={18} /> Feed Sociale</div>
           <div className="flex gap-2 text-xs items-center overflow-x-auto w-full md:w-auto pb-1">
@@ -1085,9 +1085,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         )}
         {!loading && filteredPosts.length === 0 && <div className="text-gray-400">Nessun post per questo filtro.</div>}
         {filteredPosts.map((post) => (
-          <article key={post.id} className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-3 md:p-4 space-y-3 shadow-[0_8px_28px_rgba(0,0,0,0.28)]">
+          <article key={post.id} className="rounded-3xl border border-amber-300/35 bg-linear-to-b from-[#24152a]/96 to-[#1a111f]/96 p-3 md:p-4 space-y-3 shadow-[0_14px_34px_rgba(0,0,0,0.40)]">
             <div className="flex justify-between items-start gap-3">
               <div>
+                <div className="h-1 w-16 rounded-full bg-linear-to-r from-amber-300 via-yellow-200 to-amber-400 mb-2" />
                 <h3 className="font-bold text-base md:text-lg text-amber-100">{post.titolo}</h3>
                 <p className="text-xs text-gray-400">
                   <button type="button" onClick={() => openProfile(post.autore)} className="underline decoration-dotted hover:text-white">
@@ -1096,7 +1097,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                   · {new Date(post.created_at).toLocaleString('it-IT')}
                 </p>
               </div>
-              <span className="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-600">
+              <span className="text-xs px-2 py-1 rounded-full bg-[#2d1d31] border border-amber-300/40 text-amber-100">
                 {post.visibilita === 'KORP' ? 'Solo KORP' : 'Pubblico'}
               </span>
             </div>
@@ -1131,11 +1132,11 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 <video controls src={post.video} className="h-full w-full object-cover" />
               </div>
             )}
-            <div className="flex gap-3 flex-wrap">
-              <button onClick={() => handleToggleLike(post.id)} className="inline-flex items-center gap-1 text-sm text-rose-300 hover:text-rose-200">
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => handleToggleLike(post.id)} className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#3a1d2a] border border-rose-300/30 text-rose-200 hover:bg-[#4a2333]">
                 <Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count || 0}
               </button>
-              <button onClick={() => toggleComments(post.id)} className="inline-flex items-center gap-1 text-sm text-sky-300 hover:text-sky-200">
+              <button onClick={() => toggleComments(post.id)} className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#1f253d] border border-sky-300/30 text-sky-200 hover:bg-[#2a3150]">
                 <MessageCircle size={16} /> {post.comments_count || 0}
               </button>
               {post.public_url && (
@@ -1145,7 +1146,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                     await navigator.clipboard.writeText(post.public_url);
                     alert('Link pubblico copiato.');
                   }}
-                  className="inline-flex items-center gap-1 text-sm text-amber-300 hover:text-amber-200"
+                  className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#3a2a14] border border-amber-300/30 text-amber-200 hover:bg-[#4d381c]"
                   title={post.public_url}
                 >
                   <Copy size={16} /> Link
@@ -1156,14 +1157,14 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                   <button
                     type="button"
                     onClick={() => startEditPost(post)}
-                    className="inline-flex items-center gap-1 text-sm text-indigo-300 hover:text-indigo-200"
+                    className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#22264a] border border-indigo-300/30 text-indigo-200 hover:bg-[#2e3563]"
                   >
                     <Pencil size={16} /> Modifica
                   </button>
                   <button
                     type="button"
                     onClick={() => removePost(post.id)}
-                    className="inline-flex items-center gap-1 text-sm text-red-300 hover:text-red-200"
+                    className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#4b1c22] border border-red-300/30 text-red-200 hover:bg-[#5d2430]"
                   >
                     <Trash2 size={16} /> Elimina
                   </button>
