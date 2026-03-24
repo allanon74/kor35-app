@@ -573,11 +573,25 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   }, [loadNotifications]);
 
   const openActivityModal = async () => {
+    await loadNotifications();
+    setShowActivityModal(true);
+  };
+
+  const markNotificationsAsRead = async () => {
     const seenAt = new Date().toISOString();
     localStorage.setItem(notificationsSeenKey, seenAt);
     setNotificationsUnread(0);
     await loadNotifications();
-    setShowActivityModal(true);
+  };
+
+  const openPostFromNotification = async (notification) => {
+    if (!notification?.post_id) return;
+    setSocialViewMode('FEED');
+    setFeedFilter('ALL');
+    setExpandedPostId(notification.post_id);
+    await ensureCommentsLoaded(notification.post_id);
+    await markNotificationsAsRead();
+    setShowActivityModal(false);
   };
 
   const handleCreateGroup = async (e) => {
@@ -860,14 +874,14 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
 
   return (
     <>
-      <div className="p-4 md:p-6 space-y-6 bg-linear-to-b from-gray-900 to-[#20131f] min-h-full">
-      <section className="sticky top-2 z-20 rounded-2xl border border-amber-400/30 bg-black/60 backdrop-blur p-4 shadow-xl">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6 bg-linear-to-b from-gray-900 to-[#20131f] min-h-full">
+      <section className="sticky top-1 z-20 rounded-2xl border border-amber-400/30 bg-black/70 backdrop-blur-md p-3 md:p-4 shadow-xl">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+          <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setShowMyProfileModal(true)}
-              className="h-12 w-12 rounded-full border border-amber-300/40 overflow-hidden bg-gray-800 hover:border-amber-200 transition"
+              className="h-11 w-11 md:h-12 md:w-12 shrink-0 rounded-full border border-amber-300/40 overflow-hidden bg-gray-800 hover:border-amber-200 transition"
               title="Apri il mio profilo social"
             >
               {profile?.foto_principale ? (
@@ -878,9 +892,9 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 </div>
               )}
             </button>
-            <div>
-              <h2 className="text-3xl font-black italic text-amber-300 tracking-wide">Fame-stagram</h2>
-              <p className="text-sm text-amber-100/80">{subtitle}</p>
+            <div className="min-w-0">
+              <h2 className="text-xl md:text-3xl font-black italic text-amber-300 tracking-wide leading-tight">Fame-stagram</h2>
+              <p className="text-[11px] md:text-sm text-amber-100/80 truncate">{subtitle}</p>
               <div className="text-xs text-gray-300 mt-1 inline-flex items-center gap-1">
                 <span>PG attivo: {profile?.personaggio_nome || `#${selectedCharacterId}`}</span>
                 {String(preferredCharacterId || '') === String(selectedCharacterId) && (
@@ -891,9 +905,9 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap lg:justify-end">
             <select
-              className="bg-gray-800/90 rounded-lg px-2 py-2 text-sm border border-gray-600 max-w-48"
+              className="bg-gray-800/90 rounded-lg px-2 py-2 text-xs md:text-sm border border-gray-600 w-full sm:w-auto sm:max-w-56"
               value={selectedCharacterId || ''}
               onChange={(e) => selectCharacter(e.target.value)}
               title="Cambio rapido personaggio"
@@ -907,7 +921,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
             <button
               type="button"
               onClick={() => setShowComposer((s) => !s)}
-              className="inline-flex items-center gap-2 bg-indigo-700/90 hover:bg-indigo-600 rounded-lg px-3 py-2 text-sm font-bold"
+              className="inline-flex items-center justify-center gap-2 bg-indigo-700/90 hover:bg-indigo-600 rounded-lg px-3 py-2 text-xs md:text-sm font-bold grow sm:grow-0"
             >
               <PlusSquare size={16} />
               {showComposer ? 'Chiudi nuovo post' : 'Nuovo post'}
@@ -915,7 +929,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
             <button
               type="button"
               onClick={openActivityModal}
-              className="relative inline-flex items-center gap-2 bg-gray-800/90 hover:bg-gray-700 rounded-lg px-3 py-2 text-sm font-bold border border-gray-600"
+              className="relative inline-flex items-center justify-center gap-2 bg-gray-800/90 hover:bg-gray-700 rounded-lg px-3 py-2 text-xs md:text-sm font-bold border border-gray-600 grow sm:grow-0"
               title="Attivita social"
             >
               <Bell size={16} />
@@ -930,33 +944,33 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         </div>
       </section>
 
-      <section className="flex items-center gap-2">
+      <section className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         <button
           type="button"
           onClick={() => setSocialViewMode('FEED')}
-          className={`px-3 py-1.5 rounded-lg border text-sm ${socialViewMode === 'FEED' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+          className={`px-3 py-1.5 rounded-lg border text-xs md:text-sm whitespace-nowrap ${socialViewMode === 'FEED' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
         >
           Feed
         </button>
         <button
           type="button"
           onClick={() => setSocialViewMode('GROUPS')}
-          className={`px-3 py-1.5 rounded-lg border text-sm inline-flex items-center gap-1 ${socialViewMode === 'GROUPS' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+          className={`px-3 py-1.5 rounded-lg border text-xs md:text-sm inline-flex items-center gap-1 whitespace-nowrap ${socialViewMode === 'GROUPS' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
         >
           <Users size={14} /> Gruppi
         </button>
         <button
           type="button"
           onClick={() => onOpenMessages?.()}
-          className="px-3 py-1.5 rounded-lg border text-sm inline-flex items-center gap-1 bg-gray-800 border-gray-700 hover:bg-gray-700"
+          className="px-3 py-1.5 rounded-lg border text-xs md:text-sm inline-flex items-center gap-1 bg-gray-800 border-gray-700 hover:bg-gray-700 whitespace-nowrap"
         >
           <MessageCircle size={14} /> Apri Messaggi
         </button>
       </section>
 
       {socialViewMode === 'FEED' && showComposer && (
-      <section className="grid grid-cols-1 gap-6">
-        <form onSubmit={handleCreatePost} className="rounded-2xl border border-indigo-500/30 bg-gray-900/70 p-4 space-y-3 max-w-4xl">
+      <section className="grid grid-cols-1 gap-4">
+        <form onSubmit={handleCreatePost} className="rounded-2xl border border-indigo-500/30 bg-gray-900/70 p-3 md:p-4 space-y-3 max-w-4xl">
           <div className="flex items-center gap-2 text-indigo-300 font-bold"><PlusSquare size={18} /> Nuovo Post</div>
           <input
             className="w-full bg-gray-800 rounded p-2 border border-gray-700"
@@ -1021,9 +1035,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
 
       {socialViewMode === 'FEED' && (
       <section className="space-y-4">
+        <div className="sticky top-[86px] md:top-[96px] z-10 rounded-xl border border-gray-700/70 bg-gray-950/80 backdrop-blur px-2 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-pink-300 font-bold"><Sparkles size={18} /> Feed Sociale</div>
-          <div className="flex flex-wrap gap-2 text-xs items-center">
+          <div className="flex gap-2 text-xs items-center overflow-x-auto w-full md:w-auto pb-1">
             {[
               { id: 'ALL', label: 'Tutti' },
               { id: 'PUB', label: 'Pubblici' },
@@ -1034,27 +1049,28 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 key={f.id}
                 type="button"
                 onClick={() => setFeedFilter(f.id)}
-                className={`px-2 py-1 rounded border ${feedFilter === f.id ? 'bg-indigo-600 border-indigo-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+                className={`px-2 py-1 rounded border whitespace-nowrap ${feedFilter === f.id ? 'bg-indigo-600 border-indigo-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
               >
                 {f.label}
               </button>
             ))}
-            <div className="w-px h-5 bg-gray-700 mx-1" />
+            <div className="w-px h-5 bg-gray-700 mx-1 shrink-0" />
             <button
               type="button"
               onClick={() => setFeedSort('RECENT')}
-              className={`px-2 py-1 rounded border ${feedSort === 'RECENT' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+              className={`px-2 py-1 rounded border whitespace-nowrap ${feedSort === 'RECENT' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
             >
               Piu recenti
             </button>
             <button
               type="button"
               onClick={() => setFeedSort('DISCUSSED')}
-              className={`px-2 py-1 rounded border ${feedSort === 'DISCUSSED' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+              className={`px-2 py-1 rounded border whitespace-nowrap ${feedSort === 'DISCUSSED' ? 'bg-fuchsia-700 border-fuchsia-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
             >
               Piu discussi
             </button>
           </div>
+        </div>
         </div>
         {loading && (
           <div className="space-y-3">
@@ -1069,10 +1085,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         )}
         {!loading && filteredPosts.length === 0 && <div className="text-gray-400">Nessun post per questo filtro.</div>}
         {filteredPosts.map((post) => (
-          <article key={post.id} className="rounded-2xl border border-gray-700 bg-gray-900/80 p-4 space-y-3">
+          <article key={post.id} className="rounded-2xl border border-amber-500/20 bg-gray-900/85 p-3 md:p-4 space-y-3 shadow-[0_8px_28px_rgba(0,0,0,0.28)]">
             <div className="flex justify-between items-start gap-3">
               <div>
-                <h3 className="font-bold text-lg">{post.titolo}</h3>
+                <h3 className="font-bold text-base md:text-lg text-amber-100">{post.titolo}</h3>
                 <p className="text-xs text-gray-400">
                   <button type="button" onClick={() => openProfile(post.autore)} className="underline decoration-dotted hover:text-white">
                     {post.autore_nome}
@@ -1089,7 +1105,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 Evento: {post.evento_titolo}
               </div>
             )}
-            {post.testo && <p className="text-gray-200">{renderTextWithMentions(post.testo, post.tags)}</p>}
+            {post.testo && <p className="text-gray-200 text-sm md:text-base leading-relaxed">{renderTextWithMentions(post.testo, post.tags)}</p>}
             {post.tags?.length > 0 && (
               <div className="text-xs text-amber-300/90">
                 Tag:{' '}
@@ -1115,7 +1131,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 <video controls src={post.video} className="h-full w-full object-cover" />
               </div>
             )}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               <button onClick={() => handleToggleLike(post.id)} className="inline-flex items-center gap-1 text-sm text-rose-300 hover:text-rose-200">
                 <Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count || 0}
               </button>
@@ -1155,15 +1171,15 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               )}
             </div>
             <div className="pt-2 border-t border-gray-700 space-y-2">
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <input
-                  className="flex-1 bg-gray-800 rounded p-2 border border-gray-700 text-sm"
+                  className="flex-1 bg-gray-800 rounded p-2 border border-gray-700 text-sm min-w-0"
                   placeholder="Scrivi un commento..."
                   value={newCommentByPost[post.id] || ''}
                   onFocus={() => ensureCommentsLoaded(post.id)}
                   onChange={(e) => updateCommentWithMentions(post.id, e.target.value)}
                 />
-                <button onClick={() => submitComment(post.id)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 text-sm">Invia</button>
+                <button onClick={() => submitComment(post.id)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm shrink-0">Invia</button>
               </div>
               {(commentMentionSuggestions[post.id] || []).length > 0 && (
                 <div className="bg-gray-800 border border-gray-700 rounded p-2 text-sm">
@@ -1523,8 +1539,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       )}
       </div>
       {showMyProfileModal && (
-      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
+        <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-auto">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">Il mio profilo social</h3>
             <button onClick={() => setShowMyProfileModal(false)} className="text-gray-400 hover:text-white">X</button>
@@ -1549,8 +1565,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       </div>
       )}
       {selectedProfile && (
-      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
+        <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-auto">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">Profilo social: {selectedProfile.personaggio_nome}</h3>
             <button onClick={() => setSelectedProfile(null)} className="text-gray-400 hover:text-white">X</button>
@@ -1575,8 +1591,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       </div>
       )}
       {editingPost && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Modifica post (admin)</h3>
               <button onClick={() => setEditingPost(null)} className="text-gray-400 hover:text-white">X</button>
@@ -1628,8 +1644,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         </div>
       )}
       {editingGroupPost && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Modifica post gruppo</h3>
               <button onClick={() => setEditingGroupPost(null)} className="text-gray-400 hover:text-white">X</button>
@@ -1652,8 +1668,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         </div>
       )}
       {showActivityModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3 max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Attivita social</h3>
               <button onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-white">X</button>
@@ -1666,10 +1682,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 <button
                   key={`n-${n.kind}-${n.post_id}-${n.created_at}-${idx}`}
                   type="button"
-                  onClick={() => {
-                    if (n.post_id) setExpandedPostId(n.post_id);
-                    setShowActivityModal(false);
-                  }}
+                  onClick={() => openPostFromNotification(n)}
                   className="w-full text-left rounded-lg border border-gray-700 bg-gray-800/70 hover:bg-gray-800 p-3"
                 >
                   <div className="text-xs text-gray-400 mb-1">{new Date(n.created_at).toLocaleString('it-IT')}</div>
