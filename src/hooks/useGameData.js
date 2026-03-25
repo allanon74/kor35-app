@@ -577,7 +577,6 @@ export const useOptimisticAcquireCerimoniale = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ cerimonialeId, charId, onLogout }) => {
-            const { fetchAuthenticated } = await import('../api');
             return fetchAuthenticated('/api/personaggi/api/personaggio/me/acquisisci_cerimoniale/', {
                 method: 'POST',
                 body: JSON.stringify({ personaggio_id: charId, cerimoniale_id: cerimonialeId })

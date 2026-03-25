@@ -5,6 +5,7 @@ import {
   markMessageAsRead, 
   deleteMessage, 
   getAdminPendingProposalsCount, 
+  saveWebPushSubscription,
   fetchAuthenticated,
   getPreferredPersonaggio,
   setPreferredPersonaggio,
@@ -341,7 +342,6 @@ export const CharacterProvider = ({ children, onLogout }) => {
             const key = urlBase64ToUint8Array("BIOIApSIeJdV1tp5iVxyLtm8KzM43_AQWV2ymS4iMjkIG1R5g399o6WRdZJY-xcUBZPyJ7EFRVgWqlbalOkGSYw");
             sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
         }
-        const { saveWebPushSubscription } = await import('../api');
         await saveWebPushSubscription(sub, onLogout);
     } catch (e) { console.error("WebPush Error:", e); }
   }, [onLogout]);
