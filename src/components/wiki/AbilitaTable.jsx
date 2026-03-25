@@ -75,12 +75,27 @@ function getAbilityCostLine(item) {
   const pc = Number(pcRaw) || 0;
   const cr = Number(crRaw) || 0;
 
-  if (pc <= 0 && cr <= 0) return null;
+  const hasExplicitCosts =
+    item?.costo_pc_calc != null ||
+    item?.costo_crediti_calc != null ||
+    item?.costo_pc != null ||
+    item?.costo_crediti != null;
 
-  const parts = [];
-  if (pc > 0) parts.push(`${pc} PC`);
-  if (cr > 0) parts.push(`${cr} Cr`);
-  return `Costo: ${parts.join(' + ')}`;
+  // Se abbiamo i campi costo_* usiamo la logica combinata richiesta.
+  if (hasExplicitCosts) {
+    if (pc <= 0 && cr <= 0) return null;
+    const parts = [];
+    if (pc > 0) parts.push(`${pc} PC`);
+    if (cr > 0) parts.push(`${cr} Cr`);
+    return `Costo: ${parts.join(' + ')}`;
+  }
+
+  // Fallback (es. API wiki legacy): costo già formattato dal backend
+  const raw = item?.costo;
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s || s === '0') return null;
+  return /^costo\s*:/i.test(s) ? s : `Costo: ${s}`;
 }
 
 export default function AbilitaTable({ list, chromaticStyle, soloList = false }) {

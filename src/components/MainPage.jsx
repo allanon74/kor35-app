@@ -107,11 +107,42 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   } = useRegisterSW({
     onRegistered(r) {
       console.log('SW Registered: ' + r);
+      // Con autoUpdate il SW prova già ad aggiornarsi, ma qui forziamo un check
+      // per ridurre casi di cache "mista" (chunk vecchi/nuovi).
+      try {
+        r?.update?.();
+      } catch (e) {
+        // noop
+      }
     },
     onRegisterError(error) {
       console.log('SW registration error', error);
     },
   });
+
+  // Se c'è una nuova versione pronta, aggiorna e ricarica automaticamente (una volta).
+  useEffect(() => {
+    if (!needRefresh) return;
+    const key = 'kor35:sw_auto_reload_done';
+    if (sessionStorage.getItem(key) === '1') return;
+    sessionStorage.setItem(key, '1');
+    updateServiceWorker(true);
+  }, [needRefresh, updateServiceWorker]);
+
+  // Se il controller cambia (nuovo SW attivo), ricarica per allineare tutti i chunk (una volta).
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const sw = navigator?.serviceWorker;
+    if (!sw) return undefined;
+    const key = 'kor35:sw_controllerchange_reload_done';
+    const onControllerChange = () => {
+      if (sessionStorage.getItem(key) === '1') return;
+      sessionStorage.setItem(key, '1');
+      window.location.reload();
+    };
+    sw.addEventListener('controllerchange', onControllerChange);
+    return () => sw.removeEventListener('controllerchange', onControllerChange);
+  }, []);
 
   // --- COOLDOWN FURTO ---
   const [stealCooldownEnd, setStealCooldownEnd] = useState(0);
