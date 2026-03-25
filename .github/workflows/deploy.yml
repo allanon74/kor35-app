@@ -36,7 +36,8 @@ jobs:
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             source /etc/profile
             set -euo pipefail
-            # Nessun pre-check su sudo: l'utente deployer ha spesso NOPASSWD solo per rm/cp, non per test/true.
+            # Usa path assoluti per rm/cp: NOPASSWD in sudoers è spesso solo /bin/rm e /bin/cp, mentre
+            # `sudo rm` risolve /usr/bin/rm → sudo chiede password e il deploy fallisce in CI.
             if [ "$(id -u)" -eq 0 ]; then
               SUDO=""
             else
@@ -67,19 +68,19 @@ jobs:
             elif [ -d build ]; then
               test -f build/index.html || { echo "build/index.html mancante dopo build" >&2; exit 1; }
             fi
-            ${SUDO} rm -rf "${{ secrets.DEPLOY_TARGET_PATH }}"/*
+            ${SUDO} /bin/rm -rf "${{ secrets.DEPLOY_TARGET_PATH }}"/*
             if [ -d dist ]; then
               # Copia anche i file nascosti (es. .htaccess) necessari per Apache SPA fallback.
-              ${SUDO} cp -R dist/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
+              ${SUDO} /bin/cp -R dist/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
             elif [ -d build ]; then
-              ${SUDO} cp -R build/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
+              ${SUDO} /bin/cp -R build/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
             else
               echo "Nessuna cartella dist/build trovata dopo npm run build" >&2
               exit 1
             fi
             # Dopo cp i file sono di solito world-readable: non serve sudo test (deployer non ha /usr/bin/test in NOPASSWD).
             test -f "${{ secrets.DEPLOY_TARGET_PATH }}/index.html" || { echo "index.html non pubblicato in DEPLOY_TARGET_PATH" >&2; exit 1; }
-            ${SUDO} systemctl restart apache2.service
+            ${SUDO} /usr/bin/systemctl restart apache2.service
             if [ -n "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" ]; then
               curl -fsS "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" >/dev/null
             fi
