@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, ChevronDown } from 'lucide-react';
 import { acquireAbilita } from '../api';
 
 const PREFIX_ARCH = 'archetipo - ';
@@ -86,26 +86,63 @@ export function useRazzaDisplay(abilitaPossedute) {
   }, [abilitaPossedute]);
 }
 
-/** Riga nome + descrizione HTML (stessa resa per archetipo e forma) */
-function TraitOptionRow({ nomeDisplay, descrizione, selected, accent }) {
-  const borderSelected =
-    accent === 'forma' ? 'border-cyan-600/50 bg-cyan-950/20' : 'border-amber-600/50 bg-amber-950/20';
-  const textSelected = accent === 'forma' ? 'text-cyan-100' : 'text-amber-100';
+function AccentBadge({ accent, children }) {
+  const cls =
+    accent === 'forma'
+      ? 'text-cyan-200 bg-cyan-950/30 border-cyan-700/50'
+      : 'text-amber-200 bg-amber-950/30 border-amber-700/50';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider ${cls}`}>
+      {children}
+    </span>
+  );
+}
+
+function ExpandableDescrizione({ descrizione }) {
+  if (!descrizione) return null;
+  return (
+    <details className="mt-2 group">
+      <summary className="list-none cursor-pointer select-none inline-flex items-center gap-1 text-[11px] text-slate-300/80 hover:text-slate-200 [&::-webkit-details-marker]:hidden">
+        <span>Descrizione</span>
+        <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+      </summary>
+      <div
+        className="mt-2 text-sm text-slate-200/90 prose prose-invert prose-sm max-w-none leading-relaxed prose-p:my-1.5 prose-headings:text-slate-100"
+        dangerouslySetInnerHTML={{ __html: descrizione }}
+      />
+    </details>
+  );
+}
+
+function OptionCard({ nomeDisplay, descrizione, accent, selected, disabled, onClick, loading }) {
+  const baseBorder =
+    accent === 'forma' ? 'border-slate-700 hover:border-cyan-500/60' : 'border-slate-700 hover:border-amber-500/60';
+  const selectedBorder =
+    accent === 'forma'
+      ? 'border-cyan-600/70 ring-1 ring-cyan-500/40 bg-cyan-950/20'
+      : 'border-amber-600/70 ring-1 ring-amber-500/40 bg-amber-950/20';
 
   return (
-    <div
-      className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-left text-sm px-3 py-2 rounded-md border ${
-        selected ? `${borderSelected} ${textSelected}` : 'border-gray-600 bg-gray-900 text-gray-200'
-      }`}
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`w-full text-left rounded-lg border px-3 py-3 transition-colors ${
+        selected ? selectedBorder : `${baseBorder} bg-slate-900`
+      } ${disabled ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
     >
-      <span className="font-medium shrink-0">{nomeDisplay}</span>
-      {descrizione ? (
-        <span
-          className="text-gray-400 text-sm prose prose-invert prose-sm max-w-none leading-snug [&_p]:inline [&_p]:my-0 [&_ul]:inline [&_ol]:inline"
-          dangerouslySetInnerHTML={{ __html: descrizione }}
-        />
-      ) : null}
-    </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`font-bold text-sm ${selected ? 'text-white' : 'text-slate-100'}`}>{nomeDisplay}</span>
+            {selected && <AccentBadge accent={accent}>Attuale</AccentBadge>}
+          </div>
+        </div>
+        {loading ? <Loader2 className="w-4 h-4 animate-spin shrink-0 text-slate-200" /> : null}
+      </div>
+
+      <ExpandableDescrizione descrizione={descrizione} />
+    </button>
   );
 }
 
@@ -122,6 +159,7 @@ export function RazzaModal({
 }) {
   const [loadingId, setLoadingId] = useState(null);
   const [error, setError] = useState(null);
+  const [tab, setTab] = useState('archetipo');
 
   useEffect(() => {
     if (!isOpen) {
@@ -282,8 +320,8 @@ export function RazzaModal({
       aria-labelledby="razza-modal-title"
       onClick={(e) => e.target === e.currentTarget && !loadingId && onClose()}
     >
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 rounded-t-xl shrink-0">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl">
+        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/60 rounded-t-xl shrink-0">
           <div>
             <h3 id="razza-modal-title" className="text-xl font-bold text-amber-400">
               Razza
@@ -303,6 +341,10 @@ export function RazzaModal({
                 </>
               )}
             </p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Aura innata: <span className="text-slate-300 font-semibold">{ainVal}</span>
+              {ainVal < 2 ? <span className="ml-2">· Le forme si sbloccano a 2</span> : null}
+            </p>
           </div>
           <button
             type="button"
@@ -315,111 +357,138 @@ export function RazzaModal({
           </button>
         </div>
 
-        <div className="p-4 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 overflow-y-auto space-y-4 flex-1">
           {error && (
             <div className="text-sm text-red-300 bg-red-900/50 border border-red-500/50 rounded-md p-2">{error}</div>
           )}
 
-          <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Archetipo attuale</p>
-            <div className="mb-4">
-              {archetipoSelezionato ? (
-                <TraitOptionRow
-                  nomeDisplay={stripRazzaPrefix(archetipoSelezionato.nome)}
-                  descrizione={archetipoSelezionato.descrizione}
-                  selected
-                  accent="archetipo"
-                />
-              ) : (
-                <TraitOptionRow
-                  nomeDisplay="Umano"
-                  descrizione={traitUmanoCatalogo?.descrizione}
-                  selected
-                  accent="archetipo"
-                />
-              )}
-            </div>
-
-            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2 border-t border-slate-700/80 pt-4">
-              Altri archetipi
-            </p>
-            <div className="flex flex-col gap-2 max-h-[36vh] overflow-y-auto pr-1">
-              {archetipiAltri.length === 0 ? (
-                <p className="text-xs text-slate-500">Nessun altro archetipo selezionabile.</p>
-              ) : (
-                archetipiAltri.map((trait) => (
-                  <button
-                    key={trait.id}
-                    type="button"
-                    disabled={!!loadingId}
-                    onClick={() => handlePick(trait)}
-                    className="text-left rounded-md transition-colors w-full hover:brightness-110 cursor-pointer disabled:opacity-60"
-                  >
-                    <div className="relative">
-                      <TraitOptionRow
-                        nomeDisplay={stripRazzaPrefix(trait.nome)}
-                        descrizione={trait.descrizione}
-                        selected={false}
-                        accent="archetipo"
-                      />
-                      {loadingId === trait.id && (
-                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-amber-400" />
-                      )}
-                    </div>
-                  </button>
-                ))
-              )}
+          {/* Segmented control (mobile-friendly) */}
+          <div className="sticky top-0 z-10 -mx-4 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setTab('archetipo')}
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${
+                  tab === 'archetipo'
+                    ? 'bg-amber-950/30 border-amber-700/60 text-amber-200'
+                    : 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-600'
+                }`}
+              >
+                Archetipo
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('forma')}
+                disabled={ainVal < 2}
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${
+                  tab === 'forma'
+                    ? 'bg-cyan-950/30 border-cyan-700/60 text-cyan-200'
+                    : 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-600'
+                } ${ainVal < 2 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={ainVal < 2 ? 'Le forme si sbloccano a Aura innata 2' : undefined}
+              >
+                Forma
+              </button>
             </div>
           </div>
 
-          {ainVal >= 2 && (
-            <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Forma attuale</p>
-              <div className="mb-4">
-                {formaSelezionata ? (
-                  <TraitOptionRow
-                    nomeDisplay={stripRazzaPrefix(formaSelezionata.nome)}
-                    descrizione={formaSelezionata.descrizione}
-                    selected
-                    accent="forma"
-                  />
-                ) : (
-                  <p className="text-sm text-slate-400 px-1 py-2 rounded-md border border-slate-700/60 bg-slate-900/40">
-                    Nessuna forma selezionata.
-                  </p>
-                )}
+          {tab === 'archetipo' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wider text-slate-500">Attuale</p>
+                <AccentBadge accent="archetipo">Archetipo</AccentBadge>
               </div>
+              {archetipoSelezionato ? (
+                <OptionCard
+                  nomeDisplay={stripRazzaPrefix(archetipoSelezionato.nome)}
+                  descrizione={archetipoSelezionato.descrizione}
+                  accent="archetipo"
+                  selected
+                  disabled
+                />
+              ) : (
+                <OptionCard
+                  nomeDisplay="Umano"
+                  descrizione={traitUmanoCatalogo?.descrizione}
+                  accent="archetipo"
+                  selected
+                  disabled
+                />
+              )}
 
-              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2 border-t border-slate-700/80 pt-4">
-                Altre forme
-              </p>
-              <div className="flex flex-col gap-2 max-h-[36vh] overflow-y-auto pr-1">
-                {formeAltri.length === 0 ? (
-                  <p className="text-xs text-slate-500">Non ci sono altre forme selezionabili.</p>
-                ) : (
-                  formeAltri.map((trait) => (
-                    <button
-                      key={trait.id}
-                      type="button"
-                      disabled={!!loadingId}
-                      onClick={() => handlePick(trait)}
-                      className="text-left rounded-md transition-colors w-full hover:brightness-110 cursor-pointer disabled:opacity-60"
-                    >
-                      <div className="relative">
-                        <TraitOptionRow
-                          nomeDisplay={stripRazzaPrefix(trait.nome)}
-                          descrizione={trait.descrizione}
-                          selected={false}
-                          accent="forma"
-                        />
-                        {loadingId === trait.id && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-cyan-400" />
-                        )}
-                      </div>
-                    </button>
-                  ))
-                )}
+              <div className="pt-3 border-t border-slate-800">
+                <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Selezionabili</p>
+                <div className="space-y-2">
+                  {archetipiAltri.length === 0 ? (
+                    <p className="text-xs text-slate-500">Nessun altro archetipo selezionabile.</p>
+                  ) : (
+                    archetipiAltri.map((trait) => (
+                      <OptionCard
+                        key={trait.id}
+                        nomeDisplay={stripRazzaPrefix(trait.nome)}
+                        descrizione={trait.descrizione}
+                        accent="archetipo"
+                        selected={false}
+                        disabled={!!loadingId}
+                        loading={loadingId === trait.id}
+                        onClick={() => handlePick(trait)}
+                      />
+                    ))
+                  )}
+                </div>
               </div>
+            </div>
+          )}
+
+          {tab === 'forma' && (
+            <div className="space-y-3">
+              {ainVal < 2 ? (
+                <div className="text-sm text-slate-300 bg-slate-800/40 border border-slate-700 rounded-lg p-3">
+                  Le forme sono disponibili solo con <span className="font-semibold text-white">Aura innata 2</span>.
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-wider text-slate-500">Attuale</p>
+                    <AccentBadge accent="forma">Forma</AccentBadge>
+                  </div>
+                  {formaSelezionata ? (
+                    <OptionCard
+                      nomeDisplay={stripRazzaPrefix(formaSelezionata.nome)}
+                      descrizione={formaSelezionata.descrizione}
+                      accent="forma"
+                      selected
+                      disabled
+                    />
+                  ) : (
+                    <div className="text-sm text-slate-300 bg-slate-800/30 border border-slate-700 rounded-lg p-3">
+                      Nessuna forma selezionata.
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-slate-800">
+                    <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Selezionabili</p>
+                    <div className="space-y-2">
+                      {formeAltri.length === 0 ? (
+                        <p className="text-xs text-slate-500">Non ci sono altre forme selezionabili.</p>
+                      ) : (
+                        formeAltri.map((trait) => (
+                          <OptionCard
+                            key={trait.id}
+                            nomeDisplay={stripRazzaPrefix(trait.nome)}
+                            descrizione={trait.descrizione}
+                            accent="forma"
+                            selected={false}
+                            disabled={!!loadingId}
+                            loading={loadingId === trait.id}
+                            onClick={() => handlePick(trait)}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
