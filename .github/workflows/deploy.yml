@@ -38,10 +38,10 @@ jobs:
             set -euo pipefail
             if [ "$(id -u)" -eq 0 ]; then
               SUDO=""
-            elif sudo -n true 2>/dev/null; then
+            elif sudo -n test -d / >/dev/null 2>&1; then
               SUDO="sudo -n"
             else
-              echo "L'utente deploy non ha sudo non-interattivo. Configura NOPASSWD per deploy target e reload apache." >&2
+              echo "L'utente deploy non ha sudo non-interattivo sui comandi richiesti (rm/cp/test/systemctl)." >&2
               exit 1
             fi
             cd "${{ secrets.REPO_PATH_ON_SERVER }}"
@@ -80,7 +80,7 @@ jobs:
               exit 1
             fi
             ${SUDO} test -f "${{ secrets.DEPLOY_TARGET_PATH }}/index.html" || { echo "index.html non pubblicato in DEPLOY_TARGET_PATH" >&2; exit 1; }
-            ${SUDO} systemctl reload apache2
+            ${SUDO} systemctl restart apache2.service
             if [ -n "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" ]; then
               curl -fsS "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" >/dev/null
             fi
