@@ -14,6 +14,9 @@ export default defineConfig(({ command, mode }) => {
       strategies: 'injectManifest', // Usa il nostro service worker custom
       srcDir: 'src',                // Cartella dove si trova il file sorgente
       filename: 'sw.js',            // Nome del file sorgente (creato nel passo precedente)
+      // Disabilita l'auto-registrazione del Service Worker dal bundle client.
+      // Evita cache runtime incoerente finché non chiudiamo il bug "Cannot access ... before initialization".
+      injectRegister: false,
       // Workbox rifiuta di precachare file > 2 MiB (default). Il bundle principale può superarlo.
       // https://vite-pwa-org.netlify.app/guide/faq.html#missing-assets-from-sw-precache-manifest
       injectManifest: {

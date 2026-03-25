@@ -18,6 +18,13 @@ import {
   smontaOggetto,
   completeForging,
   getAcquirableCerimoniali,
+  acquireAbilita,
+  acquireInfusione,
+  acquireTessitura,
+  toggleTessituraFavorite,
+  buyShopItem,
+  markMessageAsRead,
+  deleteMessage,
 } from '../api';
 import { getRevision, setRevision } from '../queryRevisionStore';
 
@@ -477,7 +484,6 @@ export const useOptimisticAcquireAbilita = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ abilitaId, charId }) => {
-            const { acquireAbilita } = await import('../api');
             return acquireAbilita(abilitaId, charId);
         },
         (oldData, { abilitaId }) => {
@@ -503,7 +509,6 @@ export const useOptimisticAcquireInfusione = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ infusioneId, charId }) => {
-            const { acquireInfusione } = await import('../api');
             return acquireInfusione(infusioneId, charId);
         },
         (oldData, { infusioneId }) => {
@@ -527,7 +532,6 @@ export const useOptimisticAcquireTessitura = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ tessituraId, charId }) => {
-            const { acquireTessitura } = await import('../api');
             return acquireTessitura(tessituraId, charId);
         },
         (oldData, { tessituraId }) => {
@@ -551,7 +555,6 @@ export const useOptimisticToggleTessituraFavorite = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ tessituraId, charId }) => {
-            const { toggleTessituraFavorite } = await import('../api');
             return toggleTessituraFavorite(tessituraId, charId);
         },
         (oldData, { tessituraId }) => {
@@ -600,7 +603,6 @@ export const useOptimisticBuyShopItem = () => {
     return useOptimisticAction(
         ['personaggio'],
         async ({ oggettoId, charId }) => {
-            const { buyShopItem } = await import('../api');
             return buyShopItem(oggettoId, charId);
         },
         (oldData, { oggettoId, costo }) => {
@@ -620,9 +622,7 @@ export const useOptimisticMarkMessageRead = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ messageId, charId, onLogout }) => {
-            return import('../api').then(({ markMessageAsRead }) =>
-              markMessageAsRead(messageId, charId, onLogout)
-            );
+            return markMessageAsRead(messageId, charId, onLogout);
         },
         onMutate: async ({ messageId }) => {
             // Non abbiamo una query key specifica per i messaggi nel context
@@ -640,9 +640,7 @@ export const useOptimisticDeleteMessage = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ messageId, charId, onLogout }) => {
-            return import('../api').then(({ deleteMessage }) =>
-              deleteMessage(messageId, charId, onLogout)
-            );
+            return deleteMessage(messageId, charId, onLogout);
         },
         onMutate: async ({ messageId }) => {
             return { messageId };

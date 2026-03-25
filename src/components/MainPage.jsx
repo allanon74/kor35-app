@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 // --- LOGICA PWA ---
-import { useRegisterSW } from 'virtual:pwa-register/react'; 
 import { Link, useLocation } from 'react-router-dom';
 
 import HomeTab from './HomeTab.jsx';
@@ -102,48 +101,38 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   // STATO SHORTCUTS (Default salvagente)
   const [userShortcuts, setUserShortcuts] = useState(DEFAULT_SHORTCUTS);
 
-  // --- LOGICA PWA ---
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegistered(r) {
-      console.log('SW Registered: ' + r);
-      // Con autoUpdate il SW prova già ad aggiornarsi, ma qui forziamo un check
-      // per ridurre casi di cache "mista" (chunk vecchi/nuovi).
+  // --- LOGICA PWA (temporaneamente disattivata per stabilità runtime) ---
+  const needRefresh = false;
+  const setNeedRefresh = () => {};
+  const updateServiceWorker = async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch (e) {
+      // noop
+    }
+    window.location.reload();
+  };
+
+  // Safety net: rimuove eventuali Service Worker già presenti per evitare cache incoerente dei chunk.
+  useEffect(() => {
+    let mounted = true;
+    const cleanupServiceWorkers = async () => {
       try {
-        r?.update?.();
+        if (!('serviceWorker' in navigator)) return;
+        const regs = await navigator.serviceWorker.getRegistrations();
+        if (!mounted) return;
+        await Promise.all(regs.map(r => r.unregister()));
       } catch (e) {
         // noop
       }
-    },
-    onRegisterError(error) {
-      console.log('SW registration error', error);
-    },
-  });
-
-  // Se c'è una nuova versione pronta, aggiorna e ricarica automaticamente (una volta).
-  useEffect(() => {
-    if (!needRefresh) return;
-    const key = 'kor35:sw_auto_reload_done';
-    if (sessionStorage.getItem(key) === '1') return;
-    sessionStorage.setItem(key, '1');
-    updateServiceWorker(true);
-  }, [needRefresh, updateServiceWorker]);
-
-  // Se il controller cambia (nuovo SW attivo), ricarica per allineare tutti i chunk (una volta).
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const sw = navigator?.serviceWorker;
-    if (!sw) return undefined;
-    const key = 'kor35:sw_controllerchange_reload_done';
-    const onControllerChange = () => {
-      if (sessionStorage.getItem(key) === '1') return;
-      sessionStorage.setItem(key, '1');
-      window.location.reload();
     };
-    sw.addEventListener('controllerchange', onControllerChange);
-    return () => sw.removeEventListener('controllerchange', onControllerChange);
+    cleanupServiceWorkers();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // --- COOLDOWN FURTO ---
