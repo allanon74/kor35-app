@@ -36,13 +36,11 @@ jobs:
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             source /etc/profile
             set -euo pipefail
+            # Nessun pre-check su sudo: l'utente deployer ha spesso NOPASSWD solo per rm/cp, non per test/true.
             if [ "$(id -u)" -eq 0 ]; then
               SUDO=""
-            elif sudo -n test -d / >/dev/null 2>&1; then
-              SUDO="sudo -n"
             else
-              echo "L'utente deploy non ha sudo non-interattivo sui comandi richiesti (rm/cp/test/systemctl)." >&2
-              exit 1
+              SUDO="sudo -n"
             fi
             cd "${{ secrets.REPO_PATH_ON_SERVER }}"
             git fetch --all --tags
@@ -79,7 +77,8 @@ jobs:
               echo "Nessuna cartella dist/build trovata dopo npm run build" >&2
               exit 1
             fi
-            ${SUDO} test -f "${{ secrets.DEPLOY_TARGET_PATH }}/index.html" || { echo "index.html non pubblicato in DEPLOY_TARGET_PATH" >&2; exit 1; }
+            # Dopo cp i file sono di solito world-readable: non serve sudo test (deployer non ha /usr/bin/test in NOPASSWD).
+            test -f "${{ secrets.DEPLOY_TARGET_PATH }}/index.html" || { echo "index.html non pubblicato in DEPLOY_TARGET_PATH" >&2; exit 1; }
             ${SUDO} systemctl restart apache2.service
             if [ -n "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" ]; then
               curl -fsS "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" >/dev/null
