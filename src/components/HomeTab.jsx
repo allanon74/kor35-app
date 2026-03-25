@@ -62,6 +62,8 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     // log_eventi <-- RIMOSSO: Ora gestito da LogViewer
   } = data;
 
+  const canEditRazza = !!data?.can_edit_razza;
+
   const auraInnataRecord = useMemo(
     () => (punteggiList || []).find((p) => p.tipo === 'AU' && String(p.sigla || '').toUpperCase() === 'AIN'),
     [punteggiList]
@@ -217,20 +219,39 @@ const CharacterSheet = memo(({ data, onLogout }) => {
 
       <div className="text-center mb-6">
         <h2 className="text-4xl font-bold text-indigo-400 mb-2 animate-fadeIn drop-shadow-lg">{nome}</h2>
-        <p className="text-sm text-gray-400">
-          Razza:{' '}
-          <span className="text-gray-200 font-medium">{archetipoLabel}</span>
-          {formaLabel ? (
-            <>
-              {' '}
-              <span className="text-gray-200 font-medium">{formaLabel}</span>
-            </>
-          ) : null}
-        </p>
+        {auraInnataRecord ? (
+          <button
+            type="button"
+            onClick={() => canEditRazza && setRazzaModalOpen(true)}
+            disabled={!canEditRazza}
+            className={`text-sm mt-0.5 ${
+              canEditRazza
+                ? 'cursor-pointer'
+                : 'cursor-default opacity-90'
+            }`}
+            title={
+              canEditRazza
+                ? 'Clicca per modificare'
+                : 'Razza bloccata: evento già iniziato'
+            }
+          >
+            <span
+              className={`font-medium ${
+                canEditRazza
+                  ? 'bg-linear-to-r from-amber-200 via-fuchsia-200 to-cyan-200 text-transparent bg-clip-text animate-pulse'
+                  : 'text-gray-200'
+              }`}
+            >
+              {archetipoLabel}
+              {formaLabel ? ` ${formaLabel}` : ''}
+            </span>
+          </button>
+        ) : null}
         {auraInnataRecord && (
           <button
             type="button"
-            onClick={() => setRazzaModalOpen(true)}
+            onClick={() => canEditRazza && setRazzaModalOpen(true)}
+            disabled={!canEditRazza}
             className="mt-3 text-xs font-semibold uppercase tracking-wider text-amber-500/90 hover:text-amber-400 underline-offset-2 hover:underline"
           >
             Modifica archetipo e forma

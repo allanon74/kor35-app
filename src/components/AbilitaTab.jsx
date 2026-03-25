@@ -56,7 +56,11 @@ const AbilitaTab = ({ onLogout }) => {
     }
   }, [acquireMutation, selectedCharacterId, refreshCharacterData]);
 
-  const possessedSkills = useMemo(() => char?.abilita_possedute || [], [char?.abilita_possedute]);
+  // Rimuovi SEMPRE i tratti d'aura dalla tab Abilità (devono restare solo nella gestione Aura/Razza)
+  const possessedSkills = useMemo(
+    () => (char?.abilita_possedute || []).filter((s) => !s?.is_tratto_aura),
+    [char?.abilita_possedute]
+  );
 
   // --- FILTRO MODIFICA: Rimuovo i tratti speciali dalla lista acquistabili ---
   // Questi verranno gestiti tramite il modale in PunteggioDisplay
