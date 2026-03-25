@@ -620,8 +620,9 @@ export const useOptimisticMarkMessageRead = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ messageId, charId, onLogout }) => {
-            const { markMessageAsRead } = require('../api');
-            return markMessageAsRead(messageId, charId, onLogout);
+            return import('../api').then(({ markMessageAsRead }) =>
+              markMessageAsRead(messageId, charId, onLogout)
+            );
         },
         onMutate: async ({ messageId }) => {
             // Non abbiamo una query key specifica per i messaggi nel context
@@ -639,8 +640,9 @@ export const useOptimisticDeleteMessage = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ messageId, charId, onLogout }) => {
-            const { deleteMessage } = require('../api');
-            return deleteMessage(messageId, charId, onLogout);
+            return import('../api').then(({ deleteMessage }) =>
+              deleteMessage(messageId, charId, onLogout)
+            );
         },
         onMutate: async ({ messageId }) => {
             return { messageId };
