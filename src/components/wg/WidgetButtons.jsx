@@ -199,19 +199,19 @@ function WidgetButtonsCore({ id, navigate, useAnchorLinks }) {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
               {Icon && (
-                <div className={`bg-white bg-opacity-20 ${sizePreset.iconPadding} rounded-lg`}>
+                <div className={`bg-white/20 ${sizePreset.iconPadding} rounded-lg`}>
                   <Icon size={sizePreset.iconSize} />
                 </div>
               )}
               <h2 className={`${sizePreset.titleSize} font-bold`}>{button.title}</h2>
             </div>
             {button.description && (
-              <p className={`text-white text-opacity-90 mb-2 ${sizePreset.descSize}`}>
+              <p className={`text-white/90 mb-2 ${sizePreset.descSize}`}>
                 {button.description}
               </p>
             )}
             {button.subtext && (
-              <p className={`${sizePreset.subtextSize} text-white text-opacity-75`}>
+              <p className={`${sizePreset.subtextSize} text-white/75`}>
                 {button.subtext}
               </p>
             )}

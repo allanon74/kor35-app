@@ -64,15 +64,15 @@ export default function HomePage({ pageData }) {
           >
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-3">
-                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                <div className="bg-white/20 p-3 rounded-lg">
                   <Sparkles size={32} />
                 </div>
                 <h2 className="text-2xl font-bold">Sei Nuovo?</h2>
               </div>
-              <p className="text-white text-opacity-90 mb-2">
+              <p className="text-white/90 mb-2">
                 Scopri il mondo di KOR35
               </p>
-              <p className="text-sm text-white text-opacity-75">
+              <p className="text-sm text-white/75">
                 Inizia la tua avventura da qui →
               </p>
             </div>
@@ -86,15 +86,15 @@ export default function HomePage({ pageData }) {
           >
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-3">
-                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                <div className="bg-white/20 p-3 rounded-lg">
                   <LogIn size={32} />
                 </div>
                 <h2 className="text-2xl font-bold">Veterano?</h2>
               </div>
-              <p className="text-white text-opacity-90 mb-2">
+              <p className="text-white/90 mb-2">
                 {isLogged ? 'Accedi alla tua area riservata' : 'Accedi al tuo profilo'}
               </p>
-              <p className="text-sm text-white text-opacity-75">
+              <p className="text-sm text-white/75">
                 {isLogged ? 'Vai all\'app →' : 'Effettua il login →'}
               </p>
             </div>

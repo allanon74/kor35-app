@@ -96,7 +96,7 @@ export default function WidgetSocial() {
                   rel={!isEmail ? 'noopener noreferrer' : undefined}
                   className={`flex items-center gap-4 p-4 rounded-lg text-white transition-all transform hover:scale-105 shadow-sm hover:shadow-md ${config.color}`}
                 >
-                  <div className="flex-shrink-0 bg-white bg-opacity-20 p-2 rounded-lg">
+                  <div className="flex-shrink-0 bg-white/20 p-2 rounded-lg">
                     <IconComponent size={24} />
                   </div>
                   <div className="flex-1">
