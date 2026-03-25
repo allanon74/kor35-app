@@ -300,6 +300,19 @@ export function RazzaModal({
     return [];
   }, []);
 
+  const handlePick = async (trait) => {
+    setError(null);
+    setLoadingId(trait.id);
+    try {
+      await acquireAbilita(trait.id, personaggioId, onLogout);
+      if (onUpdated) await onUpdated();
+    } catch (e) {
+      setError(e.message || 'Selezione non consentita.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
   const OptionCardV2 = useCallback(
     ({ trait, accent, selected, showSelect }) => {
       const nomeDisplay = trait ? stripRazzaPrefix(trait.nome) : 'Umano';
@@ -389,19 +402,6 @@ export function RazzaModal({
     },
     [getRequisitiBadges, handlePick, loadingId]
   );
-
-  const handlePick = async (trait) => {
-    setError(null);
-    setLoadingId(trait.id);
-    try {
-      await acquireAbilita(trait.id, personaggioId, onLogout);
-      if (onUpdated) await onUpdated();
-    } catch (e) {
-      setError(e.message || 'Selezione non consentita.');
-    } finally {
-      setLoadingId(null);
-    }
-  };
 
   if (!isOpen || !auraInnataRecord) return null;
 

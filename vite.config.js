@@ -85,6 +85,9 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: plugins,
+    build: {
+      sourcemap: true,
+    },
     define: {
       '__APP_VERSION__': JSON.stringify(packageJson.version),
     },
