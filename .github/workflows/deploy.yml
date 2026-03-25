@@ -33,6 +33,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
           script: |
+            set -euo pipefail
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             source /etc/profile
             cd "${{ secrets.REPO_PATH_ON_SERVER }}"
@@ -53,7 +54,13 @@ jobs:
             else
               npm install
             fi
+            export NODE_OPTIONS="--max-old-space-size=4096"
             npm run build
+            if [ -d dist ]; then
+              test -f dist/index.html || { echo "dist/index.html mancante dopo build" >&2; exit 1; }
+            elif [ -d build ]; then
+              test -f build/index.html || { echo "build/index.html mancante dopo build" >&2; exit 1; }
+            fi
             sudo rm -rf "${{ secrets.DEPLOY_TARGET_PATH }}"/*
             if [ -d dist ]; then
               # Copia anche i file nascosti (es. .htaccess) necessari per Apache SPA fallback.
@@ -64,6 +71,8 @@ jobs:
               echo "Nessuna cartella dist/build trovata dopo npm run build" >&2
               exit 1
             fi
+            sudo test -f "${{ secrets.DEPLOY_TARGET_PATH }}/index.html" || { echo "index.html non pubblicato in DEPLOY_TARGET_PATH" >&2; exit 1; }
+            sudo systemctl reload apache2
             if [ -n "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" ]; then
               curl -fsS "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" >/dev/null
             fi
@@ -82,6 +91,7 @@ jobs:
           key: ${{ secrets.MIRROR_SERVER_SSH_KEY }}
           port: ${{ secrets.MIRROR_SERVER_SSH_PORT || 22 }}
           script: |
+            set -euo pipefail
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             FRONTEND_PATH="${{ secrets.MIRROR_FRONTEND_PATH || '/home/pi/kor35-replica/frontend_src' }}"
             FRONTEND_PATH_LEGACY="/home/pi/kor35-replica/forntend_src"
@@ -122,6 +132,7 @@ jobs:
             fi
             # Stesso schema di produzione: percorsi relativi (reverse proxy / stesso host serve static + Django)
             unset VITE_API_URL
+            export NODE_OPTIONS="--max-old-space-size=4096"
             npm run build
 
             mkdir -p "${REACT_BUILD_PATH}"
