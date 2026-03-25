@@ -69,6 +69,20 @@ function getItemIsDark(item) {
   return isGradientDark(colors);
 }
 
+function getAbilityCostLine(item) {
+  const pcRaw = item?.costo_pc_calc ?? item?.costo_pc ?? 0;
+  const crRaw = item?.costo_crediti_calc ?? item?.costo_crediti ?? 0;
+  const pc = Number(pcRaw) || 0;
+  const cr = Number(crRaw) || 0;
+
+  if (pc <= 0 && cr <= 0) return null;
+
+  const parts = [];
+  if (pc > 0) parts.push(`${pc} PC`);
+  if (cr > 0) parts.push(`${cr} Cr`);
+  return `Costo: ${parts.join(' + ')}`;
+}
+
 export default function AbilitaTable({ list, chromaticStyle, soloList = false }) {
   const [selectedAbility, setSelectedAbility] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -103,6 +117,7 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
       const iconBoxClass = isDark ? 'bg-white/20' : 'bg-black/10';
       const iconUrl = resolveMediaUrl(item?.caratteristica?.icona_url);
       const iconTextColor = headerStyle?.color ?? (isDark ? '#ffffff' : '#111827');
+      const costLine = getAbilityCostLine(item);
 
       return (
         <button
@@ -127,9 +142,16 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
                 </span>
               )}
             </div>
-            <span className="font-bold text-sm md:text-base leading-tight truncate" style={{ color: iconTextColor }}>
-              {item.nome}
-            </span>
+            <div className="min-w-0 flex flex-col">
+              <span className="font-bold text-sm md:text-base leading-tight truncate" style={{ color: iconTextColor }}>
+                {item.nome}
+              </span>
+              {costLine && (
+                <span className="text-[10px] md:text-xs opacity-80 leading-tight mt-0.5" style={{ color: iconTextColor }}>
+                  {costLine}
+                </span>
+              )}
+            </div>
           </div>
         </button>
       );
@@ -148,6 +170,7 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
           {list.map((item) => {
             const cardHeaderStyle = getItemHeaderStyle(item, chromaticStyle);
+            const costLine = getAbilityCostLine(item);
             return (
               <div
                 key={item.id}
@@ -157,13 +180,13 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
                   className={cardHeaderStyle ? cardHeaderClass : `${cardHeaderClass} ${headerBg} ${headerText}`}
                   style={cardHeaderStyle || undefined}
                 >
-                  <span className="font-bold text-sm md:text-base leading-tight truncate">
-                    {item.nome}
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.costo && (
-                      <span className="text-xs font-mono bg-white/20 border border-current border-opacity-30 px-1.5 py-0.5 rounded whitespace-nowrap">
-                        Costo: {item.costo}
+                  <div className="min-w-0 flex flex-col">
+                    <span className="font-bold text-sm md:text-base leading-tight truncate">
+                      {item.nome}
+                    </span>
+                    {costLine && (
+                      <span className="text-[10px] md:text-xs opacity-80 leading-tight mt-0.5">
+                        {costLine}
                       </span>
                     )}
                   </div>
@@ -216,6 +239,7 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
                   const iconBoxClass = isDark ? 'bg-white/20' : 'bg-black/10';
                   const iconUrl = resolveMediaUrl(selectedAbility?.caratteristica?.icona_url);
                   const headerTextColor = headerStyle?.color ?? (isDark ? '#ffffff' : '#111827');
+                  const costLine = getAbilityCostLine(selectedAbility);
                   return (
                     <div style={headerStyle || undefined} className="px-4 py-3 border-b border-white/10">
                       <div className="flex items-center justify-between gap-3">
@@ -239,9 +263,9 @@ export default function AbilitaTable({ list, chromaticStyle, soloList = false })
                             <div className="font-bold text-lg leading-tight truncate" style={{ color: headerTextColor }}>
                               {selectedAbility.nome}
                             </div>
-                            {selectedAbility.costo && (
-                              <div className="text-xs font-mono" style={{ color: headerTextColor, opacity: 0.9 }}>
-                                Costo: {selectedAbility.costo}
+                            {costLine && (
+                              <div className="text-xs" style={{ color: headerTextColor, opacity: 0.9 }}>
+                                {costLine}
                               </div>
                             )}
                           </div>

@@ -40,6 +40,7 @@ function isGradientDark(colors) {
 export default function WidgetTier({ id }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [isAbilitiesOpen, setIsAbilitiesOpen] = useState(false);
 
   useEffect(() => {
     getWikiTier(id)
@@ -49,6 +50,11 @@ export default function WidgetTier({ id }) {
          setError(true);
        });
   }, [id]);
+
+  useEffect(() => {
+    if (!data) return;
+    setIsAbilitiesOpen(data.abilities_collapsed_by_default === false);
+  }, [data]);
 
   if (error) return <div className="text-red-500 text-xs border border-red-300 p-2 rounded bg-red-50">Tier #{id} non disponibile.</div>;
   if (!data) return <div className="animate-pulse h-20 bg-gray-200 rounded my-4"></div>;
@@ -112,10 +118,14 @@ export default function WidgetTier({ id }) {
           <details
             className={bodyClass}
             style={bodyStyle}
-            open={data.abilities_collapsed_by_default === false}
+            open={isAbilitiesOpen}
+            onToggle={(e) => setIsAbilitiesOpen(e.currentTarget.open)}
           >
             <summary className="cursor-pointer font-semibold py-2 px-3 list-none flex items-center gap-2 [&::-webkit-details-marker]:hidden">
-              Abilità
+              <span>Abilità</span>
+              <em className="font-normal text-xs opacity-80">
+                {isAbilitiesOpen ? '(clicca qui per nascondere)' : '(clicca qui per espandere)'}
+              </em>
             </summary>
             <div className="pt-0 px-2 pb-2">
               <AbilitaTable
