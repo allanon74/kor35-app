@@ -33,6 +33,7 @@ import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; 
 import PersonaggiTab from './PersonaggiTab.jsx';
 import SocialTab from './SocialTab.jsx';
+import RazzaModal, { stripRazzaPrefix } from './RazzaCollapsible';
 
 // --- [MODIFICA] Import Modale Password ---
 import PasswordChangeModal from './PasswordChangeModal.jsx';
@@ -143,6 +144,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     preferredCharacterId,
     selectedCharacterData,
     refreshCharacterData,
+    punteggiList,
     activeTimers,      
     removeTimerState,  
     selectCharacter,
@@ -155,6 +157,37 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     adminPendingCount,
     unreadCount, 
   } = useCharacter();
+
+  const [razzaModalOpen, setRazzaModalOpen] = useState(false);
+
+  const auraInnataRecord = useMemo(
+    () => (punteggiList || []).find((p) => p.tipo === 'AU' && String(p.sigla || '').toUpperCase() === 'AIN'),
+    [punteggiList]
+  );
+
+  const razzaHeader = useMemo(() => {
+    const isTrattoInnita = (ab) =>
+      ab?.is_tratto_aura &&
+      ab?.aura_riferimento &&
+      String(ab.aura_riferimento.sigla || '').toUpperCase() === 'AIN';
+    const abilita = selectedCharacterData?.abilita_possedute || [];
+    const arch = abilita.find(
+      (ab) => isTrattoInnita(ab) && (ab.livello_riferimento === 0 || ab.livello_riferimento === 1)
+    );
+    const forma = abilita.find((ab) => isTrattoInnita(ab) && ab.livello_riferimento === 2);
+    const archLabel = arch ? stripRazzaPrefix(arch.nome) : 'Umano';
+    const formaLabel = forma ? stripRazzaPrefix(forma.nome) : null;
+    const full = formaLabel ? `${archLabel} ${formaLabel}` : archLabel;
+    return { full, canEdit: !!selectedCharacterData?.can_edit_razza };
+  }, [selectedCharacterData]);
+
+  useEffect(() => {
+    const onOpen = () => {
+      if (razzaHeader?.canEdit) setRazzaModalOpen(true);
+    };
+    window.addEventListener('kor35:open-razza-modal', onOpen);
+    return () => window.removeEventListener('kor35:open-razza-modal', onOpen);
+  }, [razzaHeader]);
 
   // CARICAMENTO INIZIALE
   useEffect(() => {
@@ -573,6 +606,20 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       
       {/* --- TIMER OVERLAY --- */}
       <TimerOverlay activeTimers={activeTimers} onRemove={removeTimerState} />
+
+      {selectedCharacterData && auraInnataRecord && (
+        <RazzaModal
+          isOpen={razzaModalOpen}
+          onClose={() => setRazzaModalOpen(false)}
+          personaggioId={selectedCharacterData.id}
+          abilitaPossedute={selectedCharacterData.abilita_possedute}
+          punteggiBase={selectedCharacterData.punteggi_base}
+          punteggiList={punteggiList}
+          auraInnataRecord={auraInnataRecord}
+          onLogout={onLogout}
+          onUpdated={refreshCharacterData}
+        />
+      )}
       
       {/* --- SIDEBAR DESKTOP (FISSA A SINISTRA) --- */}
       <aside className="hidden md:flex flex-col w-72 bg-gray-950 border-r border-gray-800 shadow-2xl z-20">
@@ -599,13 +646,37 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none z-10">
                 {selectedCharacterData ? (
                     <div className="flex flex-col items-center justify-center animate-fadeIn">
-                        <span className="text-xs text-gray-500 uppercase tracking-widest leading-none mb-0.5">Operativo</span>
                         <span className="font-bold text-white text-base tracking-wide drop-shadow-md inline-flex items-center gap-1.5">
                             {selectedCharacterData.nome}
                             {String(preferredCharacterId || '') === String(selectedCharacterId) && (
                                 <Star size={14} className="text-amber-400" fill="currentColor" />
                             )}
                         </span>
+                        {auraInnataRecord && (
+                          <button
+                            type="button"
+                            onClick={() => razzaHeader.canEdit && setRazzaModalOpen(true)}
+                            disabled={!razzaHeader.canEdit}
+                            className={`text-xs leading-none mt-0.5 pointer-events-auto ${
+                              razzaHeader.canEdit ? 'cursor-pointer' : 'cursor-default opacity-90'
+                            }`}
+                            title={
+                              razzaHeader.canEdit
+                                ? 'Clicca per modificare archetipo/forma'
+                                : 'Razza bloccata: evento già iniziato'
+                            }
+                          >
+                            <span
+                              className={`font-semibold ${
+                                razzaHeader.canEdit
+                                  ? 'bg-linear-to-r from-amber-200 via-fuchsia-200 to-cyan-200 text-transparent bg-clip-text animate-pulse'
+                                  : 'text-white/90'
+                              }`}
+                            >
+                              {razzaHeader.full}
+                            </span>
+                          </button>
+                        )}
                     </div>
                 ) : <span className="text-gray-500 italic text-sm animate-pulse">Seleziona Personaggio</span>}
               </div>

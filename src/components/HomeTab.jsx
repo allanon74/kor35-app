@@ -6,7 +6,7 @@ import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
 import ActiveItemWidget from './ActiveItemWidget'; // <--- IMPORT WIDGET
 import StatisticaModificatoriModal from './StatisticaModificatoriModal'; // <--- IMPORT MODAL
-import RazzaModal, { useRazzaDisplay, stripRazzaPrefix } from './RazzaCollapsible';
+import { stripRazzaPrefix } from './RazzaCollapsible';
 
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
@@ -47,7 +47,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
   
   // State per la modal dei modificatori
   const [modalStatistica, setModalStatistica] = useState(null);
-  const [razzaModalOpen, setRazzaModalOpen] = useState(false);
+  // La modale Razza vive nell'header (MainPage). Qui resta solo il pulsante.
 
   const {
     id: personaggioId,
@@ -68,8 +68,6 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     () => (punteggiList || []).find((p) => p.tipo === 'AU' && String(p.sigla || '').toUpperCase() === 'AIN'),
     [punteggiList]
   );
-
-  const { archetipoLabel, formaLabel } = useRazzaDisplay(abilita_possedute);
 
   /** Nome e descrizione archetipo/forma per il riepilogo in fondo scheda */
   const razzaRiepilogo = useMemo(() => {
@@ -217,60 +215,16 @@ const CharacterSheet = memo(({ data, onLogout }) => {
          </div>
       )}
 
-      <div className="text-center mb-6">
-        <h2 className="text-4xl font-bold text-indigo-400 mb-2 animate-fadeIn drop-shadow-lg">{nome}</h2>
-        {auraInnataRecord ? (
+      {auraInnataRecord && canEditRazza && (
+        <div className="mb-6 flex justify-center">
           <button
             type="button"
-            onClick={() => canEditRazza && setRazzaModalOpen(true)}
-            disabled={!canEditRazza}
-            className={`text-sm mt-0.5 ${
-              canEditRazza
-                ? 'cursor-pointer'
-                : 'cursor-default opacity-90'
-            }`}
-            title={
-              canEditRazza
-                ? 'Clicca per modificare'
-                : 'Razza bloccata: evento già iniziato'
-            }
+            onClick={() => window.dispatchEvent(new CustomEvent('kor35:open-razza-modal'))}
+            className="text-xs font-semibold uppercase tracking-wider text-amber-500/90 hover:text-amber-400 underline-offset-2 hover:underline"
           >
-            <span
-              className={`font-medium ${
-                canEditRazza
-                  ? 'bg-linear-to-r from-amber-200 via-fuchsia-200 to-cyan-200 text-transparent bg-clip-text animate-pulse'
-                  : 'text-gray-200'
-              }`}
-            >
-              {archetipoLabel}
-              {formaLabel ? ` ${formaLabel}` : ''}
-            </span>
+            Modifica forma e archetipo
           </button>
-        ) : null}
-        {auraInnataRecord && (
-          <button
-            type="button"
-            onClick={() => canEditRazza && setRazzaModalOpen(true)}
-            disabled={!canEditRazza}
-            className="mt-3 text-xs font-semibold uppercase tracking-wider text-amber-500/90 hover:text-amber-400 underline-offset-2 hover:underline"
-          >
-            Modifica archetipo e forma
-          </button>
-        )}
-      </div>
-
-      {auraInnataRecord && (
-        <RazzaModal
-          isOpen={razzaModalOpen}
-          onClose={() => setRazzaModalOpen(false)}
-          personaggioId={personaggioId}
-          abilitaPossedute={abilita_possedute}
-          punteggiBase={punteggi_base}
-          punteggiList={punteggiList}
-          auraInnataRecord={auraInnataRecord}
-          onLogout={onLogout}
-          onUpdated={refreshCharacterData}
-        />
+        </div>
       )}
       
       {/* --- NUOVA SEZIONE: DISPOSITIVI ATTIVI --- */}
