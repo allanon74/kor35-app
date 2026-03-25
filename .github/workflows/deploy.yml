@@ -36,6 +36,14 @@ jobs:
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             source /etc/profile
             set -euo pipefail
+            if [ "$(id -u)" -eq 0 ]; then
+              SUDO=""
+            elif sudo -n true 2>/dev/null; then
+              SUDO="sudo -n"
+            else
+              echo "L'utente deploy non ha sudo non-interattivo. Configura NOPASSWD per deploy target e reload apache." >&2
+              exit 1
+            fi
             cd "${{ secrets.REPO_PATH_ON_SERVER }}"
             git fetch --all --tags
             if git show-ref --verify --quiet "refs/remotes/origin/${REF}"; then
@@ -61,18 +69,18 @@ jobs:
             elif [ -d build ]; then
               test -f build/index.html || { echo "build/index.html mancante dopo build" >&2; exit 1; }
             fi
-            sudo rm -rf "${{ secrets.DEPLOY_TARGET_PATH }}"/*
+            ${SUDO} rm -rf "${{ secrets.DEPLOY_TARGET_PATH }}"/*
             if [ -d dist ]; then
               # Copia anche i file nascosti (es. .htaccess) necessari per Apache SPA fallback.
-              sudo cp -R dist/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
+              ${SUDO} cp -R dist/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
             elif [ -d build ]; then
-              sudo cp -R build/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
+              ${SUDO} cp -R build/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
             else
               echo "Nessuna cartella dist/build trovata dopo npm run build" >&2
               exit 1
             fi
-            sudo test -f "${{ secrets.DEPLOY_TARGET_PATH }}/index.html" || { echo "index.html non pubblicato in DEPLOY_TARGET_PATH" >&2; exit 1; }
-            sudo systemctl reload apache2
+            ${SUDO} test -f "${{ secrets.DEPLOY_TARGET_PATH }}/index.html" || { echo "index.html non pubblicato in DEPLOY_TARGET_PATH" >&2; exit 1; }
+            ${SUDO} systemctl reload apache2
             if [ -n "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" ]; then
               curl -fsS "${{ secrets.FRONTEND_HEALTHCHECK_URL }}" >/dev/null
             fi
