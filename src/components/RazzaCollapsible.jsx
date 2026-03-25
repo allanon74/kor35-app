@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { X, Loader2, ChevronDown } from 'lucide-react';
 import { acquireAbilita } from '../api';
+import PunteggioDisplay from './PunteggioDisplay';
 
 const PREFIX_ARCH = 'archetipo - ';
 const PREFIX_FORMA = 'forma - ';
@@ -122,28 +123,7 @@ function OptionCard({ nomeDisplay, descrizione, accent, selected, disabled, onCl
       ? 'border-cyan-600/70 ring-1 ring-cyan-500/40 bg-cyan-950/20'
       : 'border-amber-600/70 ring-1 ring-amber-500/40 bg-amber-950/20';
 
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`w-full text-left rounded-lg border px-3 py-3 transition-colors ${
-        selected ? selectedBorder : `${baseBorder} bg-slate-900`
-      } ${disabled ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`font-bold text-sm ${selected ? 'text-white' : 'text-slate-100'}`}>{nomeDisplay}</span>
-            {selected && <AccentBadge accent={accent}>Attuale</AccentBadge>}
-          </div>
-        </div>
-        {loading ? <Loader2 className="w-4 h-4 animate-spin shrink-0 text-slate-200" /> : null}
-      </div>
-
-      <ExpandableDescrizione descrizione={descrizione} />
-    </button>
-  );
+  return null;
 }
 
 export function RazzaModal({
@@ -297,6 +277,119 @@ export function RazzaModal({
     return formeVisibili.filter((t) => sid == null || String(t.id) !== String(sid));
   }, [formeVisibili, formaSelezionata?.id]);
 
+  const getRequisitiBadges = useCallback((trait) => {
+    if (!trait) return [];
+    const liv = trait.livello_riferimento;
+    // Archetipo umano (liv 0): nessun badge requisiti
+    if (liv === 0) return [];
+    // Archetipo liv 1: 1 sulla caratteristica
+    if (liv === 1) {
+      return trait.caratteristica ? [{ punteggio: trait.caratteristica, value: 1 }] : [];
+    }
+    // Forma liv 2: badge per una o due caratteristiche
+    if (liv === 2) {
+      const c1 = trait.caratteristica;
+      const c2 = trait.caratteristica_2;
+      if (!c1 || !c2) return [];
+      if (String(c1?.nome) === String(c2?.nome)) return [{ punteggio: c1, value: 2 }];
+      return [
+        { punteggio: c1, value: 1 },
+        { punteggio: c2, value: 1 },
+      ];
+    }
+    return [];
+  }, []);
+
+  const OptionCardV2 = useCallback(
+    ({ trait, accent, selected, showSelect }) => {
+      const nomeDisplay = trait ? stripRazzaPrefix(trait.nome) : 'Umano';
+      const descrizione = trait?.descrizione || null;
+      const badges = getRequisitiBadges(trait);
+
+      const baseBorder =
+        accent === 'forma'
+          ? 'border-slate-700 hover:border-cyan-500/60'
+          : 'border-slate-700 hover:border-amber-500/60';
+      const selectedBorder =
+        accent === 'forma'
+          ? 'border-cyan-600/70 ring-1 ring-cyan-500/40 bg-cyan-950/20'
+          : 'border-amber-600/70 ring-1 ring-amber-500/40 bg-amber-950/20';
+
+      const disabledSelect = !trait || !!loadingId;
+
+      return (
+        <details
+          className={`rounded-lg border px-3 py-3 bg-slate-900 transition-colors ${
+            selected ? selectedBorder : baseBorder
+          } ${disabledSelect && showSelect ? 'opacity-90' : ''}`}
+        >
+          <summary className="list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`font-bold text-sm ${selected ? 'text-white' : 'text-slate-100'}`}>
+                    {nomeDisplay}
+                  </span>
+                  {selected && <AccentBadge accent={accent}>Attuale</AccentBadge>}
+                </div>
+                {badges.length > 0 && (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    {badges.map((b, idx) => (
+                      <PunteggioDisplay
+                        key={`${b.punteggio?.id || idx}`}
+                        punteggio={b.punteggio}
+                        value={b.value}
+                        size="badge"
+                        iconType="inv_circle"
+                        displayText="abbr"
+                        readOnly={true}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {showSelect && trait ? (
+                <button
+                  type="button"
+                  disabled={!!loadingId}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePick(trait);
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider border ${
+                    accent === 'forma'
+                      ? 'border-cyan-700/60 text-cyan-200 hover:bg-cyan-950/30'
+                      : 'border-amber-700/60 text-amber-200 hover:bg-amber-950/30'
+                  } disabled:opacity-60`}
+                >
+                  Seleziona
+                </button>
+              ) : null}
+            </div>
+          </summary>
+
+          {trait?.descrizione ? (
+            <div className="mt-3 pt-3 border-t border-slate-800">
+              {loadingId === trait.id ? (
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Applico la scelta…
+                </div>
+              ) : null}
+              <div
+                className="text-sm text-slate-200/90 prose prose-invert prose-sm max-w-none leading-relaxed prose-p:my-1.5 prose-headings:text-slate-100"
+                dangerouslySetInnerHTML={{ __html: descrizione }}
+              />
+            </div>
+          ) : null}
+        </details>
+      );
+    },
+    [getRequisitiBadges, handlePick, loadingId]
+  );
+
   const handlePick = async (trait) => {
     setError(null);
     setLoadingId(trait.id);
@@ -399,21 +492,9 @@ export function RazzaModal({
                 <AccentBadge accent="archetipo">Archetipo</AccentBadge>
               </div>
               {archetipoSelezionato ? (
-                <OptionCard
-                  nomeDisplay={stripRazzaPrefix(archetipoSelezionato.nome)}
-                  descrizione={archetipoSelezionato.descrizione}
-                  accent="archetipo"
-                  selected
-                  disabled
-                />
+                <OptionCardV2 trait={archetipoSelezionato} accent="archetipo" selected showSelect={false} />
               ) : (
-                <OptionCard
-                  nomeDisplay="Umano"
-                  descrizione={traitUmanoCatalogo?.descrizione}
-                  accent="archetipo"
-                  selected
-                  disabled
-                />
+                <OptionCardV2 trait={traitUmanoCatalogo || null} accent="archetipo" selected showSelect={false} />
               )}
 
               <div className="pt-3 border-t border-slate-800">
@@ -423,15 +504,12 @@ export function RazzaModal({
                     <p className="text-xs text-slate-500">Nessun altro archetipo selezionabile.</p>
                   ) : (
                     archetipiAltri.map((trait) => (
-                      <OptionCard
+                      <OptionCardV2
                         key={trait.id}
-                        nomeDisplay={stripRazzaPrefix(trait.nome)}
-                        descrizione={trait.descrizione}
                         accent="archetipo"
+                        trait={trait}
                         selected={false}
-                        disabled={!!loadingId}
-                        loading={loadingId === trait.id}
-                        onClick={() => handlePick(trait)}
+                        showSelect={true}
                       />
                     ))
                   )}
@@ -453,13 +531,7 @@ export function RazzaModal({
                     <AccentBadge accent="forma">Forma</AccentBadge>
                   </div>
                   {formaSelezionata ? (
-                    <OptionCard
-                      nomeDisplay={stripRazzaPrefix(formaSelezionata.nome)}
-                      descrizione={formaSelezionata.descrizione}
-                      accent="forma"
-                      selected
-                      disabled
-                    />
+                    <OptionCardV2 trait={formaSelezionata} accent="forma" selected showSelect={false} />
                   ) : (
                     <div className="text-sm text-slate-300 bg-slate-800/30 border border-slate-700 rounded-lg p-3">
                       Nessuna forma selezionata.
@@ -473,15 +545,12 @@ export function RazzaModal({
                         <p className="text-xs text-slate-500">Non ci sono altre forme selezionabili.</p>
                       ) : (
                         formeAltri.map((trait) => (
-                          <OptionCard
+                          <OptionCardV2
                             key={trait.id}
-                            nomeDisplay={stripRazzaPrefix(trait.nome)}
-                            descrizione={trait.descrizione}
                             accent="forma"
+                            trait={trait}
                             selected={false}
-                            disabled={!!loadingId}
-                            loading={loadingId === trait.id}
-                            onClick={() => handlePick(trait)}
+                            showSelect={true}
                           />
                         ))
                       )}
