@@ -43,6 +43,8 @@ import WikiHelpModal from './WikiHelpModal.jsx';
 
 // VERSIONE APP
 const APP_VERSION = packageInfo.version;
+const BUILD_VERSION = (import.meta.env.VITE_BUILD_VERSION || '').trim();
+const BUILD_SHA = (import.meta.env.VITE_BUILD_SHA || '').trim();
 
 // CONFIGURAZIONE TAB DISPONIBILI
 const AVAILABLE_TABS = [
@@ -567,7 +569,19 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
         {/* FOOTER (VERSIONE & UPDATE) */}
         <div className="p-4 border-t border-gray-700 bg-gray-900/80 shrink-0">
             <div className="flex justify-between items-center mb-3">
-                <span className="text-xs text-gray-500 font-mono">v{APP_VERSION}</span>
+                <span className="text-xs text-gray-500 font-mono">
+                  v{APP_VERSION}
+                  {(BUILD_VERSION || BUILD_SHA) && (
+                    <>
+                      {' '}
+                      <span className="opacity-70">
+                        (
+                        {BUILD_VERSION || (BUILD_SHA ? BUILD_SHA.slice(0, 7) : '')}
+                        )
+                      </span>
+                    </>
+                  )}
+                </span>
                 <button 
                     onClick={() => updateServiceWorker(true)} 
                     className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition-all ${needRefresh ? 'bg-blue-600 text-white animate-pulse shadow-lg shadow-blue-500/20' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}

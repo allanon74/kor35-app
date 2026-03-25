@@ -44,7 +44,10 @@ jobs:
               git checkout "${REF}"
               git reset --hard "${REF}"
             fi
-            echo "FRONTEND_DEPLOYED_SHA=$(git rev-parse HEAD)"
+            export VITE_BUILD_SHA="$(git rev-parse HEAD)"
+            export VITE_BUILD_VERSION="g$(git rev-parse --short HEAD)"
+            export VITE_BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "FRONTEND_DEPLOYED_SHA=${VITE_BUILD_SHA}"
             if [ -f package-lock.json ]; then
               npm ci
             else
@@ -107,7 +110,10 @@ jobs:
               git checkout "${REF}"
               git reset --hard "${REF}"
             fi
-            echo "MIRROR_FRONTEND_DEPLOYED_SHA=$(git rev-parse HEAD)"
+            export VITE_BUILD_SHA="$(git rev-parse HEAD)"
+            export VITE_BUILD_VERSION="g$(git rev-parse --short HEAD)"
+            export VITE_BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "MIRROR_FRONTEND_DEPLOYED_SHA=${VITE_BUILD_SHA}"
             if [ -f package-lock.json ]; then
               npm ci
             else

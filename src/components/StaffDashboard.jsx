@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, memo, lazy, Suspense } from 'react';
 import GenericHeader from './GenericHeader';
 import Sidebar from './Sidebar';
-import versionData from '../../package.json'; 
 import { socialGetNotifications } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
@@ -12,6 +11,7 @@ import {
     Layers, Globe2, Image, Package, QrCode, Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import BuildVersions from './BuildVersions';
 
 // Import diretto di PlotTab per debug
 import PlotTab from './PlotTab';
@@ -188,7 +188,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
                         <LogOut size={18} /><span className="text-xs uppercase tracking-wide">Logout</span>
                     </button>
                     <div className="text-center">
-                        <span className="text-[10px] text-gray-700 font-mono tracking-widest">v{versionData?.version || '1.0'}</span>
+                        <BuildVersions className="text-gray-700" />
                     </div>
                 </div>
             </aside>

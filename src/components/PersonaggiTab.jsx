@@ -12,6 +12,7 @@ import {
     User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap 
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
+import BuildVersions from './BuildVersions';
 
 const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const navigate = useNavigate();
@@ -188,9 +189,12 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     return (
         <div className="h-full flex flex-col bg-gray-900 text-white p-4 overflow-hidden">
             <div className="flex justify-between items-center mb-6 shrink-0">
-                <h2 className="text-2xl font-black uppercase italic tracking-wider text-indigo-500">
-                    Seleziona Personaggio
-                </h2>
+                <div className="min-w-0">
+                    <h2 className="text-2xl font-black uppercase italic tracking-wider text-indigo-500">
+                        Seleziona Personaggio
+                    </h2>
+                    <BuildVersions className="mt-1" />
+                </div>
                 
                 <div className="flex gap-2">
                     <button
