@@ -33,9 +33,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
           script: |
-            set -euo pipefail
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             source /etc/profile
+            set -euo pipefail
             cd "${{ secrets.REPO_PATH_ON_SERVER }}"
             git fetch --all --tags
             if git show-ref --verify --quiet "refs/remotes/origin/${REF}"; then
@@ -91,7 +91,6 @@ jobs:
           key: ${{ secrets.MIRROR_SERVER_SSH_KEY }}
           port: ${{ secrets.MIRROR_SERVER_SSH_PORT || 22 }}
           script: |
-            set -euo pipefail
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             FRONTEND_PATH="${{ secrets.MIRROR_FRONTEND_PATH || '/home/pi/kor35-replica/frontend_src' }}"
             FRONTEND_PATH_LEGACY="/home/pi/kor35-replica/forntend_src"
@@ -100,6 +99,7 @@ jobs:
             MIRROR_POST_DEPLOY_CMD="${{ secrets.MIRROR_FRONTEND_POST_DEPLOY_COMMAND || '' }}"
 
             source /etc/profile
+            set -euo pipefail
             if [ ! -d "${FRONTEND_PATH}" ] && [ -d "${FRONTEND_PATH_LEGACY}" ]; then
               FRONTEND_PATH="${FRONTEND_PATH_LEGACY}"
             fi
