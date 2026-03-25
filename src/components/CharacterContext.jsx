@@ -329,6 +329,10 @@ export const CharacterProvider = ({ children, onLogout }) => {
   }, [isAdmin, viewAll, onLogout]);
 
   const subscribeToPush = useCallback(async () => {
+    // Feature flag: abilita webpush solo se esplicitamente attivo.
+    // In produzione ci ha causato crash runtime; meglio fail-safe.
+    const enabled = String(import.meta?.env?.VITE_WEBPUSH_ENABLED || '').toLowerCase() === 'true';
+    if (!enabled) return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     try {
         const reg = await navigator.serviceWorker.ready;
