@@ -56,9 +56,10 @@ jobs:
             npm run build
             sudo rm -rf "${{ secrets.DEPLOY_TARGET_PATH }}"/*
             if [ -d dist ]; then
-              sudo cp -R dist/* "${{ secrets.DEPLOY_TARGET_PATH }}/"
+              # Copia anche i file nascosti (es. .htaccess) necessari per Apache SPA fallback.
+              sudo cp -R dist/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
             elif [ -d build ]; then
-              sudo cp -R build/* "${{ secrets.DEPLOY_TARGET_PATH }}/"
+              sudo cp -R build/. "${{ secrets.DEPLOY_TARGET_PATH }}/"
             else
               echo "Nessuna cartella dist/build trovata dopo npm run build" >&2
               exit 1
