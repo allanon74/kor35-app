@@ -144,6 +144,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [commentMentionSuggestions, setCommentMentionSuggestions] = useState({});
+  const [commentSendingByPost, setCommentSendingByPost] = useState({});
+  const [commentSentFxByPost, setCommentSentFxByPost] = useState({});
   const [editingPost, setEditingPost] = useState(null);
   const [feedFilter, setFeedFilter] = useState('ALL');
   const [feedSort, setFeedSort] = useState('RECENT');
@@ -152,11 +154,15 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [isCreatingStory, setIsCreatingStory] = useState(false);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
+  const [likingPostById, setLikingPostById] = useState({});
+  const [likedFxByPost, setLikedFxByPost] = useState({});
   const [socialViewMode, setSocialViewMode] = useState('FEED');
   const [groups, setGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
@@ -296,6 +302,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
 
   const submitStory = async (e) => {
     e.preventDefault();
+    if (isCreatingStory) return;
+    setIsCreatingStory(true);
     const fd = new FormData();
     fd.append('testo', storyForm.testo || '');
     fd.append('visibilita', storyForm.visibilita || 'PUB');
@@ -316,6 +324,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     } catch (err) {
       console.error('Errore creazione story', err);
       alert('Errore nella creazione della story.');
+    } finally {
+      setIsCreatingStory(false);
     }
   };
 
@@ -456,6 +466,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
+    if (isCreatingPost) return;
+    setIsCreatingPost(true);
     const fd = new FormData();
     fd.append('titolo', postForm.titolo);
     fd.append('testo', postForm.testo || '');
@@ -466,16 +478,21 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     if (postForm.immagine) fd.append('immagine', postForm.immagine);
     if (postForm.video) fd.append('video', postForm.video);
 
-    await socialCreatePost(fd, selectedCharacterId, onLogout);
-    setPostForm({
-      titolo: '',
-      testo: '',
-      visibilita: 'PUB',
-      korp_visibilita: '',
-      immagine: null,
-      video: null,
-    });
-    await loadAll();
+    try {
+      await socialCreatePost(fd, selectedCharacterId, onLogout);
+      setPostForm({
+        titolo: '',
+        testo: '',
+        visibilita: 'PUB',
+        korp_visibilita: '',
+        immagine: null,
+        video: null,
+      });
+      setShowComposer(false);
+      await loadAll();
+    } finally {
+      setIsCreatingPost(false);
+    }
   };
 
   const updatePostTextWithMentions = async (nextText) => {
@@ -525,8 +542,18 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   };
 
   const handleToggleLike = async (postId) => {
-    await socialToggleLike(postId, selectedCharacterId, onLogout);
-    await loadAll();
+    if (likingPostById[postId]) return;
+    setLikingPostById((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await socialToggleLike(postId, selectedCharacterId, onLogout);
+      setLikedFxByPost((prev) => ({ ...prev, [postId]: true }));
+      window.setTimeout(() => {
+        setLikedFxByPost((prev) => ({ ...prev, [postId]: false }));
+      }, 700);
+      await loadAll();
+    } finally {
+      setLikingPostById((prev) => ({ ...prev, [postId]: false }));
+    }
   };
 
   const toggleComments = async (postId) => {
@@ -587,19 +614,29 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   };
 
   const submitComment = async (postId) => {
+    if (commentSendingByPost[postId]) return;
     const text = (newCommentByPost[postId] || '').trim();
     if (!text) return;
-    await socialCreateComment(postId, text, selectedCharacterId, onLogout);
-    const payload = await socialGetComments(postId, onLogout, 1, 10);
-    const normalized = normalizeCommentsPayload(payload);
-    setCommentsByPost((prev) => ({ ...prev, [postId]: normalized.items }));
-    setCommentsMetaByPost((prev) => ({
-      ...prev,
-      [postId]: { page: 1, hasMore: normalized.hasNext, loadingMore: false },
-    }));
-    setNewCommentByPost((prev) => ({ ...prev, [postId]: '' }));
-    setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: [] }));
-    await loadAll();
+    setCommentSendingByPost((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await socialCreateComment(postId, text, selectedCharacterId, onLogout);
+      const payload = await socialGetComments(postId, onLogout, 1, 10);
+      const normalized = normalizeCommentsPayload(payload);
+      setCommentsByPost((prev) => ({ ...prev, [postId]: normalized.items }));
+      setCommentsMetaByPost((prev) => ({
+        ...prev,
+        [postId]: { page: 1, hasMore: normalized.hasNext, loadingMore: false },
+      }));
+      setNewCommentByPost((prev) => ({ ...prev, [postId]: '' }));
+      setCommentMentionSuggestions((prev) => ({ ...prev, [postId]: [] }));
+      setCommentSentFxByPost((prev) => ({ ...prev, [postId]: true }));
+      window.setTimeout(() => {
+        setCommentSentFxByPost((prev) => ({ ...prev, [postId]: false }));
+      }, 900);
+      await loadAll();
+    } finally {
+      setCommentSendingByPost((prev) => ({ ...prev, [postId]: false }));
+    }
   };
 
   const startEditComment = (postId, comment) => {
@@ -1289,7 +1326,13 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               Carica una foto o un video (uno solo per post).
             </div>
           </div>
-          <button className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">Pubblica</button>
+          <button
+            type="submit"
+            disabled={isCreatingPost}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold disabled:opacity-60"
+          >
+            {isCreatingPost ? 'Pubblicazione...' : 'Pubblica'}
+          </button>
         </form>
       </section>
       )}
@@ -1400,7 +1443,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                     )}
                   </div>
                 )}
-                {!storyForm.media && Boolean(storyForm.testo || '').trim() && (
+                {!storyForm.media && Boolean(String(storyForm.testo || '').trim()) && (
                   <div className="w-full rounded-xl border border-white/10 bg-black/25 p-3">
                     <div
                       className="text-white whitespace-pre-wrap"
@@ -1413,9 +1456,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 {storyMediaHint && <div className="text-[11px] text-emerald-300">{storyMediaHint}</div>}
                 <button
                   type="submit"
-                  className="ml-auto px-4 py-2 rounded-xl bg-linear-to-r from-fuchsia-700 to-amber-500 hover:from-fuchsia-600 hover:to-amber-400 text-sm font-extrabold text-white"
+                  disabled={isCreatingStory}
+                  className="ml-auto px-4 py-2 rounded-xl bg-linear-to-r from-fuchsia-700 to-amber-500 hover:from-fuchsia-600 hover:to-amber-400 text-sm font-extrabold text-white disabled:opacity-60"
                 >
-                  Pubblica story
+                  {isCreatingStory ? 'Pubblicazione...' : 'Pubblica story'}
                 </button>
               </div>
               <div className="text-xs text-gray-400">
@@ -1658,7 +1702,13 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               </div>
             )}
             <div className="flex gap-2 flex-wrap">
-              <button onClick={() => handleToggleLike(post.id)} className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#3a1d2a] border border-rose-300/30 text-rose-200 hover:bg-[#4a2333]">
+              <button
+                onClick={() => handleToggleLike(post.id)}
+                disabled={Boolean(likingPostById[post.id])}
+                className={`inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#3a1d2a] border border-rose-300/30 text-rose-200 hover:bg-[#4a2333] disabled:opacity-60 ${
+                  likedFxByPost[post.id] ? 'ring-2 ring-rose-300/60 scale-105' : ''
+                }`}
+              >
                 <Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count || 0}
               </button>
               <button onClick={() => toggleComments(post.id)} className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-full bg-[#1f253d] border border-sky-300/30 text-sky-200 hover:bg-[#2a3150]">
@@ -1705,7 +1755,15 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                   onFocus={() => ensureCommentsLoaded(post.id)}
                   onChange={(e) => updateCommentWithMentions(post.id, e.target.value)}
                 />
-                <button onClick={() => submitComment(post.id)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm shrink-0">Invia</button>
+                <button
+                  onClick={() => submitComment(post.id)}
+                  disabled={Boolean(commentSendingByPost[post.id])}
+                  className={`bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2 text-sm shrink-0 disabled:opacity-60 ${
+                    commentSentFxByPost[post.id] ? 'ring-2 ring-emerald-300/70' : ''
+                  }`}
+                >
+                  {commentSendingByPost[post.id] ? 'Invio...' : commentSentFxByPost[post.id] ? 'Inviato!' : 'Invia'}
+                </button>
               </div>
               {(commentMentionSuggestions[post.id] || []).length > 0 && (
                 <div className="bg-gray-800 border border-gray-700 rounded p-2 text-sm">
