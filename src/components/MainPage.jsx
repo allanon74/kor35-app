@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 // --- LOGICA PWA ---
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import HomeTab from './HomeTab.jsx';
 import QrTab from './QrTab.jsx';
@@ -31,7 +31,6 @@ import TransazioniViewer from './TransazioniViewer.jsx';
 import GameTab from './GameTab.jsx';
 import JobRequestsWidget from './JobRequestsWidget.jsx'; 
 import PersonaggiTab from './PersonaggiTab.jsx';
-import SocialTab from './SocialTab.jsx';
 import RazzaModal, { stripRazzaPrefix } from './RazzaCollapsible';
 
 // --- [MODIFICA] Import Modale Password ---
@@ -57,8 +56,7 @@ const AVAILABLE_TABS = [
     { id: 'messaggi', label: 'Messaggi', icon: Mail, component: MessaggiTab },
     { id: 'logs', label: 'Diario', icon: ScrollText, component: LogViewer },
     { id: 'transazioni', label: 'Transazioni', icon: ArrowRightLeft, component: TransazioniViewer },
-    { id: 'personaggi', label: 'Personaggi', icon: Users, component: PersonaggiTab }, 
-    { id: 'social', label: 'Fame-stagram', icon: Sparkles, component: SocialTab },
+    { id: 'personaggi', label: 'Personaggi', icon: Users, component: PersonaggiTab },
 ];
 
 const DEFAULT_SHORTCUTS = ['inventario', 'abilita', 'messaggi', 'qr'];
@@ -84,6 +82,7 @@ const TAB_TO_WIKI_SLUG = {
 
 const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('game'); 
   const [qrResultData, setQrResultData] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -233,6 +232,18 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     }
   }, [location.search, activeTab, isValidTabId]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const composeTargetId = params.get('compose_target_id');
+    if (!composeTargetId) return;
+    const composeTargetName = params.get('compose_target_nome');
+    setMessageComposeTarget({
+      id: composeTargetId,
+      nome: composeTargetName || `PG ${composeTargetId}`,
+      isStaff: false,
+    });
+  }, [location.search]);
+
   // --- [MODIFICA] POLLING MESSAGGI STAFF (Solo per Staff) ---
   useEffect(() => {
     let interval;
@@ -348,12 +359,6 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     setIsMenuOpen(false);
   }, []);
 
-  const openUnifiedMessages = useCallback((recipient = null) => {
-    setMessageComposeTarget(recipient || null);
-    setActiveTab('messaggi');
-    setIsMenuOpen(false);
-  }, []);
-
   // --- [MODIFICA] Funzione per aprire il modal di aiuto ---
   const openWikiHelp = useCallback(() => {
     const wikiSlug = TAB_TO_WIKI_SLUG[activeTab];
@@ -410,9 +415,6 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
         if (tabDef.id === 'qr') return <QrTab onScanSuccess={handleScanSuccess} onLogout={onLogout} isStealingOnCooldown={isStealingOnCooldown} cooldownTimer={cooldownTimer} />;
         if (tabDef.id === 'logs' || tabDef.id === 'transazioni') return <div className="p-4 h-full overflow-y-auto animate-fadeIn"><Component charId={selectedCharacterId} onLogout={onLogout} /></div>;
         
-        if (tabDef.id === 'social') {
-            return <Component onLogout={onLogout} onOpenMessages={openUnifiedMessages} />;
-        }
         if (tabDef.id === 'messaggi') {
             return (
                 <Component
@@ -506,9 +508,6 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                             badgeCount = unreadCount; 
                             badgeColor = 'bg-purple-600';
                         }
-                    } else if (tab.id === 'social') {
-                        badgeCount = socialUnreadCount;
-                        badgeColor = 'bg-pink-600';
                     }
 
                     return (
@@ -552,6 +551,23 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                     <span className="font-bold">Wiki Pubblica</span>
                     <ChevronRight size={14} className="ml-auto opacity-50"/>
                 </Link>
+                <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/app/social');
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700/50 text-pink-200 hover:text-pink-100 transition-colors border border-pink-500/30"
+                    title="Apri InstaFame"
+                >
+                    <Sparkles size={20} className="text-pink-300"/>
+                    <span className="font-bold">InstaFame</span>
+                    {socialUnreadCount > 0 && (
+                      <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold text-white rounded-full bg-pink-600">
+                        {socialUnreadCount > 99 ? '99+' : socialUnreadCount}
+                      </span>
+                    )}
+                </button>
             </div>
         </div>
 
@@ -794,9 +810,6 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                         showDot = true;
                         dotColor = 'bg-purple-500';
                     }
-                } else if (tab.id === 'social' && socialUnreadCount > 0) {
-                    showDot = true;
-                    dotColor = 'bg-pink-500';
                 }
                 
                 return (

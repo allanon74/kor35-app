@@ -869,7 +869,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   }, [loadNextPosts]);
 
   if (!selectedCharacterId) {
-    return <div className="p-6 text-gray-300">Seleziona un personaggio per usare Fame-stagram.</div>;
+    return <div className="p-6 text-gray-300">Seleziona un personaggio per usare InstaFame.</div>;
   }
 
   return (
@@ -893,7 +893,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               )}
             </button>
             <div className="min-w-0">
-              <h2 className="text-xl md:text-3xl font-black italic text-amber-200 tracking-wide leading-tight drop-shadow">Fame-stagram</h2>
+              <h2 className="text-xl md:text-3xl font-black italic text-amber-200 tracking-wide leading-tight drop-shadow">InstaFame</h2>
               <p className="text-[11px] md:text-sm text-amber-100/80 truncate">{subtitle}</p>
               <div className="text-xs text-gray-300 mt-1 inline-flex items-center gap-1">
                 <span>PG attivo: {profile?.personaggio_nome || `#${selectedCharacterId}`}</span>

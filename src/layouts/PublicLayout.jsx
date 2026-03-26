@@ -322,8 +322,8 @@ export default function PublicLayout({ token }) {
                 <Link to="/app" className="bg-white text-red-900 px-3 py-1.5 rounded font-bold hover:bg-gray-100 transition text-sm flex items-center gap-2 shadow-sm">
                   <span>🎮</span> <span className="hidden sm:inline">Entra nel Gioco</span>
                 </Link>
-                <Link to="/app?tab=social" className="bg-red-700 text-white px-3 py-1.5 rounded font-bold hover:bg-red-600 transition text-sm flex items-center gap-2 shadow-sm">
-                  <span>✨</span> <span className="hidden sm:inline">Fame-stagram</span>
+                <Link to="/app/social" className="bg-red-700 text-white px-3 py-1.5 rounded font-bold hover:bg-red-600 transition text-sm flex items-center gap-2 shadow-sm">
+                  <span>✨</span> <span className="hidden sm:inline">InstaFame</span>
                 </Link>
             </div>
           ) : (
@@ -333,8 +333,8 @@ export default function PublicLayout({ token }) {
                     Login
                  </Link>
                )}
-               <Link to="/app?tab=social" className="bg-red-700 text-white px-3 py-1.5 rounded font-bold hover:bg-red-600 transition text-sm flex items-center gap-2 shadow-sm">
-                 <span>✨</span> <span className="hidden sm:inline">Fame-stagram</span>
+               <Link to="/app/social" className="bg-red-700 text-white px-3 py-1.5 rounded font-bold hover:bg-red-600 transition text-sm flex items-center gap-2 shadow-sm">
+                 <span>✨</span> <span className="hidden sm:inline">InstaFame</span>
                </Link>
              </div>
           )}

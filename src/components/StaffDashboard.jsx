@@ -116,7 +116,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
         {
             label: 'Vai al Social',
             icon: <Sparkles size={18}/>,
-            link: '/app?mode=player&tab=social',
+            link: '/app/social',
             active: false,
             badgeCount: socialUnreadCount,
         },
@@ -263,11 +263,11 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
                                 </Link>
 
                                 <Link 
-                                    to="/app?mode=player&tab=social" 
+                                    to="/app/social" 
                                     className="bg-gray-800 border-2 border-dashed border-gray-700 p-6 rounded-2xl hover:bg-gray-750 hover:border-gray-500 transition-all flex flex-col items-center justify-center gap-4 aspect-square group"
                                 >
                                     <Sparkles size={40} className="text-gray-600 group-hover:text-pink-300 transition-colors" />
-                                    <span className="font-bold text-gray-500 group-hover:text-white uppercase tracking-wider text-xs text-center">Vai al Social</span>
+                                    <span className="font-bold text-gray-500 group-hover:text-white uppercase tracking-wider text-xs text-center">Apri InstaFame</span>
                                 </Link>
                             </div>
                         </div>

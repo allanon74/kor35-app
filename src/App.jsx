@@ -11,6 +11,7 @@ import PublicLayout from './layouts/PublicLayout';
 // Pages
 import WikiPage from './pages/WikiPage';
 import SocialPublicPostPage from './pages/SocialPublicPostPage';
+import SocialPage from './pages/SocialPage';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('kor35_token'));
@@ -90,6 +91,16 @@ export default function App() {
           </Route>
 
           {/* --- ROTTE APP (PROTETTE) --- */}
+          <Route
+            path="/app/social"
+            element={
+              token ? (
+                <SocialPage onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
           <Route 
             path="/app/*" 
             element={

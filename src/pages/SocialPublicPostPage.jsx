@@ -52,8 +52,8 @@ export default function SocialPublicPostPage() {
       </div>
 
       <div className="mt-4 text-center">
-        <Link to="/app?tab=social" className="text-indigo-600 hover:text-indigo-500 font-semibold">
-          Apri Fame-stagram
+        <Link to="/app/social" className="text-indigo-600 hover:text-indigo-500 font-semibold">
+          Apri InstaFame
         </Link>
       </div>
     </div>

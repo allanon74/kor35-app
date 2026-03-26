@@ -198,11 +198,11 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                 
                 <div className="flex gap-2">
                     <button
-                        onClick={() => navigate('/app?tab=social')}
+                        onClick={() => navigate('/app/social')}
                         className="flex items-center gap-2 px-4 py-2 bg-fuchsia-700 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-fuchsia-600 transition-colors shadow-lg"
-                        title="Apri Fame-stagram"
+                        title="Apri InstaFame"
                     >
-                        ✨ Social
+                        ✨ InstaFame
                     </button>
                     {(isAdmin || isStaff) && (
                         <button 
