@@ -55,6 +55,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [editingPost, setEditingPost] = useState(null);
   const [feedFilter, setFeedFilter] = useState('ALL');
   const [feedSort, setFeedSort] = useState('RECENT');
+  const [hashtagFilter, setHashtagFilter] = useState('');
   const [feedPage, setFeedPage] = useState(1);
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
@@ -140,7 +141,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     setLoading(true);
     try {
       const [postsData, korpData, profileData] = await Promise.all([
-        socialGetPosts(selectedCharacterId, onLogout, 1, PAGE_SIZE),
+        socialGetPosts(selectedCharacterId, onLogout, 1, PAGE_SIZE, { hashtag: hashtagFilter || undefined }),
         socialGetKorpList(onLogout),
         socialGetMyProfile(selectedCharacterId, onLogout),
       ]);
@@ -165,7 +166,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCharacterId, onLogout, normalizePostsPayload]);
+  }, [selectedCharacterId, onLogout, normalizePostsPayload, hashtagFilter]);
 
   useEffect(() => {
     if (selectedCharacterId) loadAll();
@@ -796,6 +797,37 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       last = end;
     }
     if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
+    const hashtagRegex = /(^|[\s.,;:!?()[\]{}])#([A-Za-z0-9_]{2,40})/g;
+    const renderWithHashtags = (value, keyPrefix) => {
+      const chunks = [];
+      let last = 0;
+      let h;
+      while ((h = hashtagRegex.exec(value)) !== null) {
+        const full = h[0];
+        const lead = h[1] || '';
+        const tag = h[2];
+        const start = h.index;
+        const hashIndex = start + lead.length;
+        if (start > last) chunks.push(<React.Fragment key={`${keyPrefix}-t-${last}`}>{value.slice(last, start)}</React.Fragment>);
+        if (lead) chunks.push(<React.Fragment key={`${keyPrefix}-l-${start}`}>{lead}</React.Fragment>);
+        chunks.push(
+          <button
+            key={`${keyPrefix}-h-${hashIndex}-${tag}`}
+            type="button"
+            onClick={() => {
+              setHashtagFilter(tag.toLowerCase());
+              setFeedFilter('ALL');
+            }}
+            className="underline decoration-dotted text-fuchsia-300 hover:text-fuchsia-100"
+          >
+            #{tag}
+          </button>
+        );
+        last = start + full.length;
+      }
+      if (last < value.length) chunks.push(<React.Fragment key={`${keyPrefix}-r-${last}`}>{value.slice(last)}</React.Fragment>);
+      return chunks;
+    };
     return (
       <span className="whitespace-pre-wrap">
         {parts.map((p, idx) =>
@@ -808,9 +840,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
             >
               @{p.label}
             </button>
-          ) : (
-            <React.Fragment key={`t-${idx}`}>{p.value}</React.Fragment>
-          )
+          ) : <React.Fragment key={`t-${idx}`}>{renderWithHashtags(p.value, `t-${idx}`)}</React.Fragment>
         )}
       </span>
     );
@@ -841,7 +871,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     const nextPage = feedPage + 1;
     setLoadingMorePosts(true);
     try {
-      const payload = await socialGetPosts(selectedCharacterId, onLogout, nextPage, PAGE_SIZE);
+      const payload = await socialGetPosts(selectedCharacterId, onLogout, nextPage, PAGE_SIZE, { hashtag: hashtagFilter || undefined });
       const normalized = normalizePostsPayload(payload);
       setPosts((prev) => [...prev, ...normalized.items]);
       setFeedPage(nextPage);
@@ -851,7 +881,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     } finally {
       setLoadingMorePosts(false);
     }
-  }, [loading, loadingMorePosts, hasMorePosts, feedPage, selectedCharacterId, onLogout, normalizePostsPayload]);
+  }, [loading, loadingMorePosts, hasMorePosts, feedPage, selectedCharacterId, onLogout, normalizePostsPayload, hashtagFilter]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -1037,7 +1067,22 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       <section className="space-y-4">
         <div className="sticky top-[86px] md:top-[96px] z-10 rounded-2xl border border-amber-400/30 bg-[#1b1420]/90 backdrop-blur px-2 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-pink-300 font-bold"><Sparkles size={18} /> Feed Sociale</div>
+          <div className="flex items-center gap-2 text-pink-300 font-bold">
+            <Sparkles size={18} /> Feed Sociale
+            {hashtagFilter && (
+              <span className="inline-flex items-center gap-2 ml-1 text-[11px] px-2 py-1 rounded-full bg-fuchsia-900/50 border border-fuchsia-400/40 text-fuchsia-100">
+                #{hashtagFilter}
+                <button
+                  type="button"
+                  className="text-fuchsia-200 hover:text-white"
+                  onClick={() => setHashtagFilter('')}
+                  title="Rimuovi filtro hashtag"
+                >
+                  x
+                </button>
+              </span>
+            )}
+          </div>
           <div className="flex gap-2 text-xs items-center overflow-x-auto w-full md:w-auto pb-1">
             {[
               { id: 'ALL', label: 'Tutti' },
@@ -1107,6 +1152,23 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               </div>
             )}
             {post.testo && <p className="text-gray-200 text-sm md:text-base leading-relaxed">{renderTextWithMentions(post.testo, post.tags)}</p>}
+            {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {post.hashtags.map((h) => (
+                  <button
+                    key={`ph-${post.id}-${h}`}
+                    type="button"
+                    onClick={() => {
+                      setHashtagFilter(String(h).toLowerCase());
+                      setFeedFilter('ALL');
+                    }}
+                    className="text-xs px-2 py-1 rounded-full bg-fuchsia-900/40 border border-fuchsia-400/30 text-fuchsia-100 hover:bg-fuchsia-800/50"
+                  >
+                    #{h}
+                  </button>
+                ))}
+              </div>
+            )}
             {post.tags?.length > 0 && (
               <div className="text-xs text-amber-300/90">
                 Tag:{' '}

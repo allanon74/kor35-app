@@ -77,6 +77,8 @@ export default function App() {
     <BrowserRouter>
       <SafeProvider>
         <Routes>
+          <Route path="/social" element={<Navigate to="/app/social" replace />} />
+          <Route path="/instafame" element={<Navigate to="/app/social" replace />} />
           {/* --- ROTTE PUBBLICHE --- */}
           <Route path="/" element={<PublicLayout token={token} />}>
             <Route index element={<WikiPage slug="home" />} />

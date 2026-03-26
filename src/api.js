@@ -126,11 +126,12 @@ export const fetchPublic = async (endpoint, options = {}) => {
 };
 
 // --- SOCIAL (Fame-stagram) ---
-export const socialGetPosts = (personaggioId, onLogout, page = 1, pageSize = 10) => {
+export const socialGetPosts = (personaggioId, onLogout, page = 1, pageSize = 10, options = {}) => {
   const params = new URLSearchParams();
   if (personaggioId) params.set('personaggio_id', String(personaggioId));
   params.set('page', String(page));
   params.set('page_size', String(pageSize));
+  if (options?.hashtag) params.set('hashtag', String(options.hashtag).replace(/^#/, ''));
   return fetchAuthenticated(`/api/social/posts/?${params.toString()}`, { method: 'GET' }, onLogout);
 };
 
