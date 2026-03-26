@@ -4,7 +4,7 @@ import { resolveMediaUrl, socialMarkStoryViewed, socialReactStory, socialReplySt
 
 const DEFAULT_DURATION_MS = 6500;
 
-const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, personaggioId, onLogout, onStoryUpdated }) => {
+const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, personaggioId, onLogout, onStoryUpdated, onOpenProfile }) => {
   const [idx, setIdx] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [replyText, setReplyText] = useState('');
@@ -79,6 +79,73 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
 
   if (!open) return null;
 
+  const renderStoryText = (text, tags = []) => {
+    if (!text) return null;
+    const mapById = new Map((tags || []).map((t) => [String(t.personaggio_id), t.personaggio__nome || `#${t.personaggio_id}`]));
+
+    const parts = [];
+    const mentionRegex = /@([A-Za-z0-9_]+)/g;
+    let last = 0;
+    let m;
+    while ((m = mentionRegex.exec(text)) !== null) {
+      const start = m.index;
+      const end = mentionRegex.lastIndex;
+      const token = m[1];
+      if (start > last) parts.push({ type: 'text', value: text.slice(last, start) });
+      if (/^\d+$/.test(token) && mapById.has(token)) {
+        parts.push({ type: 'mention', id: Number(token), label: mapById.get(token), raw: m[0] });
+      } else {
+        parts.push({ type: 'text', value: m[0] });
+      }
+      last = end;
+    }
+    if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
+
+    const hashtagRegex = /(^|[\s.,;:!?()[\]{}])#([A-Za-z0-9_]{2,40})/g;
+    const renderWithHashtags = (value, keyPrefix) => {
+      const chunks = [];
+      let hl = 0;
+      let h;
+      while ((h = hashtagRegex.exec(value)) !== null) {
+        const full = h[0];
+        const lead = h[1] || '';
+        const tag = h[2];
+        const start = h.index;
+        const hashIndex = start + lead.length;
+        if (start > hl) chunks.push(<React.Fragment key={`${keyPrefix}-t-${hl}`}>{value.slice(hl, start)}</React.Fragment>);
+        if (lead) chunks.push(<React.Fragment key={`${keyPrefix}-l-${start}`}>{lead}</React.Fragment>);
+        chunks.push(
+          <span key={`${keyPrefix}-h-${hashIndex}-${tag}`} className="text-fuchsia-200 font-semibold">
+            #{tag}
+          </span>
+        );
+        hl = start + full.length;
+      }
+      if (hl < value.length) chunks.push(<React.Fragment key={`${keyPrefix}-r-${hl}`}>{value.slice(hl)}</React.Fragment>);
+      return chunks;
+    };
+
+    return (
+      <span className="whitespace-pre-wrap">
+        {parts.map((p, i) =>
+          p.type === 'mention' ? (
+            <button
+              key={`sm-${i}-${p.id}`}
+              type="button"
+              onClick={() => onOpenProfile?.(p.id)}
+              className="underline decoration-dotted text-amber-200 hover:text-amber-50"
+              title={`Apri profilo ${p.label}`}
+            >
+              @{p.label}
+            </button>
+          ) : (
+            <React.Fragment key={`st-${i}`}>{renderWithHashtags(p.value, `st-${i}`)}</React.Fragment>
+          )
+        )}
+      </span>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-80 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2">
       <div className="w-full max-w-md h-[92vh] rounded-2xl overflow-hidden border border-amber-300/25 bg-[#07040a] shadow-2xl flex flex-col">
@@ -136,7 +203,7 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
           {story?.testo && (
             <div className="absolute bottom-16 left-0 right-0 p-4">
               <div className="rounded-xl bg-black/55 border border-white/10 p-3 text-white text-sm whitespace-pre-wrap">
-                {story.testo}
+                {renderStoryText(story.testo, story.tags || [])}
               </div>
             </div>
           )}

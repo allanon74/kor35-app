@@ -14,6 +14,7 @@ import {
   searchPersonaggi,
   socialCreateComment,
   socialCreatePost,
+  socialCreateStory,
   socialDeleteComment,
   socialInviteGroupMember,
   socialGetComments,
@@ -25,6 +26,7 @@ import {
   socialGetNotifications,
   socialGetProfileByCharacter,
   socialGetPosts,
+  socialGetHighlights,
   socialLeaveGroup,
   socialRejectGroupMember,
   socialRequestJoinGroup,
@@ -47,6 +49,14 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [storiesLoading, setStoriesLoading] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyViewerIndex, setStoryViewerIndex] = useState(0);
+  const [showStoryComposer, setShowStoryComposer] = useState(false);
+  const storyMediaCameraInputRef = useRef(null);
+  const [storyForm, setStoryForm] = useState({
+    testo: '',
+    visibilita: 'PUB',
+    korp_visibilita: '',
+    media: null,
+  });
   const [korpList, setKorpList] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -151,6 +161,41 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       setStoriesLoading(false);
     }
   }, [selectedCharacterId, onLogout, normalizeStoriesPayload]);
+
+  const handleStoryMediaChange = (file) => {
+    if (!file) {
+      setStoryForm((p) => ({ ...p, media: null }));
+      return;
+    }
+    const t = String(file.type || '');
+    if (t.startsWith('image/') || t.startsWith('video/')) {
+      setStoryForm((p) => ({ ...p, media: file }));
+      return;
+    }
+    alert('Formato non supportato. Usa una immagine o un video.');
+  };
+
+  const submitStory = async (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append('testo', storyForm.testo || '');
+    fd.append('visibilita', storyForm.visibilita || 'PUB');
+    if (storyForm.visibilita === 'KORP' && storyForm.korp_visibilita) {
+      fd.append('korp_visibilita', storyForm.korp_visibilita);
+    }
+    if (storyForm.media) {
+      fd.append('media', storyForm.media);
+    }
+    try {
+      await socialCreateStory(fd, selectedCharacterId, onLogout);
+      setShowStoryComposer(false);
+      setStoryForm({ testo: '', visibilita: 'PUB', korp_visibilita: '', media: null });
+      await loadStories();
+    } catch (err) {
+      console.error('Errore creazione story', err);
+      alert('Errore nella creazione della story.');
+    }
+  };
 
   const normalizeCommentsPayload = useCallback((payload) => {
     if (Array.isArray(payload)) {
@@ -1121,16 +1166,93 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         <div className="rounded-2xl border border-amber-300/20 bg-black/30 p-3">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-bold text-amber-200">Storie</div>
-            <button
-              type="button"
-              onClick={loadStories}
-              className="text-xs px-2 py-1 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-amber-100/90"
-              title="Aggiorna storie"
-              disabled={storiesLoading}
-            >
-              Aggiorna
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowStoryComposer((v) => !v)}
+                className="text-xs px-2 py-1 rounded-lg border border-fuchsia-300/20 bg-fuchsia-900/20 hover:bg-fuchsia-900/30 text-fuchsia-100/90"
+                title="Nuova story"
+              >
+                Nuova
+              </button>
+              <button
+                type="button"
+                onClick={loadStories}
+                className="text-xs px-2 py-1 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-amber-100/90"
+                title="Aggiorna storie"
+                disabled={storiesLoading}
+              >
+                Aggiorna
+              </button>
+            </div>
           </div>
+          {showStoryComposer && (
+            <form onSubmit={submitStory} className="mb-3 rounded-xl border border-amber-300/15 bg-black/25 p-3 space-y-2">
+              <textarea
+                className="w-full rounded-xl bg-white/5 border border-white/10 p-2 text-sm text-white placeholder:text-white/40 min-h-16"
+                placeholder="Testo story (puoi usare @ e #)..."
+                value={storyForm.testo}
+                onChange={(e) => setStoryForm((p) => ({ ...p, testo: e.target.value }))}
+              />
+              <div className="flex flex-wrap gap-2 items-center">
+                <select
+                  className="rounded-lg bg-white/5 border border-white/10 p-2 text-sm text-white"
+                  value={storyForm.visibilita}
+                  onChange={(e) => setStoryForm((p) => ({ ...p, visibilita: e.target.value }))}
+                >
+                  <option value="PUB">Pubblica</option>
+                  <option value="KORP">Solo KORP</option>
+                </select>
+                {storyForm.visibilita === 'KORP' && (
+                  <select
+                    className="rounded-lg bg-white/5 border border-white/10 p-2 text-sm text-white"
+                    value={storyForm.korp_visibilita}
+                    onChange={(e) => setStoryForm((p) => ({ ...p, korp_visibilita: e.target.value }))}
+                    required
+                  >
+                    <option value="">Seleziona KORP</option>
+                    {korpList.map((k) => (
+                      <option key={`sk-${k.id}`} value={k.id}>
+                        {k.nome}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={(e) => handleStoryMediaChange(e.target.files?.[0] || null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => storyMediaCameraInputRef.current?.click?.()}
+                    className="px-3 py-2 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-xs font-semibold text-amber-100/90"
+                    title="Scatta/Registra dalla camera"
+                  >
+                    Camera
+                  </button>
+                  <input
+                    ref={storyMediaCameraInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => handleStoryMediaChange(e.target.files?.[0] || null)}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="ml-auto px-4 py-2 rounded-xl bg-linear-to-r from-fuchsia-700 to-amber-500 hover:from-fuchsia-600 hover:to-amber-400 text-sm font-extrabold text-white"
+                >
+                  Pubblica story
+                </button>
+              </div>
+              <div className="text-xs text-gray-400">
+                Una story dura 24h. Reply invia un DM all’autore.
+              </div>
+            </form>
+          )}
           <div className="flex gap-3 overflow-x-auto pb-1">
             {stories.length === 0 ? (
               <div className="text-xs text-gray-400">
@@ -1865,6 +1987,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         initialIndex={storyViewerIndex}
         personaggioId={selectedCharacterId}
         onLogout={onLogout}
+        onOpenProfile={(pid) => openProfile(pid)}
         onStoryUpdated={({ storyId, patch }) => {
           setStories((prev) => prev.map((x) => (Number(x?.id) === Number(storyId) ? { ...x, ...patch } : x)));
         }}
