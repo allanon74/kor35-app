@@ -157,6 +157,15 @@ jobs:
             fi
 
             if [ -n "${MIRROR_POST_DEPLOY_CMD}" ]; then
+              # Cleanup difensivo: rimuove eventuali container "hashati" legacy
+              # che causano conflitti del tipo "/<hash>_django_app already in use".
+              for cname in $(docker ps -a --format '{{.Names}}'); do
+                if [[ "${cname}" =~ ^[0-9a-f]{12}_(django_app|daphne_app)$ ]]; then
+                  echo "Removing legacy container: ${cname}"
+                  docker rm -f "${cname}" || true
+                fi
+              done
+
               export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}"
               eval "${MIRROR_POST_DEPLOY_CMD}"
             fi
