@@ -8,6 +8,7 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
   const [idx, setIdx] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [replyText, setReplyText] = useState('');
+  const [textPage, setTextPage] = useState(0);
   const rafRef = useRef(null);
   const startRef = useRef(0);
 
@@ -16,6 +17,7 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
     setIdx(initialIndex || 0);
     setProgress(0);
     setReplyText('');
+    setTextPage(0);
   }, [open, initialIndex]);
 
   const story = stories[idx] || null;
@@ -24,6 +26,31 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
     const u = String(story?.media || '').toLowerCase();
     return u.endsWith('.mp4') || u.endsWith('.webm') || u.endsWith('.mov') || u.includes('video');
   }, [story?.media]);
+
+  const textPages = useMemo(() => {
+    const text = String(story?.testo || '').trim();
+    if (!text) return [];
+    const approxLimit = Math.max(120, Math.round(420 - (Number(story?.text_size || 22) - 22) * 10));
+    if (text.length <= approxLimit) return [text];
+    const words = text.split(/\s+/);
+    const pages = [];
+    let curr = '';
+    for (const w of words) {
+      const next = curr ? `${curr} ${w}` : w;
+      if (next.length > approxLimit) {
+        pages.push(curr);
+        curr = w;
+      } else {
+        curr = next;
+      }
+    }
+    if (curr) pages.push(curr);
+    return pages.length > 0 ? pages : [text];
+  }, [story?.testo, story?.text_size]);
+
+  useEffect(() => {
+    setTextPage(0);
+  }, [story?.id]);
 
   const goNext = () => {
     if (idx < stories.length - 1) {
@@ -202,8 +229,33 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
 
           {story?.testo && (
             <div className="absolute bottom-16 left-0 right-0 p-4">
-              <div className="rounded-xl bg-black/55 border border-white/10 p-3 text-white text-sm whitespace-pre-wrap">
-                {renderStoryText(story.testo, story.tags || [])}
+              <div className="rounded-xl bg-black/55 border border-white/10 p-3 text-white whitespace-pre-wrap">
+                <div style={{ fontSize: `${Math.max(12, Math.min(56, Number(story?.text_size || 22)))}px`, lineHeight: 1.25 }}>
+                  {renderStoryText(textPages[textPage] || story.testo, story.tags || [])}
+                </div>
+                {textPages.length > 1 && (
+                  <div className="mt-2 flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setTextPage((p) => Math.max(0, p - 1))}
+                      disabled={textPage <= 0}
+                      className="px-2 py-1 rounded bg-white/10 disabled:opacity-50"
+                    >
+                      Pagina prec.
+                    </button>
+                    <span className="text-white/80">
+                      Pagina {textPage + 1}/{textPages.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setTextPage((p) => Math.min(textPages.length - 1, p + 1))}
+                      disabled={textPage >= textPages.length - 1}
+                      className="px-2 py-1 rounded bg-white/10 disabled:opacity-50"
+                    >
+                      Pagina succ.
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

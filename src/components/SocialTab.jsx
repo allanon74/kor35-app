@@ -38,9 +38,75 @@ import {
   socialUpdateMyProfile,
   socialDeclineGroupInvite,
   socialGetStories,
+  socialGetMyStoryActivity,
+  socialGetMyStoryHistory,
+  socialConvertStoryToPost,
 } from '../api';
 import StoryViewerModal from './StoryViewerModal';
 import StoryMediaCaptureModal from './StoryMediaCaptureModal';
+
+const STORY_MAX_VIDEO_BYTES = 30 * 1024 * 1024;
+const STORY_MAX_VIDEO_SECONDS = 30;
+const STORY_IMAGE_MAX_EDGE = 1440;
+
+const readVideoDurationSeconds = (file) =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const d = Number(video.duration || 0);
+      URL.revokeObjectURL(url);
+      resolve(d);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Impossibile leggere metadata video'));
+    };
+    video.src = url;
+  });
+
+const compressImageFile = (file, maxEdge = STORY_IMAGE_MAX_EDGE, quality = 0.82) =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const scale = Math.min(1, maxEdge / Math.max(w, h));
+        const tw = Math.max(1, Math.round(w * scale));
+        const th = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = tw;
+        canvas.height = th;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas context non disponibile');
+        ctx.drawImage(img, 0, 0, tw, th);
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(url);
+            if (!blob) {
+              reject(new Error('Compressione immagine fallita'));
+              return;
+            }
+            const out = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+            resolve(out);
+          },
+          'image/jpeg',
+          quality
+        );
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Impossibile leggere immagine'));
+    };
+    img.src = url;
+  });
 
 const SocialTab = ({ onLogout, onOpenMessages }) => {
   const PAGE_SIZE = 10;
@@ -48,6 +114,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [posts, setPosts] = useState([]);
   const [stories, setStories] = useState([]);
   const [storiesLoading, setStoriesLoading] = useState(false);
+  const [storyInsightsOpen, setStoryInsightsOpen] = useState(false);
+  const [storyActivity, setStoryActivity] = useState(null);
+  const [storyHistory, setStoryHistory] = useState([]);
+  const [storyInsightsLoading, setStoryInsightsLoading] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyViewerIndex, setStoryViewerIndex] = useState(0);
   const [showStoryComposer, setShowStoryComposer] = useState(false);
@@ -56,9 +126,12 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     testo: '',
     visibilita: 'PUB',
     korp_visibilita: '',
+    text_size: 22,
+    auto_publish_mode: 'OFF',
     media: null,
   });
   const [storyMediaPreviewUrl, setStoryMediaPreviewUrl] = useState('');
+  const [storyMediaHint, setStoryMediaHint] = useState('');
   const [korpList, setKorpList] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -165,13 +238,42 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     }
   }, [selectedCharacterId, onLogout, normalizeStoriesPayload]);
 
-  const handleStoryMediaChange = (file) => {
+  const handleStoryMediaChange = async (file) => {
     if (!file) {
       setStoryForm((p) => ({ ...p, media: null }));
+      setStoryMediaHint('');
       return;
     }
     const t = String(file.type || '');
     if (t.startsWith('image/') || t.startsWith('video/')) {
+      if (t.startsWith('video/')) {
+        if (Number(file.size || 0) > STORY_MAX_VIDEO_BYTES) {
+          alert('Video troppo pesante (max 30MB).');
+          return;
+        }
+        try {
+          const duration = await readVideoDurationSeconds(file);
+          if (duration > STORY_MAX_VIDEO_SECONDS) {
+            alert('Video troppo lungo: massimo 30 secondi per story.');
+            return;
+          }
+          setStoryMediaHint(`Video ${Math.round(duration)}s • ${(Number(file.size || 0) / (1024 * 1024)).toFixed(1)}MB`);
+        } catch {
+          setStoryMediaHint('Video selezionato');
+        }
+      } else {
+        try {
+          const compressed = await compressImageFile(file);
+          const beforeMB = Number(file.size || 0) / (1024 * 1024);
+          const afterMB = Number(compressed.size || 0) / (1024 * 1024);
+          setStoryForm((p) => ({ ...p, media: compressed }));
+          setStoryMediaHint(`Immagine ottimizzata ${(beforeMB).toFixed(1)}MB → ${(afterMB).toFixed(1)}MB`);
+          setShowStoryMediaPicker(false);
+          return;
+        } catch {
+          setStoryMediaHint('Immagine selezionata');
+        }
+      }
       setStoryForm((p) => ({ ...p, media: file }));
       setShowStoryMediaPicker(false);
       return;
@@ -196,6 +298,8 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     const fd = new FormData();
     fd.append('testo', storyForm.testo || '');
     fd.append('visibilita', storyForm.visibilita || 'PUB');
+    fd.append('text_size', String(storyForm.text_size || 22));
+    fd.append('auto_publish_mode', String(storyForm.auto_publish_mode || 'OFF'));
     if (storyForm.visibilita === 'KORP' && storyForm.korp_visibilita) {
       fd.append('korp_visibilita', storyForm.korp_visibilita);
     }
@@ -205,13 +309,32 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     try {
       await socialCreateStory(fd, selectedCharacterId, onLogout);
       setShowStoryComposer(false);
-      setStoryForm({ testo: '', visibilita: 'PUB', korp_visibilita: '', media: null });
+      setStoryForm({ testo: '', visibilita: 'PUB', korp_visibilita: '', text_size: 22, auto_publish_mode: 'OFF', media: null });
+      setStoryMediaHint('');
       await loadStories();
     } catch (err) {
       console.error('Errore creazione story', err);
       alert('Errore nella creazione della story.');
     }
   };
+
+  const loadStoryInsights = useCallback(async () => {
+    setStoryInsightsLoading(true);
+    try {
+      const [activityPayload, historyPayload] = await Promise.all([
+        socialGetMyStoryActivity(selectedCharacterId, onLogout),
+        socialGetMyStoryHistory(selectedCharacterId, onLogout, true),
+      ]);
+      setStoryActivity(activityPayload || null);
+      setStoryHistory(Array.isArray(historyPayload?.results) ? historyPayload.results : []);
+    } catch (err) {
+      console.error('Errore caricamento story insights', err);
+      setStoryActivity(null);
+      setStoryHistory([]);
+    } finally {
+      setStoryInsightsLoading(false);
+    }
+  }, [selectedCharacterId, onLogout]);
 
   const normalizeCommentsPayload = useCallback((payload) => {
     if (Array.isArray(payload)) {
@@ -1205,6 +1328,26 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                     ))}
                   </select>
                 )}
+                <select
+                  className="rounded-lg bg-white/5 border border-white/10 p-2 text-sm text-white"
+                  value={storyForm.auto_publish_mode}
+                  onChange={(e) => setStoryForm((p) => ({ ...p, auto_publish_mode: e.target.value }))}
+                >
+                  <option value="OFF">Non creare post</option>
+                  <option value="NOW">Crea subito anche post</option>
+                  <option value="EXPIRE">Crea post a scadenza</option>
+                </select>
+                <label className="inline-flex items-center gap-2 text-xs text-gray-300 px-2 py-1 rounded border border-white/10 bg-white/5">
+                  Testo
+                  <input
+                    type="range"
+                    min="12"
+                    max="56"
+                    value={storyForm.text_size}
+                    onChange={(e) => setStoryForm((p) => ({ ...p, text_size: Number(e.target.value) }))}
+                  />
+                  <span>{storyForm.text_size}px</span>
+                </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -1234,6 +1377,17 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                     )}
                   </div>
                 )}
+                {!storyForm.media && Boolean(storyForm.testo || '').trim() && (
+                  <div className="w-full rounded-xl border border-white/10 bg-black/25 p-3">
+                    <div
+                      className="text-white whitespace-pre-wrap"
+                      style={{ fontSize: `${storyForm.text_size}px`, lineHeight: 1.25 }}
+                    >
+                      {storyForm.testo}
+                    </div>
+                  </div>
+                )}
+                {storyMediaHint && <div className="text-[11px] text-emerald-300">{storyMediaHint}</div>}
                 <button
                   type="submit"
                   className="ml-auto px-4 py-2 rounded-xl bg-linear-to-r from-fuchsia-700 to-amber-500 hover:from-fuchsia-600 hover:to-amber-400 text-sm font-extrabold text-white"
@@ -1242,17 +1396,30 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 </button>
               </div>
               <div className="text-xs text-gray-400">
-                Una story dura 24h. Reply invia un DM all’autore.
+                Una story dura 24h. Video max 30s / 30MB. Puoi convertirla in post subito o a scadenza.
               </div>
             </form>
           )}
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[11px] uppercase tracking-wide text-gray-400">Nuove</div>
+            <button
+              type="button"
+              onClick={async () => {
+                setStoryInsightsOpen(true);
+                await loadStoryInsights();
+              }}
+              className="text-[11px] px-2 py-1 rounded-lg border border-cyan-300/20 bg-cyan-900/20 hover:bg-cyan-900/30 text-cyan-100/90"
+            >
+              Attività mie storie
+            </button>
+          </div>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {stories.length === 0 ? (
               <div className="text-xs text-gray-400">
                 {storiesLoading ? 'Caricamento...' : 'Nessuna story attiva.'}
               </div>
             ) : (
-              stories.map((s, i) => {
+              stories.filter((s) => !s.viewed_by_me).map((s, i) => {
                 const viewed = !!s.viewed_by_me;
                 const initials = String(s.autore_nome || 'PG')
                   .split(' ')
@@ -1290,6 +1457,45 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               })
             )}
           </div>
+          {stories.some((s) => s.viewed_by_me) && (
+            <>
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-2 mb-1">Già viste</div>
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {stories
+                  .filter((s) => s.viewed_by_me)
+                  .map((s) => {
+                    const realIdx = stories.findIndex((x) => Number(x.id) === Number(s.id));
+                    const initials = String(s.autore_nome || 'PG')
+                      .split(' ')
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((x) => x[0]?.toUpperCase())
+                      .join('');
+                    return (
+                      <button
+                        key={`story-read-${s.id}`}
+                        type="button"
+                        onClick={() => {
+                          setStoryViewerIndex(realIdx >= 0 ? realIdx : 0);
+                          setStoryViewerOpen(true);
+                        }}
+                        className="shrink-0 w-16 flex flex-col items-center gap-1 opacity-85"
+                        title={s.autore_nome || 'Story'}
+                      >
+                        <div className="w-14 h-14 rounded-full p-[2px] bg-gray-700/60">
+                          <div className="w-full h-full rounded-full bg-[#120a15] border border-white/10 flex items-center justify-center text-amber-100 font-extrabold">
+                            {initials || 'PG'}
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-gray-400 truncate w-16 text-center">
+                          {s.autore_nome || 'PG'}
+                        </div>
+                      </button>
+                    );
+                  })}
+              </div>
+            </>
+          )}
         </div>
         <div className="sticky top-[86px] md:top-[96px] z-10 rounded-2xl border border-amber-400/30 bg-[#1b1420]/90 backdrop-blur px-2 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2121,6 +2327,129 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+      {storyInsightsOpen && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
+          <div className="w-full max-w-4xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-cyan-100">Attività mie stories</h3>
+              <button onClick={() => setStoryInsightsOpen(false)} className="text-gray-400 hover:text-white">X</button>
+            </div>
+            {storyInsightsLoading ? (
+              <div className="text-sm text-gray-400">Caricamento attività...</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="rounded-xl border border-gray-700 bg-gray-800/70 p-2 text-center">
+                    <div className="text-[11px] text-gray-400">Stories</div>
+                    <div className="text-lg font-bold text-cyan-100">{Number(storyActivity?.totals?.stories || 0)}</div>
+                  </div>
+                  <div className="rounded-xl border border-gray-700 bg-gray-800/70 p-2 text-center">
+                    <div className="text-[11px] text-gray-400">Visualizzazioni</div>
+                    <div className="text-lg font-bold text-cyan-100">{Number(storyActivity?.totals?.views || 0)}</div>
+                  </div>
+                  <div className="rounded-xl border border-gray-700 bg-gray-800/70 p-2 text-center">
+                    <div className="text-[11px] text-gray-400">Reazioni</div>
+                    <div className="text-lg font-bold text-cyan-100">{Number(storyActivity?.totals?.reactions || 0)}</div>
+                  </div>
+                  <div className="rounded-xl border border-gray-700 bg-gray-800/70 p-2 text-center">
+                    <div className="text-[11px] text-gray-400">Commenti/Risposte</div>
+                    <div className="text-lg font-bold text-cyan-100">{Number(storyActivity?.totals?.replies || 0)}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
+                  <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-3 overflow-auto">
+                    <div className="text-sm font-bold text-amber-200 mb-2">Eventi recenti</div>
+                    {Array.isArray(storyActivity?.events) && storyActivity.events.length > 0 ? (
+                      <div className="space-y-2">
+                        {storyActivity.events.map((e, idx) => (
+                          <div key={`sev-${idx}-${e.story_id}-${e.created_at}`} className="rounded border border-gray-700 bg-gray-900/60 p-2 text-xs">
+                            <div className="text-gray-400">{e.created_at ? new Date(e.created_at).toLocaleString('it-IT') : '-'}</div>
+                            <div className="text-gray-100">
+                              <b>{e.actor_name || 'Qualcuno'}</b>{' '}
+                              {e.kind === 'view' && 'ha visualizzato la tua story'}
+                              {e.kind === 'reaction' && <>ha reagito {e.payload || ''} alla tua story</>}
+                              {e.kind === 'reply' && 'ha commentato la tua story'}
+                            </div>
+                            {e.payload && e.kind === 'reply' && <div className="text-gray-300 mt-1">{e.payload}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-400">Nessun evento recente.</div>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-3 overflow-auto">
+                    <div className="text-sm font-bold text-fuchsia-200 mb-2">Storico mie stories</div>
+                    {storyHistory.length > 0 ? (
+                      <div className="space-y-2">
+                        {storyHistory.map((s) => {
+                          const isExpired = s?.expires_at ? new Date(s.expires_at).getTime() <= Date.now() : false;
+                          return (
+                            <div
+                              key={`sh-${s.id}`}
+                              className="w-full text-left rounded border border-gray-700 bg-gray-900/60 p-2 hover:bg-gray-900/80"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-xs text-gray-200 truncate">{(s.testo || '(story media)').slice(0, 90)}</div>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${isExpired ? 'bg-gray-700 text-gray-300' : 'bg-emerald-900/40 text-emerald-200'}`}>
+                                  {isExpired ? 'Scaduta' : 'Attiva'}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-[11px] text-gray-400">
+                                {new Date(s.created_at).toLocaleString('it-IT')} • 👁 {Number(s.views_count || 0)} • ❤️ {Number(s.reactions_count || 0)}
+                              </div>
+                              <div className="mt-2 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const idx = stories.findIndex((x) => Number(x.id) === Number(s.id));
+                                    if (idx >= 0) {
+                                      setStoryViewerIndex(idx);
+                                      setStoryViewerOpen(true);
+                                      setStoryInsightsOpen(false);
+                                    }
+                                  }}
+                                  className="text-[11px] px-2 py-1 rounded-lg border border-cyan-300/30 bg-cyan-900/20 hover:bg-cyan-900/30 text-cyan-100"
+                                >
+                                  Apri story
+                                </button>
+                                {isExpired && !s.converted_post_id && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        await socialConvertStoryToPost(s.id, selectedCharacterId, onLogout);
+                                        await loadStoryInsights();
+                                        await loadAll();
+                                      } catch (err) {
+                                        alert('Errore nella conversione story -> post.');
+                                      }
+                                    }}
+                                    className="text-[11px] px-2 py-1 rounded-lg border border-fuchsia-300/30 bg-fuchsia-900/25 hover:bg-fuchsia-900/35 text-fuchsia-100"
+                                  >
+                                    Tramuta in post
+                                  </button>
+                                )}
+                                {s.converted_post_id && (
+                                  <span className="text-[11px] text-emerald-300">
+                                    Convertita in post #{s.converted_post_id}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-400">Nessuna story nello storico.</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -403,6 +403,23 @@ export const socialAddStoryToHighlight = (highlightId, storyId, personaggioId, o
   );
 };
 
+export const socialGetMyStoryActivity = (personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/stories/my_activity/${qp}`, { method: 'GET' }, onLogout);
+};
+
+export const socialGetMyStoryHistory = (personaggioId, onLogout, includeExpired = true) => {
+  const params = new URLSearchParams();
+  if (personaggioId) params.set('personaggio_id', String(personaggioId));
+  params.set('include_expired', includeExpired ? 'true' : 'false');
+  return fetchAuthenticated(`/api/social/stories/my_history/?${params.toString()}`, { method: 'GET' }, onLogout);
+};
+
+export const socialConvertStoryToPost = (storyId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/stories/${storyId}/convert_to_post/${qp}`, { method: 'POST' }, onLogout);
+};
+
 // --- Funzioni API specifiche ---
 
 /**
