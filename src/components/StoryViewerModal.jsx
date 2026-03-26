@@ -3,6 +3,7 @@ import { X, Send, Heart } from 'lucide-react';
 import { resolveMediaUrl, socialMarkStoryViewed, socialReactStory, socialReplyStory } from '../api';
 
 const DEFAULT_DURATION_MS = 6500;
+const TEXT_PAGE_DURATION_MS = 4200;
 
 const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, personaggioId, onLogout, onStoryUpdated, onOpenProfile }) => {
   const [idx, setIdx] = useState(initialIndex);
@@ -26,11 +27,18 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
     const u = String(story?.media || '').toLowerCase();
     return u.endsWith('.mp4') || u.endsWith('.webm') || u.endsWith('.mov') || u.includes('video');
   }, [story?.media]);
+  const isTextOnlyStory = !mediaUrl && !!String(story?.testo || '').trim();
 
   const textPages = useMemo(() => {
     const text = String(story?.testo || '').trim();
     if (!text) return [];
-    const approxLimit = Math.max(120, Math.round(420 - (Number(story?.text_size || 22) - 22) * 10));
+    const textSize = Math.max(12, Math.min(56, Number(story?.text_size || 22)));
+    const linesPerPage = isTextOnlyStory ? 11 : 6;
+    const charsPerLine = Math.max(
+      14,
+      Math.floor((isTextOnlyStory ? 34 : 26) * (22 / textSize))
+    );
+    const approxLimit = Math.max(90, linesPerPage * charsPerLine);
     if (text.length <= approxLimit) return [text];
     const words = text.split(/\s+/);
     const pages = [];
@@ -46,7 +54,7 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
     }
     if (curr) pages.push(curr);
     return pages.length > 0 ? pages : [text];
-  }, [story?.testo, story?.text_size]);
+  }, [story?.testo, story?.text_size, isTextOnlyStory]);
 
   useEffect(() => {
     setTextPage(0);
@@ -90,12 +98,19 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
   // Progress timer
   useEffect(() => {
     if (!open || !story) return;
-    const duration = DEFAULT_DURATION_MS;
+    const pageCount = Math.max(1, textPages.length);
+    const duration = isTextOnlyStory
+      ? Math.max(DEFAULT_DURATION_MS, pageCount * TEXT_PAGE_DURATION_MS)
+      : DEFAULT_DURATION_MS;
     startRef.current = performance.now();
     const tick = (t) => {
       const elapsed = t - startRef.current;
       const p = Math.min(1, elapsed / duration);
       setProgress(p);
+      if (isTextOnlyStory && pageCount > 1) {
+        const nextPage = Math.min(pageCount - 1, Math.floor(elapsed / TEXT_PAGE_DURATION_MS));
+        setTextPage((prev) => (prev === nextPage ? prev : nextPage));
+      }
       if (p >= 1) {
         rafRef.current = null;
         goNext();
@@ -108,7 +123,7 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [open, idx, story?.id]);
+  }, [open, idx, story?.id, isTextOnlyStory, textPages.length]);
 
   if (!open) return null;
 
@@ -229,94 +244,107 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
                 <img src={mediaUrl} alt="story" className="w-full h-full object-contain" />
               )
             ) : (
-              <div className="p-8 text-center text-white/70">Story senza media</div>
+              <div className="w-full h-full bg-linear-to-br from-[#23112d] via-[#140a1d] to-[#07040a]" />
             )}
           </div>
 
           {story?.testo && (
-            <div className="absolute bottom-16 left-0 right-0 p-4">
-              <div className="rounded-xl bg-black/55 border border-white/10 p-3 text-white whitespace-pre-wrap">
-                <div style={{ fontSize: `${Math.max(12, Math.min(56, Number(story?.text_size || 22)))}px`, lineHeight: 1.25 }}>
+            <div className={isTextOnlyStory ? 'absolute inset-0 p-6 flex items-center justify-center' : 'absolute bottom-16 left-0 right-0 p-4'}>
+              <div
+                className={
+                  isTextOnlyStory
+                    ? 'w-full h-full rounded-2xl bg-black/25 border border-white/10 p-6 text-white flex items-center justify-center text-center'
+                    : 'rounded-xl bg-black/55 border border-white/10 p-3 text-white'
+                }
+              >
+                <div
+                  key={`page-${story?.id}-${textPage}`}
+                  className="animate-[fadeIn_260ms_ease-out]"
+                  style={{
+                    fontSize: `${Math.max(12, Math.min(56, Number(story?.text_size || 22)))}px`,
+                    lineHeight: isTextOnlyStory ? 1.35 : 1.25,
+                    maxWidth: isTextOnlyStory ? '100%' : 'none',
+                  }}
+                >
                   {renderStoryText(textPages[textPage] || story.testo, story.tags || [])}
                 </div>
-                {textPages.length > 1 && (
-                  <div className="mt-2 flex items-center justify-between text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setTextPage((p) => Math.max(0, p - 1))}
-                      disabled={textPage <= 0}
-                      className="px-2 py-1 rounded bg-white/10 disabled:opacity-50"
-                    >
-                      Pagina prec.
-                    </button>
-                    <span className="text-white/80">
-                      Pagina {textPage + 1}/{textPages.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setTextPage((p) => Math.min(textPages.length - 1, p + 1))}
-                      disabled={textPage >= textPages.length - 1}
-                      className="px-2 py-1 rounded bg-white/10 disabled:opacity-50"
-                    >
-                      Pagina succ.
-                    </button>
-                  </div>
-                )}
               </div>
+              {textPages.length > 1 && (
+                <div className={isTextOnlyStory ? 'absolute bottom-6 left-0 right-0' : 'absolute -bottom-2 left-4 right-4'}>
+                  <div className="mx-auto w-fit rounded-full bg-black/45 border border-white/15 px-3 py-1 text-xs text-white/85">
+                    Pagina {textPage + 1}/{textPages.length}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isTextOnlyStory && textPages.length > 1 && (
+            <div className="absolute top-16 left-0 right-0 flex items-center justify-center gap-1.5 px-6">
+              {textPages.map((_, pageIdx) => (
+                <span
+                  key={`tp-dot-${pageIdx}`}
+                  className={`h-1.5 rounded-full transition-all ${
+                    pageIdx === textPage ? 'w-5 bg-white/95' : 'w-2 bg-white/35'
+                  }`}
+                />
+              ))}
             </div>
           )}
         </div>
 
-        <div className="p-3 border-t border-amber-300/15 bg-black/40">
-          <div className="flex items-center gap-2 mb-2">
-            {['❤️', '🔥', '✨', '😂', '😮'].map((e) => (
+        {!isTextOnlyStory && (
+          <div className="p-3 border-t border-amber-300/15 bg-black/40">
+            <div className="flex items-center gap-2 mb-2">
+              {['❤️', '🔥', '✨', '😂', '😮'].map((e) => (
+                <button
+                  key={`react-${e}`}
+                  type="button"
+                  onClick={async () => {
+                    if (!story?.id) return;
+                    try {
+                      await socialReactStory(story.id, e, personaggioId, onLogout);
+                      onStoryUpdated?.({ storyId: story.id, patch: { my_reaction: e, reacted_by_me: true } });
+                    } catch {}
+                  }}
+                  className="px-2 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm"
+                  title={`Reagisci ${e}`}
+                >
+                  {e}
+                </button>
+              ))}
+              <div className="flex-1" />
+              <div className="text-xs text-white/60 inline-flex items-center gap-1">
+                <Heart size={14} /> {Number(story?.reactions_count || 0)}
+              </div>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                rows={1}
+                placeholder="Rispondi (invia DM all'autore)..."
+                className="flex-1 resize-none rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/40 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40"
+              />
               <button
-                key={`react-${e}`}
                 type="button"
                 onClick={async () => {
-                  if (!story?.id) return;
+                  const t = (replyText || '').trim();
+                  if (!t || !story?.id) return;
                   try {
-                    await socialReactStory(story.id, e, personaggioId, onLogout);
-                    onStoryUpdated?.({ storyId: story.id, patch: { my_reaction: e, reacted_by_me: true } });
+                    await socialReplyStory(story.id, t, true, personaggioId, onLogout);
+                    setReplyText('');
                   } catch {}
                 }}
-                className="px-2 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm"
-                title={`Reagisci ${e}`}
+                className="px-3 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-semibold inline-flex items-center gap-2"
+                title="Invia risposta"
               >
-                {e}
+                <Send size={16} />
               </button>
-            ))}
-            <div className="flex-1" />
-            <div className="text-xs text-white/60 inline-flex items-center gap-1">
-              <Heart size={14} /> {Number(story?.reactions_count || 0)}
             </div>
           </div>
-
-          <div className="flex items-end gap-2">
-            <textarea
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              rows={1}
-              placeholder="Rispondi (invia DM all'autore)..."
-              className="flex-1 resize-none rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/40 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40"
-            />
-            <button
-              type="button"
-              onClick={async () => {
-                const t = (replyText || '').trim();
-                if (!t || !story?.id) return;
-                try {
-                  await socialReplyStory(story.id, t, true, personaggioId, onLogout);
-                  setReplyText('');
-                } catch {}
-              }}
-              className="px-3 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-semibold inline-flex items-center gap-2"
-              title="Invia risposta"
-            >
-              <Send size={16} />
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
