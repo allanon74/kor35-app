@@ -118,6 +118,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [storyActivity, setStoryActivity] = useState(null);
   const [storyHistory, setStoryHistory] = useState([]);
   const [storyInsightsLoading, setStoryInsightsLoading] = useState(false);
+  const [storyHistoryFilter, setStoryHistoryFilter] = useState('ALL');
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyViewerIndex, setStoryViewerIndex] = useState(0);
   const [showStoryComposer, setShowStoryComposer] = useState(false);
@@ -335,6 +336,28 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       setStoryInsightsLoading(false);
     }
   }, [selectedCharacterId, onLogout]);
+
+  const filteredStoryHistory = useMemo(() => {
+    const list = Array.isArray(storyHistory) ? storyHistory : [];
+    const now = Date.now();
+    if (storyHistoryFilter === 'ALL') return list;
+    if (storyHistoryFilter === 'ACTIVE') {
+      return list.filter((s) => {
+        const exp = s?.expires_at ? new Date(s.expires_at).getTime() : 0;
+        return exp > now;
+      });
+    }
+    if (storyHistoryFilter === 'EXPIRED') {
+      return list.filter((s) => {
+        const exp = s?.expires_at ? new Date(s.expires_at).getTime() : 0;
+        return exp > 0 && exp <= now;
+      });
+    }
+    if (storyHistoryFilter === 'CONVERTED') {
+      return list.filter((s) => Boolean(s?.converted_post_id));
+    }
+    return list;
+  }, [storyHistory, storyHistoryFilter]);
 
   const normalizeCommentsPayload = useCallback((payload) => {
     if (Array.isArray(payload)) {
@@ -2382,10 +2405,33 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                     )}
                   </div>
                   <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-3 overflow-auto">
-                    <div className="text-sm font-bold text-fuchsia-200 mb-2">Storico mie stories</div>
-                    {storyHistory.length > 0 ? (
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="text-sm font-bold text-fuchsia-200">Storico mie stories</div>
+                      <div className="flex items-center gap-1 text-[11px]">
+                        {[
+                          { id: 'ALL', label: 'Tutte' },
+                          { id: 'ACTIVE', label: 'Attive' },
+                          { id: 'EXPIRED', label: 'Scadute' },
+                          { id: 'CONVERTED', label: 'Convertite' },
+                        ].map((f) => (
+                          <button
+                            key={`shf-${f.id}`}
+                            type="button"
+                            onClick={() => setStoryHistoryFilter(f.id)}
+                            className={`px-2 py-1 rounded border ${
+                              storyHistoryFilter === f.id
+                                ? 'bg-fuchsia-800/40 border-fuchsia-400/40 text-fuchsia-100'
+                                : 'bg-gray-900/50 border-gray-700 text-gray-300 hover:bg-gray-800'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {filteredStoryHistory.length > 0 ? (
                       <div className="space-y-2">
-                        {storyHistory.map((s) => {
+                        {filteredStoryHistory.map((s) => {
                           const isExpired = s?.expires_at ? new Date(s.expires_at).getTime() <= Date.now() : false;
                           return (
                             <div
@@ -2444,7 +2490,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                         })}
                       </div>
                     ) : (
-                      <div className="text-xs text-gray-400">Nessuna story nello storico.</div>
+                      <div className="text-xs text-gray-400">Nessuna story per questo filtro.</div>
                     )}
                   </div>
                 </div>
