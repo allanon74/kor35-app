@@ -14,6 +14,7 @@ function classNames(...classes) {
 const MessaggiTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) => {
   const { selectedCharacterData: char, viewAll, unreadCount, fetchUserMessages, selectedCharacterId, selectCharacter } = useCharacter();
   const [unreadByCharacter, setUnreadByCharacter] = useState([]);
+  const [scrollToFirstUnreadNonce, setScrollToFirstUnreadNonce] = useState(0);
 
   // Refresh messaggi quando si apre la tab
   useEffect(() => {
@@ -71,6 +72,7 @@ const MessaggiTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) => {
                   const id = r.personaggio_id;
                   selectCharacter(String(id));
                   await fetchUserMessages(String(id));
+                  setScrollToFirstUnreadNonce((n) => n + 1);
                 }}
                 className={`px-3 py-2 rounded-lg border text-sm font-semibold inline-flex items-center gap-2 ${
                   String(r.personaggio_id) === String(selectedCharacterId)
@@ -130,6 +132,7 @@ const MessaggiTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) => {
               onLogout={onLogout}
               composeTarget={composeTarget}
               onComposeTargetConsumed={onComposeTargetConsumed}
+              scrollToFirstUnreadNonce={scrollToFirstUnreadNonce}
             />
           </Tab.Panel>
           

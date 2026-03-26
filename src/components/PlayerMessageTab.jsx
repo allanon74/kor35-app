@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useCharacter } from './CharacterContext';
 import { Trash2, Mail, Reply, Eye, EyeOff } from 'lucide-react';
 import ComposeMessageModal from './ComposeMessageModal';
 import RichTextDisplay from './RichTextDisplay';
 import { fetchAuthenticated } from '../api';
 
-const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) => {
+const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed, scrollToFirstUnreadNonce = 0 }) => {
     const { 
         selectedCharacterData: char, 
         userMessages, 
@@ -19,16 +19,26 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
     const [replyToRecipient, setReplyToRecipient] = useState(null); // Per pre-compilare destinatario
     const [expandedMessages, setExpandedMessages] = useState({}); // Gestione espansione
     const messagesEndRef = useRef(null);
+    const firstUnreadRef = useRef(null);
     const transferableItems = (char?.oggetti || []).filter(
         (item) => item && item.id && item.tipo_oggetto === 'FIS' && !item.is_equipaggiato
     );
 
-    // Scroll automatico in basso all'apertura
+    const firstUnreadId = useMemo(() => {
+        const m = (userMessages || []).find((x) => x && x.letto === false);
+        return m ? m.id : null;
+    }, [userMessages]);
+
+    // Scroll: se ci sono non-letti e richiesto, vai al primo non-letto; altrimenti in fondo.
     useEffect(() => {
+        if (firstUnreadRef.current) {
+            firstUnreadRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [userMessages]);
+    }, [scrollToFirstUnreadNonce, firstUnreadId]);
 
     useEffect(() => {
         if (!composeTarget) return;
@@ -85,6 +95,7 @@ const PlayerMessageTab = ({ onLogout, composeTarget, onComposeTargetConsumed }) 
                         return (
                             <div 
                                 key={msg.id} 
+                                ref={firstUnreadId && msg.id === firstUnreadId ? firstUnreadRef : null}
                                 className={`flex w-full ${isStaff ? 'justify-start' : 'justify-end'}`}
                             >
                                 <div 
