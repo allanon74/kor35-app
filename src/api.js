@@ -550,6 +550,10 @@ export const getMessages = (personaggioId, onLogout) => {
   return fetchAuthenticated(url, { method: 'GET' }, onLogout);
 };
 
+export const getMessageUnreadCounts = (onLogout) => {
+  return fetchAuthenticated('/api/personaggi/api/messaggi/unread_counts/', { method: 'GET' }, onLogout);
+};
+
 /**
  * POST /api/personaggi/api/messaggi/broadcast/send/ - Invia un messaggio Broadcast.
  */
