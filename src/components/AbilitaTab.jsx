@@ -1,13 +1,13 @@
 import React, { useState, Fragment, useMemo, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle } from 'lucide-react'; 
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, Trash2 } from 'lucide-react'; 
 import AbilitaDetailModal from './AbilitaDetailModal.jsx';
 import { acquireAbilita } from '../api.js';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
-import { useOptimisticAcquireAbilita } from '../hooks/useGameData';         
+import { useOptimisticAcquireAbilita, useRevokeAbilita } from '../hooks/useGameData';         
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -26,6 +26,7 @@ const AbilitaTab = ({ onLogout }) => {
   
   const [modalSkill, setModalSkill] = useState(null);
   const acquireMutation = useOptimisticAcquireAbilita();
+  const revokeMutation = useRevokeAbilita();
 
   const handleOpenModal = useCallback((skill) => setModalSkill(skill), []);
 
@@ -55,6 +56,25 @@ const AbilitaTab = ({ onLogout }) => {
       alert(`Errore durante l'acquisto: ${error.message}`);
     }
   }, [acquireMutation, selectedCharacterId, refreshCharacterData]);
+
+  const handleRevoke = useCallback(
+    async (skill, e) => {
+      e.stopPropagation();
+      if (revokeMutation.isPending || !selectedCharacterId) return;
+      if (!window.confirm(`Revocare l'acquisto di "${skill.nome}"? PC e Crediti verranno restituiti.`)) return;
+      try {
+        await revokeMutation.mutateAsync({
+          abilitaId: skill.id,
+          charId: selectedCharacterId,
+          onLogout,
+        });
+        await refreshCharacterData();
+      } catch (error) {
+        alert(`Errore: ${error.message}`);
+      }
+    },
+    [revokeMutation, selectedCharacterId, onLogout, refreshCharacterData]
+  );
 
   // Rimuovi SEMPRE i tratti d'aura dalla tab Abilità (devono restare solo nella gestione Aura/Razza)
   const possessedSkills = useMemo(
@@ -128,6 +148,17 @@ const AbilitaTab = ({ onLogout }) => {
         >
             <Info size={18} />
         </button>
+
+        {skill.is_modifiable && (
+          <button
+            onClick={(e) => handleRevoke(skill, e)}
+            disabled={revokeMutation.isPending}
+            className="p-2 text-red-400 hover:text-red-200 hover:bg-red-900/20 rounded-full transition-colors ml-2"
+            title="Revoca acquisto"
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
       </li>
     );
   };

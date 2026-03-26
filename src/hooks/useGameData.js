@@ -21,6 +21,10 @@ import {
   acquireAbilita,
   acquireInfusione,
   acquireTessitura,
+  revokeAbilita,
+  revokeInfusione,
+  revokeTessitura,
+  revokeCerimoniale,
   toggleTessituraFavorite,
   buyShopItem,
   markMessageAsRead,
@@ -595,6 +599,31 @@ export const useOptimisticAcquireCerimoniale = () => {
             };
         }
     );
+};
+
+// --- REVOCA ACQUISTI (NON ottimistici) ---
+export const useRevokeAbilita = () => {
+    return useMutation({
+        mutationFn: ({ abilitaId, charId, onLogout }) => revokeAbilita(abilitaId, charId, onLogout),
+    });
+};
+
+export const useRevokeInfusione = () => {
+    return useMutation({
+        mutationFn: ({ infusioneId, charId, onLogout }) => revokeInfusione(infusioneId, charId, onLogout),
+    });
+};
+
+export const useRevokeTessitura = () => {
+    return useMutation({
+        mutationFn: ({ tessituraId, charId, onLogout }) => revokeTessitura(tessituraId, charId, onLogout),
+    });
+};
+
+export const useRevokeCerimoniale = () => {
+    return useMutation({
+        mutationFn: ({ cerimonialeId, charId, onLogout }) => revokeCerimoniale(cerimonialeId, charId, onLogout),
+    });
 };
 
 // K. ACQUISTO NEGOZIO (Optimistic Update)

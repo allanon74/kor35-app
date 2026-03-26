@@ -593,6 +593,23 @@ export const acquireAbilita = (abilitaId, characterId, onLogout) => {
 };
 
 /**
+ * Revoca l'acquisto di un'abilità.
+ */
+export const revokeAbilita = (abilitaId, characterId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggio/me/revoca_abilita/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        abilita_id: abilitaId,
+        personaggio_id: characterId,
+      }),
+    },
+    onLogout
+  );
+};
+
+/**
  * Recupera la lista di tutti i punteggi (Caratteristiche, Statistiche, ecc).
  */
 export const getPunteggiList = (onLogout) => {
@@ -709,6 +726,23 @@ export const acquireInfusione = (infusioneId, personaggioId, onLogout) => {
 };
 
 /**
+ * Revoca l'acquisto di un'infusione.
+ */
+export const revokeInfusione = (infusioneId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggio/me/revoca_infusione/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        infusione_id: infusioneId,
+        personaggio_id: personaggioId,
+      }),
+    },
+    onLogout
+  );
+};
+
+/**
  * Recupera la lista delle tessiture acquistabili.
  */
 export const getAcquirableTessiture = (characterId) => {
@@ -731,6 +765,40 @@ export const acquireTessitura = (tessituraId, personaggioId, onLogout) => {
         personaggio_id: personaggioId 
       }),
     }, 
+    onLogout
+  );
+};
+
+/**
+ * Revoca l'acquisto di una tessitura.
+ */
+export const revokeTessitura = (tessituraId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggio/me/revoca_tessitura/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        tessitura_id: tessituraId,
+        personaggio_id: personaggioId,
+      }),
+    },
+    onLogout
+  );
+};
+
+/**
+ * Revoca l'acquisto di un cerimoniale.
+ */
+export const revokeCerimoniale = (cerimonialeId, personaggioId, onLogout) => {
+  return fetchAuthenticated(
+    '/api/personaggi/api/personaggio/me/revoca_cerimoniale/',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        cerimoniale_id: cerimonialeId,
+        personaggio_id: personaggioId,
+      }),
+    },
     onLogout
   );
 };

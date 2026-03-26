@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Star, FlaskConical, PackageCheck, Timer } from 'lucide-react';
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Star, FlaskConical, PackageCheck, Timer, Trash2 } from 'lucide-react';
 import TecnicaDetailModal from './TecnicaDetailModal';
 import { acquireTessitura, avviaCreazioneConsumabile, completaCreazioneConsumabile } from '../api.js';
-import { useOptimisticToggleTessituraFavorite } from '../hooks/useGameData';
+import { useOptimisticToggleTessituraFavorite, useRevokeTessitura } from '../hooks/useGameData';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
@@ -80,6 +80,7 @@ const TessitureTab = ({ onLogout }) => {
 
   // Hook per optimistic update del favorite
   const toggleFavoriteMutation = useOptimisticToggleTessituraFavorite();
+  const revokeMutation = useRevokeTessitura();
 
   const handleOpenModal = (item) => setModalItem(item);
   
@@ -87,6 +88,18 @@ const TessitureTab = ({ onLogout }) => {
     e.stopPropagation();
     if (!selectedCharacterId) return;
     toggleFavoriteMutation.mutate({ tessituraId: item.id, charId: selectedCharacterId });
+  };
+
+  const handleRevoke = async (item, e) => {
+    e.stopPropagation();
+    if (!selectedCharacterId || revokeMutation.isPending) return;
+    if (!window.confirm(`Revocare l'acquisto della tessitura "${item.nome}"?`)) return;
+    try {
+      await revokeMutation.mutateAsync({ tessituraId: item.id, charId: selectedCharacterId, onLogout });
+      await refreshCharacterData();
+    } catch (error) {
+      alert(`Errore: ${error.message}`);
+    }
   };
 
   const handleAcquire = async (item, e) => {
@@ -238,6 +251,16 @@ const TessitureTab = ({ onLogout }) => {
             >
                 <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} />
             </button>
+            {item.is_modifiable && (
+              <button
+                onClick={(e) => handleRevoke(item, e)}
+                disabled={revokeMutation.isPending}
+                className="p-2 text-red-400 hover:text-red-200 hover:bg-red-900/20 rounded-full transition-colors"
+                title="Revoca acquisto"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
             <button
                 onClick={(e) => {e.stopPropagation(); handleOpenModal(item)}}
                 className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"

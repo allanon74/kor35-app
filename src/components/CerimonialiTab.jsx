@@ -1,7 +1,7 @@
 import React, { useState, Fragment, useMemo, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Users } from 'lucide-react';
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Users, Trash2 } from 'lucide-react';
 
 // --- COMPONENTS ---
 import GenericGroupedList from './GenericGroupedList';
@@ -11,7 +11,7 @@ import ProposalManager from './ProposalManager';
 import ProposalEditorModal from './ProposalEditorModal';
 
 // --- API & HOOKS ---
-import { useOptimisticAcquireCerimoniale } from '../hooks/useGameData';
+import { useOptimisticAcquireCerimoniale, useRevokeCerimoniale } from '../hooks/useGameData';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -30,6 +30,7 @@ const CerimonialiTab = ({ onLogout }) => {
   const [modalItem, setModalItem] = useState(null);
   const [showProposals, setShowProposals] = useState(false);
   const acquireMutation = useOptimisticAcquireCerimoniale();
+  const revokeMutation = useRevokeCerimoniale();
 
   // Recupero Valore Coralità (CCO)
   const ccoValue = useMemo(() => {
@@ -63,6 +64,25 @@ const CerimonialiTab = ({ onLogout }) => {
       alert(`Errore: ${error.message}`);
     }
   }, [acquireMutation, selectedCharacterId, onLogout, refreshCharacterData]);
+
+  const handleRevoke = useCallback(
+    async (item, e) => {
+      e.stopPropagation();
+      if (revokeMutation.isPending || !selectedCharacterId) return;
+      if (!window.confirm(`Revocare l'acquisto del Cerimoniale "${item.nome}"?`)) return;
+      try {
+        await revokeMutation.mutateAsync({
+          cerimonialeId: item.id,
+          charId: selectedCharacterId,
+          onLogout,
+        });
+        await refreshCharacterData();
+      } catch (error) {
+        alert(`Errore: ${error.message}`);
+      }
+    },
+    [revokeMutation, selectedCharacterId, onLogout, refreshCharacterData]
+  );
 
   if (isLoadingAcquirable || isLoadingDetail || !char) {
     return (
@@ -105,6 +125,16 @@ const CerimonialiTab = ({ onLogout }) => {
             className="p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white rounded-lg transition-all"
           >
             {acquireMutation.isPending ? <Loader2 size={16} className="animate-spin"/> : <ShoppingCart size={16} />}
+          </button>
+        )}
+        {isOwned && item.is_modifiable && (
+          <button
+            onClick={(e) => handleRevoke(item, e)}
+            disabled={revokeMutation.isPending}
+            className="p-2 text-red-400 hover:text-red-200 hover:bg-red-900/20 rounded-full transition-colors"
+            title="Revoca acquisto"
+          >
+            <Trash2 size={18} />
           </button>
         )}
         <button onClick={() => setModalItem(item)} className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full">

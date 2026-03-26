@@ -1,7 +1,7 @@
 import React, { useState, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
-import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Hammer } from 'lucide-react';
+import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Hammer, Trash2 } from 'lucide-react';
 
 // --- COMPONENTS ---
 import TecnicaDetailModal from './TecnicaDetailModal';
@@ -14,7 +14,7 @@ import ForgingModal from './ForgingModal'; // <--- NUOVO MODALE IMPORTATO
 
 // --- API & HOOKS ---
 import { acquireInfusione } from '../api.js'; // startForging rimosso da qui, lo gestisce ForgingModal
-import { useForgingQueue } from '../hooks/useGameData'; 
+import { useForgingQueue, useRevokeInfusione } from '../hooks/useGameData'; 
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -41,9 +41,23 @@ const InfusioniTab = ({ onLogout }) => {
   // Stato per la modale di forgiatura avanzata
   const [selectedInfusioneForgia, setSelectedInfusioneForgia] = useState(null);
 
+  const revokeMutation = useRevokeInfusione();
+
   // --- HANDLERS ---
 
   const handleOpenModal = (item) => setModalItem(item);
+
+  const handleRevoke = async (item, e) => {
+    e.stopPropagation();
+    if (!selectedCharacterId || revokeMutation.isPending) return;
+    if (!window.confirm(`Revocare l'acquisto dell'infusione "${item.nome}"?`)) return;
+    try {
+      await revokeMutation.mutateAsync({ infusioneId: item.id, charId: selectedCharacterId, onLogout });
+      await refreshCharacterData();
+    } catch (error) {
+      alert(`Errore: ${error.message}`);
+    }
+  };
 
   // Gestione Acquisto Nuova Infusione (Apprendimento)
   const handleAcquire = async (item, e) => {
@@ -139,6 +153,17 @@ const InfusioniTab = ({ onLogout }) => {
             <Hammer size={14} /> 
             <span className="hidden sm:inline">Forgia</span>
         </button>
+
+        {item.is_modifiable && (
+          <button
+            onClick={(e) => handleRevoke(item, e)}
+            disabled={revokeMutation.isPending}
+            className="p-2 text-red-400 hover:text-red-200 hover:bg-red-900/20 rounded-full transition-colors ml-1"
+            title="Revoca acquisto"
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
 
         <button
             onClick={(e) => {e.stopPropagation(); handleOpenModal(item)}}
