@@ -35,12 +35,18 @@ import {
   socialUpdatePost,
   socialUpdateMyProfile,
   socialDeclineGroupInvite,
+  socialGetStories,
 } from '../api';
+import StoryViewerModal from './StoryViewerModal';
 
 const SocialTab = ({ onLogout, onOpenMessages }) => {
   const PAGE_SIZE = 10;
   const { selectedCharacterId, isAdmin, personaggiList, selectCharacter, preferredCharacterId } = useCharacter();
   const [posts, setPosts] = useState([]);
+  const [stories, setStories] = useState([]);
+  const [storiesLoading, setStoriesLoading] = useState(false);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyViewerIndex, setStoryViewerIndex] = useState(0);
   const [korpList, setKorpList] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +83,10 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [groupInviteQuery, setGroupInviteQuery] = useState('');
   const [groupInviteSuggestions, setGroupInviteSuggestions] = useState([]);
   const sentinelRef = useRef(null);
+  const postMediaCameraInputRef = useRef(null);
+  const editMediaCameraInputRef = useRef(null);
+  const groupPostMediaCameraInputRef = useRef(null);
+  const editGroupPostMediaCameraInputRef = useRef(null);
 
   const [postForm, setPostForm] = useState({
     titolo: '',
@@ -121,6 +131,26 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       hasNext: Boolean(payload?.next),
     };
   }, []);
+
+  const normalizeStoriesPayload = useCallback((payload) => {
+    if (Array.isArray(payload)) {
+      return { items: payload };
+    }
+    return { items: Array.isArray(payload?.results) ? payload.results : [] };
+  }, []);
+
+  const loadStories = useCallback(async () => {
+    setStoriesLoading(true);
+    try {
+      const payload = await socialGetStories(selectedCharacterId, onLogout, 1, 50);
+      const { items } = normalizeStoriesPayload(payload);
+      setStories(items);
+    } catch (e) {
+      setStories([]);
+    } finally {
+      setStoriesLoading(false);
+    }
+  }, [selectedCharacterId, onLogout, normalizeStoriesPayload]);
 
   const normalizeCommentsPayload = useCallback((payload) => {
     if (Array.isArray(payload)) {
@@ -171,6 +201,11 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   useEffect(() => {
     if (selectedCharacterId) loadAll();
   }, [selectedCharacterId, loadAll]);
+
+  useEffect(() => {
+    if (!selectedCharacterId) return;
+    loadStories();
+  }, [selectedCharacterId, loadStories]);
 
   const loadGroups = useCallback(async () => {
     try {
@@ -1049,11 +1084,29 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
             )}
           </div>
           <div className="text-sm space-y-1">
-            <input
-              type="file"
-              accept="image/*,video/*"
-              onChange={(e) => handlePostMediaChange(e.target.files?.[0] || null)}
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => handlePostMediaChange(e.target.files?.[0] || null)}
+              />
+              <button
+                type="button"
+                onClick={() => postMediaCameraInputRef.current?.click?.()}
+                className="px-3 py-2 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-xs font-semibold text-amber-100/90"
+                title="Scatta/Registra dalla camera"
+              >
+                Camera
+              </button>
+              <input
+                ref={postMediaCameraInputRef}
+                type="file"
+                accept="image/*,video/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handlePostMediaChange(e.target.files?.[0] || null)}
+              />
+            </div>
             <div className="text-xs text-gray-400">
               Carica una foto o un video (uno solo per post).
             </div>
@@ -1065,6 +1118,64 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
 
       {socialViewMode === 'FEED' && (
       <section className="space-y-4">
+        <div className="rounded-2xl border border-amber-300/20 bg-black/30 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm font-bold text-amber-200">Storie</div>
+            <button
+              type="button"
+              onClick={loadStories}
+              className="text-xs px-2 py-1 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-amber-100/90"
+              title="Aggiorna storie"
+              disabled={storiesLoading}
+            >
+              Aggiorna
+            </button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {stories.length === 0 ? (
+              <div className="text-xs text-gray-400">
+                {storiesLoading ? 'Caricamento...' : 'Nessuna story attiva.'}
+              </div>
+            ) : (
+              stories.map((s, i) => {
+                const viewed = !!s.viewed_by_me;
+                const initials = String(s.autore_nome || 'PG')
+                  .split(' ')
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((x) => x[0]?.toUpperCase())
+                  .join('');
+                return (
+                  <button
+                    key={`story-${s.id}`}
+                    type="button"
+                    onClick={() => {
+                      setStoryViewerIndex(i);
+                      setStoryViewerOpen(true);
+                    }}
+                    className="shrink-0 w-16 flex flex-col items-center gap-1"
+                    title={s.autore_nome || 'Story'}
+                  >
+                    <div
+                      className={`w-14 h-14 rounded-full p-[2px] ${
+                        viewed
+                          ? 'bg-gray-700/60'
+                          : 'bg-linear-to-tr from-fuchsia-400 via-amber-300 to-rose-400'
+                      }`}
+                    >
+                      <div className="w-full h-full rounded-full bg-[#120a15] border border-white/10 flex items-center justify-center text-amber-100 font-extrabold">
+                        {initials || 'PG'}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-gray-300 truncate w-16 text-center">
+                      {s.autore_nome || 'PG'}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
         <div className="sticky top-[86px] md:top-[96px] z-10 rounded-2xl border border-amber-400/30 bg-[#1b1420]/90 backdrop-blur px-2 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-pink-300 font-bold">
@@ -1540,7 +1651,29 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                           value={groupPostForm.testo}
                           onChange={(e) => setGroupPostForm((p) => ({ ...p, testo: e.target.value }))}
                         />
-                        <input type="file" accept="image/*,video/*" onChange={(e) => handleGroupPostMediaChange(e.target.files?.[0] || null)} />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,video/*"
+                            onChange={(e) => handleGroupPostMediaChange(e.target.files?.[0] || null)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => groupPostMediaCameraInputRef.current?.click?.()}
+                            className="px-3 py-2 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-xs font-semibold text-amber-100/90"
+                            title="Scatta/Registra dalla camera"
+                          >
+                            Camera
+                          </button>
+                          <input
+                            ref={groupPostMediaCameraInputRef}
+                            type="file"
+                            accept="image/*,video/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => handleGroupPostMediaChange(e.target.files?.[0] || null)}
+                          />
+                        </div>
                         <button className="bg-linear-to-r from-indigo-700 to-fuchsia-700 hover:from-indigo-600 hover:to-fuchsia-600 rounded px-3 py-2 text-sm font-bold">Pubblica nel gruppo</button>
                       </form>
                     </div>
@@ -1691,11 +1824,29 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               )}
             </div>
             <div className="text-sm space-y-1">
-              <input
-                type="file"
-                accept="image/*,video/*"
-                onChange={(e) => handleEditMediaChange(e.target.files?.[0] || null)}
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => handleEditMediaChange(e.target.files?.[0] || null)}
+                />
+                <button
+                  type="button"
+                  onClick={() => editMediaCameraInputRef.current?.click?.()}
+                  className="px-3 py-2 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-xs font-semibold text-amber-100/90"
+                  title="Scatta/Registra dalla camera"
+                >
+                  Camera
+                </button>
+                <input
+                  ref={editMediaCameraInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => handleEditMediaChange(e.target.files?.[0] || null)}
+                />
+              </div>
               <div className="text-xs text-gray-400">
                 Carica una foto o un video (uno solo per post).
               </div>
@@ -1706,6 +1857,18 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
           </div>
         </div>
       )}
+
+      <StoryViewerModal
+        open={storyViewerOpen}
+        onClose={() => setStoryViewerOpen(false)}
+        stories={stories}
+        initialIndex={storyViewerIndex}
+        personaggioId={selectedCharacterId}
+        onLogout={onLogout}
+        onStoryUpdated={({ storyId, patch }) => {
+          setStories((prev) => prev.map((x) => (Number(x?.id) === Number(storyId) ? { ...x, ...patch } : x)));
+        }}
+      />
       {editingGroupPost && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-auto">
@@ -1723,7 +1886,29 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
               value={editingGroupPost.testo}
               onChange={(e) => setEditingGroupPost((p) => ({ ...p, testo: e.target.value }))}
             />
-            <input type="file" accept="image/*,video/*" onChange={(e) => handleEditGroupPostMediaChange(e.target.files?.[0] || null)} />
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => handleEditGroupPostMediaChange(e.target.files?.[0] || null)}
+              />
+              <button
+                type="button"
+                onClick={() => editGroupPostMediaCameraInputRef.current?.click?.()}
+                className="px-3 py-2 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-xs font-semibold text-amber-100/90"
+                title="Scatta/Registra dalla camera"
+              >
+                Camera
+              </button>
+              <input
+                ref={editGroupPostMediaCameraInputRef}
+                type="file"
+                accept="image/*,video/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handleEditGroupPostMediaChange(e.target.files?.[0] || null)}
+              />
+            </div>
             <button onClick={saveGroupPostEdit} className="w-full bg-indigo-600 hover:bg-indigo-500 rounded p-2 font-bold">
               Salva modifiche
             </button>

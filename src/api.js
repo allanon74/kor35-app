@@ -338,6 +338,71 @@ export const socialLeaveGroup = (groupId, personaggioId, onLogout) => {
   return fetchAuthenticated(`/api/social/groups/${groupId}/leave/${qp}`, { method: 'POST' }, onLogout);
 };
 
+// --- SOCIAL STORIES ---
+export const socialGetStories = (personaggioId, onLogout, page = 1, pageSize = 50) => {
+  const params = new URLSearchParams();
+  if (personaggioId) params.set('personaggio_id', String(personaggioId));
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  return fetchAuthenticated(`/api/social/stories/?${params.toString()}`, { method: 'GET' }, onLogout);
+};
+
+export const socialCreateStory = (formData, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/stories/${qp}`, { method: 'POST', body: formData }, onLogout);
+};
+
+export const socialMarkStoryViewed = (storyId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/stories/${storyId}/viewed/${qp}`, { method: 'POST' }, onLogout);
+};
+
+export const socialReactStory = (storyId, emoji, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/stories/${storyId}/react/${qp}`,
+    { method: 'POST', body: JSON.stringify({ emoji }) },
+    onLogout
+  );
+};
+
+export const socialGetStoryReplies = (storyId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/stories/${storyId}/replies/${qp}`, { method: 'GET' }, onLogout);
+};
+
+export const socialReplyStory = (storyId, testo, sendDm = true, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/stories/${storyId}/replies/${qp}`,
+    { method: 'POST', body: JSON.stringify({ testo, send_dm: !!sendDm }) },
+    onLogout
+  );
+};
+
+export const socialGetHighlights = (personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(`/api/social/stories/highlights/${qp}`, { method: 'GET' }, onLogout);
+};
+
+export const socialCreateHighlight = (titolo, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/stories/create_highlight/${qp}`,
+    { method: 'POST', body: JSON.stringify({ titolo }) },
+    onLogout
+  );
+};
+
+export const socialAddStoryToHighlight = (highlightId, storyId, personaggioId, onLogout) => {
+  const qp = personaggioId ? `?personaggio_id=${personaggioId}` : '';
+  return fetchAuthenticated(
+    `/api/social/stories/highlights/${highlightId}/add/${qp}`,
+    { method: 'POST', body: JSON.stringify({ story_id: storyId }) },
+    onLogout
+  );
+};
+
 // --- Funzioni API specifiche ---
 
 /**
