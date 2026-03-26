@@ -78,6 +78,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
+  const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -1003,54 +1004,11 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       <section className="sticky top-1 z-20 rounded-3xl border border-amber-300/50 bg-linear-to-r from-[#1a101d]/95 via-[#2a1622]/95 to-[#1a101d]/95 backdrop-blur-md p-3 md:p-4 shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
           <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setShowMyProfileModal(true)}
-              className="h-11 w-11 md:h-12 md:w-12 shrink-0 rounded-full border border-amber-300/40 overflow-hidden bg-gray-800 hover:border-amber-200 transition"
-              title="Apri il mio profilo social"
-            >
-              {profile?.foto_principale ? (
-                <img src={profile.foto_principale} alt="Profilo" className="h-full w-full object-cover" />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-amber-200 font-bold">
-                  {(profile?.personaggio_nome || '?').charAt(0).toUpperCase()}
-                </div>
-              )}
-            </button>
             <div className="min-w-0">
               <h2 className="text-xl md:text-3xl font-black italic text-amber-200 tracking-wide leading-tight drop-shadow">InstaFame</h2>
-              <p className="text-[11px] md:text-sm text-amber-100/80 truncate">{subtitle}</p>
-              <div className="text-xs text-gray-300 mt-1 inline-flex items-center gap-1">
-                <span>PG attivo: {profile?.personaggio_nome || `#${selectedCharacterId}`}</span>
-                {String(preferredCharacterId || '') === String(selectedCharacterId) && (
-                  <span className="inline-flex items-center gap-1 text-amber-300">
-                    <Star size={12} fill="currentColor" /> Preferito
-                  </span>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap lg:justify-end">
-            <select
-              className="bg-gray-800/90 rounded-lg px-2 py-2 text-xs md:text-sm border border-gray-600 w-full sm:w-auto sm:max-w-56"
-              value={selectedCharacterId || ''}
-              onChange={(e) => selectCharacter(e.target.value)}
-              title="Cambio rapido personaggio"
-            >
-              {personaggiList.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome} {String(preferredCharacterId || '') === String(p.id) ? '★' : ''}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => setShowComposer((s) => !s)}
-              className="inline-flex items-center justify-center gap-2 bg-indigo-700/90 hover:bg-indigo-600 rounded-lg px-3 py-2 text-xs md:text-sm font-bold grow sm:grow-0"
-            >
-              <PlusSquare size={16} />
-              {showComposer ? 'Chiudi nuovo post' : 'Nuovo post'}
-            </button>
             <button
               type="button"
               onClick={openActivityModal}
@@ -1063,6 +1021,20 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-rose-600 text-white text-[10px] leading-5 text-center">
                   {notificationsUnread > 99 ? '99+' : notificationsUnread}
                 </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowIdentityModal(true)}
+              className="h-11 w-11 md:h-12 md:w-12 shrink-0 rounded-full border border-amber-300/40 overflow-hidden bg-gray-800 hover:border-amber-200 transition"
+              title="Personaggio attivo e impostazioni InstaFame"
+            >
+              {profile?.foto_principale ? (
+                <img src={profile.foto_principale} alt="Profilo" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-amber-200 font-bold">
+                  {(profile?.personaggio_nome || '?').charAt(0).toUpperCase()}
+                </div>
               )}
             </button>
           </div>
@@ -1322,7 +1294,15 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         <div className="sticky top-[86px] md:top-[96px] z-10 rounded-2xl border border-amber-400/30 bg-[#1b1420]/90 backdrop-blur px-2 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-pink-300 font-bold">
-            <Sparkles size={18} /> Feed Sociale
+            <Sparkles size={18} /> Feed
+            <button
+              type="button"
+              onClick={() => setShowComposer((s) => !s)}
+              className="inline-flex items-center justify-center gap-1 bg-indigo-700/90 hover:bg-indigo-600 rounded-lg px-2 py-1 text-[11px] md:text-xs font-bold border border-indigo-400/30"
+            >
+              <PlusSquare size={13} />
+              {showComposer ? 'Chiudi' : 'Nuovo post'}
+            </button>
             {hashtagFilter && (
               <span className="inline-flex items-center gap-2 ml-1 text-[11px] px-2 py-1 rounded-full bg-fuchsia-900/50 border border-fuchsia-400/40 text-fuchsia-100">
                 #{hashtagFilter}
@@ -1877,6 +1857,52 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
         </section>
       )}
       </div>
+      {showIdentityModal && (
+      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
+        <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-auto">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-amber-100">InstaFame</h3>
+            <button onClick={() => setShowIdentityModal(false)} className="text-gray-400 hover:text-white">X</button>
+          </div>
+          <p className="text-sm text-amber-100/80">{subtitle}</p>
+          <div className="text-xs text-gray-300 inline-flex items-center gap-2">
+            <span>PG attivo: {profile?.personaggio_nome || `#${selectedCharacterId}`}</span>
+            {String(preferredCharacterId || '') === String(selectedCharacterId) && (
+              <span className="inline-flex items-center gap-1 text-amber-300">
+                <Star size={12} fill="currentColor" /> Preferito
+              </span>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-gray-400">Cambia personaggio attivo</label>
+            <select
+              className="w-full bg-gray-800/90 rounded-lg px-2 py-2 text-sm border border-gray-600"
+              value={selectedCharacterId || ''}
+              onChange={(e) => selectCharacter(e.target.value)}
+              title="Cambio rapido personaggio"
+            >
+              {personaggiList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome} {String(preferredCharacterId || '') === String(p.id) ? '★' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="pt-2 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={() => {
+                setShowIdentityModal(false);
+                setShowMyProfileModal(true);
+              }}
+              className="inline-flex items-center gap-2 bg-amber-700 hover:bg-amber-600 rounded px-3 py-2 text-sm font-semibold"
+            >
+              Apri profilo social
+            </button>
+          </div>
+        </div>
+      </div>
+      )}
       {showMyProfileModal && (
       <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
         <div className="w-full max-w-xl rounded-2xl bg-gray-900 border border-gray-700 p-3 md:p-4 space-y-3 max-h-[92vh] overflow-auto">
