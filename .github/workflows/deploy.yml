@@ -105,6 +105,9 @@ jobs:
             REACT_BUILD_PATH="${{ secrets.MIRROR_REACT_BUILD_PATH || '/home/pi/kor35-replica/react_build' }}"
             FRONTEND_REPO_URL="${{ secrets.MIRROR_FRONTEND_REPO_URL || '' }}"
             MIRROR_POST_DEPLOY_CMD="${{ secrets.MIRROR_FRONTEND_POST_DEPLOY_COMMAND || '' }}"
+            # IMPORTANT: usa un project name stabile per docker compose sul mirror.
+            # Evita conflitti del tipo "/<hash>_daphne_app already in use" dovuti a project name variabile tra run.
+            COMPOSE_PROJECT_NAME="${{ secrets.MIRROR_COMPOSE_PROJECT_NAME || 'kor35-replica' }}"
 
             source /etc/profile
             set -euo pipefail
@@ -154,6 +157,7 @@ jobs:
             fi
 
             if [ -n "${MIRROR_POST_DEPLOY_CMD}" ]; then
+              export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}"
               eval "${MIRROR_POST_DEPLOY_CMD}"
             fi
 
