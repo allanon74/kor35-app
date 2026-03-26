@@ -40,6 +40,7 @@ import {
   socialGetStories,
 } from '../api';
 import StoryViewerModal from './StoryViewerModal';
+import StoryMediaCaptureModal from './StoryMediaCaptureModal';
 
 const SocialTab = ({ onLogout, onOpenMessages }) => {
   const PAGE_SIZE = 10;
@@ -50,13 +51,14 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyViewerIndex, setStoryViewerIndex] = useState(0);
   const [showStoryComposer, setShowStoryComposer] = useState(false);
-  const storyMediaCameraInputRef = useRef(null);
+  const [showStoryMediaPicker, setShowStoryMediaPicker] = useState(false);
   const [storyForm, setStoryForm] = useState({
     testo: '',
     visibilita: 'PUB',
     korp_visibilita: '',
     media: null,
   });
+  const [storyMediaPreviewUrl, setStoryMediaPreviewUrl] = useState('');
   const [korpList, setKorpList] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -170,10 +172,23 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
     const t = String(file.type || '');
     if (t.startsWith('image/') || t.startsWith('video/')) {
       setStoryForm((p) => ({ ...p, media: file }));
+      setShowStoryMediaPicker(false);
       return;
     }
     alert('Formato non supportato. Usa una immagine o un video.');
   };
+
+  useEffect(() => {
+    if (!storyForm.media) {
+      setStoryMediaPreviewUrl('');
+      return;
+    }
+    const url = URL.createObjectURL(storyForm.media);
+    setStoryMediaPreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [storyForm.media]);
 
   const submitStory = async (e) => {
     e.preventDefault();
@@ -1219,28 +1234,34 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                   </select>
                 )}
                 <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={(e) => handleStoryMediaChange(e.target.files?.[0] || null)}
-                  />
                   <button
                     type="button"
-                    onClick={() => storyMediaCameraInputRef.current?.click?.()}
-                    className="px-3 py-2 rounded-lg border border-amber-300/20 bg-white/5 hover:bg-white/10 text-xs font-semibold text-amber-100/90"
-                    title="Scatta/Registra dalla camera"
+                    onClick={() => setShowStoryMediaPicker(true)}
+                    className="px-3 py-2 rounded-lg border border-fuchsia-300/30 bg-fuchsia-900/20 hover:bg-fuchsia-900/30 text-xs font-bold text-fuchsia-100"
+                    title="Apri selezione media"
                   >
-                    Camera
+                    Scegli file / Camera
                   </button>
-                  <input
-                    ref={storyMediaCameraInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(e) => handleStoryMediaChange(e.target.files?.[0] || null)}
-                  />
+                  {storyForm.media && (
+                    <button
+                      type="button"
+                      onClick={() => setStoryForm((p) => ({ ...p, media: null }))}
+                      className="px-3 py-2 rounded-lg border border-rose-300/30 bg-rose-900/20 hover:bg-rose-900/30 text-xs font-semibold text-rose-100"
+                    >
+                      Rimuovi media
+                    </button>
+                  )}
                 </div>
+                {storyForm.media && (
+                  <div className="w-full max-w-xs rounded-xl border border-white/10 bg-black/25 p-2">
+                    <div className="text-[11px] text-gray-300 truncate mb-1">{storyForm.media.name}</div>
+                    {String(storyForm.media.type || '').startsWith('video/') ? (
+                      <video src={storyMediaPreviewUrl} className="w-full rounded-lg max-h-48 object-cover" controls />
+                    ) : (
+                      <img src={storyMediaPreviewUrl} alt="Preview story" className="w-full rounded-lg max-h-48 object-cover" />
+                    )}
+                  </div>
+                )}
                 <button
                   type="submit"
                   className="ml-auto px-4 py-2 rounded-xl bg-linear-to-r from-fuchsia-700 to-amber-500 hover:from-fuchsia-600 hover:to-amber-400 text-sm font-extrabold text-white"
@@ -2037,6 +2058,13 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
             </button>
           </div>
         </div>
+      )}
+      {showStoryMediaPicker && (
+        <StoryMediaCaptureModal
+          open={showStoryMediaPicker}
+          onClose={() => setShowStoryMediaPicker(false)}
+          onPickFile={(file) => handleStoryMediaChange(file)}
+        />
       )}
       {showActivityModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-4">
