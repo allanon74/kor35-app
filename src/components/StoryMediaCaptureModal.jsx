@@ -3,8 +3,10 @@ import { Camera, FlipHorizontal2, FolderOpen, Video, StopCircle } from 'lucide-r
 
 const StoryMediaCaptureModal = ({ open, onClose, onPickFile }) => {
   const archiveInputRef = useRef(null);
-  const rearInputRef = useRef(null);
-  const frontInputRef = useRef(null);
+  const rearPhotoInputRef = useRef(null);
+  const rearVideoInputRef = useRef(null);
+  const frontPhotoInputRef = useRef(null);
+  const frontVideoInputRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -158,17 +160,31 @@ const StoryMediaCaptureModal = ({ open, onClose, onPickFile }) => {
               </button>
               <button
                 type="button"
-                onClick={() => rearInputRef.current?.click?.()}
+                onClick={() => rearPhotoInputRef.current?.click?.()}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-900/20 hover:bg-amber-900/30 text-amber-100 font-semibold px-3 py-3"
               >
-                <Camera size={18} /> Camera posteriore (nativa)
+                <Camera size={18} /> Scatta foto (posteriore)
               </button>
               <button
                 type="button"
-                onClick={() => frontInputRef.current?.click?.()}
+                onClick={() => rearVideoInputRef.current?.click?.()}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-900/15 hover:bg-amber-900/25 text-amber-100 font-semibold px-3 py-3"
+              >
+                <Video size={18} /> Registra video (posteriore)
+              </button>
+              <button
+                type="button"
+                onClick={() => frontPhotoInputRef.current?.click?.()}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-fuchsia-300/30 bg-fuchsia-900/20 hover:bg-fuchsia-900/30 text-fuchsia-100 font-semibold px-3 py-3"
               >
-                <Video size={18} /> Camera frontale (nativa)
+                <Camera size={18} /> Scatta foto (frontale)
+              </button>
+              <button
+                type="button"
+                onClick={() => frontVideoInputRef.current?.click?.()}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-fuchsia-300/30 bg-fuchsia-900/15 hover:bg-fuchsia-900/25 text-fuchsia-100 font-semibold px-3 py-3"
+              >
+                <Video size={18} /> Registra video (frontale)
               </button>
               <button
                 type="button"
@@ -179,8 +195,10 @@ const StoryMediaCaptureModal = ({ open, onClose, onPickFile }) => {
               </button>
             </div>
             <input ref={archiveInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleFilePicked(e.target.files?.[0] || null)} />
-            <input ref={rearInputRef} type="file" accept="image/*,video/*" capture="environment" className="hidden" onChange={(e) => handleFilePicked(e.target.files?.[0] || null)} />
-            <input ref={frontInputRef} type="file" accept="image/*,video/*" capture="user" className="hidden" onChange={(e) => handleFilePicked(e.target.files?.[0] || null)} />
+            <input ref={rearPhotoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFilePicked(e.target.files?.[0] || null)} />
+            <input ref={rearVideoInputRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={(e) => handleFilePicked(e.target.files?.[0] || null)} />
+            <input ref={frontPhotoInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => handleFilePicked(e.target.files?.[0] || null)} />
+            <input ref={frontVideoInputRef} type="file" accept="video/*" capture="user" className="hidden" onChange={(e) => handleFilePicked(e.target.files?.[0] || null)} />
           </>
         )}
 

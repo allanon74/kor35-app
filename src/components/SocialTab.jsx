@@ -133,6 +133,7 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
   });
   const [storyMediaPreviewUrl, setStoryMediaPreviewUrl] = useState('');
   const [storyMediaHint, setStoryMediaHint] = useState('');
+  const [storyMentionSuggestions, setStoryMentionSuggestions] = useState([]);
   const [korpList, setKorpList] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -323,10 +324,35 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
       await loadStories();
     } catch (err) {
       console.error('Errore creazione story', err);
+      console.warn(
+        '[Stories][Conversion] Se vedi 500 ma la story risulta salvata, controlla i log backend su social.views (promote_story_to_post / auto-conversione).',
+        { endpoint: '/api/social/stories/', story_auto_publish_mode: storyForm.auto_publish_mode }
+      );
       alert('Errore nella creazione della story.');
     } finally {
       setIsCreatingStory(false);
     }
+  };
+
+  const updateStoryTextWithMentions = async (nextText) => {
+    setStoryForm((p) => ({ ...p, testo: nextText }));
+    const match = nextText.match(/@([A-Za-z0-9_]{1,30})$/);
+    if (!match) {
+      setStoryMentionSuggestions([]);
+      return;
+    }
+    const q = match[1];
+    if (!q) return;
+    const res = await searchPersonaggi(q, selectedCharacterId);
+    setStoryMentionSuggestions(Array.isArray(res) ? res : []);
+  };
+
+  const insertMentionInStory = (personaggio) => {
+    setStoryForm((p) => ({
+      ...p,
+      testo: `${String(p.testo || '').replace(/@([A-Za-z0-9_]{1,30})$/, '')}@${personaggio.id} `,
+    }));
+    setStoryMentionSuggestions([]);
   };
 
   const loadStoryInsights = useCallback(async () => {
@@ -1368,8 +1394,25 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                 className="w-full rounded-xl bg-white/5 border border-white/10 p-2 text-sm text-white placeholder:text-white/40 min-h-16"
                 placeholder="Testo story (puoi usare @ e #)..."
                 value={storyForm.testo}
-                onChange={(e) => setStoryForm((p) => ({ ...p, testo: e.target.value }))}
+                onChange={(e) => updateStoryTextWithMentions(e.target.value)}
               />
+              {storyMentionSuggestions.length > 0 && (
+                <div className="bg-gray-800 border border-gray-700 rounded p-2 text-sm">
+                  <div className="text-xs text-gray-400 mb-1">Suggerimenti tag story (@):</div>
+                  <div className="flex flex-wrap gap-2">
+                    {storyMentionSuggestions.map((p) => (
+                      <button
+                        key={`sm-${p.id}`}
+                        type="button"
+                        onClick={() => insertMentionInStory(p)}
+                        className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                      >
+                        {p.nome} <span className="text-xs text-gray-400">@{p.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2 items-center">
                 <select
                   className="rounded-lg bg-white/5 border border-white/10 p-2 text-sm text-white"
@@ -2529,6 +2572,11 @@ const SocialTab = ({ onLogout, onOpenMessages }) => {
                                         await loadStoryInsights();
                                         await loadAll();
                                       } catch (err) {
+                                        console.error('Errore conversione manuale story -> post', err);
+                                        console.warn(
+                                          '[Stories][Conversion] Verifica traceback backend endpoint /api/social/stories/<id>/convert_to_post/.',
+                                          { storyId: s.id, personaggioId: selectedCharacterId }
+                                        );
                                         alert('Errore nella conversione story -> post.');
                                       }
                                     }}

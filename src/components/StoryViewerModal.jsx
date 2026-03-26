@@ -78,7 +78,13 @@ const StoryViewerModal = ({ open, onClose, stories = [], initialIndex = 0, perso
     if (story.viewed_by_me) return;
     socialMarkStoryViewed(story.id, personaggioId, onLogout)
       .then(() => onStoryUpdated?.({ storyId: story.id, patch: { viewed_by_me: true } }))
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Errore mark viewed story', err);
+        console.warn(
+          '[Stories][Viewed] Verifica backend /api/social/stories/<id>/viewed/ (possibile errore in auto-conversione).',
+          { storyId: story?.id, personaggioId }
+        );
+      });
   }, [open, story?.id]);
 
   // Progress timer
