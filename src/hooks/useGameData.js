@@ -485,27 +485,63 @@ export const useOptimisticForgingCollect = () => {
 
 // G. ACQUISTO ABILITÀ (Optimistic Update)
 export const useOptimisticAcquireAbilita = () => {
-    return useOptimisticAction(
-        ['personaggio'],
-        async ({ abilitaId, charId }) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ abilitaId, charId }) => {
             return acquireAbilita(abilitaId, charId);
         },
-        (oldData, { abilitaId }) => {
-            if (!oldData) return oldData;
-            // Rimuovi l'abilità dalla lista acquistabili e aggiungila a quelle possedute
-            const abilita = oldData.abilita_acquistabili?.find(a => a.id === abilitaId);
-            if (!abilita) return oldData;
-            
-            return {
-                ...oldData,
-                abilita_possedute: [...(oldData.abilita_possedute || []), abilita],
-                abilita_acquistabili: (oldData.abilita_acquistabili || []).filter(a => a.id !== abilitaId),
-                // Aggiorna crediti e PC se disponibili
-                crediti: oldData.crediti - (abilita.costo_crediti_calc || 0),
-                punti_caratteristica: oldData.punti_caratteristica - (abilita.costo_pc_calc || 0),
-            };
-        }
-    );
+        onMutate: async ({ abilitaId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['abilita_acquistabili', cId];
+
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+
+            const abilitaFromAcquirable =
+                (previousAcquirable || []).find((a) => a.id === abilitaId) ||
+                previousPersonaggio?.abilita_acquistabili?.find((a) => a.id === abilitaId) ||
+                null;
+
+            if (!abilitaFromAcquirable) {
+                return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            }
+
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    abilita_possedute: [...(old.abilita_possedute || []), abilitaFromAcquirable],
+                    abilita_acquistabili: (old.abilita_acquistabili || []).filter((a) => a.id !== abilitaId),
+                    crediti: (old.crediti || 0) - (abilitaFromAcquirable.costo_crediti_calc || 0),
+                    punti_caratteristica: (old.punti_caratteristica || 0) - (abilitaFromAcquirable.costo_pc_calc || 0),
+                };
+            });
+
+            queryClient.setQueryData(acquirableKey, (old) => {
+                if (!Array.isArray(old)) return old;
+                return old.filter((a) => a.id !== abilitaId);
+            });
+
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic acquire abilita failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
+    });
 };
 
 // H. ACQUISTO INFUSIONE (Optimistic Update)
@@ -601,10 +637,61 @@ export const useOptimisticAcquireCerimoniale = () => {
     );
 };
 
-// --- REVOCA ACQUISTI (NON ottimistici) ---
+// --- REVOCA ACQUISTI ---
 export const useRevokeAbilita = () => {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ abilitaId, charId, onLogout }) => revokeAbilita(abilitaId, charId, onLogout),
+        onMutate: async ({ abilitaId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['abilita_acquistabili', cId];
+
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+
+            const abilitaFromPossedute =
+                previousPersonaggio?.abilita_possedute?.find((a) => a.id === abilitaId) || null;
+
+            if (!abilitaFromPossedute) {
+                return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            }
+
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    abilita_possedute: (old.abilita_possedute || []).filter((a) => a.id !== abilitaId),
+                    abilita_acquistabili: [...(old.abilita_acquistabili || []), abilitaFromPossedute],
+                    crediti: (old.crediti || 0) + (abilitaFromPossedute.costo_crediti_calc || abilitaFromPossedute.costo_crediti || 0),
+                    punti_caratteristica: (old.punti_caratteristica || 0) + (abilitaFromPossedute.costo_pc_calc || 0),
+                };
+            });
+
+            queryClient.setQueryData(acquirableKey, (old) => {
+                if (!Array.isArray(old)) return old;
+                if (old.some((a) => a.id === abilitaId)) return old;
+                return [...old, abilitaFromPossedute];
+            });
+
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic revoke abilita failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
     });
 };
 

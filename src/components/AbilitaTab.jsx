@@ -3,7 +3,6 @@ import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, Trash2 } from 'lucide-react'; 
 import AbilitaDetailModal from './AbilitaDetailModal.jsx';
-import { acquireAbilita } from '../api.js';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
@@ -21,7 +20,6 @@ const AbilitaTab = ({ onLogout }) => {
     isLoadingAcquirable,  
     isLoadingDetail,
     refreshCharacterData,
-    punteggiList 
   } = useCharacter();
   
   const [modalSkill, setModalSkill] = useState(null);
@@ -49,8 +47,8 @@ const AbilitaTab = ({ onLogout }) => {
         abilitaId: skill.id, 
         charId: selectedCharacterId 
       });
-      // Refresh opzionale - l'optimistic update ha già aggiornato l'UI
-      await refreshCharacterData(); 
+      // Refetch in background per allineare i dati reali lato server.
+      refreshCharacterData();
     } catch (error) {
       console.error("Errore acquisto:", error);
       alert(`Errore durante l'acquisto: ${error.message}`);
@@ -68,7 +66,8 @@ const AbilitaTab = ({ onLogout }) => {
           charId: selectedCharacterId,
           onLogout,
         });
-        await refreshCharacterData();
+        // Refetch in background per allineare i dati reali lato server.
+        refreshCharacterData();
       } catch (error) {
         alert(`Errore: ${error.message}`);
       }
