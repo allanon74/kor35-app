@@ -1767,6 +1767,52 @@ export const staffDeleteAbilita = (id, onLogout) => {
     return fetchAuthenticated(`/api/personaggi/api/staff/abilita/${id}/`, { method: 'DELETE' }, onLogout);
 };
 
+const EDITOR_PREFETCH_TTL_MS = 5 * 60 * 1000;
+let abilitaEditorResourcesCache = null;
+let abilitaEditorResourcesPromise = null;
+
+const isAbilitaEditorCacheValid = () => {
+    if (!abilitaEditorResourcesCache) return false;
+    return (Date.now() - abilitaEditorResourcesCache.ts) < EDITOR_PREFETCH_TTL_MS;
+};
+
+const fetchAbilitaEditorResources = async (onLogout, { force = false } = {}) => {
+    if (!force && isAbilitaEditorCacheValid()) {
+        return abilitaEditorResourcesCache.data;
+    }
+    if (!force && abilitaEditorResourcesPromise) {
+        return abilitaEditorResourcesPromise;
+    }
+
+    abilitaEditorResourcesPromise = Promise.all([
+        fetchAuthenticated('/api/personaggi/api/punteggi/all/', { method: 'GET' }, onLogout),
+        fetchAuthenticated('/api/personaggi/api/abilita/', { method: 'GET' }, onLogout),
+        fetchAuthenticated('/api/personaggi/api/tier/', { method: 'GET' }, onLogout),
+    ])
+        .then(([punteggi, abilita, tiers]) => {
+            const data = {
+                punteggi: punteggi || [],
+                abilita: abilita || [],
+                tiers: tiers || [],
+            };
+            abilitaEditorResourcesCache = { data, ts: Date.now() };
+            return data;
+        })
+        .finally(() => {
+            abilitaEditorResourcesPromise = null;
+        });
+
+    return abilitaEditorResourcesPromise;
+};
+
+export const prefetchAbilitaEditorResources = (onLogout) => {
+    return fetchAbilitaEditorResources(onLogout);
+};
+
+export const getAbilitaEditorResources = (onLogout, options = {}) => {
+    return fetchAbilitaEditorResources(onLogout, options);
+};
+
 // Utile per l'editor: serve la lista di tutte le abilità per i prerequisiti
 export const getAbilitaOptions = (onLogout) => {
     return fetchAuthenticated('/api/personaggi/api/abilita/', { method: 'GET' }, onLogout);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { staffCreateAbilita, staffUpdateAbilita, staffGetAbilita, getPunteggiList, getAbilitaOptions, getTiersList } from '../../api';
+import { staffCreateAbilita, staffUpdateAbilita, staffGetAbilita, getAbilitaEditorResources } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import StatModInline from './inlines/StatModInline';
 import GenericRelationInline from './inlines/GenericRelationInline';
@@ -78,14 +78,10 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     useEffect(() => {
         const loadResources = async () => {
             try {
-                const [pts, abs, trs] = await Promise.all([
-                    getPunteggiList(onLogout),
-                    getAbilitaOptions(onLogout),
-                    getTiersList(onLogout)
-                ]);
-                setPunteggi(pts || []);
-                setAbilitaList(abs || []);
-                setTiersList(trs || []);
+                const resources = await getAbilitaEditorResources(onLogout);
+                setPunteggi(resources?.punteggi || []);
+                setAbilitaList(resources?.abilita || []);
+                setTiersList(resources?.tiers || []);
             } catch (err) {
                 console.error("Errore caricamento risorse editor", err);
             }
@@ -337,7 +333,7 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                 />
 
                 {/* 5. Punteggi Dipendenti */}
-                <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 space-y-3">
+                <div className="md:col-span-2 lg:col-span-3 bg-gray-900/50 p-5 rounded-lg border border-cyan-800/50 space-y-4">
                     <div className="flex items-center justify-between">
                         <h4 className="text-sm font-bold text-cyan-300 uppercase">Punteggi dipendenti</h4>
                         <button
@@ -367,23 +363,21 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                         </p>
                     )}
                     {(formData.punteggi_dipendenti || []).map((row, idx) => (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-end bg-gray-950/60 p-2 rounded border border-gray-800">
-                            <div className="col-span-4">
+                        <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end bg-gray-950/60 p-3 rounded border border-gray-800">
+                            <div className="md:col-span-4">
                                 <label className="text-[10px] uppercase text-gray-500 font-bold">Punteggio X</label>
-                                <select
-                                    className="w-full bg-gray-950 border border-gray-700 rounded p-1 text-white text-sm"
+                                <SearchableSelect
+                                    options={punteggi}
                                     value={row.punteggio_target || ''}
+                                    placeholder="Cerca punteggio target..."
                                     onChange={(e) => {
                                         const next = [...(formData.punteggi_dipendenti || [])];
-                                        next[idx] = { ...next[idx], punteggio_target: e.target.value };
+                                        next[idx] = { ...next[idx], punteggio_target: e };
                                         setFormData({ ...formData, punteggi_dipendenti: next });
                                     }}
-                                >
-                                    <option value="">- Seleziona -</option>
-                                    {punteggi.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                                </select>
+                                />
                             </div>
-                            <div className="col-span-2">
+                            <div className="md:col-span-2">
                                 <label className="text-[10px] uppercase text-gray-500 font-bold">Aumenta di</label>
                                 <input
                                     type="number"
@@ -396,7 +390,7 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                                     }}
                                 />
                             </div>
-                            <div className="col-span-2">
+                            <div className="md:col-span-2">
                                 <label className="text-[10px] uppercase text-gray-500 font-bold">Ogni</label>
                                 <input
                                     type="number"
@@ -410,22 +404,20 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                                     }}
                                 />
                             </div>
-                            <div className="col-span-3">
+                            <div className="md:col-span-3">
                                 <label className="text-[10px] uppercase text-gray-500 font-bold">Punteggio Y</label>
-                                <select
-                                    className="w-full bg-gray-950 border border-gray-700 rounded p-1 text-white text-sm"
+                                <SearchableSelect
+                                    options={punteggi}
                                     value={row.punteggio_sorgente || ''}
+                                    placeholder="Cerca punteggio sorgente..."
                                     onChange={(e) => {
                                         const next = [...(formData.punteggi_dipendenti || [])];
-                                        next[idx] = { ...next[idx], punteggio_sorgente: e.target.value };
+                                        next[idx] = { ...next[idx], punteggio_sorgente: e };
                                         setFormData({ ...formData, punteggi_dipendenti: next });
                                     }}
-                                >
-                                    <option value="">- Seleziona -</option>
-                                    {punteggi.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                                </select>
+                                />
                             </div>
-                            <div className="col-span-1">
+                            <div className="md:col-span-1">
                                 <button
                                     type="button"
                                     className="w-full bg-red-800 hover:bg-red-700 rounded p-1 text-xs font-bold"
