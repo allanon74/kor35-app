@@ -59,7 +59,7 @@ const CerimonialiTab = ({ onLogout }) => {
         charId: selectedCharacterId,
         onLogout 
       });
-      await refreshCharacterData(); 
+      refreshCharacterData();
     } catch (error) {
       alert(`Errore: ${error.message}`);
     }
@@ -76,7 +76,7 @@ const CerimonialiTab = ({ onLogout }) => {
           charId: selectedCharacterId,
           onLogout,
         });
-        await refreshCharacterData();
+        refreshCharacterData();
       } catch (error) {
         alert(`Errore: ${error.message}`);
       }

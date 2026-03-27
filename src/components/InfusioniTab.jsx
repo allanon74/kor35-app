@@ -13,8 +13,7 @@ import ForgingQueue from './ForgingQueue';
 import ForgingModal from './ForgingModal'; // <--- NUOVO MODALE IMPORTATO
 
 // --- API & HOOKS ---
-import { acquireInfusione } from '../api.js'; // startForging rimosso da qui, lo gestisce ForgingModal
-import { useForgingQueue, useRevokeInfusione } from '../hooks/useGameData'; 
+import { useForgingQueue, useOptimisticAcquireInfusione, useRevokeInfusione } from '../hooks/useGameData'; 
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -35,12 +34,12 @@ const InfusioniTab = ({ onLogout }) => {
   
   // --- STATI LOCALI ---
   const [modalItem, setModalItem] = useState(null); // Per i dettagli (Info)
-  const [isAcquiring, setIsAcquiring] = useState(null); // Loading acquisto
   const [showProposals, setShowProposals] = useState(false); // Gestione proposte
 
   // Stato per la modale di forgiatura avanzata
   const [selectedInfusioneForgia, setSelectedInfusioneForgia] = useState(null);
 
+  const acquireMutation = useOptimisticAcquireInfusione();
   const revokeMutation = useRevokeInfusione();
 
   // --- HANDLERS ---
@@ -53,7 +52,7 @@ const InfusioniTab = ({ onLogout }) => {
     if (!window.confirm(`Revocare l'acquisto dell'infusione "${item.nome}"?`)) return;
     try {
       await revokeMutation.mutateAsync({ infusioneId: item.id, charId: selectedCharacterId, onLogout });
-      await refreshCharacterData();
+      refreshCharacterData();
     } catch (error) {
       alert(`Errore: ${error.message}`);
     }
@@ -62,20 +61,17 @@ const InfusioniTab = ({ onLogout }) => {
   // Gestione Acquisto Nuova Infusione (Apprendimento)
   const handleAcquire = async (item, e) => {
     e.stopPropagation();
-    if (isAcquiring || !selectedCharacterId) return;
+    if (acquireMutation.isPending || !selectedCharacterId) return;
     
     const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
     if (!window.confirm(`Apprendere l'Infusione "${item.nome}" per ${costoFinale} Crediti?`)) return;
     
-    setIsAcquiring(item.id);
     try {
-      await acquireInfusione(item.id, selectedCharacterId, onLogout);
-      await refreshCharacterData(); 
+      await acquireMutation.mutateAsync({ infusioneId: item.id, charId: selectedCharacterId, onLogout });
+      refreshCharacterData();
     } catch (error) {
       alert(`Errore: ${error.message}`);
-    } finally {
-      setIsAcquiring(null);
     }
   };
 
@@ -224,14 +220,14 @@ const InfusioniTab = ({ onLogout }) => {
 
             <button
                 onClick={(e) => handleAcquire(item, e)}
-                disabled={!canAfford || isAcquiring === item.id}
+                disabled={!canAfford || acquireMutation.isPending}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all shadow-md ml-auto sm:ml-0 ${
                     canAfford 
                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/20' 
                     : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
                 }`}
             >
-                {isAcquiring === item.id ? (
+                {acquireMutation.isPending ? (
                     <Loader2 className="animate-spin" size={16} />
                 ) : (
                     <>

@@ -3,8 +3,8 @@ import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Star, FlaskConical, PackageCheck, Timer, Trash2 } from 'lucide-react';
 import TecnicaDetailModal from './TecnicaDetailModal';
-import { acquireTessitura, avviaCreazioneConsumabile, completaCreazioneConsumabile } from '../api.js';
-import { useOptimisticToggleTessituraFavorite, useRevokeTessitura } from '../hooks/useGameData';
+import { avviaCreazioneConsumabile, completaCreazioneConsumabile } from '../api.js';
+import { useOptimisticAcquireTessitura, useOptimisticToggleTessituraFavorite, useRevokeTessitura } from '../hooks/useGameData';
 import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
@@ -25,7 +25,6 @@ const TessitureTab = ({ onLogout }) => {
   } = useCharacter();
   
   const [modalItem, setModalItem] = useState(null);
-  const [isAcquiring, setIsAcquiring] = useState(null);
   const [isCreatingConsumable, setIsCreatingConsumable] = useState(null);
   const [isCompletingConsumable, setIsCompletingConsumable] = useState(null);
   const [countdowns, setCountdowns] = useState({}); // { creazioneId: secondiRimanenti }
@@ -79,6 +78,7 @@ const TessitureTab = ({ onLogout }) => {
   }, [creazioniInCorso, refreshCharacterData]);
 
   // Hook per optimistic update del favorite
+  const acquireMutation = useOptimisticAcquireTessitura();
   const toggleFavoriteMutation = useOptimisticToggleTessituraFavorite();
   const revokeMutation = useRevokeTessitura();
 
@@ -96,7 +96,7 @@ const TessitureTab = ({ onLogout }) => {
     if (!window.confirm(`Revocare l'acquisto della tessitura "${item.nome}"?`)) return;
     try {
       await revokeMutation.mutateAsync({ tessituraId: item.id, charId: selectedCharacterId, onLogout });
-      await refreshCharacterData();
+      refreshCharacterData();
     } catch (error) {
       alert(`Errore: ${error.message}`);
     }
@@ -104,20 +104,17 @@ const TessitureTab = ({ onLogout }) => {
 
   const handleAcquire = async (item, e) => {
     e.stopPropagation();
-    if (isAcquiring || !selectedCharacterId) return;
+    if (acquireMutation.isPending || !selectedCharacterId) return;
     
     const costoFinale = item.costo_effettivo ?? (item.costo_crediti || item.livello * 100);
     
     if (!window.confirm(`Acquisire Tessitura "${item.nome}" per ${costoFinale} Crediti?`)) return;
     
-    setIsAcquiring(item.id);
     try {
-      await acquireTessitura(item.id, selectedCharacterId, onLogout);
-      await refreshCharacterData(); 
+      await acquireMutation.mutateAsync({ tessituraId: item.id, charId: selectedCharacterId, onLogout });
+      refreshCharacterData();
     } catch (error) {
       alert(`Errore: ${error.message}`);
-    } finally {
-      setIsAcquiring(null);
     }
   };
 
@@ -332,14 +329,14 @@ const TessitureTab = ({ onLogout }) => {
 
             <button
                 onClick={(e) => handleAcquire(item, e)}
-                disabled={!canAfford || isAcquiring === item.id}
+                disabled={!canAfford || acquireMutation.isPending}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all shadow-md ml-auto sm:ml-0 ${
                     canAfford 
                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/20' 
                     : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
                 }`}
             >
-                {isAcquiring === item.id ? (
+                {acquireMutation.isPending ? (
                     <Loader2 className="animate-spin" size={16} />
                 ) : (
                     <>

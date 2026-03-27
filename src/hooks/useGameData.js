@@ -546,48 +546,102 @@ export const useOptimisticAcquireAbilita = () => {
 
 // H. ACQUISTO INFUSIONE (Optimistic Update)
 export const useOptimisticAcquireInfusione = () => {
-    return useOptimisticAction(
-        ['personaggio'],
-        async ({ infusioneId, charId }) => {
-            return acquireInfusione(infusioneId, charId);
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ infusioneId, charId, onLogout }) => {
+            return acquireInfusione(infusioneId, charId, onLogout);
         },
-        (oldData, { infusioneId }) => {
-            if (!oldData) return oldData;
-            const infusione = oldData.infusioni_acquistabili?.find(i => i.id === infusioneId);
-            if (!infusione) return oldData;
-            
-            return {
-                ...oldData,
-                infusioni_possedute: [...(oldData.infusioni_possedute || []), infusione],
-                infusioni_acquistabili: (oldData.infusioni_acquistabili || []).filter(i => i.id !== infusioneId),
-                crediti: oldData.crediti - (infusione.costo_crediti_calc || 0),
-                punti_caratteristica: oldData.punti_caratteristica - (infusione.costo_pc_calc || 0),
-            };
-        }
-    );
+        onMutate: async ({ infusioneId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['infusioni_acquistabili', cId];
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+            const infusione =
+                (previousAcquirable || []).find((i) => i.id === infusioneId) ||
+                previousPersonaggio?.infusioni_acquistabili?.find((i) => i.id === infusioneId) ||
+                null;
+            if (!infusione) return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                const costoCrediti = infusione.costo_effettivo ?? infusione.costo_crediti_calc ?? infusione.costo_crediti ?? 0;
+                return {
+                    ...old,
+                    infusioni_possedute: [...(old.infusioni_possedute || []), infusione],
+                    infusioni_acquistabili: (old.infusioni_acquistabili || []).filter((i) => i.id !== infusioneId),
+                    crediti: (old.crediti || 0) - costoCrediti,
+                    punti_caratteristica: (old.punti_caratteristica || 0) - (infusione.costo_pc_calc || 0),
+                };
+            });
+            queryClient.setQueryData(acquirableKey, (old) => Array.isArray(old) ? old.filter((i) => i.id !== infusioneId) : old);
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic acquire infusione failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
+    });
 };
 
 // I. ACQUISTO TESSITURA (Optimistic Update)
 export const useOptimisticAcquireTessitura = () => {
-    return useOptimisticAction(
-        ['personaggio'],
-        async ({ tessituraId, charId }) => {
-            return acquireTessitura(tessituraId, charId);
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ tessituraId, charId, onLogout }) => {
+            return acquireTessitura(tessituraId, charId, onLogout);
         },
-        (oldData, { tessituraId }) => {
-            if (!oldData) return oldData;
-            const tessitura = oldData.tessiture_acquistabili?.find(t => t.id === tessituraId);
-            if (!tessitura) return oldData;
-            
-            return {
-                ...oldData,
-                tessiture_possedute: [...(oldData.tessiture_possedute || []), tessitura],
-                tessiture_acquistabili: (oldData.tessiture_acquistabili || []).filter(t => t.id !== tessituraId),
-                crediti: oldData.crediti - (tessitura.costo_crediti_calc || 0),
-                punti_caratteristica: oldData.punti_caratteristica - (tessitura.costo_pc_calc || 0),
-            };
-        }
-    );
+        onMutate: async ({ tessituraId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['tessiture_acquistabili', cId];
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+            const tessitura =
+                (previousAcquirable || []).find((t) => t.id === tessituraId) ||
+                previousPersonaggio?.tessiture_acquistabili?.find((t) => t.id === tessituraId) ||
+                null;
+            if (!tessitura) return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                const costoCrediti = tessitura.costo_effettivo ?? tessitura.costo_crediti_calc ?? tessitura.costo_crediti ?? 0;
+                return {
+                    ...old,
+                    tessiture_possedute: [...(old.tessiture_possedute || []), tessitura],
+                    tessiture_acquistabili: (old.tessiture_acquistabili || []).filter((t) => t.id !== tessituraId),
+                    crediti: (old.crediti || 0) - costoCrediti,
+                    punti_caratteristica: (old.punti_caratteristica || 0) - (tessitura.costo_pc_calc || 0),
+                };
+            });
+            queryClient.setQueryData(acquirableKey, (old) => Array.isArray(old) ? old.filter((t) => t.id !== tessituraId) : old);
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic acquire tessitura failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
+    });
 };
 
 // I-bis. TOGGLE FAVORITE TESSITURA (Optimistic Update)
@@ -614,27 +668,53 @@ export const useOptimisticToggleTessituraFavorite = () => {
 
 // J. ACQUISTO CERIMONIALE (Optimistic Update)
 export const useOptimisticAcquireCerimoniale = () => {
-    return useOptimisticAction(
-        ['personaggio'],
-        async ({ cerimonialeId, charId, onLogout }) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ cerimonialeId, charId, onLogout }) => {
             return fetchAuthenticated('/api/personaggi/api/personaggio/me/acquisisci_cerimoniale/', {
                 method: 'POST',
                 body: JSON.stringify({ personaggio_id: charId, cerimoniale_id: cerimonialeId })
             }, onLogout);
         },
-        (oldData, { cerimonialeId }) => {
-            if (!oldData) return oldData;
-            const cerimoniale = oldData.cerimoniali_acquistabili?.find(c => c.id === cerimonialeId);
-            if (!cerimoniale) return oldData;
-            
-            return {
-                ...oldData,
-                cerimoniali_posseduti: [...(oldData.cerimoniali_posseduti || []), cerimoniale],
-                cerimoniali_acquistabili: (oldData.cerimoniali_acquistabili || []).filter(c => c.id !== cerimonialeId),
-                crediti: oldData.crediti - (cerimoniale.costo_crediti || 0),
-            };
-        }
-    );
+        onMutate: async ({ cerimonialeId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['cerimoniali_acquistabili', cId];
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+            const cerimoniale =
+                (previousAcquirable || []).find((c) => c.id === cerimonialeId) ||
+                previousPersonaggio?.cerimoniali_acquistabili?.find((c) => c.id === cerimonialeId) ||
+                null;
+            if (!cerimoniale) return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    cerimoniali_posseduti: [...(old.cerimoniali_posseduti || []), cerimoniale],
+                    cerimoniali_acquistabili: (old.cerimoniali_acquistabili || []).filter((c) => c.id !== cerimonialeId),
+                    crediti: (old.crediti || 0) - (cerimoniale.costo_crediti || 0),
+                };
+            });
+            queryClient.setQueryData(acquirableKey, (old) => Array.isArray(old) ? old.filter((c) => c.id !== cerimonialeId) : old);
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic acquire cerimoniale failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
+    });
 };
 
 // --- REVOCA ACQUISTI ---
@@ -696,20 +776,144 @@ export const useRevokeAbilita = () => {
 };
 
 export const useRevokeInfusione = () => {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ infusioneId, charId, onLogout }) => revokeInfusione(infusioneId, charId, onLogout),
+        onMutate: async ({ infusioneId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['infusioni_acquistabili', cId];
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+            const infusione = previousPersonaggio?.infusioni_possedute?.find((i) => i.id === infusioneId) || null;
+            if (!infusione) return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                const costoCrediti = infusione.costo_effettivo ?? infusione.costo_crediti_calc ?? infusione.costo_crediti ?? 0;
+                return {
+                    ...old,
+                    infusioni_possedute: (old.infusioni_possedute || []).filter((i) => i.id !== infusioneId),
+                    infusioni_acquistabili: [...(old.infusioni_acquistabili || []), infusione],
+                    crediti: (old.crediti || 0) + costoCrediti,
+                    punti_caratteristica: (old.punti_caratteristica || 0) + (infusione.costo_pc_calc || 0),
+                };
+            });
+            queryClient.setQueryData(acquirableKey, (old) => {
+                if (!Array.isArray(old)) return old;
+                if (old.some((i) => i.id === infusioneId)) return old;
+                return [...old, infusione];
+            });
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic revoke infusione failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
     });
 };
 
 export const useRevokeTessitura = () => {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ tessituraId, charId, onLogout }) => revokeTessitura(tessituraId, charId, onLogout),
+        onMutate: async ({ tessituraId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['tessiture_acquistabili', cId];
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+            const tessitura = previousPersonaggio?.tessiture_possedute?.find((t) => t.id === tessituraId) || null;
+            if (!tessitura) return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                const costoCrediti = tessitura.costo_effettivo ?? tessitura.costo_crediti_calc ?? tessitura.costo_crediti ?? 0;
+                return {
+                    ...old,
+                    tessiture_possedute: (old.tessiture_possedute || []).filter((t) => t.id !== tessituraId),
+                    tessiture_acquistabili: [...(old.tessiture_acquistabili || []), tessitura],
+                    crediti: (old.crediti || 0) + costoCrediti,
+                    punti_caratteristica: (old.punti_caratteristica || 0) + (tessitura.costo_pc_calc || 0),
+                };
+            });
+            queryClient.setQueryData(acquirableKey, (old) => {
+                if (!Array.isArray(old)) return old;
+                if (old.some((t) => t.id === tessituraId)) return old;
+                return [...old, tessitura];
+            });
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic revoke tessitura failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
     });
 };
 
 export const useRevokeCerimoniale = () => {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ cerimonialeId, charId, onLogout }) => revokeCerimoniale(cerimonialeId, charId, onLogout),
+        onMutate: async ({ cerimonialeId, charId }) => {
+            const cId = String(charId);
+            const personaggioKey = ['personaggio', cId];
+            const acquirableKey = ['cerimoniali_acquistabili', cId];
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: personaggioKey }),
+                queryClient.cancelQueries({ queryKey: acquirableKey }),
+            ]);
+            const previousPersonaggio = queryClient.getQueryData(personaggioKey);
+            const previousAcquirable = queryClient.getQueryData(acquirableKey);
+            const cerimoniale = previousPersonaggio?.cerimoniali_posseduti?.find((c) => c.id === cerimonialeId) || null;
+            if (!cerimoniale) return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+            queryClient.setQueryData(personaggioKey, (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    cerimoniali_posseduti: (old.cerimoniali_posseduti || []).filter((c) => c.id !== cerimonialeId),
+                    cerimoniali_acquistabili: [...(old.cerimoniali_acquistabili || []), cerimoniale],
+                    crediti: (old.crediti || 0) + (cerimoniale.costo_crediti || 0),
+                };
+            });
+            queryClient.setQueryData(acquirableKey, (old) => {
+                if (!Array.isArray(old)) return old;
+                if (old.some((c) => c.id === cerimonialeId)) return old;
+                return [...old, cerimoniale];
+            });
+            return { personaggioKey, acquirableKey, previousPersonaggio, previousAcquirable };
+        },
+        onError: (err, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.setQueryData(ctx.personaggioKey, ctx.previousPersonaggio);
+            queryClient.setQueryData(ctx.acquirableKey, ctx.previousAcquirable);
+            console.error('Optimistic revoke cerimoniale failed:', err);
+        },
+        onSettled: (_data, _error, _vars, ctx) => {
+            if (!ctx) return;
+            queryClient.invalidateQueries({ queryKey: ctx.personaggioKey });
+            queryClient.invalidateQueries({ queryKey: ctx.acquirableKey });
+        },
     });
 };
 
