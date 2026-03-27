@@ -242,11 +242,8 @@ export const CharacterProvider = ({ children, onLogout }) => {
       queryClient.setQueryData(['tessiture_acquistabili', cId], tessiture);
       queryClient.setQueryData(['cerimoniali_acquistabili', cId], cerimoniali);
 
-      queryClient.invalidateQueries({ queryKey: ['personaggio', cId], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['abilita_acquistabili', cId], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['infusioni_acquistabili', cId], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['tessiture_acquistabili', cId], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['cerimoniali_acquistabili', cId], exact: true });
+      // Evita doppio roundtrip: i dati sono gia stati appena sincronizzati via fetch manuale.
+      // Le mutation/hook invalidano comunque quando serve una riallineamento successivo.
     } else {
       await Promise.all([
         refetchSkills(),

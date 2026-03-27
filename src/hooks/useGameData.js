@@ -70,8 +70,9 @@ export const usePunteggi = (onLogout) => {
         onLogout,
         fetchFull: () => getPunteggiList(onLogout),
       }),
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -88,8 +89,9 @@ export const usePersonaggiList = (onLogout, viewAll) => {
         onLogout,
         fetchFull: () => getPersonaggiList(onLogout, viewAll),
       }),
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -107,8 +109,9 @@ export const usePersonaggioDetail = (id, onLogout) => {
         fetchFull: () => getPersonaggioDetail(id, onLogout),
       }),
     enabled: !!id, 
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -126,8 +129,9 @@ export const useAcquirableSkills = (id, onLogout) => {
         fetchFull: () => getAcquirableSkills(onLogout, id),
       }),
     enabled: !!id,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -145,8 +149,9 @@ export const useAcquirableInfusioni = (id, onLogout) => {
         fetchFull: () => getAcquirableInfusioni(id),
       }),
     enabled: !!id,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -164,8 +169,9 @@ export const useAcquirableTessiture = (id, onLogout) => {
         fetchFull: () => getAcquirableTessiture(id),
       }),
     enabled: !!id,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -183,8 +189,9 @@ export const useAcquirableCerimoniali = (id, onLogout) => {
         fetchFull: () => getAcquirableCerimoniali(id),
       }),
     enabled: !!id,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
