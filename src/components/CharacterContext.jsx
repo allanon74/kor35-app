@@ -9,6 +9,11 @@ import {
   fetchAuthenticated,
   getPreferredPersonaggio,
   setPreferredPersonaggio,
+  getPersonaggioDetail,
+  getAcquirableSkills,
+  getAcquirableInfusioni,
+  getAcquirableTessiture,
+  getAcquirableCerimoniali,
 } from '../api'; 
 import NotificationPopup from './NotificationPopup';
 
@@ -212,19 +217,45 @@ export const CharacterProvider = ({ children, onLogout }) => {
   // Invalidazione + refetch esplicito della query personaggio così la UI (timer creazioni
   // consumabili, pulsante "Aggiungi a inventario") si aggiorna subito senza ricaricare la pagina.
   const refreshCharacterData = useCallback(async () => {
-    const promises = [
-      refetchSkills(),
-      refetchInfusioni(),
-      refetchTessiture(),
-      refetchCerimoniali(),
-    ];
     if (selectedCharacterId) {
-      queryClient.invalidateQueries({ queryKey: ['personaggio', selectedCharacterId] });
-      promises.push(queryClient.refetchQueries({ queryKey: ['personaggio', selectedCharacterId] }));
+      const cId = selectedCharacterId;
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['personaggio', cId] }),
+        queryClient.cancelQueries({ queryKey: ['abilita_acquistabili', cId] }),
+        queryClient.cancelQueries({ queryKey: ['infusioni_acquistabili', cId] }),
+        queryClient.cancelQueries({ queryKey: ['tessiture_acquistabili', cId] }),
+        queryClient.cancelQueries({ queryKey: ['cerimoniali_acquistabili', cId] }),
+      ]);
+
+      // Soft sync: fetch reale backend e update cache senza svuotarla (evita flicker).
+      const [personaggio, abilita, infusioni, tessiture, cerimoniali] = await Promise.all([
+        getPersonaggioDetail(cId, onLogout),
+        getAcquirableSkills(onLogout, cId),
+        getAcquirableInfusioni(cId),
+        getAcquirableTessiture(cId),
+        getAcquirableCerimoniali(cId, onLogout),
+      ]);
+
+      queryClient.setQueryData(['personaggio', cId], personaggio);
+      queryClient.setQueryData(['abilita_acquistabili', cId], abilita);
+      queryClient.setQueryData(['infusioni_acquistabili', cId], infusioni);
+      queryClient.setQueryData(['tessiture_acquistabili', cId], tessiture);
+      queryClient.setQueryData(['cerimoniali_acquistabili', cId], cerimoniali);
+
+      queryClient.invalidateQueries({ queryKey: ['personaggio', cId], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['abilita_acquistabili', cId], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['infusioni_acquistabili', cId], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['tessiture_acquistabili', cId], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['cerimoniali_acquistabili', cId], exact: true });
     } else {
-      promises.push(refetchCharacterDetail());
+      await Promise.all([
+        refetchSkills(),
+        refetchInfusioni(),
+        refetchTessiture(),
+        refetchCerimoniali(),
+        refetchCharacterDetail(),
+      ]);
     }
-    await Promise.all(promises);
   }, [selectedCharacterId, queryClient, refetchCharacterDetail, refetchSkills, refetchInfusioni, refetchTessiture, refetchCerimoniali]);
 
   const fetchPersonaggi = useCallback(() => {
