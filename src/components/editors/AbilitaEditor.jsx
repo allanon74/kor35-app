@@ -184,36 +184,30 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <label className="text-xs text-gray-500 uppercase font-bold">Caratteristica 1 (base)</label>
-                            <select 
-                                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white text-sm"
+                            <SearchableSelect
+                                options={caratteristiche}
                                 value={formData.caratteristica || ""}
-                                onChange={e => setFormData({...formData, caratteristica: e.target.value})}
-                            >
-                                <option value="">- Nessuna -</option>
-                                {caratteristiche.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                            </select>
+                                onChange={val => setFormData({...formData, caratteristica: val || null})}
+                                placeholder="- Nessuna -"
+                            />
                         </div>
                         <div>
                             <label className="text-xs text-gray-500 uppercase font-bold">Caratteristica 2 (opz.)</label>
-                            <select 
-                                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white text-sm"
+                            <SearchableSelect
+                                options={caratteristiche}
                                 value={formData.caratteristica_2 || ""}
-                                onChange={e => setFormData({...formData, caratteristica_2: e.target.value})}
-                            >
-                                <option value="">- Nessuna -</option>
-                                {caratteristiche.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                            </select>
+                                onChange={val => setFormData({...formData, caratteristica_2: val || null})}
+                                placeholder="- Nessuna -"
+                            />
                         </div>
                         <div>
                             <label className="text-xs text-gray-500 uppercase font-bold">Caratteristica 3 (opz.)</label>
-                            <select 
-                                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white text-sm"
+                            <SearchableSelect
+                                options={caratteristiche}
                                 value={formData.caratteristica_3 || ""}
-                                onChange={e => setFormData({...formData, caratteristica_3: e.target.value})}
-                            >
-                                <option value="">- Nessuna -</option>
-                                {caratteristiche.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                            </select>
+                                onChange={val => setFormData({...formData, caratteristica_3: val || null})}
+                                placeholder="- Nessuna -"
+                            />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -253,14 +247,12 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                             <div className="space-y-2 pl-4 border-l-2 border-purple-500/30">
                                 <div>
                                     <label className="text-xs text-gray-500 uppercase font-bold">Aura Rif.</label>
-                                    <select 
-                                        className="w-full bg-gray-950 border border-gray-700 rounded p-1 text-white text-sm"
+                                    <SearchableSelect
+                                        options={aure}
                                         value={formData.aura_riferimento || ""}
-                                        onChange={e => setFormData({...formData, aura_riferimento: e.target.value})}
-                                    >
-                                        <option value="">- Seleziona -</option>
-                                        {aure.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                                    </select>
+                                        onChange={val => setFormData({...formData, aura_riferimento: val || null})}
+                                        placeholder="- Seleziona -"
+                                    />
                                 </div>
                                 <div>
                                     <label className="text-xs text-gray-500 uppercase font-bold">Livello Sblocco</label>

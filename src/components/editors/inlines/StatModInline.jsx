@@ -1,4 +1,5 @@
 import React from 'react';
+import SearchableSelect from '../SearchableSelect';
 
 const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, onAdd, onRemove }) => {
   const toggleM2M = (index, field, id) => {
@@ -22,21 +23,16 @@ const StatModInline = ({ items, options, auraOptions, elementOptions, onChange, 
             <div className="flex flex-wrap gap-3">
               <div className="flex-1 min-w-[200px]">
                 <label className="text-[9px] uppercase text-gray-500 font-black block mb-1">Statistica</label>
-                <select 
-                  className="w-full bg-gray-900 p-2 rounded text-sm border border-gray-600 text-white outline-none focus:border-emerald-500"
-                  value={item.statistica?.id || item.statistica || ""} 
-                  onChange={e => onChange(i, 'statistica', e.target.value ? parseInt(e.target.value, 10) : null)}
-                >
-                  <option value="">Seleziona...</option>
-                  {options.map(o => {
+                <SearchableSelect
+                  options={options.filter(o => {
                     const isUsed = items.some((it, idx) => idx !== i && (it.statistica?.id || it.statistica) === o.id);
-                    return (
-                      <option key={o.id} value={String(o.id)} disabled={isUsed}>
-                        {o.nome} {isUsed ? "(GIA' IN USO)" : ""}
-                      </option>
-                    );
+                    const isCurrent = (item.statistica?.id || item.statistica) === o.id;
+                    return isCurrent || !isUsed;
                   })}
-                </select>
+                  value={item.statistica?.id || item.statistica || ""} 
+                  onChange={val => onChange(i, 'statistica', val ? parseInt(val, 10) : null)}
+                  placeholder="Seleziona..."
+                />
               </div>
               <div className="w-32">
                 <label className="text-[9px] uppercase text-gray-500 font-black block mb-1">Tipo</label>
