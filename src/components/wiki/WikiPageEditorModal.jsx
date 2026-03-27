@@ -73,7 +73,9 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // Refs per calcolo visivo
   const previewRef = useRef(null);
 
-  // Funzione per estrarre gli ID dei widget usati nel contenuto
+  const getWidgetToken = (item) => String(item?.sync_id || item?.id || '').trim();
+
+  // Funzione per estrarre i token widget usati nel contenuto (id legacy o sync_id UUID)
   const getUsedWidgetIds = () => {
     const content = formData.contenuto || '';
     const usedIds = {
@@ -83,27 +85,27 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
       mattoni: [],
     };
 
-    // Cerca pattern {{WIDGET_TIER:ID}}
-    const tierMatches = content.matchAll(/\{\{WIDGET_TIER:(\d+)\}\}/g);
+    // Cerca pattern {{WIDGET_TIER:TOKEN}}
+    const tierMatches = content.matchAll(/\{\{WIDGET_TIER:([A-Za-z0-9-]+)\}\}/g);
     for (const match of tierMatches) {
-      usedIds.tiers.push(parseInt(match[1]));
+      usedIds.tiers.push(String(match[1]));
     }
 
-    // Cerca pattern {{WIDGET_IMAGE:ID}} o {{WIDGET_IMMAGINE:ID}}
-    const imageMatches = content.matchAll(/\{\{WIDGET_(?:IMAGE|IMMAGINE):(\d+)\}\}/g);
+    // Cerca pattern {{WIDGET_IMAGE:TOKEN}} o {{WIDGET_IMMAGINE:TOKEN}}
+    const imageMatches = content.matchAll(/\{\{WIDGET_(?:IMAGE|IMMAGINE):([A-Za-z0-9-]+)\}\}/g);
     for (const match of imageMatches) {
-      usedIds.images.push(parseInt(match[1]));
+      usedIds.images.push(String(match[1]));
     }
 
-    // Cerca pattern {{WIDGET_BUTTONS:ID}} o {{WIDGET_PULSANTI:ID}}
-    const buttonMatches = content.matchAll(/\{\{WIDGET_(?:BUTTONS|PULSANTI):(\d+)\}\}/g);
+    // Cerca pattern {{WIDGET_BUTTONS:TOKEN}} o {{WIDGET_PULSANTI:TOKEN}}
+    const buttonMatches = content.matchAll(/\{\{WIDGET_(?:BUTTONS|PULSANTI):([A-Za-z0-9-]+)\}\}/g);
     for (const match of buttonMatches) {
-      usedIds.buttons.push(parseInt(match[1]));
+      usedIds.buttons.push(String(match[1]));
     }
 
-    const mattoniMatches = content.matchAll(/\{\{WIDGET_MATTONI:(\d+)\}\}/g);
+    const mattoniMatches = content.matchAll(/\{\{WIDGET_MATTONI:([A-Za-z0-9-]+)\}\}/g);
     for (const match of mattoniMatches) {
-      usedIds.mattoni.push(parseInt(match[1]));
+      usedIds.mattoni.push(String(match[1]));
     }
 
     return usedIds;
@@ -112,8 +114,8 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
   // Funzione per ordinare una lista mettendo prima gli elementi usati
   const sortByUsage = (items, usedIds) => {
     return [...items].sort((a, b) => {
-      const aUsed = usedIds.includes(a.id);
-      const bUsed = usedIds.includes(b.id);
+      const aUsed = usedIds.includes(getWidgetToken(a));
+      const bUsed = usedIds.includes(getWidgetToken(b));
       
       if (aUsed && !bUsed) return -1;
       if (!aUsed && bUsed) return 1;
@@ -187,7 +189,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
       setAvailableImages(updatedList);
       
       // Inserisci automaticamente il widget della nuova immagine
-      insertWidget(`{{WIDGET_IMAGE:${response.id}}}`);
+      insertWidget(`{{WIDGET_IMAGE:${getWidgetToken(response)}}}`);
       
       // Reset form
       setNewImageData({
@@ -613,7 +615,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                             >
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => insertWidget(`{{WIDGET_TIER:${w.id}}}`)}
+                                                                    onClick={() => insertWidget(`{{WIDGET_TIER:${getWidgetToken(w)}}}`)}
                                                                     className="flex-1 flex items-center gap-2 truncate"
                                                                 >
                                                                     <span className={`font-bold truncate ${isUsed ? 'text-green-700' : 'text-gray-700'}`}>
@@ -662,7 +664,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                     <button
                                                         key={tier.id}
                                                         type="button"
-                                                        onClick={() => insertWidget(`{{WIDGET_TIER:${tier.id}}}`)}
+                                                        onClick={() => insertWidget(`{{WIDGET_TIER:${getWidgetToken(tier)}}}`)}
                                                         className={`w-full text-left text-xs p-2 border-b hover:bg-blue-50 flex justify-between items-center ${
                                                             isUsed ? 'bg-green-50 border-l-4 border-green-500' : ''
                                                         }`}
@@ -717,7 +719,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                     >
                                                         <button
                                                             type="button"
-                                                            onClick={() => insertWidget(`{{WIDGET_IMAGE:${img.id}}}`)}
+                                                            onClick={() => insertWidget(`{{WIDGET_IMAGE:${getWidgetToken(img)}}}`)}
                                                             className="flex-1 flex items-center gap-2 truncate"
                                                         >
                                                             <ImageIcon size={14} className={`shrink-0 ${
@@ -788,7 +790,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                     >
                                                         <button
                                                             type="button"
-                                                            onClick={() => insertWidget(`{{WIDGET_BUTTONS:${widget.id}}}`)}
+                                                            onClick={() => insertWidget(`{{WIDGET_BUTTONS:${getWidgetToken(widget)}}}`)}
                                                             className="flex-1 flex items-center gap-2 truncate"
                                                         >
                                                             <MousePointerClick size={14} className={`shrink-0 ${
@@ -895,7 +897,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                                                     >
                                                         <button
                                                             type="button"
-                                                            onClick={() => insertWidget(`{{WIDGET_MATTONI:${w.id}}}`)}
+                                                            onClick={() => insertWidget(`{{WIDGET_MATTONI:${getWidgetToken(w)}}}`)}
                                                             className="flex-1 flex items-center gap-2 truncate"
                                                         >
                                                             <span className={`font-bold group-hover:text-blue-800 truncate ${
@@ -1138,7 +1140,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                 response = await updateWidgetButtons(editingButtonWidget.id, widgetData);
               } else {
                 response = await createWidgetButtons(widgetData);
-                insertWidget(`{{WIDGET_BUTTONS:${response.id}}}`);
+                insertWidget(`{{WIDGET_BUTTONS:${getWidgetToken(response)}}}`);
               }
               const updatedList = await getWidgetButtonsList();
               setAvailableButtonWidgets(updatedList);
@@ -1167,7 +1169,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                 response = await updateWikiTierWidget(existingId, payload);
               } else {
                 response = await createWikiTierWidget(payload);
-                insertWidget(`{{WIDGET_TIER:${response.id}}}`);
+                insertWidget(`{{WIDGET_TIER:${getWidgetToken(response)}}}`);
               }
               const list = await getWikiTierWidgetList();
               setAvailableTierWidgets(list || []);
@@ -1196,7 +1198,7 @@ export default function WikiPageEditorModal({ onClose, onSuccess, initialData = 
                 response = await updateWikiMattoniWidget(existingId, payload);
               } else {
                 response = await createWikiMattoniWidget(payload);
-                insertWidget(`{{WIDGET_MATTONI:${response.id}}}`);
+                insertWidget(`{{WIDGET_MATTONI:${getWidgetToken(response)}}}`);
               }
               const list = await getWikiMattoniWidgetList();
               setAvailableMattoniWidgets(list || []);

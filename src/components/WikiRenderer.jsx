@@ -14,7 +14,7 @@ import WidgetSocial from './wg/WidgetSocial';
 import { WidgetButtonsSlot } from './wg/WidgetButtons';
 import WidgetMattoni from './wg/WidgetMattoni';
 
-const WIDGET_REGEX = /{{WIDGET_([A-Z_]+):(\d+)}}/g;
+const WIDGET_REGEX = /{{WIDGET_([A-Z_]+):([A-Za-z0-9-]+)}}/g;
 
 function renderWidgetByType(type, id, characterValue, navigate) {
   const widget = (() => {
@@ -44,7 +44,7 @@ function renderWidgetByType(type, id, characterValue, navigate) {
 function cleanContent(html) {
   let currentHtml = html;
   let hasChanged = true;
-  const wrapperRegex = /<([a-z][a-z0-9]*)[^>]*>(?:[\s\u00A0]|&nbsp;|<br\/?>)*({{WIDGET_[A-Z_]+:\d+}})(?:[\s\u00A0]|&nbsp;|<br\/?>)*<\/\1>/gi;
+  const wrapperRegex = /<([a-z][a-z0-9]*)[^>]*>(?:[\s\u00A0]|&nbsp;|<br\/?>)*({{WIDGET_[A-Z_]+:[A-Za-z0-9-]+}})(?:[\s\u00A0]|&nbsp;|<br\/?>)*<\/\1>/gi;
   while (hasChanged) {
     const newHtml = currentHtml.replace(wrapperRegex, '$2');
     if (newHtml !== currentHtml) currentHtml = newHtml;

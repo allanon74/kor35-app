@@ -1832,12 +1832,12 @@ export const getWikiAura = (id) => {
 
 // --- WIDGET TIER: usa tier-display (accetta id Tier oppure id plugin CMS) ---
 export const getWikiTier = (id) => {
-  return fetchPublic(`/api/plot/api/wiki/tier-display/${id}/`);
+  return fetchPublic(`/api/plot/api/wiki/tier-display/${encodeURIComponent(String(id))}/`);
 };
 
 // --- WIDGET MATTONI ---
 export const getWikiMattoniWidgetDisplay = (id) => {
-  return fetchPublic(`/api/plot/api/wiki/mattoni-display/${id}/`);
+  return fetchPublic(`/api/plot/api/wiki/mattoni-display/${encodeURIComponent(String(id))}/`);
 };
 
 export const getWikiPunteggi = (tipo) => {
@@ -1900,7 +1900,7 @@ export const updateWikiTierWidget = (id, data, onLogout) => {
 
 // --- WIDGET IMMAGINI WIKI ---
 export const getWikiImage = (id) => {
-  return fetchPublic(`/api/plot/api/public/wiki-immagini/${id}/`);
+  return fetchPublic(`/api/plot/api/wiki/image-display/${encodeURIComponent(String(id))}/`);
 };
 
 export const getWikiImageList = () => {
@@ -1933,7 +1933,7 @@ export const deleteWikiImage = (id, onLogout) => {
 
 // --- WIDGET BUTTONS WIKI ---
 export const getWidgetButtons = (id) => {
-  return fetchPublic(`/api/plot/api/public/wiki-buttons/${id}/`);
+  return fetchPublic(`/api/plot/api/wiki/buttons-display/${encodeURIComponent(String(id))}/`);
 };
 
 export const getWidgetButtonsList = () => {
