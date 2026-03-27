@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { X, Loader2, ChevronDown } from 'lucide-react';
-import { acquireAbilita } from '../api';
 import PunteggioDisplay from './PunteggioDisplay';
+import { useOptimisticAcquireAbilita } from '../hooks/useGameData';
 
 const PREFIX_ARCH = 'archetipo - ';
 const PREFIX_FORMA = 'forma - ';
@@ -140,6 +140,7 @@ export function RazzaModal({
   const [loadingId, setLoadingId] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('archetipo');
+  const acquireMutation = useOptimisticAcquireAbilita();
 
   useEffect(() => {
     if (!isOpen) {
@@ -304,8 +305,9 @@ export function RazzaModal({
     setError(null);
     setLoadingId(trait.id);
     try {
-      await acquireAbilita(trait.id, personaggioId, onLogout);
-      if (onUpdated) await onUpdated();
+      await acquireMutation.mutateAsync({ abilitaId: trait.id, charId: personaggioId });
+      // Riallinea in background con i dati server dopo update ottimistico.
+      if (onUpdated) onUpdated();
     } catch (e) {
       setError(e.message || 'Selezione non consentita.');
     } finally {
