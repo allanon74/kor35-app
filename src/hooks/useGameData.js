@@ -13,6 +13,7 @@ import {
   getShopItems,
   fetchAuthenticated,
   fetchCacheRevision,
+  gameConsumaRisorsa,
   equipaggiaOggetto,
   assemblaOggetto,
   smontaOggetto,
@@ -339,6 +340,26 @@ export const useOptimisticStatChange = () => {
                 statistiche_temporanee: tempStats,
                 statistiche_primarie: updatedPrimaries
             };
+        }
+    );
+};
+
+/** Consumo punti risorsa statistica (Fortuna / altre con is_risorsa_pool). */
+export const useConsumaRisorsa = () => {
+    return useOptimisticAction(
+        ['personaggio'],
+        async ({ charId, statSigla }) => gameConsumaRisorsa(charId, statSigla),
+        (oldData, { statSigla }) => {
+            if (!oldData?.risorse_pool_ui) return oldData;
+            const pools = oldData.risorse_pool_ui.map((p) =>
+                p.sigla === statSigla
+                    ? { ...p, valore_corrente: Math.max(0, (p.valore_corrente || 0) - 1) }
+                    : p
+            );
+            const rc = { ...(oldData.risorse_consumabili || {}) };
+            const row = pools.find((x) => x.sigla === statSigla);
+            if (row) rc[statSigla] = row.valore_corrente;
+            return { ...oldData, risorse_pool_ui: pools, risorse_consumabili: rc };
         }
     );
 };

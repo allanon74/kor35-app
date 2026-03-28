@@ -1665,6 +1665,28 @@ export const staffAddResources = (charId, tipo, amount, reason, onLogout) => {
     }, onLogout);
 };
 
+/** Consuma un punto da una risorsa a pool (es. Fortuna FRT). */
+export const gameConsumaRisorsa = (charId, statSigla, onLogout) =>
+    fetchAuthenticated('/api/personaggi/api/game/consuma_risorsa/', {
+        method: 'POST',
+        body: JSON.stringify({ char_id: charId, stat_sigla: statSigla }),
+    }, onLogout);
+
+/** Staff: elenco personaggi con pool risorse (FRT, …). */
+export const staffGetRisorsePool = (onLogout) =>
+    fetchAuthenticated('/api/personaggi/api/staff/risorse-pool/', { method: 'GET' }, onLogout);
+
+/** Staff: +1 al pool corrente (non oltre il massimo). */
+export const staffIncrementaRisorsaPool = (personaggioId, statSigla, motivo, onLogout) =>
+    fetchAuthenticated('/api/personaggi/api/staff/risorse-pool/incrementa/', {
+        method: 'POST',
+        body: JSON.stringify({
+            personaggio_id: personaggioId,
+            stat_sigla: statSigla,
+            motivo: motivo || '',
+        }),
+    }, onLogout);
+
 /**
  * Recupera le proposte tecniche in stato VALUTAZIONE per lo staff.
  */

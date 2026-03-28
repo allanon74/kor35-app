@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 
 import { 
-    useOptimisticStatChange, 
+    useOptimisticStatChange,
+    useConsumaRisorsa,
 } from '../hooks/useGameData';
 
 import ActiveItemWidget from './ActiveItemWidget'; 
@@ -131,6 +132,39 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     );
 };
 
+const RisorsaPoolWidget = ({ pool, onConsume, isPending }) => {
+    const canConsume = (pool.valore_corrente || 0) >= 1;
+    return (
+        <div className="bg-gray-800 rounded-xl p-3 border border-amber-900/40 shadow-md">
+            <div className="flex justify-between items-start mb-2 gap-2">
+                <span className="text-[10px] font-bold text-amber-200/90 uppercase tracking-widest flex items-center gap-2">
+                    <Sparkles size={12} className="text-amber-400" /> {pool.nome}
+                </span>
+                <button
+                    type="button"
+                    disabled={!canConsume || isPending}
+                    onClick={() => onConsume(pool.sigla)}
+                    className="text-xs font-bold px-2 py-1 rounded bg-amber-900/40 text-amber-100 hover:bg-amber-800/60 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                >
+                    Consuma 1
+                </button>
+            </div>
+            <div className="text-2xl font-black text-white font-mono">
+                {pool.valore_corrente}
+                <span className="text-[10px] text-gray-500 font-normal ml-2">
+                    / max {pool.valore_max}
+                </span>
+            </div>
+            {pool.descrizione ? (
+                <div
+                    className="mt-2 text-[11px] text-gray-400 prose prose-invert prose-sm max-w-none leading-snug"
+                    dangerouslySetInnerHTML={{ __html: pool.descrizione }}
+                />
+            ) : null}
+        </div>
+    );
+};
+
 const ChakraWidget = ({ current, max, onChange }) => {
     return (
         <div className="bg-gray-800 rounded-xl p-3 border border-gray-700 shadow-md">
@@ -191,6 +225,7 @@ const GameTab = ({ onNavigate }) => {
     const [favorites, setFavorites] = useState([]);
     
     const statMutation = useOptimisticStatChange();
+    const risorsaMutation = useConsumaRisorsa();
 
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
@@ -379,6 +414,28 @@ const GameTab = ({ onNavigate }) => {
                 <div className="flex flex-col gap-4">
                     <DamageControlPanel stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onChange={handleStatChange} />
                     {(maxChakra > 0) && <ChakraWidget current={tacticalStats['CHK_CUR']} max={maxChakra} onChange={handleStatChange} />}
+                    {(char.risorse_pool_ui || []).filter((p) => p.valore_max > 0).map((pool) => (
+                        <RisorsaPoolWidget
+                            key={pool.sigla}
+                            pool={pool}
+                            isPending={risorsaMutation.isPending}
+                            onConsume={(sigla) =>
+                                risorsaMutation.mutate({ charId: char.id, statSigla: sigla })
+                            }
+                        />
+                    ))}
+                    {Array.isArray(char.effetti_risorsa_attivi) && char.effetti_risorsa_attivi.length > 0 && (
+                        <div className="bg-gray-900/50 rounded-lg p-2 border border-gray-700 text-[10px] text-gray-400">
+                            <span className="font-bold text-gray-500 uppercase tracking-wider">Effetti risorsa attivi</span>
+                            <ul className="mt-1 space-y-1">
+                                {char.effetti_risorsa_attivi.map((e) => (
+                                    <li key={e.id} className="font-mono text-gray-300">
+                                        {e.abilita_nome || 'Effetto'} · fino a {new Date(e.scadenza).toLocaleString()}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             </div>
 
