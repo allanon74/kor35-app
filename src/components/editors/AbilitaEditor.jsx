@@ -21,7 +21,9 @@ const EMPTY_ABILITA_FORM = {
     punteggi_assegnati: [],
     punteggi_dipendenti: [],
     prerequisiti: [],
-    statistiche: []
+    statistiche: [],
+    effetto_uso_risorsa_str: '',
+    recupero_risorsa_str: '',
 };
 
 /** La lista staff restituisce righe senza relazioni annidate: senza merge, .map sugli inline va in errore. */
@@ -38,6 +40,14 @@ function mergeAbilitaFormState(initialData) {
         punteggi_dipendenti: Array.isArray(initialData.punteggi_dipendenti) ? initialData.punteggi_dipendenti : [],
         prerequisiti: Array.isArray(initialData.prerequisiti) ? initialData.prerequisiti : [],
         statistiche: Array.isArray(initialData.statistiche) ? initialData.statistiche : [],
+        effetto_uso_risorsa_str:
+            initialData.effetto_uso_risorsa != null
+                ? JSON.stringify(initialData.effetto_uso_risorsa, null, 2)
+                : '',
+        recupero_risorsa_str:
+            initialData.recupero_risorsa != null
+                ? JSON.stringify(initialData.recupero_risorsa, null, 2)
+                : '',
     };
 }
 
@@ -91,14 +101,41 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
 
     const handleSave = async () => {
         try {
+            let effetto_uso_risorsa = null;
+            let recupero_risorsa = null;
+            try {
+                const t = (formData.effetto_uso_risorsa_str || '').trim();
+                if (t) effetto_uso_risorsa = JSON.parse(t);
+            } catch {
+                alert('JSON non valido in «Effetto all\'uso risorsa» (pool Fortuna / …).');
+                return;
+            }
+            try {
+                const t = (formData.recupero_risorsa_str || '').trim();
+                if (t) recupero_risorsa = JSON.parse(t);
+            } catch {
+                alert('JSON non valido in «Recupero risorsa».');
+                return;
+            }
+
             const tiers = formData.tiers || [];
             const requisiti = formData.requisiti || [];
             const punteggiAssegnati = formData.punteggi_assegnati || [];
             const punteggiDipendenti = formData.punteggi_dipendenti || [];
             const prerequisiti = formData.prerequisiti || [];
 
+            const {
+                effetto_uso_risorsa_str: _s1,
+                recupero_risorsa_str: _s2,
+                effetto_uso_risorsa: _o1,
+                recupero_risorsa: _o2,
+                ...formRest
+            } = formData;
+
             const payload = {
-                ...formData,
+                ...formRest,
+                effetto_uso_risorsa,
+                recupero_risorsa,
                 caratteristica: formData.caratteristica ? parseInt(formData.caratteristica) : null,
                 caratteristica_2: formData.caratteristica_2 ? parseInt(formData.caratteristica_2) : null,
                 caratteristica_3: formData.caratteristica_3 ? parseInt(formData.caratteristica_3) : null,
@@ -275,6 +312,92 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                         <RichTextEditor 
                             value={formData.descrizione || ''} 
                             onChange={(val) => setFormData({...formData, descrizione: val})} 
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Pool risorse statistiche (Fortuna FRT, …) */}
+            <div className="mt-8 p-5 rounded-xl border border-amber-900/40 bg-amber-950/20 space-y-4">
+                <h3 className="text-sm font-bold text-amber-200 uppercase tracking-wide">Risorse pool (Fortuna / altre)</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                    Opzionale. Inserisci JSON valido: al salvataggio viene controllato; campi vuoti = nessuna regola.
+                </p>
+
+                <details className="group rounded-lg border border-gray-700 bg-gray-950/60 text-left">
+                    <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-amber-100/95 uppercase tracking-wide flex items-center justify-between gap-2">
+                        <span>Come compilare questi campi</span>
+                        <span className="text-gray-500 font-normal normal-case">clic per aprire</span>
+                    </summary>
+                    <div className="px-4 pb-4 pt-0 space-y-4 text-xs text-gray-300 leading-relaxed border-t border-gray-800/80">
+                        <p>
+                            Le <strong className="text-gray-200">statistiche “pool”</strong> (es. Fortuna, sigla{' '}
+                            <code className="text-amber-200/90">FRT</code>) vanno marcate nel database come risorsa a pool;
+                            il massimo in scheda è il tetto, il giocatore consuma punti dal tab Gioco.
+                        </p>
+
+                        <div>
+                            <p className="font-bold text-gray-200 mb-1">1. Effetto all&apos;uso risorsa</p>
+                            <p className="mb-2">
+                                Si applica quando un personaggio che <strong>possiede questa abilità</strong> consuma{' '}
+                                <strong>un punto</strong> della risorsa indicata in <code className="text-amber-200/90">stat_sigla</code>.
+                                Possono essere attivi più effetti se più abilità definiscono regole sulla stessa risorsa.
+                            </p>
+                            <ul className="list-disc pl-4 space-y-1 text-gray-400">
+                                <li>
+                                    <code className="text-gray-200">stat_sigla</code>: sigla della statistica pool (es.{' '}
+                                    <code>FRT</code>).
+                                </li>
+                                <li>
+                                    <code className="text-gray-200">durata</code>: fine dell&apos;effetto temporaneo su altre stat —{' '}
+                                    <code>O1H</code> un&apos;ora, <code>DAY</code> fino a fine giornata (orario locale),{' '}
+                                    <code>EVT</code> fino alla fine dell&apos;evento in corso (se nessun evento attivo, fallback breve).
+                                </li>
+                                <li>
+                                    <code className="text-gray-200">modifiche</code>: array di bonus/malusi temporanei. Ogni voce:{' '}
+                                    <code>stat_sigla</code> (statistica modificata, es. <code>PV</code>),{' '}
+                                    <code>valore</code> (numero), <code>tipo_modificatore</code>: <code>ADD</code> additivo o{' '}
+                                    <code>MOL</code> moltiplicativo (come altrove nel sistema).
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <p className="font-bold text-gray-200 mb-1">2. Recupero risorsa</p>
+                            <p>
+                                Serve a <strong>documentare</strong> regole tipo “recuperi un punto a fine evento / a fine anno di
+                                gioco”. Il motore può usarle in futuro per automatismi; oggi lo staff può comunque aggiungere
+                                punti dalla tab <strong>Risorse pool</strong>. Usa chiavi coerenti, es.{' '}
+                                <code className="text-amber-200/90">quando</code>: <code>FINE_EVENTO</code> o{' '}
+                                <code>FINE_ANNO_GIOCO</code>, e <code>stat_sigla</code> (es. <code>FRT</code>).
+                            </p>
+                        </div>
+                    </div>
+                </details>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-xs text-gray-500 uppercase font-bold block mb-1">
+                            Effetto all&apos;uso risorsa (JSON)
+                        </label>
+                        <textarea
+                            className="w-full min-h-[140px] bg-gray-950 border border-gray-700 rounded p-3 text-sm font-mono text-gray-200"
+                            spellCheck={false}
+                            placeholder={`{\n  "stat_sigla": "FRT",\n  "durata": "O1H",\n  "modifiche": [\n    { "stat_sigla": "PV", "valore": 1, "tipo_modificatore": "ADD" }\n  ]\n}`}
+                            value={formData.effetto_uso_risorsa_str}
+                            onChange={(e) => setFormData({ ...formData, effetto_uso_risorsa_str: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-gray-500 uppercase font-bold block mb-1">
+                            Recupero risorsa (JSON)
+                        </label>
+                        <textarea
+                            className="w-full min-h-[140px] bg-gray-950 border border-gray-700 rounded p-3 text-sm font-mono text-gray-200"
+                            spellCheck={false}
+                            placeholder={`{\n  "stat_sigla": "FRT",\n  "quando": "FINE_EVENTO"\n}`}
+                            value={formData.recupero_risorsa_str}
+                            onChange={(e) => setFormData({ ...formData, recupero_risorsa_str: e.target.value })}
                         />
                     </div>
                 </div>
