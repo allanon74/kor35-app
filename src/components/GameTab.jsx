@@ -143,8 +143,17 @@ const RisorsaPoolWidget = ({ pool, onConsume, isPending }) => {
                 <button
                     type="button"
                     disabled={!canConsume || isPending}
-                    onClick={() => onConsume(pool.sigla)}
-                    className="text-xs font-bold px-2 py-1 rounded bg-amber-900/40 text-amber-100 hover:bg-amber-800/60 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    onClick={() => {
+                        if (
+                            !window.confirm(
+                                `Consumare 1 punto di ${pool.nome} (${pool.sigla})? I punti non si recuperano da soli salvo regole speciali.`
+                            )
+                        ) {
+                            return;
+                        }
+                        onConsume(pool.sigla);
+                    }}
+                    className="text-sm font-bold px-4 py-2.5 min-h-[44px] rounded-lg bg-amber-900/40 text-amber-100 hover:bg-amber-800/60 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                 >
                     Consuma 1
                 </button>
