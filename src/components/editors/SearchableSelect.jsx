@@ -3,62 +3,103 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, X, Check } from 'lucide-react';
 import { useDebounce } from '../../hooks/useDebounce';
 
-const SearchableSelect = memo(({ 
-    options = [], 
-    value, 
-    onChange, 
-    placeholder = "Seleziona...", 
-    labelKey = "nome", 
-    valueKey = "id",
-    disabled = false
+/** Sotto questa soglia si usa un `<select>` nativo (liste corte, UX più immediata). */
+export const DEFAULT_MIN_OPTIONS_FOR_SEARCH = 12;
+
+const NativeSelect = memo(({
+    options = [],
+    value,
+    onChange,
+    placeholder = 'Seleziona...',
+    labelKey = 'nome',
+    valueKey = 'id',
+    disabled = false,
+    className = '',
+}) => {
+    const sorted = useMemo(
+        () =>
+            [...options].sort((a, b) =>
+                String(a[labelKey] || '').localeCompare(String(b[labelKey] || ''))
+            ),
+        [options, labelKey]
+    );
+
+    return (
+        <select
+            className={`w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+            value={value === null || value === undefined ? '' : String(value)}
+            disabled={disabled}
+            onChange={(e) => {
+                const v = e.target.value;
+                if (v === '') {
+                    onChange(null);
+                    return;
+                }
+                const parsed = parseInt(v, 10);
+                onChange(Number.isNaN(parsed) ? v : parsed);
+            }}
+        >
+            <option value="">{placeholder}</option>
+            {sorted.map((opt) => (
+                <option key={opt[valueKey]} value={String(opt[valueKey])}>
+                    {opt[labelKey]}
+                </option>
+            ))}
+        </select>
+    );
+});
+
+NativeSelect.displayName = 'NativeSelect';
+
+const SearchableDropdown = memo(({
+    options = [],
+    value,
+    onChange,
+    placeholder = 'Seleziona...',
+    labelKey = 'nome',
+    valueKey = 'id',
+    disabled = false,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState("");
+    const [searchTerm, setSearchTerm] = useState('');
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
     const [uniqueId] = useState(() => `searchable-${Math.random().toString(36).substr(2, 9)}`);
     const wrapperRef = useRef(null);
     const triggerRef = useRef(null);
-    
-    // Debounce del search term per migliorare le performance
+
     const debouncedSearchTerm = useDebounce(searchTerm, 200);
 
-    // 1. Trova l'oggetto selezionato attualmente (memoized)
-    const selectedItem = useMemo(() => 
-        options.find(opt => String(opt[valueKey]) === String(value)),
+    const selectedItem = useMemo(
+        () => options.find((opt) => String(opt[valueKey]) === String(value)),
         [options, value, valueKey]
     );
 
-    // 2. Filtra e Ordina le opzioni (con debounce)
     const filteredOptions = useMemo(() => {
         return options
-            .filter(opt => {
-                const label = opt[labelKey] || "";
+            .filter((opt) => {
+                const label = opt[labelKey] || '';
                 return label.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
             })
-            .sort((a, b) => (a[labelKey] || "").localeCompare(b[labelKey] || ""));
+            .sort((a, b) => (a[labelKey] || '').localeCompare(b[labelKey] || ''));
     }, [options, debouncedSearchTerm, labelKey]);
 
-    // Gestione click fuori per chiudere
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                // Controlla anche se il click è sul dropdown (che è nel portal)
                 const dropdownElement = document.getElementById(`dropdown-${uniqueId}`);
                 if (!dropdownElement || !dropdownElement.contains(event.target)) {
                     setIsOpen(false);
                 }
             }
         };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [uniqueId]);
 
-    // Reset della ricerca quando si chiude/apre
     useEffect(() => {
-        if (!isOpen) setSearchTerm("");
+        if (!isOpen) setSearchTerm('');
     }, [isOpen]);
 
-    // Calcola posizione dropdown quando si apre
     useEffect(() => {
         if (isOpen && triggerRef.current) {
             const updatePosition = () => {
@@ -66,16 +107,15 @@ const SearchableSelect = memo(({
                 setDropdownPosition({
                     top: rect.bottom + window.scrollY + 4,
                     left: rect.left + window.scrollX,
-                    width: rect.width
+                    width: rect.width,
                 });
             };
-            
+
             updatePosition();
-            
-            // Aggiorna posizione su scroll/resize
+
             window.addEventListener('scroll', updatePosition, true);
             window.addEventListener('resize', updatePosition);
-            
+
             return () => {
                 window.removeEventListener('scroll', updatePosition, true);
                 window.removeEventListener('resize', updatePosition);
@@ -86,7 +126,7 @@ const SearchableSelect = memo(({
     const handleSelect = (item) => {
         onChange(item[valueKey]);
         setIsOpen(false);
-        setSearchTerm("");
+        setSearchTerm('');
     };
 
     const clearSelection = (e) => {
@@ -96,8 +136,7 @@ const SearchableSelect = memo(({
 
     return (
         <div className="relative w-full" ref={wrapperRef}>
-            {/* INPUT / TRIGGER */}
-            <div 
+            <div
                 ref={triggerRef}
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`
@@ -106,14 +145,14 @@ const SearchableSelect = memo(({
                 `}
             >
                 {isOpen ? (
-                    <input 
+                    <input
                         autoFocus
-                        type="text" 
+                        type="text"
                         className="bg-transparent outline-none w-full text-white placeholder-gray-500"
                         placeholder="Cerca..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        onClick={(e) => e.stopPropagation()} 
+                        onClick={(e) => e.stopPropagation()}
                     />
                 ) : (
                     <span className={`truncate ${!selectedItem ? 'text-gray-500 italic' : ''}`}>
@@ -123,7 +162,7 @@ const SearchableSelect = memo(({
 
                 <div className="flex items-center gap-1 shrink-0 ml-2">
                     {selectedItem && !disabled && !isOpen && (
-                        <button onClick={clearSelection} className="text-gray-500 hover:text-red-400 p-0.5">
+                        <button type="button" onClick={clearSelection} className="text-gray-500 hover:text-red-400 p-0.5">
                             <X size={14} />
                         </button>
                     )}
@@ -131,45 +170,88 @@ const SearchableSelect = memo(({
                 </div>
             </div>
 
-            {/* DROPDOWN MENU - Renderizzato con Portal per evitare overflow issues */}
-            {isOpen && createPortal(
-                <div 
-                    id={`dropdown-${uniqueId}`}
-                    className="fixed z-50 bg-gray-900 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
-                    style={{
-                        top: `${dropdownPosition.top}px`,
-                        left: `${dropdownPosition.left}px`,
-                        width: `${dropdownPosition.width}px`
-                    }}
-                >
-                    {filteredOptions.length > 0 ? (
-                        filteredOptions.map(opt => {
-                            const isSelected = String(opt[valueKey]) === String(value);
-                            return (
-                                <div 
-                                    key={opt[valueKey]} 
-                                    onClick={() => handleSelect(opt)}
-                                    className={`
+            {isOpen &&
+                createPortal(
+                    <div
+                        id={`dropdown-${uniqueId}`}
+                        className="fixed z-50 bg-gray-900 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar"
+                        style={{
+                            top: `${dropdownPosition.top}px`,
+                            left: `${dropdownPosition.left}px`,
+                            width: `${dropdownPosition.width}px`,
+                        }}
+                    >
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((opt) => {
+                                const isSelected = String(opt[valueKey]) === String(value);
+                                return (
+                                    <div
+                                        key={opt[valueKey]}
+                                        onClick={() => handleSelect(opt)}
+                                        className={`
                                         px-3 py-2 text-sm cursor-pointer flex justify-between items-center border-b border-gray-800 last:border-0
                                         ${isSelected ? 'bg-indigo-900/40 text-indigo-200 font-bold' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}
                                     `}
-                                >
-                                    <span>{opt[labelKey]}</span>
-                                    {isSelected && <Check size={14} className="text-indigo-400" />}
-                                </div>
-                            );
-                        })
-                    ) : (
-                        <div className="p-3 text-center text-gray-500 text-xs italic">
-                            Nessun risultato.
-                        </div>
-                    )}
-                </div>,
-                document.body
-            )}
+                                    >
+                                        <span>{opt[labelKey]}</span>
+                                        {isSelected && <Check size={14} className="text-indigo-400" />}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="p-3 text-center text-gray-500 text-xs italic">Nessun risultato.</div>
+                        )}
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 });
+
+SearchableDropdown.displayName = 'SearchableDropdown';
+
+const SearchableSelect = memo(
+    ({
+        options = [],
+        value,
+        onChange,
+        placeholder = 'Seleziona...',
+        labelKey = 'nome',
+        valueKey = 'id',
+        disabled = false,
+        minOptionsForSearch = DEFAULT_MIN_OPTIONS_FOR_SEARCH,
+        className = '',
+    }) => {
+        const useNative = options.length <= minOptionsForSearch;
+
+        if (useNative) {
+            return (
+                <NativeSelect
+                    options={options}
+                    value={value}
+                    onChange={onChange}
+                    placeholder={placeholder}
+                    labelKey={labelKey}
+                    valueKey={valueKey}
+                    disabled={disabled}
+                    className={className}
+                />
+            );
+        }
+
+        return (
+            <SearchableDropdown
+                options={options}
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                labelKey={labelKey}
+                valueKey={valueKey}
+                disabled={disabled}
+            />
+        );
+    }
+);
 
 SearchableSelect.displayName = 'SearchableSelect';
 
