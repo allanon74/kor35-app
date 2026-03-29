@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'; 
+import React, { useState, useEffect, useMemo, useRef } from 'react'; 
 import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
@@ -13,8 +13,62 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
+/** Etichetta rango difesa: testo piccolo + evidenziazione quando il valore sale */
+const RankDefLabel = ({ x, y, abbr, defenseLabel, rankValue, bump, fill, textAnchor = 'middle' }) => {
+    if (rankValue === undefined || rankValue === null) return null;
+    return (
+        <text
+            x={x}
+            y={y}
+            fill={fill}
+            fontSize="7"
+            textAnchor={textAnchor}
+            pointerEvents="none"
+            className={`transition-all duration-300 ${bump ? 'rank-def-bump' : ''}`}
+        >
+            <tspan fontWeight="bold">{abbr}</tspan>
+            <tspan fontWeight="normal"> · {defenseLabel}: rango </tspan>
+            <tspan fontWeight="bold">{rankValue}</tspan>
+        </text>
+    );
+};
+
 // --- WIDGET DANNI (corpo delocalizzato: PV singolo) ---
-const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
+const BodyDamageWidget = ({
+    stats,
+    maxHp,
+    maxArmor,
+    maxShell,
+    rankPV,
+    rankArmor,
+    rankShell,
+    characterId,
+    onHit,
+}) => {
+    const prevRanksRef = useRef({});
+    const [rankBump, setRankBump] = useState({});
+
+    useEffect(() => {
+        prevRanksRef.current = {};
+    }, [characterId]);
+
+    useEffect(() => {
+        const pairs = [
+            ['RPV', rankPV],
+            ['RPA', rankArmor],
+            ['RPG', rankShell],
+        ];
+        pairs.forEach(([key, v]) => {
+            if (v === undefined || v === null) return;
+            const p = prevRanksRef.current[key];
+            if (p !== undefined && p !== null && Number(v) > Number(p)) {
+                setRankBump((b) => ({ ...b, [key]: true }));
+                window.setTimeout(() => setRankBump((b) => ({ ...b, [key]: false })), 1000);
+            }
+            prevRanksRef.current[key] = v;
+        });
+    }, [rankPV, rankArmor, rankShell]);
+
     const getZoneColor = (current) => {
         if (current <= 0) return '#ef4444';
         if (current < maxHp / 2) return '#eab308';
@@ -26,8 +80,16 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
     const shellOpacity = maxShell > 0 ? (stats['PS_CUR'] / maxShell) : 0;
 
     return (
-        <div className="relative w-full max-w-[300px] mx-auto select-none">
-            <svg viewBox="0 0 200 330" className="w-full h-full drop-shadow-2xl">
+        <div className="relative w-full max-w-[260px] mx-auto select-none">
+            <style>{`
+                .rank-def-bump { animation: rankDefGlow 1s ease-out; }
+                @keyframes rankDefGlow {
+                    0% { filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0)); }
+                    35% { filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.95)); }
+                    100% { filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0)); }
+                }
+            `}</style>
+            <svg viewBox="0 0 200 348" className="w-full h-full drop-shadow-2xl">
                 <defs>
                     <filter id="glow-shell" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -36,49 +98,54 @@ const BodyDamageWidget = ({ stats, maxHp, maxArmor, maxShell, onHit }) => {
                 </defs>
 
                 {/* LAYER 1: GUSCIO (PS) */}
-                <g 
-                    opacity={Math.max(0.1, shellOpacity)} 
+                <g
+                    opacity={Math.max(0.1, shellOpacity)}
                     className="transition-all duration-500"
                     style={{ pointerEvents: maxShell > 0 ? 'auto' : 'none', cursor: maxShell > 0 ? 'pointer' : 'default' }}
                     onClick={() => maxShell > 0 && onHit('PS_CUR', maxShell)}
                     filter="url(#glow-shell)"
                 >
                     <ellipse cx="100" cy="165" rx="95" ry="155" fill="transparent" stroke="#8b5cf6" strokeWidth="3" strokeDasharray={shellOpacity === 0 ? "4 4" : "0"} />
-                    {maxShell > 0 && <text x="100" y="18" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
+                    {maxShell > 0 && <text x="100" y="16" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
+                    <RankDefLabel x="100" y="26" abbr="RPG" defenseLabel="guscio" rankValue={rankShell} bump={rankBump.RPG} fill="#c4b5fd" />
                 </g>
 
                 {/* LAYER 2: ARMATURA (PA) */}
-                <g 
-                    opacity={Math.max(0.1, armorOpacity)} 
+                <g
+                    opacity={Math.max(0.1, armorOpacity)}
                     className="transition-all duration-500"
                     style={{ pointerEvents: maxArmor > 0 ? 'auto' : 'none', cursor: maxArmor > 0 ? 'pointer' : 'default' }}
                     onClick={() => maxArmor > 0 && onHit('PA_CUR', maxArmor)}
                 >
                     <path d="M100,20 C135,20 170,60 170,165 C170,260 145,315 100,315 C55,315 30,260 30,165 C30,60 65,20 100,20 Z" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" strokeDasharray={armorOpacity === 0 ? "2 2" : "0"} />
-                    {maxArmor > 0 && <text x="100" y="325" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
+                    {maxArmor > 0 && <text x="100" y="327" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
+                    <RankDefLabel x="100" y="339" abbr="RPA" defenseLabel="armatura" rankValue={rankArmor} bump={rankBump.RPA} fill="#6ee7b7" />
                 </g>
 
-                {/* LAYER 3: CORPO */}
+                {/* LAYER 3: CORPO (ominio rimpicciolito — armatura/guscio invariati sopra e sotto) */}
                 <g className="filter drop-shadow-md">
-                    <g onClick={() => onHit('PV_CUR', maxHp)} className="cursor-pointer transition-all">
-                        {/* Testa */}
-                        <circle cx="100" cy="25" r="20" fill={getZoneColor(stats['PV_CUR'])} stroke="#e5e7eb" strokeWidth="2" />
-                        {/* Collo */}
-                        <rect x="88" y="42" width="24" height="16" rx="4" fill={getZoneColor(stats['PV_CUR'])} stroke="#e5e7eb" strokeWidth="1.5" />
-                        {/* Tronco */}
-                        <path d="M68,58 L68,100 L94,106 L106,106 L132,100 L132,58 L116,52 L84,52 Z M68,100 L74,155 L88,162 L112,162 L126,155 L132,100 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                        {/* Braccia */}
-                        <path d="M132,58 L142,64 L150,82 L154,105 L156,130 L157,158 L154,162 L146,160 L144,130 L140,105 L134,76 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                        <path d="M68,58 L58,64 L50,82 L46,105 L44,130 L43,158 L46,162 L54,160 L56,130 L60,105 L66,76 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                        {/* Gambe */}
-                        <path d="M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                        <path d="M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                        <text x="100" y="170" fill="white" fontSize="22" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
-                            {stats['PV_CUR']}
-                        </text>
-                        <text x="100" y="188" fill="#e5e7eb" fontSize="9" textAnchor="middle" pointerEvents="none" fontWeight="bold">
-                            PV
-                        </text>
+                    <g transform="translate(100,168) scale(0.66) translate(-100,-168)">
+                        <g onClick={() => onHit('PV_CUR', maxHp)} className="cursor-pointer transition-all">
+                            {/* Testa */}
+                            <circle cx="100" cy="25" r="20" fill={getZoneColor(stats['PV_CUR'])} stroke="#e5e7eb" strokeWidth="2" />
+                            {/* Collo */}
+                            <rect x="88" y="42" width="24" height="16" rx="4" fill={getZoneColor(stats['PV_CUR'])} stroke="#e5e7eb" strokeWidth="1.5" />
+                            {/* Tronco */}
+                            <path d="M68,58 L68,100 L94,106 L106,106 L132,100 L132,58 L116,52 L84,52 Z M68,100 L74,155 L88,162 L112,162 L126,155 L132,100 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                            {/* Braccia */}
+                            <path d="M132,58 L142,64 L150,82 L154,105 L156,130 L157,158 L154,162 L146,160 L144,130 L140,105 L134,76 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                            <path d="M68,58 L58,64 L50,82 L46,105 L44,130 L43,158 L46,162 L54,160 L56,130 L60,105 L66,76 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                            {/* Gambe */}
+                            <path d="M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                            <path d="M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
+                            <text x="100" y="168" fill="white" fontSize="22" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
+                                {stats['PV_CUR']}
+                            </text>
+                            <text x="100" y="186" fill="#e5e7eb" fontSize="9" textAnchor="middle" pointerEvents="none" fontWeight="bold">
+                                PV
+                            </text>
+                            <RankDefLabel x="100" y="198" abbr="RPV" defenseLabel="punti vita" rankValue={rankPV} bump={rankBump.RPV} fill="#93c5fd" />
+                        </g>
                     </g>
                 </g>
             </svg>
@@ -383,10 +450,18 @@ const GameTab = ({ onNavigate }) => {
     if (!char) return <div className="p-8 text-center text-white">Caricamento...</div>;
 
     // Statistiche Tattiche
-    const maxHP = char.statistiche_primarie?.find(x => x.sigla === 'PV')?.valore_max || 0;
-    const maxArmor = char.statistiche_primarie?.find(x => x.sigla === 'PA')?.valore_max || 0;
-    const maxShell = char.statistiche_primarie?.find(x => x.sigla === 'PS')?.valore_max || 0;
-    const maxChakra = char.statistiche_primarie?.find(x => x.sigla === 'CHA')?.valore_max || 1;
+    const primary = char.statistiche_primarie || [];
+    const maxHP = primary.find((x) => x.sigla === 'PV')?.valore_max || 0;
+    const maxArmor = primary.find((x) => x.sigla === 'PA')?.valore_max || 0;
+    const maxShell = primary.find((x) => x.sigla === 'PS')?.valore_max || 0;
+    const maxChakra = primary.find((x) => x.sigla === 'CHA')?.valore_max || 1;
+    const pickPrimaryRank = (sigla) => {
+        const e = primary.find((x) => x.sigla === sigla);
+        return e?.valore_corrente ?? e?.valore_max;
+    };
+    const rankPV = pickPrimaryRank('RPV');
+    const rankArmor = pickPrimaryRank('RPA');
+    const rankShell = pickPrimaryRank('RPG');
 
     const tempStats = char.statistiche_temporanee || {};
     const tacticalStats = {
@@ -397,12 +472,12 @@ const GameTab = ({ onNavigate }) => {
     };
 
     // Logica Capacità
-    const statCog = char.statistiche_primarie?.find(s => s.sigla === 'COG');
+    const statCog = primary.find((s) => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
     const capacityConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
     const capacityUsed = capacityConsumers.length;
     
-    const statOgp = char.statistiche_primarie?.find(s => s.sigla === 'OGP');
+    const statOgp = primary.find((s) => s.sigla === 'OGP');
     const heavyMax = statOgp ? statOgp.valore_max : 0;
     const heavyConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.is_pesante);
     const heavyUsed = heavyConsumers.length;
@@ -418,7 +493,17 @@ const GameTab = ({ onNavigate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 shadow-lg flex flex-col items-center">
                     <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold w-full flex items-center gap-2"><Activity size={12} /> Status Fisico</h3>
-                    <BodyDamageWidget stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onHit={(id, max) => handleStatChange(id, 'consuma', max)} />
+                    <BodyDamageWidget
+                        stats={tacticalStats}
+                        maxHp={maxHP}
+                        maxArmor={maxArmor}
+                        maxShell={maxShell}
+                        rankPV={rankPV}
+                        rankArmor={rankArmor}
+                        rankShell={rankShell}
+                        characterId={char.id}
+                        onHit={(id, max) => handleStatChange(id, 'consuma', max)}
+                    />
                 </div>
                 <div className="flex flex-col gap-4">
                     <DamageControlPanel stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onChange={handleStatChange} />
