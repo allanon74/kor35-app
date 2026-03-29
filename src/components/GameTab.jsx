@@ -14,7 +14,7 @@ import {
 import ActiveItemWidget from './ActiveItemWidget'; 
 
 /** Etichetta rango difesa: resa visiva stabile in base al livello */
-const RankDefLabel = ({ x, y, rankValue, fill, textAnchor = 'middle' }) => {
+const RankDefLabel = ({ x, y, rankValue, fill, fontSize = '9', textAnchor = 'middle' }) => {
     if (rankValue === undefined || rankValue === null) return null;
     const rankNum = Number(rankValue) || 0;
     const rankStyle =
@@ -30,7 +30,7 @@ const RankDefLabel = ({ x, y, rankValue, fill, textAnchor = 'middle' }) => {
             x={x}
             y={y}
             fill={fill}
-            fontSize="8.5"
+            fontSize={fontSize}
             textAnchor={textAnchor}
             pointerEvents="none"
             className="transition-all duration-300"
@@ -82,8 +82,8 @@ const BodyDamageWidget = ({
                     filter="url(#glow-shell)"
                 >
                     <ellipse cx="100" cy="165" rx="95" ry="155" fill="transparent" stroke="#8b5cf6" strokeWidth="3" strokeDasharray={shellOpacity === 0 ? "4 4" : "0"} />
-                    {maxShell > 0 && <text x="100" y="16" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
-                    <RankDefLabel x="100" y="26" rankValue={rankShell} fill="#c4b5fd" />
+                    {maxShell > 0 && <text x="100" y="16" fill="#a78bfa" fontSize="11" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
+                    <RankDefLabel x="100" y="26" rankValue={rankShell} fill="#c4b5fd" fontSize="9" />
                 </g>
 
                 {/* LAYER 2: ARMATURA (PA) */}
@@ -94,8 +94,8 @@ const BodyDamageWidget = ({
                     onClick={() => maxArmor > 0 && onHit('PA_CUR', maxArmor)}
                 >
                     <path d="M100,20 C135,20 170,60 170,165 C170,260 145,315 100,315 C55,315 30,260 30,165 C30,60 65,20 100,20 Z" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" strokeDasharray={armorOpacity === 0 ? "2 2" : "0"} />
-                    {maxArmor > 0 && <text x="100" y="327" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
-                    <RankDefLabel x="100" y="339" rankValue={rankArmor} fill="#6ee7b7" />
+                    {maxArmor > 0 && <text x="100" y="327" fill="#34d399" fontSize="11" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
+                    <RankDefLabel x="100" y="339" rankValue={rankArmor} fill="#6ee7b7" fontSize="9" />
                 </g>
 
                 {/* LAYER 3: CORPO (ominio rimpicciolito — armatura/guscio invariati sopra e sotto) */}
@@ -117,10 +117,10 @@ const BodyDamageWidget = ({
                             <text x="100" y="168" fill="white" fontSize="24" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
                                 {stats['PV_CUR']}
                             </text>
-                            <text x="100" y="186" fill="#e5e7eb" fontSize="9" textAnchor="middle" pointerEvents="none" fontWeight="bold">
+                            <text x="100" y="186" fill="#e5e7eb" fontSize="11" textAnchor="middle" pointerEvents="none" fontWeight="bold">
                                 PV
                             </text>
-                            <RankDefLabel x="100" y="198" rankValue={rankPV} fill="#93c5fd" />
+                            <RankDefLabel x="100" y="198" rankValue={rankPV} fill="#93c5fd" fontSize="10" />
                         </g>
                     </g>
                 </g>
