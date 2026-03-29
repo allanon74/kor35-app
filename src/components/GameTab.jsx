@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'; 
+import React, { useState, useEffect, useMemo } from 'react'; 
 import { useCharacter } from './CharacterContext';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
@@ -13,22 +13,30 @@ import {
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
-/** Etichetta rango difesa: testo piccolo + evidenziazione quando il valore sale */
-const RankDefLabel = ({ x, y, abbr, defenseLabel, rankValue, bump, fill, textAnchor = 'middle' }) => {
+/** Etichetta rango difesa: resa visiva stabile in base al livello */
+const RankDefLabel = ({ x, y, rankValue, fill, textAnchor = 'middle' }) => {
     if (rankValue === undefined || rankValue === null) return null;
+    const rankNum = Number(rankValue) || 0;
+    const rankStyle =
+        rankNum >= 4
+            ? { filter: 'drop-shadow(0 0 7px rgba(250, 204, 21, 0.95))', opacity: 1 }
+            : rankNum >= 3
+                ? { filter: 'drop-shadow(0 0 5px rgba(250, 204, 21, 0.75))', opacity: 1 }
+                : rankNum >= 2
+                    ? { filter: 'drop-shadow(0 0 3px rgba(255, 255, 255, 0.55))', opacity: 0.96 }
+                    : { opacity: 0.84 };
     return (
         <text
             x={x}
             y={y}
             fill={fill}
-            fontSize="7"
+            fontSize="8.5"
             textAnchor={textAnchor}
             pointerEvents="none"
-            className={`transition-all duration-300 ${bump ? 'rank-def-bump' : ''}`}
+            className="transition-all duration-300"
+            style={rankStyle}
         >
-            <tspan fontWeight="bold">{abbr}</tspan>
-            <tspan fontWeight="normal"> · {defenseLabel}: rango </tspan>
-            <tspan fontWeight="bold">{rankValue}</tspan>
+            <tspan fontWeight="bold">Rango: {rankValue}</tspan>
         </text>
     );
 };
@@ -45,30 +53,6 @@ const BodyDamageWidget = ({
     characterId,
     onHit,
 }) => {
-    const prevRanksRef = useRef({});
-    const [rankBump, setRankBump] = useState({});
-
-    useEffect(() => {
-        prevRanksRef.current = {};
-    }, [characterId]);
-
-    useEffect(() => {
-        const pairs = [
-            ['RPV', rankPV],
-            ['RPA', rankArmor],
-            ['RPG', rankShell],
-        ];
-        pairs.forEach(([key, v]) => {
-            if (v === undefined || v === null) return;
-            const p = prevRanksRef.current[key];
-            if (p !== undefined && p !== null && Number(v) > Number(p)) {
-                setRankBump((b) => ({ ...b, [key]: true }));
-                window.setTimeout(() => setRankBump((b) => ({ ...b, [key]: false })), 1000);
-            }
-            prevRanksRef.current[key] = v;
-        });
-    }, [rankPV, rankArmor, rankShell]);
-
     const getZoneColor = (current) => {
         if (current <= 0) return '#ef4444';
         if (current < maxHp / 2) return '#eab308';
@@ -81,14 +65,6 @@ const BodyDamageWidget = ({
 
     return (
         <div className="relative w-full max-w-[260px] mx-auto select-none">
-            <style>{`
-                .rank-def-bump { animation: rankDefGlow 1s ease-out; }
-                @keyframes rankDefGlow {
-                    0% { filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0)); }
-                    35% { filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.95)); }
-                    100% { filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0)); }
-                }
-            `}</style>
             <svg viewBox="0 0 200 348" className="w-full h-full drop-shadow-2xl">
                 <defs>
                     <filter id="glow-shell" x="-20%" y="-20%" width="140%" height="140%">
@@ -107,7 +83,7 @@ const BodyDamageWidget = ({
                 >
                     <ellipse cx="100" cy="165" rx="95" ry="155" fill="transparent" stroke="#8b5cf6" strokeWidth="3" strokeDasharray={shellOpacity === 0 ? "4 4" : "0"} />
                     {maxShell > 0 && <text x="100" y="16" fill="#a78bfa" fontSize="10" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
-                    <RankDefLabel x="100" y="26" abbr="RPG" defenseLabel="guscio" rankValue={rankShell} bump={rankBump.RPG} fill="#c4b5fd" />
+                    <RankDefLabel x="100" y="26" rankValue={rankShell} fill="#c4b5fd" />
                 </g>
 
                 {/* LAYER 2: ARMATURA (PA) */}
@@ -119,7 +95,7 @@ const BodyDamageWidget = ({
                 >
                     <path d="M100,20 C135,20 170,60 170,165 C170,260 145,315 100,315 C55,315 30,260 30,165 C30,60 65,20 100,20 Z" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" strokeDasharray={armorOpacity === 0 ? "2 2" : "0"} />
                     {maxArmor > 0 && <text x="100" y="327" fill="#34d399" fontSize="10" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
-                    <RankDefLabel x="100" y="339" abbr="RPA" defenseLabel="armatura" rankValue={rankArmor} bump={rankBump.RPA} fill="#6ee7b7" />
+                    <RankDefLabel x="100" y="339" rankValue={rankArmor} fill="#6ee7b7" />
                 </g>
 
                 {/* LAYER 3: CORPO (ominio rimpicciolito — armatura/guscio invariati sopra e sotto) */}
@@ -138,13 +114,13 @@ const BodyDamageWidget = ({
                             {/* Gambe */}
                             <path d="M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
                             <path d="M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                            <text x="100" y="168" fill="white" fontSize="22" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
+                            <text x="100" y="168" fill="white" fontSize="24" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
                                 {stats['PV_CUR']}
                             </text>
                             <text x="100" y="186" fill="#e5e7eb" fontSize="9" textAnchor="middle" pointerEvents="none" fontWeight="bold">
                                 PV
                             </text>
-                            <RankDefLabel x="100" y="198" abbr="RPV" defenseLabel="punti vita" rankValue={rankPV} bump={rankBump.RPV} fill="#93c5fd" />
+                            <RankDefLabel x="100" y="198" rankValue={rankPV} fill="#93c5fd" />
                         </g>
                     </g>
                 </g>
