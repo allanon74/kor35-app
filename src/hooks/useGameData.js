@@ -30,6 +30,7 @@ import {
   buyShopItem,
   markMessageAsRead,
   deleteMessage,
+  getStatisticaContainers,
 } from '../api';
 import { getRevision, setRevision } from '../queryRevisionStore';
 
@@ -71,6 +72,16 @@ export const usePunteggi = (onLogout) => {
         onLogout,
         fetchFull: () => getPunteggiList(onLogout),
       }),
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+};
+
+export const useStatisticaContainers = (onLogout) => {
+  return useQuery({
+    queryKey: ['statistica_containers'],
+    queryFn: () => getStatisticaContainers(onLogout),
     staleTime: 1000 * 30,
     refetchOnWindowFocus: false,
     refetchOnMount: false,

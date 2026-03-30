@@ -19,6 +19,7 @@ import NotificationPopup from './NotificationPopup';
 
 import { 
   usePunteggi, 
+  useStatisticaContainers,
   usePersonaggiList, 
   usePersonaggioDetail, 
   useAcquirableSkills, 
@@ -107,6 +108,9 @@ export const CharacterProvider = ({ children, onLogout }) => {
   
   // 1. Punteggi
   const { data: punteggiList = [], isLoading: isLoadingPunteggi } = usePunteggi(onLogout);
+
+  // 1b. Contenitori statistiche (config scheda)
+  const { data: statisticaContainers = [], isLoading: isLoadingStatContainers } = useStatisticaContainers(onLogout);
 
   // 2. Lista Personaggi
   const { 
@@ -410,6 +414,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     onLogout,
     personaggiList,
     punteggiList,
+    statisticaContainers,
     selectedCharacterId,
     preferredCharacterId,
     
@@ -426,7 +431,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
     updateTimerState,
     removeTimerState,
     
-    isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi || mutatingCount > 0,
+    isLoading: isLoadingList || isLoadingDetail || isLoadingPunteggi || isLoadingStatContainers || mutatingCount > 0,
     isLoadingList,
     isLoadingDetail,
     isSyncing: mutatingCount > 0,

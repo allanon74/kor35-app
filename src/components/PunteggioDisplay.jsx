@@ -12,7 +12,9 @@ const PunteggioDisplay = ({
   iconType = "inv_circle", 
   size = "m",
   className = "",
-  readOnly = false // <--- NUOVA PROP
+  readOnly = false, // <--- NUOVA PROP
+  shadow = true,
+  roundedClass = "rounded-lg",
 }) => {
   // Safe destructuring nel caso useCharacter ritorni null (ospiti) o loading
   const context = useCharacter();
@@ -86,7 +88,7 @@ const PunteggioDisplay = ({
   return (
     <>
         <div 
-          className={`flex items-center justify-between rounded-lg shadow-sm transition-all ${layout.p} ${className} 
+          className={`flex items-center justify-between ${roundedClass} ${shadow ? 'shadow-sm' : ''} transition-all ${layout.p} ${className} 
             ${hasTraitsConfig ? 'cursor-pointer hover:brightness-110 relative group' : ''}
             ${readOnly ? 'cursor-default' : ''}`} 
           style={{ backgroundColor: punteggio.colore }}

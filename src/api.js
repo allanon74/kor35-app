@@ -616,6 +616,14 @@ export const getPunteggiList = (onLogout) => {
   return fetchAuthenticated('/api/personaggi/api/punteggi/all/', { method: 'GET' }, onLogout);
 };
 
+/**
+ * Recupera la lista dei contenitori statistiche (configurazione scheda).
+ * GET /api/personaggi/api/statistiche/containers/
+ */
+export const getStatisticaContainers = (onLogout) => {
+  return fetchAuthenticated('/api/personaggi/api/statistiche/containers/', { method: 'GET' }, onLogout);
+};
+
 
 // --- MODIFICA CHIAVE ---
 // Questa è la versione corretta della funzione che usa il tuo

@@ -1,4 +1,4 @@
-import React, { useMemo, memo, useState } from 'react';
+import React, { useMemo, useCallback, memo, useState } from 'react';
 import { useCharacter } from './CharacterContext';
 import { Coins, Star, Bell, Backpack, Zap } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay';
@@ -43,7 +43,7 @@ const LoadingComponent = () => (
 // --- Componente Scheda ---
 
 const CharacterSheet = memo(({ data, onLogout }) => {
-  const { punteggiList, subscribeToPush, refreshCharacterData } = useCharacter();
+  const { punteggiList, statisticaContainers, subscribeToPush, refreshCharacterData } = useCharacter();
   
   // State per la modal dei modificatori
   const [modalStatistica, setModalStatistica] = useState(null);
@@ -142,6 +142,118 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     return { stat_primarie: primarie, stat_secondarie: secondarie, caratteristiche: chars, aure_possedute: aure };
 
   }, [punteggiList, punteggi_base]);
+
+  // --- CONTENITORI STATISTICHE (config DB) ---
+  const {
+    containersTopLevel,
+    containersByParentId,
+    coveredStatIds,
+    statsById,
+  } = useMemo(() => {
+    const containers = Array.isArray(statisticaContainers) ? statisticaContainers : [];
+    const byParent = new Map();
+    for (const c of containers) {
+      const pid = c.parent_id || null;
+      const arr = byParent.get(pid) || [];
+      arr.push(c);
+      byParent.set(pid, arr);
+    }
+    for (const [k, arr] of byParent.entries()) {
+      arr.sort((a, b) => (a.ordine || 0) - (b.ordine || 0));
+      byParent.set(k, arr);
+    }
+
+    const covered = new Set();
+    const visit = (container) => {
+      for (const it of container.items || []) {
+        if (it?.statistica_id != null) covered.add(it.statistica_id);
+      }
+      const children = byParent.get(container.id) || [];
+      for (const child of children) visit(child);
+    };
+    for (const c of containers) visit(c);
+
+    const statsMap = new Map((punteggiList || []).map((p) => [p.id, p]));
+
+    const top = (byParent.get(null) || []).filter((c) => !!c.render_in_primarie);
+
+    return {
+      containersTopLevel: top,
+      containersByParentId: byParent,
+      coveredStatIds: covered,
+      statsById: statsMap,
+    };
+  }, [statisticaContainers, punteggiList]);
+
+  const computeStatValue = useCallback(
+    (punteggio) => {
+      if (!punteggio?.parametro) return 0;
+      const valore_base =
+        (statistiche_base_dict && statistiche_base_dict[punteggio.parametro]) ||
+        punteggio.valore_predefinito ||
+        0;
+      const mods = (modificatori_calcolati && modificatori_calcolati[punteggio.parametro]) || { add: 0, mol: 1.0 };
+      return Math.round((valore_base + (mods.add || 0)) * (mods.mol || 1.0));
+    },
+    [statistiche_base_dict, modificatori_calcolati]
+  );
+
+  const StatisticaContainerTile = ({ container }) => {
+    const fakePunteggio = {
+      nome: container.nome,
+      colore: container.colore,
+      icona_url: container.icona_url,
+    };
+
+    const children = containersByParentId.get(container.id) || [];
+    const items = (container.items || [])
+      .slice()
+      .sort((a, b) => (a.ordine || 0) - (b.ordine || 0))
+      .map((it) => statsById.get(it.statistica_id))
+      .filter(Boolean);
+
+    return (
+      <div className="rounded-lg overflow-hidden border border-gray-700 bg-gray-900/30">
+        <PunteggioDisplay
+          punteggio={fakePunteggio}
+          value={null}
+          displayText="name"
+          iconType="inv_circle"
+          size="s"
+          shadow={false}
+          roundedClass="rounded-none"
+          readOnly={true}
+        />
+
+        <div className="p-2 space-y-2">
+          {children.length > 0 && (
+            <div className="grid grid-cols-1 gap-2">
+              {children.map((child) => (
+                <StatisticaContainerTile key={child.id} container={child} />
+              ))}
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {items.map((p) => (
+                <PunteggioDisplay
+                  key={p.id}
+                  punteggio={p}
+                  value={computeStatValue(p)}
+                  displayText="abbr"
+                  iconType="inv_circle"
+                  size="xs"
+                  shadow={false}
+                  readOnly={true}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // --- RENDER ITEM ABILITÀ ---
   const renderAbilitaItem = (abilita) => {
@@ -257,17 +369,18 @@ const CharacterSheet = memo(({ data, onLogout }) => {
         <div className="mb-6">
           <h3 className="text-2xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Statistiche</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"> 
-            {stat_primarie.map((punteggio) => {
+            {/* 1) Contenitori (configurazione DB) */}
+            {containersTopLevel.map((c) => (
+              <StatisticaContainerTile key={c.id} container={c} />
+            ))}
+
+            {/* 2) Statistiche primarie non coperte da contenitori */}
+            {stat_primarie
+              .filter((p) => !coveredStatIds.has(p.id))
+              .map((punteggio) => {
               if (!punteggio.parametro) return null; 
               
-              // Recupera il valore base del personaggio (da statistiche_base_dict) o usa il valore predefinito
-              const valore_base = (statistiche_base_dict && statistiche_base_dict[punteggio.parametro]) 
-                                  || punteggio.valore_predefinito 
-                                  || 0;
-              
-              // Applica i modificatori se presenti
-              const mods = modificatori_calcolati[punteggio.parametro] || {add: 0, mol: 1.0};
-              const valore_finale = (valore_base + mods.add) * mods.mol;
+              const valore_finale = computeStatValue(punteggio);
               
               return (
                 <div 
@@ -281,7 +394,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
                 >
                   <PunteggioDisplay
                     punteggio={punteggio}
-                    value={Math.round(valore_finale)} 
+                    value={valore_finale} 
                     displayText="name"
                     iconType="inv_circle"
                     size="m"
@@ -372,20 +485,12 @@ const CharacterSheet = memo(({ data, onLogout }) => {
             Statistiche Secondarie
           </summary>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border-t border-gray-700">
-            {stat_secondarie.map((punteggio) => {
+            {stat_secondarie
+              .filter((p) => !coveredStatIds.has(p.id))
+              .map((punteggio) => {
               if (!punteggio.parametro) return null;
               
-              // Recupera il valore base del personaggio (da statistiche_base_dict) o usa il valore predefinito
-              const valore_base = (statistiche_base_dict && statistiche_base_dict[punteggio.parametro]) 
-                                  || punteggio.valore_predefinito 
-                                  || 0;
-              
-              // Applica i modificatori se presenti
-              const mods = modificatori_calcolati && modificatori_calcolati[punteggio.parametro] 
-                          ? modificatori_calcolati[punteggio.parametro] 
-                          : {add: 0, mol: 1.0};
-              
-              const valore_finale = (valore_base + mods.add) * mods.mol;
+              const valore_finale = computeStatValue(punteggio);
               
               return (
                 <div 
@@ -399,7 +504,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
                 >
                   <PunteggioDisplay
                     punteggio={punteggio}
-                    value={Math.round(valore_finale)} 
+                    value={valore_finale} 
                     displayText="name"
                     iconType="inv_circle"
                     size="m"
