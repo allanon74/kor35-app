@@ -14,17 +14,19 @@ import {
 import ActiveItemWidget from './ActiveItemWidget'; 
 
 /** Etichetta rango difesa: resa visiva stabile in base al livello */
-const RankDefLabel = ({ x, y, rankValue, fill, fontSize = '9', textAnchor = 'middle' }) => {
+const RankDefLabel = ({ x, y, rankValue, fill, fontSize = '11', textAnchor = 'middle' }) => {
     if (rankValue === undefined || rankValue === null) return null;
     const rankNum = Number(rankValue) || 0;
     const rankStyle =
-        rankNum >= 4
-            ? { filter: 'drop-shadow(0 0 7px rgba(250, 204, 21, 0.95))', opacity: 1 }
-            : rankNum >= 3
-                ? { filter: 'drop-shadow(0 0 5px rgba(250, 204, 21, 0.75))', opacity: 1 }
-                : rankNum >= 2
-                    ? { filter: 'drop-shadow(0 0 3px rgba(255, 255, 255, 0.55))', opacity: 0.96 }
-                    : { opacity: 0.84 };
+        rankNum <= 0
+            ? { opacity: 0.16 }
+            : rankNum === 1
+                ? { opacity: 0.58 }
+                : rankNum === 2
+                    ? { filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.65))', opacity: 0.94 }
+                    : rankNum === 3
+                        ? { filter: 'drop-shadow(0 0 6px rgba(250, 204, 21, 0.82))', opacity: 1 }
+                        : { filter: 'drop-shadow(0 0 8px rgba(250, 204, 21, 0.95))', opacity: 1 };
     return (
         <text
             x={x}
@@ -82,8 +84,8 @@ const BodyDamageWidget = ({
                     filter="url(#glow-shell)"
                 >
                     <ellipse cx="100" cy="165" rx="95" ry="155" fill="transparent" stroke="#8b5cf6" strokeWidth="3" strokeDasharray={shellOpacity === 0 ? "4 4" : "0"} />
-                    {maxShell > 0 && <text x="100" y="16" fill="#a78bfa" fontSize="11" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
-                    <RankDefLabel x="100" y="26" rankValue={rankShell} fill="#c4b5fd" fontSize="9" />
+                    {maxShell > 0 && <text x="100" y="16" fill="#a78bfa" fontSize="13" textAnchor="middle" fontWeight="bold">GUSCIO {stats['PS_CUR']}/{maxShell}</text>}
+                    <RankDefLabel x="100" y="30" rankValue={rankShell} fill="#c4b5fd" fontSize="11.5" />
                 </g>
 
                 {/* LAYER 2: ARMATURA (PA) */}
@@ -94,8 +96,8 @@ const BodyDamageWidget = ({
                     onClick={() => maxArmor > 0 && onHit('PA_CUR', maxArmor)}
                 >
                     <path d="M100,20 C135,20 170,60 170,165 C170,260 145,315 100,315 C55,315 30,260 30,165 C30,60 65,20 100,20 Z" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" strokeDasharray={armorOpacity === 0 ? "2 2" : "0"} />
-                    {maxArmor > 0 && <text x="100" y="327" fill="#34d399" fontSize="11" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
-                    <RankDefLabel x="100" y="339" rankValue={rankArmor} fill="#6ee7b7" fontSize="9" />
+                    {maxArmor > 0 && <text x="100" y="326" fill="#34d399" fontSize="13" textAnchor="middle" fontWeight="bold">ARM {stats['PA_CUR']}/{maxArmor}</text>}
+                    <RankDefLabel x="100" y="342" rankValue={rankArmor} fill="#6ee7b7" fontSize="11.5" />
                 </g>
 
                 {/* LAYER 3: CORPO (ominio rimpicciolito — armatura/guscio invariati sopra e sotto) */}
@@ -114,13 +116,13 @@ const BodyDamageWidget = ({
                             {/* Gambe */}
                             <path d="M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
                             <path d="M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                            <text x="100" y="168" fill="white" fontSize="24" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
+                            <text x="100" y="168" fill="white" fontSize="30" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
                                 {stats['PV_CUR']}
                             </text>
-                            <text x="100" y="186" fill="#e5e7eb" fontSize="11" textAnchor="middle" pointerEvents="none" fontWeight="bold">
+                            <text x="100" y="188" fill="#e5e7eb" fontSize="13" textAnchor="middle" pointerEvents="none" fontWeight="bold">
                                 PV
                             </text>
-                            <RankDefLabel x="100" y="198" rankValue={rankPV} fill="#93c5fd" fontSize="10" />
+                            <RankDefLabel x="100" y="206" rankValue={rankPV} fill="#93c5fd" fontSize="12" />
                         </g>
                     </g>
                 </g>
