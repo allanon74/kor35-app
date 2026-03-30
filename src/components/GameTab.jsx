@@ -52,7 +52,6 @@ const BodyDamageWidget = ({
     rankPV,
     rankArmor,
     rankShell,
-    characterId,
     onHit,
 }) => {
     const getZoneColor = (current) => {
@@ -116,15 +115,22 @@ const BodyDamageWidget = ({
                             {/* Gambe */}
                             <path d="M126,155 L130,200 L132,255 L134,300 L126,306 L116,306 L114,300 L112,255 L110,200 L112,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
                             <path d="M74,155 L70,200 L68,255 L66,300 L74,306 L84,306 L86,300 L88,255 L90,200 L88,162 Z" fill={getZoneColor(stats['PV_CUR'])} stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinejoin="round" />
-                            <text x="100" y="168" fill="white" fontSize="30" textAnchor="middle" pointerEvents="none" fontWeight="bold" style={{ textShadow: '0px 2px 6px black' }}>
-                                {stats['PV_CUR']}
-                            </text>
-                            <text x="100" y="188" fill="#e5e7eb" fontSize="13" textAnchor="middle" pointerEvents="none" fontWeight="bold">
-                                PV
-                            </text>
-                            <RankDefLabel x="100" y="206" rankValue={rankPV} fill="#93c5fd" fontSize="12" />
                         </g>
                     </g>
+                    {/* Fuori dallo scale: stessa dimensione visiva di GUSCIO/ARM e ranghi */}
+                    <text
+                        x="100"
+                        y="178"
+                        fontSize="30"
+                        textAnchor="middle"
+                        pointerEvents="none"
+                        fontWeight="bold"
+                        style={{ textShadow: '0px 2px 6px black' }}
+                    >
+                        <tspan fill="#ffffff">{stats['PV_CUR']}</tspan>
+                        <tspan fill="#e5e7eb">{' PV'}</tspan>
+                    </text>
+                    <RankDefLabel x="100" y="194" rankValue={rankPV} fill="#93c5fd" fontSize="11.5" />
                 </g>
             </svg>
             {stats['PV_CUR'] <= 0 && (
@@ -479,7 +485,6 @@ const GameTab = ({ onNavigate }) => {
                         rankPV={rankPV}
                         rankArmor={rankArmor}
                         rankShell={rankShell}
-                        characterId={char.id}
                         onHit={(id, max) => handleStatChange(id, 'consuma', max)}
                     />
                 </div>
