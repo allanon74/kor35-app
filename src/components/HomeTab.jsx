@@ -235,13 +235,17 @@ const CharacterSheet = memo(({ data, onLogout }) => {
           )}
 
           {items.length > 0 && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-2">
               {items.map((p) => (
                 <PunteggioDisplay
                   key={p.id}
-                  punteggio={p}
+                  punteggio={
+                    container.usa_colore_contenitore_per_figli
+                      ? { ...p, colore: container.colore }
+                      : p
+                  }
                   value={computeStatValue(p)}
-                  displayText="abbr"
+                  displayText="name"
                   iconType="inv_circle"
                   size="xs"
                   shadow={false}
