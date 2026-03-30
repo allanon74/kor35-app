@@ -1685,13 +1685,15 @@ export const staffGetRisorsePool = (onLogout) =>
     fetchAuthenticated('/api/personaggi/api/staff/risorse-pool/', { method: 'GET' }, onLogout);
 
 /** Staff: +1 al pool corrente (non oltre il massimo). */
-export const staffIncrementaRisorsaPool = (personaggioId, statSigla, motivo, onLogout) =>
+/** delta: positivo aggiunge, negativo toglie (clamp 0…max scheda). Default 1. */
+export const staffIncrementaRisorsaPool = (personaggioId, statSigla, motivo, onLogout, delta = 1) =>
     fetchAuthenticated('/api/personaggi/api/staff/risorse-pool/incrementa/', {
         method: 'POST',
         body: JSON.stringify({
             personaggio_id: personaggioId,
             stat_sigla: statSigla,
             motivo: motivo || '',
+            delta,
         }),
     }, onLogout);
 

@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
     createPersonaggio, 
     updatePersonaggio, 
     getTipologiePersonaggio,
-    staffAddResources 
+    staffAddResources,
+    getPersonaggioDetail,
+    staffIncrementaRisorsaPool,
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
-    User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap 
+    User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap, Gem 
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import BuildVersions from './BuildVersions';
@@ -39,7 +41,20 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     
     // Stati Modale Staff Risorse
     const [showResourceModal, setShowResourceModal] = useState(false);
-    const [resourceData, setResourceData] = useState({ charId: null, charName: '', tipo: 'crediti', amount: 0, reason: '' });
+    const [resourceModalTab, setResourceModalTab] = useState('valute');
+    const [poolDetailLoading, setPoolDetailLoading] = useState(false);
+    const [poolDetail, setPoolDetail] = useState(null);
+    /** { [sigla]: { delta: string, motivo: string } } */
+    const [poolInputs, setPoolInputs] = useState({});
+    const [resourceData, setResourceData] = useState({
+        charId: null,
+        charName: '',
+        creditiSnapshot: null,
+        pcSnapshot: null,
+        tipo: 'crediti',
+        amount: 0,
+        reason: 'Intervento staff',
+    });
 
     useEffect(() => {
         // Carica tipologie, gestendo eventuali errori silenziosamente
@@ -153,30 +168,104 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
 
     const handleOpenResourceModal = (char, e) => {
         e.stopPropagation();
-        setResourceData({ 
-            charId: char.id, 
-            charName: char.nome, 
-            tipo: 'crediti', 
-            amount: 0, 
-            reason: 'Bonus Staff' 
+        setResourceModalTab('valute');
+        setPoolDetail(null);
+        setResourceData({
+            charId: char.id,
+            charName: char.nome,
+            creditiSnapshot: char.crediti,
+            pcSnapshot: char.punti_caratteristica,
+            tipo: 'crediti',
+            amount: 0,
+            reason: 'Intervento staff',
         });
         setShowResourceModal(true);
     };
 
+    const handleCloseResourceModal = () => {
+        setShowResourceModal(false);
+        setPoolDetail(null);
+        setResourceModalTab('valute');
+        setPoolInputs({});
+    };
+
+    const updatePoolInput = useCallback((sigla, field, value) => {
+        setPoolInputs((prev) => ({
+            ...prev,
+            [sigla]: { ...(prev[sigla] || { delta: '', motivo: '' }), [field]: value },
+        }));
+    }, []);
+
     const handleGiveResources = async () => {
         try {
+            const amt = parseInt(resourceData.amount, 10);
+            if (Number.isNaN(amt) || amt === 0) {
+                alert('Inserisci una quantità diversa da zero (positiva o negativa).');
+                return;
+            }
             const resp = await staffAddResources(
-                resourceData.charId, 
-                resourceData.tipo, 
-                parseInt(resourceData.amount), 
-                resourceData.reason, 
+                resourceData.charId,
+                resourceData.tipo,
+                amt,
+                resourceData.reason,
                 onLogout
             );
-            alert(resp.msg || "Operazione completata");
-            setShowResourceModal(false);
+            alert(
+                resp.msg ||
+                    `Aggiornato. Nuovo valore: ${resourceData.tipo === 'crediti' ? 'CR' : 'PC'} ${resp.new_val ?? ''}`
+            );
+            handleCloseResourceModal();
             fetchPersonaggi();
+            if (String(resourceData.charId) === String(selectedCharacterId)) {
+                refreshCharacterData();
+            }
         } catch (error) {
-            alert("Errore: " + error.message);
+            alert('Errore: ' + error.message);
+        }
+    };
+
+    useEffect(() => {
+        if (!showResourceModal || resourceModalTab !== 'risorse' || !resourceData.charId) {
+            return undefined;
+        }
+        let cancelled = false;
+        (async () => {
+            setPoolDetailLoading(true);
+            try {
+                const d = await getPersonaggioDetail(resourceData.charId, onLogout);
+                if (!cancelled) setPoolDetail(d);
+            } catch (err) {
+                if (!cancelled) {
+                    setPoolDetail(null);
+                    alert('Impossibile caricare le risorse pool: ' + (err.message || err));
+                }
+            } finally {
+                if (!cancelled) setPoolDetailLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [showResourceModal, resourceModalTab, resourceData.charId, onLogout]);
+
+    const handlePoolAdjust = async (sigla, deltaRaw, motivoRiga) => {
+        try {
+            const delta = parseInt(deltaRaw, 10);
+            if (Number.isNaN(delta) || delta === 0) {
+                alert('Variazione non valida (usa un intero diverso da zero).');
+                return;
+            }
+            const motivo = (motivoRiga || resourceData.reason || '').trim() || 'Regolazione risorsa pool';
+            await staffIncrementaRisorsaPool(resourceData.charId, sigla, motivo, onLogout, delta);
+            const d = await getPersonaggioDetail(resourceData.charId, onLogout);
+            setPoolDetail(d);
+            await fetchPersonaggi();
+            if (String(resourceData.charId) === String(selectedCharacterId)) {
+                refreshCharacterData();
+            }
+            alert('Risorsa pool aggiornata.');
+        } catch (error) {
+            alert('Errore: ' + error.message);
         }
     };
 
@@ -337,54 +426,219 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             {/* MODALE STAFF RISORSE */}
             {showResourceModal && (
                 <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-                    <div className="bg-gray-800 w-full max-w-md rounded-2xl border border-amber-600 shadow-2xl p-6">
-                        <h3 className="text-amber-500 font-bold text-lg uppercase mb-4 flex items-center gap-2">
-                            <ShieldAlert size={20}/> Gestione Risorse: {resourceData.charName}
-                        </h3>
-                        
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-2">
-                                <button 
-                                    onClick={() => setResourceData({...resourceData, tipo: 'crediti'})}
-                                    className={`p-3 rounded-lg border font-bold transition-all ${resourceData.tipo === 'crediti' ? 'bg-amber-600 border-amber-500 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-700'}`}
+                    <div className="bg-gray-800 w-full max-w-lg rounded-2xl border border-amber-600 shadow-2xl flex flex-col max-h-[90vh]">
+                        <div className="p-5 border-b border-gray-700 shrink-0">
+                            <h3 className="text-amber-500 font-bold text-lg uppercase flex items-center gap-2">
+                                <ShieldAlert size={20} /> Gestione risorse: {resourceData.charName}
+                            </h3>
+                            <p className="text-[11px] text-gray-500 mt-1">
+                                Solo utenti con permessi adeguati. Le modifiche restano tracciate su movimenti e log.
+                            </p>
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setResourceModalTab('valute')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-bold transition-all ${
+                                        resourceModalTab === 'valute'
+                                            ? 'bg-amber-600 border-amber-500 text-white'
+                                            : 'border-gray-600 text-gray-400 hover:bg-gray-750'
+                                    }`}
                                 >
-                                    <div className="flex flex-col items-center justify-center gap-1">
-                                        <Coins size={20}/> Crediti
-                                    </div>
+                                    <Coins size={18} /> Crediti / PC
                                 </button>
-                                <button 
-                                    onClick={() => setResourceData({...resourceData, tipo: 'pc'})}
-                                    className={`p-3 rounded-lg border font-bold transition-all ${resourceData.tipo === 'pc' ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-700'}`}
+                                <button
+                                    type="button"
+                                    onClick={() => setResourceModalTab('risorse')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-bold transition-all ${
+                                        resourceModalTab === 'risorse'
+                                            ? 'bg-violet-600 border-violet-500 text-white'
+                                            : 'border-gray-600 text-gray-400 hover:bg-gray-750'
+                                    }`}
                                 >
-                                    <div className="flex flex-col items-center justify-center gap-1">
-                                        <Zap size={20}/> Punti Caratt.
-                                    </div>
+                                    <Gem size={18} /> Risorse pool
                                 </button>
-                            </div>
-                            <div>
-                                <label className="block text-xs uppercase text-gray-500 mb-1">Quantità (+/-)</label>
-                                <input 
-                                    type="number"
-                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white font-mono text-xl text-center"
-                                    value={resourceData.amount}
-                                    onChange={e => setResourceData({...resourceData, amount: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs uppercase text-gray-500 mb-1">Motivazione (Log)</label>
-                                <input 
-                                    type="text"
-                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
-                                    placeholder="Es: Ricompensa Quest"
-                                    value={resourceData.reason}
-                                    onChange={e => setResourceData({...resourceData, reason: e.target.value})}
-                                />
                             </div>
                         </div>
 
-                        <div className="mt-6 flex gap-2">
-                            <button onClick={() => setShowResourceModal(false)} className="flex-1 py-2 bg-gray-700 rounded hover:bg-gray-600">Annulla</button>
-                            <button onClick={handleGiveResources} className="flex-1 py-2 bg-emerald-600 rounded font-bold hover:bg-emerald-500">Conferma</button>
+                        <div className="p-5 overflow-y-auto flex-1 min-h-0 space-y-4">
+                            {resourceModalTab === 'valute' && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-2 text-center text-xs font-mono text-gray-400">
+                                        <div className="bg-gray-900/80 rounded-lg py-2 border border-gray-700">
+                                            CR attuali:{' '}
+                                            <span className="text-amber-300">{resourceData.creditiSnapshot ?? '—'}</span>
+                                        </div>
+                                        <div className="bg-gray-900/80 rounded-lg py-2 border border-gray-700">
+                                            PC attuali:{' '}
+                                            <span className="text-cyan-300">{resourceData.pcSnapshot ?? '—'}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        Quantità <strong className="text-gray-300">positiva</strong> aggiunge,{' '}
+                                        <strong className="text-gray-300">negativa</strong> sottrae (crediti e punti
+                                        caratteristica seguono le regole di fondo scala già usate dal backend).
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setResourceData({ ...resourceData, tipo: 'crediti' })
+                                            }
+                                            className={`p-3 rounded-lg border font-bold transition-all ${
+                                                resourceData.tipo === 'crediti'
+                                                    ? 'bg-amber-600 border-amber-500 text-white'
+                                                    : 'border-gray-600 text-gray-400 hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                <Coins size={20} /> Crediti (CR)
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setResourceData({ ...resourceData, tipo: 'pc' })}
+                                            className={`p-3 rounded-lg border font-bold transition-all ${
+                                                resourceData.tipo === 'pc'
+                                                    ? 'bg-cyan-600 border-cyan-500 text-white'
+                                                    : 'border-gray-600 text-gray-400 hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                <Zap size={20} /> Punti caratteristica
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs uppercase text-gray-500 mb-1">
+                                            Variazione (+ / −)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white font-mono text-lg text-center"
+                                            value={resourceData.amount}
+                                            onChange={(e) =>
+                                                setResourceData({ ...resourceData, amount: e.target.value })
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs uppercase text-gray-500 mb-1">
+                                            Motivazione (compare nei movimenti / log)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                                            placeholder="Es. Ricompensa quest, Correzione referto, …"
+                                            value={resourceData.reason}
+                                            onChange={(e) =>
+                                                setResourceData({ ...resourceData, reason: e.target.value })
+                                            }
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            {resourceModalTab === 'risorse' && (
+                                <>
+                                    <p className="text-xs text-gray-500">
+                                        Statistiche contrassegnate come <strong className="text-gray-300">risorsa a pool</strong>{' '}
+                                        (es. Fortuna). Variazione positiva = più punti disponibili nel pool; negativa = meno,
+                                        senza scendere sotto 0 o superare il massimo di scheda.
+                                    </p>
+                                    {poolDetailLoading && (
+                                        <p className="text-sm text-gray-400 animate-pulse">Caricamento dati personaggio…</p>
+                                    )}
+                                    {!poolDetailLoading &&
+                                        poolDetail &&
+                                        (!poolDetail.risorse_pool_ui || poolDetail.risorse_pool_ui.length === 0) && (
+                                            <p className="text-sm text-amber-200/80 bg-amber-950/30 border border-amber-900/50 rounded-lg p-3">
+                                                Nessuna risorsa pool con massimo &gt; 0 per questo personaggio. Configura le
+                                                statistiche nel backend o aumenta il massimo in scheda.
+                                            </p>
+                                        )}
+                                    {!poolDetailLoading &&
+                                        poolDetail?.risorse_pool_ui?.map((pool) => {
+                                            const row = poolInputs[pool.sigla] || { delta: '', motivo: '' };
+                                            return (
+                                                <div
+                                                    key={pool.sigla}
+                                                    className="bg-gray-900/60 border border-gray-700 rounded-xl p-4 space-y-2"
+                                                >
+                                                    <div className="flex justify-between items-baseline gap-2">
+                                                        <span className="font-bold text-white">{pool.nome}</span>
+                                                        <span className="text-xs font-mono text-gray-500">{pool.sigla}</span>
+                                                    </div>
+                                                    <div className="text-sm font-mono text-violet-200">
+                                                        Attuale: {pool.valore_corrente}{' '}
+                                                        <span className="text-gray-500 text-xs">/ max {pool.valore_max}</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase text-gray-500 mb-0.5">
+                                                                Variazione pt.
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white font-mono"
+                                                                value={row.delta}
+                                                                onChange={(e) =>
+                                                                    updatePoolInput(pool.sigla, 'delta', e.target.value)
+                                                                }
+                                                                placeholder="es. 1 o -1"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase text-gray-500 mb-0.5">
+                                                                Motivo (opz.)
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white text-sm"
+                                                                value={row.motivo}
+                                                                onChange={(e) =>
+                                                                    updatePoolInput(pool.sigla, 'motivo', e.target.value)
+                                                                }
+                                                                placeholder="Lascia vuoto per usare quello globale"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handlePoolAdjust(
+                                                                pool.sigla,
+                                                                row.delta,
+                                                                row.motivo || resourceData.reason
+                                                            )
+                                                        }
+                                                        className="w-full py-2 rounded-lg bg-violet-700 hover:bg-violet-600 text-sm font-bold"
+                                                    >
+                                                        Applica per {pool.nome}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                </>
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-gray-700 flex gap-2 shrink-0 bg-gray-900/40">
+                            <button
+                                type="button"
+                                onClick={handleCloseResourceModal}
+                                className="flex-1 py-2.5 bg-gray-700 rounded-lg hover:bg-gray-600 font-bold text-sm"
+                            >
+                                Chiudi
+                            </button>
+                            {resourceModalTab === 'valute' && (
+                                <button
+                                    type="button"
+                                    onClick={handleGiveResources}
+                                    className="flex-1 py-2.5 bg-emerald-600 rounded-lg font-bold hover:bg-emerald-500 text-sm"
+                                >
+                                    Conferma CR / PC
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
