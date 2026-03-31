@@ -1655,6 +1655,54 @@ export const getEre = (onLogout) => {
     return fetchAuthenticated('/api/personaggi/api/ere/', { method: 'GET' }, onLogout);
 };
 
+export const staffGetEre = (onLogout) => {
+    return fetchAuthenticated('/api/personaggi/api/staff/ere/', { method: 'GET' }, onLogout);
+};
+
+export const staffCreateEra = (data, onLogout) => {
+    return fetchAuthenticated('/api/personaggi/api/staff/ere/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    }, onLogout);
+};
+
+export const staffUpdateEra = (id, data, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/staff/ere/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    }, onLogout);
+};
+
+export const staffDeleteEra = (id, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/staff/ere/${id}/`, {
+        method: 'DELETE',
+    }, onLogout);
+};
+
+export const staffGetPrefetture = (onLogout) => {
+    return fetchAuthenticated('/api/personaggi/api/staff/prefetture/', { method: 'GET' }, onLogout);
+};
+
+export const staffCreatePrefettura = (data, onLogout) => {
+    return fetchAuthenticated('/api/personaggi/api/staff/prefetture/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    }, onLogout);
+};
+
+export const staffUpdatePrefettura = (id, data, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/staff/prefetture/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    }, onLogout);
+};
+
+export const staffDeletePrefettura = (id, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/staff/prefetture/${id}/`, {
+        method: 'DELETE',
+    }, onLogout);
+};
+
 export const createPersonaggio = (data, onLogout) => {
     return fetchAuthenticated('/api/personaggi/api/gestione-personaggi/', {
         method: 'POST',

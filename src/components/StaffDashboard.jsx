@@ -33,6 +33,7 @@ const InventarioManager = lazy(() => import('./editors/InventarioManager'));
 const EffettiCasualiManager = lazy(() => import('./editors/EffettiCasualiManager'));
 const SocialEventReportTab = lazy(() => import('./editors/SocialEventReportTab'));
 const StaffRisorsaPoolTab = lazy(() => import('./StaffRisorsaPoolTab'));
+const EraManager = lazy(() => import('./editors/EraManager'));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -94,6 +95,7 @@ const StaffDashboard = ({ onLogout, onSwitchToPlayer, initialTool = 'home', onTo
         { id: 'effetti-casuali', label: 'Effetti Casuali', icon: <Sparkles size={24} />, color: 'bg-amber-700', component: EffettiCasualiManager },
         { id: 'social-report', label: 'Report Social Eventi', icon: <Sparkles size={24} />, color: 'bg-fuchsia-700', component: SocialEventReportTab },
         { id: 'risorse-pool', label: 'Risorse pool (Fortuna)', icon: <Gem size={24} />, color: 'bg-amber-800', component: StaffRisorsaPoolTab },
+        { id: 'ere-prefetture', label: 'Ere e Prefetture', icon: <Globe2 size={24} />, color: 'bg-violet-700', component: EraManager },
         { id: 'messaggi', label: 'Messaggi Staff', icon: <MessageSquare size={24} />, color: 'bg-emerald-600', component: AdminMessageTab },        
     ], []);
 

@@ -81,6 +81,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             costume: '',
             era: '',
             prefettura: '',
+            prefettura_esterna: false,
         });
         setShowModal(true);
     };
@@ -111,6 +112,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             costume: char.costume || '',
             era: typeof char.era === 'object' ? (char.era?.id || '') : (char.era || ''),
             prefettura: typeof char.prefettura === 'object' ? (char.prefettura?.id || '') : (char.prefettura || ''),
+            prefettura_esterna: !!char.prefettura_esterna,
         });
         setShowModal(true);
     };
@@ -119,6 +121,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         const payload = { ...formData };
         if (payload.era === '') payload.era = null;
         if (payload.prefettura === '') payload.prefettura = null;
+        payload.prefettura_esterna = !!payload.prefettura_esterna;
         
         // Pulizia e validazione ID Tipologia per il backend
         if (payload.tipologia !== undefined) {
@@ -133,6 +136,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         if (
             payload.prefettura &&
             payload.era &&
+            !payload.prefettura_esterna &&
             !ere.some((era) => {
                 if (String(era.id) !== String(payload.era)) return false;
                 return (era.prefetture || []).some((p) => String(p.id) === String(payload.prefettura));
@@ -299,7 +303,15 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     };
 
     const selectedEra = ere.find((e) => String(e.id) === String(formData.era));
-    const prefettureDisponibili = selectedEra?.prefetture || [];
+    const allPrefetture = ere.flatMap((era) => (era.prefetture || []).map((p) => ({ ...p, era_ref: era })));
+    const prefettureDisponibili = formData.prefettura_esterna ? allPrefetture : (selectedEra?.prefetture || []);
+    const selectedPrefettura = allPrefetture.find((p) => String(p.id) === String(formData.prefettura));
+    const formatPrefetturaLabel = (pref) => {
+        const prefEraId = pref.era ?? pref.era_ref?.id;
+        const prefEraNome = pref.era_nome || pref.era_ref?.nome || '';
+        const isExternal = selectedEra && String(prefEraId) !== String(selectedEra.id);
+        return isExternal ? `${pref.nome} (${prefEraNome})` : pref.nome;
+    };
 
     return (
         <div className="h-full flex flex-col bg-gray-900 text-white p-4 overflow-hidden">
@@ -362,7 +374,11 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 {(char.era_nome || char.prefettura_nome) && (
                                     <div className="text-[11px] text-indigo-300 mt-1">
                                         {char.era_nome || 'Era non selezionata'}
-                                        {char.prefettura_nome ? ` - ${char.prefettura_nome}` : ''}
+                                        {char.prefettura_nome ? ` - ${
+                                            (char.prefettura_era_nome && char.era_nome && String(char.prefettura_era_nome) !== String(char.era_nome))
+                                                ? `${char.prefettura_nome} (${char.prefettura_era_nome})`
+                                                : char.prefettura_nome
+                                        }` : ''}
                                     </div>
                                 )}
                                 {isStaff && (
@@ -457,6 +473,14 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 {selectedEra?.descrizione && (
                                     <p className="text-xs text-gray-400">{selectedEra.descrizione}</p>
                                 )}
+                                <label className="flex items-center gap-2 text-xs text-gray-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!formData.prefettura_esterna}
+                                        onChange={(e) => setFormData({ ...formData, prefettura_esterna: e.target.checked, prefettura: '' })}
+                                    />
+                                    Provengo da una prefettura esterna alle usuali per questa Era
+                                </label>
                                 {prefettureDisponibili.length > 0 && (
                                     <div>
                                         <label className="block text-xs text-gray-500 mb-1">Prefettura di origine</label>
@@ -467,12 +491,12 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                         >
                                             <option value="">Seleziona prefettura</option>
                                             {prefettureDisponibili.map(pref => (
-                                                <option key={pref.id} value={pref.id}>{pref.nome}</option>
+                                                <option key={pref.id} value={pref.id}>{formatPrefetturaLabel(pref)}</option>
                                             ))}
                                         </select>
                                         {formData.prefettura && (
                                             <p className="text-xs text-gray-400 mt-1">
-                                                {prefettureDisponibili.find(p => String(p.id) === String(formData.prefettura))?.descrizione || ''}
+                                                {selectedPrefettura?.descrizione || ''}
                                             </p>
                                         )}
                                     </div>
