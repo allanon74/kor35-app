@@ -310,10 +310,10 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         const prefEraId = pref.era ?? pref.era_ref?.id;
         const prefEraNome = pref.era_nome || pref.era_ref?.nome || '';
         const prefRegSigla = pref.regione_sigla || '';
+        const baseName = prefRegSigla ? `${prefRegSigla} ${pref.nome}` : pref.nome;
         const isExternal = selectedEra && String(prefEraId) !== String(selectedEra.id);
-        if (!isExternal) return pref.nome;
-        const extra = prefRegSigla ? `${prefRegSigla} - ${prefEraNome}` : prefEraNome;
-        return `${pref.nome} (${extra})`;
+        if (!isExternal) return baseName;
+        return `${baseName} (${prefEraNome})`;
     };
 
     return (
