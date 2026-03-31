@@ -115,6 +115,7 @@ const EraManager = ({ onLogout, onBack }) => {
   const [ere, setEre] = useState([]);
   const [regioni, setRegioni] = useState([]);
   const [prefetture, setPrefetture] = useState([]);
+  const [activeTab, setActiveTab] = useState('ere');
   const [editingEra, setEditingEra] = useState(null);
   const [editingRegione, setEditingRegione] = useState(null);
   const [editingPref, setEditingPref] = useState(null);
@@ -155,67 +156,96 @@ const EraManager = ({ onLogout, onBack }) => {
 
   return (
     <div className="h-full p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button onClick={onBack} className="px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start">
           <ArrowLeft size={16} /> Indietro
         </button>
-        <div className="text-gray-400 text-sm">Gestione anagrafiche Era / Regione / Prefettura</div>
+        <div className="text-gray-400 text-sm text-center sm:text-right">Gestione anagrafiche Era / Regione / Prefettura</div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 h-[calc(100%-48px)]">
-        <MasterGenericList
-          title="Ere"
-          items={ere}
-          columns={eraColumns}
-          onAdd={() => setEditingEra({ nome: '', abbreviazione: '', descrizione_breve: '', descrizione: '', ordine: 0, attiva: true })}
-          onEdit={(item) => setEditingEra(item)}
-          onDelete={async (id) => {
-            if (!window.confirm('Eliminare questa era?')) return;
-            await staffDeleteEra(id, onLogout);
-            await load();
-          }}
-          addLabel="Nuova Era"
-        />
+      <div className="bg-gray-900/70 border border-gray-700 rounded-xl p-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            onClick={() => setActiveTab('ere')}
+            className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'ere' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+          >
+            Ere
+          </button>
+          <button
+            onClick={() => setActiveTab('regioni')}
+            className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'regioni' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+          >
+            Regioni
+          </button>
+          <button
+            onClick={() => setActiveTab('prefetture')}
+            className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'prefetture' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+          >
+            Prefetture
+          </button>
+        </div>
+      </div>
 
-        <MasterGenericList
-          title="Regioni"
-          items={regioni}
-          columns={regioneColumns}
-          onAdd={() => setEditingRegione({ nome: '', sigla: '', descrizione: '', ordine: 0, attiva: true })}
-          onEdit={(item) => setEditingRegione(item)}
-          onDelete={async (id) => {
-            if (!window.confirm('Eliminare questa regione?')) return;
-            await staffDeleteRegione(id, onLogout);
-            await load();
-          }}
-          addLabel="Nuova Regione"
-        />
+      <div className="h-[calc(100%-116px)]">
+        {activeTab === 'ere' && (
+          <MasterGenericList
+            title="Ere"
+            items={ere}
+            columns={eraColumns}
+            onAdd={() => setEditingEra({ nome: '', abbreviazione: '', descrizione_breve: '', descrizione: '', ordine: 0, attiva: true })}
+            onEdit={(item) => setEditingEra(item)}
+            onDelete={async (id) => {
+              if (!window.confirm('Eliminare questa era?')) return;
+              await staffDeleteEra(id, onLogout);
+              await load();
+            }}
+            addLabel="Nuova Era"
+          />
+        )}
 
-        <MasterGenericList
-          title="Prefetture"
-          items={prefetture}
-          columns={prefColumns}
-          onAdd={() => setEditingPref({ era: '', regione: '', nome: '', descrizione: '', ordine: 0 })}
-          onEdit={(item) => setEditingPref(item)}
-          onDelete={async (id) => {
-            if (!window.confirm('Eliminare questa prefettura?')) return;
-            await staffDeletePrefettura(id, onLogout);
-            await load();
-          }}
-          addLabel="Nuova Prefettura"
-          filterConfig={[
-            {
-              key: 'era',
-              label: 'Era',
-              options: ere.map((e) => ({ id: e.id, label: e.nome })),
-            },
-            {
-              key: 'regione',
-              label: 'Regione',
-              options: regioni.map((r) => ({ id: r.id, label: r.sigla ? `${r.sigla} - ${r.nome}` : r.nome })),
-            },
-          ]}
-        />
+        {activeTab === 'regioni' && (
+          <MasterGenericList
+            title="Regioni"
+            items={regioni}
+            columns={regioneColumns}
+            onAdd={() => setEditingRegione({ nome: '', sigla: '', descrizione: '', ordine: 0, attiva: true })}
+            onEdit={(item) => setEditingRegione(item)}
+            onDelete={async (id) => {
+              if (!window.confirm('Eliminare questa regione?')) return;
+              await staffDeleteRegione(id, onLogout);
+              await load();
+            }}
+            addLabel="Nuova Regione"
+          />
+        )}
+
+        {activeTab === 'prefetture' && (
+          <MasterGenericList
+            title="Prefetture"
+            items={prefetture}
+            columns={prefColumns}
+            onAdd={() => setEditingPref({ era: '', regione: '', nome: '', descrizione: '', ordine: 0 })}
+            onEdit={(item) => setEditingPref(item)}
+            onDelete={async (id) => {
+              if (!window.confirm('Eliminare questa prefettura?')) return;
+              await staffDeletePrefettura(id, onLogout);
+              await load();
+            }}
+            addLabel="Nuova Prefettura"
+            filterConfig={[
+              {
+                key: 'era',
+                label: 'Era',
+                options: ere.map((e) => ({ id: e.id, label: e.nome })),
+              },
+              {
+                key: 'regione',
+                label: 'Regione',
+                options: regioni.map((r) => ({ id: r.id, label: r.sigla ? `${r.sigla} - ${r.nome}` : r.nome })),
+              },
+            ]}
+          />
+        )}
       </div>
 
       <EraFormModal

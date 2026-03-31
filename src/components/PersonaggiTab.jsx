@@ -308,12 +308,12 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const selectedPrefettura = allPrefetture.find((p) => String(p.id) === String(formData.prefettura));
     const formatPrefetturaLabel = (pref) => {
         const prefEraId = pref.era ?? pref.era_ref?.id;
-        const prefEraNome = pref.era_nome || pref.era_ref?.nome || '';
         const prefRegSigla = pref.regione_sigla || '';
         const baseName = prefRegSigla ? `${prefRegSigla} ${pref.nome}` : pref.nome;
         const isExternal = selectedEra && String(prefEraId) !== String(selectedEra.id);
         if (!isExternal) return baseName;
-        return `${baseName} (${prefEraNome})`;
+        const miaEraBreve = selectedEra?.abbreviazione || selectedEra?.nome || '';
+        return miaEraBreve ? `${baseName} (${miaEraBreve})` : baseName;
     };
 
     return (
