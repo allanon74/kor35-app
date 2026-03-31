@@ -1683,6 +1683,30 @@ export const staffGetPrefetture = (onLogout) => {
     return fetchAuthenticated('/api/personaggi/api/staff/prefetture/', { method: 'GET' }, onLogout);
 };
 
+export const staffGetRegioni = (onLogout) => {
+    return fetchAuthenticated('/api/personaggi/api/staff/regioni/', { method: 'GET' }, onLogout);
+};
+
+export const staffCreateRegione = (data, onLogout) => {
+    return fetchAuthenticated('/api/personaggi/api/staff/regioni/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    }, onLogout);
+};
+
+export const staffUpdateRegione = (id, data, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/staff/regioni/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    }, onLogout);
+};
+
+export const staffDeleteRegione = (id, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/staff/regioni/${id}/`, {
+        method: 'DELETE',
+    }, onLogout);
+};
+
 export const staffCreatePrefettura = (data, onLogout) => {
     return fetchAuthenticated('/api/personaggi/api/staff/prefetture/', {
         method: 'POST',

@@ -309,8 +309,11 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const formatPrefetturaLabel = (pref) => {
         const prefEraId = pref.era ?? pref.era_ref?.id;
         const prefEraNome = pref.era_nome || pref.era_ref?.nome || '';
+        const prefRegSigla = pref.regione_sigla || '';
         const isExternal = selectedEra && String(prefEraId) !== String(selectedEra.id);
-        return isExternal ? `${pref.nome} (${prefEraNome})` : pref.nome;
+        if (!isExternal) return pref.nome;
+        const extra = prefRegSigla ? `${prefRegSigla} - ${prefEraNome}` : prefEraNome;
+        return `${pref.nome} (${extra})`;
     };
 
     return (
@@ -376,7 +379,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                         {char.era_nome || 'Era non selezionata'}
                                         {char.prefettura_nome ? ` - ${
                                             (char.prefettura_era_nome && char.era_nome && String(char.prefettura_era_nome) !== String(char.era_nome))
-                                                ? `${char.prefettura_nome} (${char.prefettura_era_nome})`
+                                                ? `${char.prefettura_nome} (${char.prefettura_regione_sigla ? `${char.prefettura_regione_sigla} - ` : ''}${char.prefettura_era_nome})`
                                                 : char.prefettura_nome
                                         }` : ''}
                                     </div>
