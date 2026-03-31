@@ -187,12 +187,17 @@ const CharacterSheet = memo(({ data, onLogout }) => {
 
   const computeStatValue = useCallback(
     (punteggio) => {
-      if (!punteggio?.parametro) return 0;
+      if (!punteggio) return 0;
+      const parametro = punteggio.parametro || null;
+      const valoreBaseDaPersonaggio =
+        parametro && statistiche_base_dict ? statistiche_base_dict[parametro] : undefined;
       const valore_base =
-        (statistiche_base_dict && statistiche_base_dict[punteggio.parametro]) ||
-        punteggio.valore_predefinito ||
+        valoreBaseDaPersonaggio ??
+        punteggio.valore_base_predefinito ??
+        punteggio.valore_predefinito ??
         0;
-      const mods = (modificatori_calcolati && modificatori_calcolati[punteggio.parametro]) || { add: 0, mol: 1.0 };
+      const mods =
+        (parametro && modificatori_calcolati && modificatori_calcolati[parametro]) || { add: 0, mol: 1.0 };
       return Math.round((valore_base + (mods.add || 0)) * (mods.mol || 1.0));
     },
     [statistiche_base_dict, modificatori_calcolati]
@@ -496,8 +501,6 @@ const CharacterSheet = memo(({ data, onLogout }) => {
             {stat_secondarie
               .filter((p) => !coveredStatIds.has(p.id))
               .map((punteggio) => {
-              if (!punteggio.parametro) return null;
-              
               const valore_finale = computeStatValue(punteggio);
               
               return (
