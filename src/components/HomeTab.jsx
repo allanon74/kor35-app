@@ -209,7 +209,11 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     const items = (container.items || [])
       .slice()
       .sort((a, b) => (a.ordine || 0) - (b.ordine || 0))
-      .map((it) => statsById.get(it.statistica_id))
+      .map((it) => {
+        const stat = statsById.get(it.statistica_id);
+        if (!stat) return null;
+        return { stat, itemConfig: it };
+      })
       .filter(Boolean);
 
     return (
@@ -219,7 +223,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
           value={null}
           displayText="name"
           iconType="inv_circle"
-          size="s"
+          size={container.dimensione || "s"}
           shadow={false}
           roundedClass="rounded-none"
           readOnly={true}
@@ -236,7 +240,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
 
           {items.length > 0 && (
             <div className="flex flex-col gap-2">
-              {items.map((p) => (
+              {items.map(({ stat: p, itemConfig }) => (
                 <PunteggioDisplay
                   key={p.id}
                   punteggio={
@@ -247,7 +251,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
                   value={computeStatValue(p)}
                   displayText="name"
                   iconType="inv_circle"
-                  size="s"
+                  size={itemConfig?.dimensione || "s"}
                   shadow={false}
                   readOnly={true}
                 />
