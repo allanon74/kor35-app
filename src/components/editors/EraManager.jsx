@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, memo } from 'react';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import MasterGenericList from './MasterGenericList';
 import {
