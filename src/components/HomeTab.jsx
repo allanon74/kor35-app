@@ -247,7 +247,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
                   value={computeStatValue(p)}
                   displayText="name"
                   iconType="inv_circle"
-                  size="xs"
+                  size="s"
                   shadow={false}
                   readOnly={true}
                 />
