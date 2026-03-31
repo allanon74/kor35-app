@@ -163,19 +163,21 @@ const CharacterSheet = memo(({ data, onLogout }) => {
       byParent.set(k, arr);
     }
 
+    const top = (byParent.get(null) || []).filter((c) => !!c.render_in_primarie);
+
+    // Segna come "coperte" solo le statistiche dei container effettivamente
+    // renderizzati nella sezione primaria (top-level render_in_primarie + figli).
     const covered = new Set();
-    const visit = (container) => {
+    const visitVisibleTree = (container) => {
       for (const it of container.items || []) {
         if (it?.statistica_id != null) covered.add(it.statistica_id);
       }
       const children = byParent.get(container.id) || [];
-      for (const child of children) visit(child);
+      for (const child of children) visitVisibleTree(child);
     };
-    for (const c of containers) visit(c);
+    for (const c of top) visitVisibleTree(c);
 
     const statsMap = new Map((punteggiList || []).map((p) => [p.id, p]));
-
-    const top = (byParent.get(null) || []).filter((c) => !!c.render_in_primarie);
 
     return {
       containersTopLevel: top,
