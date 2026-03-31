@@ -1651,6 +1651,10 @@ export const getPersonaggiEditList = (onLogout, viewAll = false) => {
     return fetchAuthenticated('/api/personaggi/api/gestione-personaggi/', { method: 'GET' }, onLogout);
 };
 
+export const getEre = (onLogout) => {
+    return fetchAuthenticated('/api/personaggi/api/ere/', { method: 'GET' }, onLogout);
+};
+
 export const createPersonaggio = (data, onLogout) => {
     return fetchAuthenticated('/api/personaggi/api/gestione-personaggi/', {
         method: 'POST',
@@ -1662,6 +1666,13 @@ export const updatePersonaggio = (id, data, onLogout) => {
     return fetchAuthenticated(`/api/personaggi/api/gestione-personaggi/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
+    }, onLogout);
+};
+
+export const resetPersonaggio = (id, reason, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/gestione-personaggi/${id}/reset_personaggio/`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason || 'Reset personaggio staff' })
     }, onLogout);
 };
 

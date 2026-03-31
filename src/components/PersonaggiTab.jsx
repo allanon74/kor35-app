@@ -5,13 +5,15 @@ import {
     createPersonaggio, 
     updatePersonaggio, 
     getTipologiePersonaggio,
+    getEre,
     staffAddResources,
     getPersonaggioDetail,
     staffIncrementaRisorsaPool,
+    resetPersonaggio,
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
-    User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap, Gem 
+    User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap, Gem, RotateCcw
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import BuildVersions from './BuildVersions';
@@ -38,6 +40,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
     const [editMode, setEditMode] = useState(false);
     const [formData, setFormData] = useState({});
     const [tipologie, setTipologie] = useState([]);
+    const [ere, setEre] = useState([]);
     
     // Stati Modale Staff Risorse
     const [showResourceModal, setShowResourceModal] = useState(false);
@@ -61,6 +64,9 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         getTipologiePersonaggio(onLogout).then(data => {
             if (Array.isArray(data)) setTipologie(data);
         });
+        getEre(onLogout).then(data => {
+            if (Array.isArray(data)) setEre(data);
+        });
         fetchPersonaggi();
     }, []);
 
@@ -72,7 +78,9 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             nome: '', 
             tipologia: 1, 
             testo: '', 
-            costume: '' 
+            costume: '',
+            era: '',
+            prefettura: '',
         });
         setShowModal(true);
     };
@@ -100,13 +108,17 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             nome: char.nome,
             tipologia: tipoId,
             testo: char.testo || '',
-            costume: char.costume || ''
+            costume: char.costume || '',
+            era: typeof char.era === 'object' ? (char.era?.id || '') : (char.era || ''),
+            prefettura: typeof char.prefettura === 'object' ? (char.prefettura?.id || '') : (char.prefettura || ''),
         });
         setShowModal(true);
     };
 
     const handleSaveOptimistic = async () => {
         const payload = { ...formData };
+        if (payload.era === '') payload.era = null;
+        if (payload.prefettura === '') payload.prefettura = null;
         
         // Pulizia e validazione ID Tipologia per il backend
         if (payload.tipologia !== undefined) {
@@ -116,6 +128,17 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
             } else {
                 delete payload.tipologia; // Evita errore 400 se invalido
             }
+        }
+
+        if (
+            payload.prefettura &&
+            payload.era &&
+            !ere.some((era) => {
+                if (String(era.id) !== String(payload.era)) return false;
+                return (era.prefetture || []).some((p) => String(p.id) === String(payload.prefettura));
+            })
+        ) {
+            payload.prefettura = null;
         }
 
         const queryKey = ['personaggi_list', viewAll];
@@ -275,6 +298,9 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         if (onSelectChar) onSelectChar();
     };
 
+    const selectedEra = ere.find((e) => String(e.id) === String(formData.era));
+    const prefettureDisponibili = selectedEra?.prefetture || [];
+
     return (
         <div className="h-full flex flex-col bg-gray-900 text-white p-4 overflow-hidden">
             <div className="flex justify-between items-center mb-6 shrink-0">
@@ -333,6 +359,12 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                             
                             <div>
                                 <h3 className="font-bold text-lg leading-none">{char.nome}</h3>
+                                {(char.era_nome || char.prefettura_nome) && (
+                                    <div className="text-[11px] text-indigo-300 mt-1">
+                                        {char.era_nome || 'Era non selezionata'}
+                                        {char.prefettura_nome ? ` - ${char.prefettura_nome}` : ''}
+                                    </div>
+                                )}
                                 {isStaff && (
                                     <div className="text-[10px] text-gray-400 mt-1 font-mono">
                                         CR: {char.crediti} | PC: {char.punti_caratteristica}
@@ -355,6 +387,27 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                         className="p-2 bg-gray-900 rounded-full text-gray-400 hover:text-white hover:bg-indigo-600 transition-colors"
                                     >
                                         <Edit size={16}/>
+                                    </button>
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            const ok = window.confirm(`Reset completo di ${char.nome}? Verranno rimosse abilità, infusioni, tessiture e cerimoniali, con rimborso costi.`);
+                                            if (!ok) return;
+                                            try {
+                                                await resetPersonaggio(char.id, 'Reset manuale da interfaccia staff', onLogout);
+                                                await fetchPersonaggi();
+                                                if (String(char.id) === String(selectedCharacterId)) {
+                                                    refreshCharacterData();
+                                                }
+                                                alert('Reset personaggio completato.');
+                                            } catch (error) {
+                                                alert('Errore reset: ' + error.message);
+                                            }
+                                        }}
+                                        className="p-2 bg-red-950/60 border border-red-800 rounded-full text-red-300 hover:bg-red-800 hover:text-white transition-colors"
+                                        title="Reset personaggio"
+                                    >
+                                        <RotateCcw size={16}/>
                                     </button>
                                 </>
                             )}
@@ -387,6 +440,44 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                 value={formData.testo} 
                                 onChange={val => setFormData({...formData, testo: val})}
                             />
+
+                            <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-700 space-y-3">
+                                <label className="block text-xs text-gray-400 uppercase tracking-widest">Era di provenienza</label>
+                                <select
+                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white"
+                                    value={formData.era ?? ''}
+                                    onChange={e => setFormData({...formData, era: e.target.value || '', prefettura: ''})}
+                                >
+                                    <option value="">Seleziona un'era</option>
+                                    {ere.map(era => <option key={era.id} value={era.id}>{era.nome}</option>)}
+                                </select>
+                                {selectedEra?.descrizione_breve && (
+                                    <p className="text-xs text-gray-300">{selectedEra.descrizione_breve}</p>
+                                )}
+                                {selectedEra?.descrizione && (
+                                    <p className="text-xs text-gray-400">{selectedEra.descrizione}</p>
+                                )}
+                                {prefettureDisponibili.length > 0 && (
+                                    <div>
+                                        <label className="block text-xs text-gray-500 mb-1">Prefettura di origine</label>
+                                        <select
+                                            className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white"
+                                            value={formData.prefettura ?? ''}
+                                            onChange={e => setFormData({...formData, prefettura: e.target.value || ''})}
+                                        >
+                                            <option value="">Seleziona prefettura</option>
+                                            {prefettureDisponibili.map(pref => (
+                                                <option key={pref.id} value={pref.id}>{pref.nome}</option>
+                                            ))}
+                                        </select>
+                                        {formData.prefettura && (
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                {prefettureDisponibili.find(p => String(p.id) === String(formData.prefettura))?.descrizione || ''}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
 
                             {isStaff && (
                                 <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-700 space-y-4 mt-4">
