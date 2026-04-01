@@ -236,7 +236,10 @@ const CharacterSheet = memo(({ data, onLogout }) => {
       .map((child) => <StatisticaContainerTile key={child.id} container={child} />)
       .filter(Boolean);
 
-    if (renderedChildren.length === 0 && items.length === 0) {
+    const hasVisibleNonDipendente = items.some(({ itemConfig }) => !itemConfig?.is_dipendente);
+    const canRenderContainer = hasVisibleNonDipendente || renderedChildren.length > 0;
+
+    if (!canRenderContainer) {
       return null;
     }
 
