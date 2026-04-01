@@ -387,6 +387,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const { hasAdminNotif, hasMsgNotif, hasJobNotif, hasStaffMsgNotif } = notificationState;
   const comaState = selectedCharacterData?.impostazioni_ui?.coma_state || null;
   const isComaLocked = !!selectedCharacterData && ['counting', 'paused', 'dead'].includes(String(comaState?.status || '').toLowerCase());
+  const comaStatus = String(comaState?.status || '').toLowerCase();
 
   useEffect(() => {
     if (isComaLocked && activeTab !== 'game') {
@@ -792,6 +793,22 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
 
           {/* --- CONTENT --- */}
           <main className="flex-1 overflow-y-auto relative bg-gray-900 scrollbar-hide">
+            {isComaLocked && (
+              <div className="sticky top-0 z-20 px-3 pt-2">
+                <div className="rounded-xl border border-red-500/60 bg-red-950/80 backdrop-blur p-3 text-red-100 shadow-lg">
+                  <div className="text-[11px] uppercase tracking-widest font-black">
+                    {comaStatus === 'dead'
+                      ? 'Personaggio morto'
+                      : comaStatus === 'paused'
+                        ? 'Coma stabilizzato'
+                        : 'Coma in corso'}
+                  </div>
+                  <div className="text-xs mt-1 text-red-200">
+                    Accesso limitato: fino a risoluzione del coma puoi usare solo la scheda `Game`.
+                  </div>
+                </div>
+              </div>
+            )}
             {renderTabContent()}
           </main>
 

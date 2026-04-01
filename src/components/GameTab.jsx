@@ -282,7 +282,7 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
 
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
-    const { selectedCharacterData: char, unreadCount, fetchCharacterData, onLogout } = useCharacter();
+    const { selectedCharacterData: char, unreadCount, refreshCharacterData, onLogout } = useCharacter();
     const [favorites, setFavorites] = useState([]);
     const [comaBusy, setComaBusy] = useState(false);
     const [nowTs, setNowTs] = useState(Date.now());
@@ -479,7 +479,7 @@ const GameTab = ({ onNavigate }) => {
         setComaBusy(true);
         try {
             await gameComaControl(char.id, actionName, onLogout);
-            await fetchCharacterData();
+            await refreshCharacterData();
         } catch (e) {
             alert(e?.message || 'Errore controllo coma.');
         } finally {
@@ -686,7 +686,7 @@ const GameTab = ({ onNavigate }) => {
                             key={item.id} 
                             item={item} 
                             // IMPORTANTE: Assicura il refresh dei dati al click
-                            onUpdate={fetchCharacterData} 
+                            onUpdate={refreshCharacterData} 
                         />
                     ))}
                     {activeItems.length === 0 && <p className="text-gray-600 text-xs italic w-full text-center py-4">Nessun dispositivo attivo.</p>}
