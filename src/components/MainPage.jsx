@@ -96,6 +96,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const [isWikiHelpOpen, setIsWikiHelpOpen] = useState(false);
   const [currentWikiSlug, setCurrentWikiSlug] = useState(null);
   const [messageComposeTarget, setMessageComposeTarget] = useState(null);
+  const [nowTs, setNowTs] = useState(Date.now());
   
   // STATO SHORTCUTS (Default salvagente)
   const [userShortcuts, setUserShortcuts] = useState(DEFAULT_SHORTCUTS);
@@ -246,6 +247,11 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
 
   // --- [MODIFICA] POLLING MESSAGGI STAFF (Solo per Staff) ---
   useEffect(() => {
+    const timerId = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(timerId);
+  }, []);
+
+  useEffect(() => {
     let interval;
     if (isStaff) {
         const checkStaffMessages = async () => {
@@ -386,14 +392,29 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   
   const { hasAdminNotif, hasMsgNotif, hasJobNotif, hasStaffMsgNotif } = notificationState;
   const comaState = selectedCharacterData?.impostazioni_ui?.coma_state || null;
+  const rianimazioneState = selectedCharacterData?.impostazioni_ui?.rianimazione_state || null;
   const isComaLocked = !!selectedCharacterData && ['counting', 'paused', 'dead'].includes(String(comaState?.status || '').toLowerCase());
   const comaStatus = String(comaState?.status || '').toLowerCase();
+  const isRevivalActive = !!selectedCharacterData && String(rianimazioneState?.status || '').toLowerCase() === 'counting';
+  const revivalEndMs = rianimazioneState?.end_at ? new Date(rianimazioneState.end_at).getTime() : 0;
+  const revivalRemaining = Math.max(0, Math.ceil((revivalEndMs - nowTs) / 1000));
+  const revivalMin = String(Math.floor(revivalRemaining / 60)).padStart(2, '0');
+  const revivalSec = String(revivalRemaining % 60).padStart(2, '0');
 
   useEffect(() => {
     if (isComaLocked && activeTab !== 'game') {
       setActiveTab('game');
     }
   }, [isComaLocked, activeTab]);
+
+  useEffect(() => {
+    if (!selectedCharacterId) return undefined;
+    if (!(isComaLocked || isRevivalActive)) return undefined;
+    const pollId = setInterval(() => {
+      refreshCharacterData();
+    }, 2000);
+    return () => clearInterval(pollId);
+  }, [selectedCharacterId, isComaLocked, isRevivalActive, refreshCharacterData]);
 
   const renderTabContent = useCallback(() => {
     if (activeTab === 'home') return <HomeTab onLogout={onLogout} />;
@@ -659,6 +680,18 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   ));
   
   MenuContent.displayName = 'MenuContent';
+
+  if (isRevivalActive) {
+    return (
+      <div className="h-screen w-screen bg-black text-white flex items-center justify-center p-6">
+        <div className="w-full max-w-lg text-center border border-emerald-500/50 bg-emerald-950/40 rounded-2xl p-6 shadow-2xl">
+          <div className="text-xs uppercase tracking-[0.25em] text-emerald-300 font-black">Rianimazione personaggio</div>
+          <div className="mt-2 text-sm text-emerald-200">La web app e temporaneamente sospesa fino al termine della rianimazione.</div>
+          <div className="mt-6 text-6xl font-black font-mono text-emerald-100">{revivalMin}:{revivalSec}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-900 text-white overflow-hidden">

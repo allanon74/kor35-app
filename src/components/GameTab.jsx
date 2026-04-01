@@ -533,6 +533,30 @@ const GameTab = ({ onNavigate }) => {
                             >
                                 {comaState?.is_paused ? 'Termina stabilizzazione' : 'Stabilizzato'}
                             </button>
+                            <button
+                                type="button"
+                                disabled={comaBusy}
+                                onClick={() => handleComaControl('fatal_hit')}
+                                className={`mt-2 w-full py-2 rounded-lg disabled:opacity-50 text-xs font-bold uppercase tracking-wide ${
+                                    String(comaState?.death_mode || 'none') === 'fatale'
+                                        ? 'bg-amber-600 text-black'
+                                        : 'bg-amber-900 hover:bg-amber-800 text-amber-100'
+                                }`}
+                            >
+                                Colpo Fatale (3 ranghi superiori ai PV)
+                            </button>
+                            <button
+                                type="button"
+                                disabled={comaBusy}
+                                onClick={() => {
+                                    if (window.confirm('Confermi colpo mortale? Il personaggio morira istantaneamente.')) {
+                                        handleComaControl('mortal_hit');
+                                    }
+                                }}
+                                className="mt-2 w-full py-2 rounded-lg bg-black/80 border border-red-500 hover:bg-black disabled:opacity-50 text-xs font-bold uppercase tracking-wide text-red-200"
+                            >
+                                Colpo Mortale (4+ ranghi superiori ai PV)
+                            </button>
                         </div>
                     )}
                     {isDead && (
