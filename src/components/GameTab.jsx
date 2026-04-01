@@ -264,6 +264,40 @@ const ChakraWidget = ({ current, max, onChange }) => {
     );
 };
 
+const RigenerazioneTimerWidget = ({ rows, nowTs }) => {
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    return (
+        <div className="bg-gray-900/50 rounded-lg p-2 border border-emerald-800/40 text-[10px] text-gray-300">
+            <span className="font-bold text-emerald-300 uppercase tracking-wider">Rigenerazioni attive</span>
+            <ul className="mt-1 space-y-1">
+                {rows.map((r) => {
+                    const nextMs = r?.next_tick_at ? new Date(r.next_tick_at).getTime() : null;
+                    const left = nextMs != null ? Math.max(0, Math.ceil((nextMs - nowTs) / 1000)) : 0;
+                    const mm = String(Math.floor(left / 60)).padStart(2, '0');
+                    const ss = String(left % 60).padStart(2, '0');
+                    const fonte = (r.abilita_nomi || []).length > 0 ? r.abilita_nomi.join(', ') : 'Regola automatica';
+                    return (
+                        <li key={`regen-${r.sigla}`} className="font-mono">
+                            <span className="text-emerald-200">{r.nome || r.sigla}</span>{' '}
+                            <span className="text-gray-500">({r.sigla})</span>{' '}
+                            <span
+                                className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                                    r.paused
+                                        ? 'bg-amber-900/60 text-amber-200 border border-amber-700/60'
+                                        : 'bg-emerald-900/60 text-emerald-200 border border-emerald-700/60'
+                                }`}
+                            >
+                                {r.paused ? 'in pausa' : `${mm}:${ss}`}
+                            </span>{' '}
+                            <span className="text-gray-400">· {fonte}</span>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+};
+
 const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavyUsed, heavyMax, heavyConsumers }) => {
     const isOverloaded = capacityUsed > capacityMax;
     const isHeavyOverloaded = heavyUsed > heavyMax;
@@ -599,6 +633,7 @@ const GameTab = ({ onNavigate }) => {
                 <div className="flex flex-col gap-4">
                     <DamageControlPanel stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onChange={handleStatChange} />
                     {(maxChakra > 0) && <ChakraWidget current={tacticalStats['CHK_CUR']} max={maxChakra} onChange={handleStatChange} />}
+                    <RigenerazioneTimerWidget rows={char.rigenerazioni_auto_ui || []} nowTs={nowTs} />
                     {(char.risorse_pool_ui || []).filter((p) => p.valore_max > 0).map((pool) => (
                         <RisorsaPoolWidget
                             key={pool.sigla}
