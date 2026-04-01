@@ -409,12 +409,32 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
 
   useEffect(() => {
     if (!selectedCharacterId) return undefined;
-    if (!(isComaLocked || isRevivalActive)) return undefined;
-    const pollId = setInterval(() => {
+
+    const comaEndMs = comaState?.end_at ? new Date(comaState.end_at).getTime() : 0;
+    const revivalEndMs = rianimazioneState?.end_at ? new Date(rianimazioneState.end_at).getTime() : 0;
+    const now = Date.now();
+
+    // Refresh solo quando serve davvero:
+    // - alla fine del coma (per avviare rianimazione o morte)
+    // - alla fine della rianimazione (per tornare alla UI normale con PV ripristinati)
+    let nextTriggerMs = 0;
+    if (isRevivalActive && revivalEndMs > now) {
+      nextTriggerMs = revivalEndMs;
+    } else if (
+      isComaLocked &&
+      String(comaState?.status || '').toLowerCase() === 'counting' &&
+      comaEndMs > now
+    ) {
+      nextTriggerMs = comaEndMs;
+    }
+
+    if (!nextTriggerMs) return undefined;
+    const waitMs = Math.max(300, nextTriggerMs - now + 350);
+    const timeoutId = setTimeout(() => {
       refreshCharacterData();
-    }, 2000);
-    return () => clearInterval(pollId);
-  }, [selectedCharacterId, isComaLocked, isRevivalActive, refreshCharacterData]);
+    }, waitMs);
+    return () => clearTimeout(timeoutId);
+  }, [selectedCharacterId, isComaLocked, isRevivalActive, comaState, rianimazioneState, refreshCharacterData]);
 
   const renderTabContent = useCallback(() => {
     if (activeTab === 'home') return <HomeTab onLogout={onLogout} />;
