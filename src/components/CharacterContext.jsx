@@ -71,19 +71,21 @@ export const CharacterProvider = ({ children, onLogout }) => {
   const [activeTimers, setActiveTimers] = useState({});
 
   const updateTimerState = useCallback((timerData) => {
+    const key = timerData.id != null ? `t-${timerData.id}` : timerData.nome;
     setActiveTimers(prev => ({
         ...prev,
-        [timerData.nome]: {
+        [key]: {
             ...timerData,
+            _key: key,
             endTime: new Date(timerData.data_fine).getTime()
         }
     }));
   }, []);
 
-  const removeTimerState = useCallback((nomeTimer) => {
+  const removeTimerState = useCallback((keyOrNome) => {
     setActiveTimers(prev => {
         const newState = { ...prev };
-        delete newState[nomeTimer];
+        delete newState[keyOrNome];
         return newState;
     });
   }, []);

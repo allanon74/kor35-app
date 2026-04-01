@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'; 
 import { useCharacter } from './CharacterContext';
+import { useNow } from '../hooks/useNow';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
     Star, MessageSquare, Briefcase, Backpack, AlertCircle, Plus, Minus,
@@ -184,16 +185,11 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     );
 };
 
-const RisorsaPoolWidget = ({ pool, onConsume, isPending }) => {
-    const [nowTs, setNowTs] = useState(Date.now());
-    useEffect(() => {
-        const id = window.setInterval(() => setNowTs(Date.now()), 1000);
-        return () => window.clearInterval(id);
-    }, []);
+const RisorsaPoolWidget = ({ pool, onConsume, isPending, nowMs }) => {
     const canConsume = (pool.valore_corrente || 0) >= 1;
     const rec = pool?.recupero_auto || {};
     const nextTickMs = rec?.next_tick_at ? new Date(rec.next_tick_at).getTime() : null;
-    const countdownSeconds = nextTickMs != null ? Math.max(0, Math.ceil((nextTickMs - nowTs) / 1000)) : null;
+    const countdownSeconds = nextTickMs != null ? Math.max(0, Math.ceil((nextTickMs - nowMs) / 1000)) : null;
     const mm = countdownSeconds != null ? Math.floor(countdownSeconds / 60) : 0;
     const ss = countdownSeconds != null ? countdownSeconds % 60 : 0;
     return (
@@ -264,7 +260,7 @@ const ChakraWidget = ({ current, max, onChange }) => {
     );
 };
 
-const RigenerazioneTimerWidget = ({ rows, nowTs }) => {
+const RigenerazioneTimerWidget = ({ rows, nowMs }) => {
     if (!Array.isArray(rows) || rows.length === 0) return null;
     return (
         <div className="bg-gray-900/50 rounded-lg p-2 border border-emerald-800/40 text-[10px] text-gray-300">
@@ -272,7 +268,7 @@ const RigenerazioneTimerWidget = ({ rows, nowTs }) => {
             <ul className="mt-1 space-y-1">
                 {rows.map((r) => {
                     const nextMs = r?.next_tick_at ? new Date(r.next_tick_at).getTime() : null;
-                    const left = nextMs != null ? Math.max(0, Math.ceil((nextMs - nowTs) / 1000)) : 0;
+                    const left = nextMs != null ? Math.max(0, Math.ceil((nextMs - nowMs) / 1000)) : 0;
                     const mm = String(Math.floor(left / 60)).padStart(2, '0');
                     const ss = String(left % 60).padStart(2, '0');
                     const fonte = (r.abilita_nomi || []).length > 0 ? r.abilita_nomi.join(', ') : 'Regola automatica';
@@ -330,19 +326,12 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
     );
 };
 
-const LiveComaCountdown = ({ endAtIso, pausedAtIso, isPaused, fallbackSeconds = 0 }) => {
-    const [tick, setTick] = useState(Date.now());
-
-    useEffect(() => {
-        const id = window.setInterval(() => setTick(Date.now()), 1000);
-        return () => window.clearInterval(id);
-    }, []);
-
+const LiveComaCountdown = ({ endAtIso, pausedAtIso, isPaused, fallbackSeconds = 0, nowMs }) => {
     const endAtMs = endAtIso ? new Date(endAtIso).getTime() : 0;
     const pausedAtMs = pausedAtIso ? new Date(pausedAtIso).getTime() : 0;
     const computed = isPaused
         ? Math.max(0, Math.floor((endAtMs - pausedAtMs) / 1000))
-        : Math.max(0, Math.ceil((endAtMs - tick) / 1000));
+        : Math.max(0, Math.ceil((endAtMs - nowMs) / 1000));
     const seconds = Number.isFinite(computed) ? computed : Math.max(0, Number(fallbackSeconds || 0));
 
     return (
@@ -355,6 +344,7 @@ const LiveComaCountdown = ({ endAtIso, pausedAtIso, isPaused, fallbackSeconds = 
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount, refreshCharacterData, onLogout } = useCharacter();
+    const nowMs = useNow();
     const [favorites, setFavorites] = useState([]);
     const [comaBusy, setComaBusy] = useState(false);
     
@@ -586,6 +576,7 @@ const GameTab = ({ onNavigate }) => {
                                     pausedAtIso={comaState?.paused_at}
                                     isPaused={!!comaState?.is_paused}
                                     fallbackSeconds={comaState?.remaining_seconds}
+                                    nowMs={nowMs}
                                 />
                             </div>
                             <button
@@ -633,11 +624,12 @@ const GameTab = ({ onNavigate }) => {
                 <div className="flex flex-col gap-4">
                     <DamageControlPanel stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onChange={handleStatChange} />
                     {(maxChakra > 0) && <ChakraWidget current={tacticalStats['CHK_CUR']} max={maxChakra} onChange={handleStatChange} />}
-                    <RigenerazioneTimerWidget rows={char.rigenerazioni_auto_ui || []} nowTs={nowTs} />
+                    <RigenerazioneTimerWidget rows={char.rigenerazioni_auto_ui || []} nowMs={nowMs} />
                     {(char.risorse_pool_ui || []).filter((p) => p.valore_max > 0).map((pool) => (
                         <RisorsaPoolWidget
                             key={pool.sigla}
                             pool={pool}
+                            nowMs={nowMs}
                             isPending={risorsaMutation.isPending}
                             onConsume={(sigla) =>
                                 risorsaMutation.mutate({ charId: char.id, statSigla: sigla })

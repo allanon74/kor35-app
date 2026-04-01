@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Fragment } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { Tab } from '@headlessui/react';
 import { useCharacter } from './CharacterContext';
 import { Loader2, ShoppingCart, Info, CheckCircle2, PlusCircle, FileEdit, Star, FlaskConical, PackageCheck, Timer, Trash2 } from 'lucide-react';
@@ -9,6 +9,7 @@ import GenericGroupedList from './GenericGroupedList';
 import PunteggioDisplay from './PunteggioDisplay';     
 import IconaPunteggio from './IconaPunteggio';
 import ProposalManager from './ProposalManager';
+import { useNow, secondsUntilIso } from '../hooks/useNow';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -27,19 +28,22 @@ const TessitureTab = ({ onLogout }) => {
   const [modalItem, setModalItem] = useState(null);
   const [isCreatingConsumable, setIsCreatingConsumable] = useState(null);
   const [isCompletingConsumable, setIsCompletingConsumable] = useState(null);
-  const [countdowns, setCountdowns] = useState({}); // { creazioneId: secondiRimanenti }
-
   // Stato per gestire la visibilità del ProposalManager
   const [showProposals, setShowProposals] = useState(false);
+  const nowMs = useNow();
 
   // Sincronizza countdown con creazioni in corso dal server
   const creazioniInCorso = useMemo(() => char?.creazioni_consumabili_in_corso || [], [char?.creazioni_consumabili_in_corso]);
   const creazioniPronte = useMemo(() => char?.creazioni_consumabili_pronte || [], [char?.creazioni_consumabili_pronte]);
   const valoreAlchimia = char?.valore_aura_alchimia ?? 0;
-  const creazioniInCorsoKey = useMemo(
-    () => creazioniInCorso.map((c) => `${c.id}:${c.secondi_rimanenti}`).sort().join(','),
-    [creazioniInCorso]
-  );
+
+  const countdowns = useMemo(() => {
+    const m = {};
+    creazioniInCorso.forEach((c) => {
+      m[c.id] = secondsUntilIso(c.data_fine_creazione, nowMs);
+    });
+    return m;
+  }, [creazioniInCorso, nowMs]);
 
   const fmtTime = (s) => {
     const m = Math.floor(s / 60);
@@ -47,35 +51,18 @@ const TessitureTab = ({ onLogout }) => {
     return `${m}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
+  const prevSecRef = useRef({});
   useEffect(() => {
-    const byId = {};
-    creazioniInCorso.forEach((c) => { byId[c.id] = c.secondi_rimanenti ?? 0; });
-    setCountdowns((prev) => {
-      const next = { ...byId };
-      Object.keys(prev).forEach((id) => { if (next[id] === undefined && prev[id] > 0) next[id] = prev[id]; });
-      return next;
-    });
-  }, [char?.id, creazioniInCorsoKey]);
-
-  useEffect(() => {
-    const idsInCorso = new Set(creazioniInCorso.map((c) => c.id));
-    if (idsInCorso.size === 0) return;
-    const t = setInterval(() => {
-      setCountdowns((prev) => {
-        const next = {};
-        let anyZero = false;
-        for (const id of idsInCorso) {
-          const sec = prev[id] ?? 0;
-          const s = Math.max(0, sec - 1);
-          next[id] = s;
-          if (s === 0) anyZero = true;
-        }
-        if (anyZero) refreshCharacterData();
-        return Object.keys(next).length ? next : prev;
-      });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [creazioniInCorso, refreshCharacterData]);
+    if (!creazioniInCorso.length) return;
+    let shouldRefresh = false;
+    for (const c of creazioniInCorso) {
+      const sec = secondsUntilIso(c.data_fine_creazione, nowMs);
+      const prev = prevSecRef.current[c.id];
+      if (prev !== undefined && prev > 0 && sec === 0) shouldRefresh = true;
+      prevSecRef.current[c.id] = sec;
+    }
+    if (shouldRefresh) refreshCharacterData();
+  }, [nowMs, creazioniInCorso, refreshCharacterData]);
 
   // Hook per optimistic update del favorite
   const acquireMutation = useOptimisticAcquireTessitura();

@@ -1,30 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Loader2, Hammer, CheckCircle, Clock, User, Trash2 } from 'lucide-react';
 import { completeForging } from '../api';
 import { useCharacter } from './CharacterContext';
 import GraftInstallationModal from './GraftInstallationModal'; // Assicurati che il percorso sia corretto
+import { useNow, secondsUntilIso } from '../hooks/useNow';
 
-const ForgingItem = ({ item, onComplete, onOpenGraftModal, currentCharacterId }) => {
-  // ... (tutto il codice timer esistente rimane uguale) ...
-  const [timeLeft, setTimeLeft] = useState(item.secondi_rimanenti);
+const ForgingItem = ({ item, onComplete, onOpenGraftModal, currentCharacterId, nowMs }) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    // ... (logica timer identica a prima) ...
-    const calculateTimeLeft = () => {
-        const now = new Date();
-        const end = new Date(item.data_fine);
-        const diff = Math.max(0, (end - now) / 1000);
-        return diff;
-    };
-    setTimeLeft(calculateTimeLeft());
-    const interval = setInterval(() => {
-      const remaining = calculateTimeLeft();
-      setTimeLeft(remaining);
-      if (remaining <= 0) clearInterval(interval);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [item.data_fine]);
+  const timeLeft = useMemo(
+    () => secondsUntilIso(item.data_fine, nowMs),
+    [item.data_fine, nowMs]
+  );
 
   // Logica differenziata per il Click
   const handleClick = () => {
@@ -104,7 +91,8 @@ const ForgingItem = ({ item, onComplete, onOpenGraftModal, currentCharacterId })
 
 const ForgingQueue = ({ queue, refetchQueue }) => {
   const { selectedCharacterId, refreshCharacterData } = useCharacter();
-  
+  const nowMs = useNow();
+
   // Stato per la modale
   const [selectedGraftTask, setSelectedGraftTask] = useState(null);
 
@@ -138,6 +126,7 @@ const ForgingQueue = ({ queue, refetchQueue }) => {
                     <ForgingItem 
                         key={item.id} 
                         item={item} 
+                        nowMs={nowMs}
                         onComplete={handleCompleteStandard} 
                         onOpenGraftModal={setSelectedGraftTask} // <--- Passiamo il setter
                         currentCharacterId={selectedCharacterId}

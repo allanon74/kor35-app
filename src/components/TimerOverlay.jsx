@@ -84,7 +84,7 @@ export const TimerOverlay = ({ activeTimers, onRemove }) => {
     }
 
     // Rimuove il timer dallo stato globale in CharacterContext
-    onRemove(timer.nome);
+    onRemove(timer._key || timer.nome);
   };
 
   if (Object.keys(activeTimers).length === 0) return null;
@@ -94,7 +94,7 @@ export const TimerOverlay = ({ activeTimers, onRemove }) => {
       <div className="pointer-events-auto">
         {Object.values(activeTimers).map(t => (
           <SingleTimer 
-            key={t.nome} 
+            key={t._key || t.nome} 
             timer={t} 
             onExpire={handleExpire} 
           />

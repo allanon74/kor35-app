@@ -17,6 +17,7 @@ export const useTimers = () => {
         } = config;
 
         const timerNome = nome || label || "Operazione";
+        const key = config.id != null ? `t-${config.id}` : timerNome;
 
         // Calcoliamo endTime (millisecondi) come richiesto dal tuo SingleTimer
         const finalExpiration = endsAt 
@@ -26,8 +27,9 @@ export const useTimers = () => {
         // Aggiorniamo l'OGGETTO (non l'array) per coerenza con TimerOverlay
         setActiveTimers(prev => ({
             ...prev,
-            [timerNome]: {
+            [key]: {
                 nome: timerNome,
+                _key: key,
                 endTime: finalExpiration, // Il tuo SingleTimer usa .endTime
                 alert_suono,
                 notifica_push,
@@ -39,10 +41,10 @@ export const useTimers = () => {
         console.log(`⏱️ Hook: Timer "${timerNome}" impostato a ${new Date(finalExpiration).toLocaleTimeString()}`);
     }, [setActiveTimers]); // Corretta la dipendenza
 
-    const removeTimer = useCallback((nome) => {
+    const removeTimer = useCallback((keyOrNome) => {
         setActiveTimers(prev => {
             const newTimers = { ...prev };
-            delete newTimers[nome];
+            delete newTimers[keyOrNome];
             return newTimers;
         });
     }, [setActiveTimers]);
