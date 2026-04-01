@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { sanitizeHtml } from '../utils/htmlSanitizer';
-import { activateUser, deleteUser } from '../api';
+import { activateUser, deleteUser, staffKillPersonaggio, staffRevivePersonaggio } from '../api';
 import { RICH_TEXT_SHARED_STYLES } from '../styles/richTextSharedStyles';
 
-const RichTextDisplay = ({ content, onUpdate }) => {
+const RichTextDisplay = ({ content, onUpdate, onLogout }) => {
     // 1. Sanitizzazione base dell'HTML
     const cleanContent = useMemo(() => sanitizeHtml(content), [content]);
 
@@ -35,9 +35,33 @@ const RichTextDisplay = ({ content, onUpdate }) => {
         }
     };
 
+    const handleConfirmDeath = async (personaggioId) => {
+        if (window.confirm(`Confermi lo stato "morto" per il personaggio #${personaggioId}?`)) {
+            try {
+                await staffKillPersonaggio(personaggioId, onLogout);
+                alert('Morte confermata.');
+                if (onUpdate) onUpdate();
+            } catch (err) {
+                alert('Errore conferma morte: ' + err.message);
+            }
+        }
+    };
+
+    const handleRevokeDeath = async (personaggioId) => {
+        if (window.confirm(`Rivivere il personaggio #${personaggioId}?`)) {
+            try {
+                await staffRevivePersonaggio(personaggioId, onLogout);
+                alert('Personaggio rivissuto.');
+                if (onUpdate) onUpdate();
+            } catch (err) {
+                alert('Errore revive: ' + err.message);
+            }
+        }
+    };
+
     // 4. Parser Custom per trovare i tag [ACTIVATE_USER:ID] e [DELETE_USER:ID]
     // Dividiamo la stringa in parti basate sulla Regex
-    const parts = cleanContent.split(/(\[(?:ACTIVATE|DELETE)_USER:\d+\])/g);
+    const parts = cleanContent.split(/(\[(?:ACTIVATE|DELETE)_USER:\d+\]|\[(?:CONFIRM_DEATH|REVOKE_DEATH):\d+\])/g);
 
     return (
         <>
@@ -91,6 +115,36 @@ const RichTextDisplay = ({ content, onUpdate }) => {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                                 Elimina Utente #{userId}
+                            </button>
+                        </span>
+                    );
+                }
+
+                const confirmDeathMatch = part.match(/\[CONFIRM_DEATH:(\d+)\]/);
+                if (confirmDeathMatch) {
+                    const personaggioId = confirmDeathMatch[1];
+                    return (
+                        <span key={index} className="inline-block my-1 mx-1">
+                            <button
+                                onClick={() => handleConfirmDeath(personaggioId)}
+                                className="bg-red-700 hover:bg-red-600 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors"
+                            >
+                                Conferma morte #{personaggioId}
+                            </button>
+                        </span>
+                    );
+                }
+
+                const revokeDeathMatch = part.match(/\[REVOKE_DEATH:(\d+)\]/);
+                if (revokeDeathMatch) {
+                    const personaggioId = revokeDeathMatch[1];
+                    return (
+                        <span key={index} className="inline-block my-1 mx-1">
+                            <button
+                                onClick={() => handleRevokeDeath(personaggioId)}
+                                className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors"
+                            >
+                                Revoca morte #{personaggioId}
                             </button>
                         </span>
                     );

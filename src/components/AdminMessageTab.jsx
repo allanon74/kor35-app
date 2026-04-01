@@ -313,7 +313,7 @@ const AdminMessageTab = ({ onLogout }) => {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-bold text-green-300 block text-sm">
-                                                    Da: {msg.mittente_nome || 'Utente Sconosciuto / Sistema'}
+                                                    Da: {msg.mittente_personaggio_nome || msg.mittente_nome || 'Utente Sconosciuto / Sistema'}
                                                 </span>
                                                 {!isRead && <span className="bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wide animate-pulse">Nuovo</span>}
                                             </div>
@@ -358,7 +358,7 @@ const AdminMessageTab = ({ onLogout }) => {
                                     
                                     {/* RichTextDisplay gestisce i bottoni di attivazione e eliminazione utente */}
                                     <div className="bg-gray-900/60 p-3 rounded text-sm text-gray-300 border border-gray-700/50">
-                                        <RichTextDisplay content={msg.testo} onUpdate={loadInbox} />
+                                        <RichTextDisplay content={msg.testo} onUpdate={loadInbox} onLogout={onLogout} />
                                     </div>
                                 </div>
                                 );

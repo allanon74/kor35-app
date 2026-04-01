@@ -396,7 +396,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   const { hasAdminNotif, hasMsgNotif, hasJobNotif, hasStaffMsgNotif } = notificationState;
   const comaState = selectedCharacterData?.impostazioni_ui?.coma_state || null;
   const rianimazioneState = selectedCharacterData?.impostazioni_ui?.rianimazione_state || null;
-  const isComaLocked = !!selectedCharacterData && ['counting', 'paused', 'dead'].includes(String(comaState?.status || '').toLowerCase());
+  const isComaLocked = !!selectedCharacterData && ['counting', 'paused'].includes(String(comaState?.status || '').toLowerCase());
   const comaStatus = String(comaState?.status || '').toLowerCase();
   const isRevivalActive = !!selectedCharacterData && String(rianimazioneState?.status || '').toLowerCase() === 'counting';
   const revivalEndMs = rianimazioneState?.end_at ? new Date(rianimazioneState.end_at).getTime() : 0;
@@ -409,6 +409,12 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
       setActiveTab('game');
     }
   }, [isComaLocked, activeTab]);
+
+  useEffect(() => {
+    if (!selectedCharacterId && activeTab !== 'personaggi') {
+      setActiveTab('personaggi');
+    }
+  }, [selectedCharacterId, activeTab]);
 
   useEffect(() => {
     if (!selectedCharacterId) return undefined;
