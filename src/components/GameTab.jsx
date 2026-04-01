@@ -291,12 +291,33 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
     );
 };
 
+const LiveComaCountdown = ({ endAtIso, pausedAtIso, isPaused, fallbackSeconds = 0 }) => {
+    const [tick, setTick] = useState(Date.now());
+
+    useEffect(() => {
+        const id = window.setInterval(() => setTick(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, []);
+
+    const endAtMs = endAtIso ? new Date(endAtIso).getTime() : 0;
+    const pausedAtMs = pausedAtIso ? new Date(pausedAtIso).getTime() : 0;
+    const computed = isPaused
+        ? Math.max(0, Math.floor((endAtMs - pausedAtMs) / 1000))
+        : Math.max(0, Math.ceil((endAtMs - tick) / 1000));
+    const seconds = Number.isFinite(computed) ? computed : Math.max(0, Number(fallbackSeconds || 0));
+
+    return (
+        <span>
+            {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}
+        </span>
+    );
+};
+
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount, refreshCharacterData, onLogout } = useCharacter();
     const [favorites, setFavorites] = useState([]);
     const [comaBusy, setComaBusy] = useState(false);
-    const [nowTs, setNowTs] = useState(Date.now());
     
     const statMutation = useOptimisticStatChange();
     const risorsaMutation = useConsumaRisorsa();
@@ -304,11 +325,6 @@ const GameTab = ({ onNavigate }) => {
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
         setFavorites(savedFavs);
-    }, []);
-
-    useEffect(() => {
-        const timerId = window.setInterval(() => setNowTs(Date.now()), 1000);
-        return () => window.clearInterval(timerId);
     }, []);
 
     // --- FUNZIONI HELPER PER VISUALIZZAZIONE ---
@@ -476,14 +492,6 @@ const GameTab = ({ onNavigate }) => {
     const comaState = char?.impostazioni_ui?.coma_state || null;
     const isDead = !!char?.data_morte || comaState?.status === 'dead';
     const hasComaCountdown = tacticalStats['PV_CUR'] <= 0 && !!comaState && !isDead;
-    const endAtMs = comaState?.end_at ? new Date(comaState.end_at).getTime() : 0;
-    const pausedAtMs = comaState?.paused_at ? new Date(comaState.paused_at).getTime() : 0;
-    const liveRemaining = comaState?.is_paused
-        ? Math.max(0, Math.floor((endAtMs - pausedAtMs) / 1000))
-        : Math.max(0, Math.ceil((endAtMs - nowTs) / 1000));
-    const remainingSeconds = Number.isFinite(liveRemaining)
-        ? liveRemaining
-        : Math.max(0, Number(comaState?.remaining_seconds || 0));
 
     const handleComaControl = async (actionName) => {
         if (!char?.id) return;
@@ -534,7 +542,12 @@ const GameTab = ({ onNavigate }) => {
                         <div className="mt-3 w-full max-w-[280px] bg-red-950/50 border border-red-700 rounded-xl p-3 text-center">
                             <div className="text-xs uppercase tracking-widest text-red-300 font-bold">Coma</div>
                             <div className="text-3xl font-mono font-black text-red-100 mt-1">
-                                {String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:{String(remainingSeconds % 60).padStart(2, '0')}
+                                <LiveComaCountdown
+                                    endAtIso={comaState?.end_at}
+                                    pausedAtIso={comaState?.paused_at}
+                                    isPaused={!!comaState?.is_paused}
+                                    fallbackSeconds={comaState?.remaining_seconds}
+                                />
                             </div>
                             <button
                                 type="button"

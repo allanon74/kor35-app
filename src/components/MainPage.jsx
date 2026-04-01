@@ -247,9 +247,12 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
 
   // --- [MODIFICA] POLLING MESSAGGI STAFF (Solo per Staff) ---
   useEffect(() => {
+    const revivalActiveNow =
+      String(selectedCharacterData?.impostazioni_ui?.rianimazione_state?.status || '').toLowerCase() === 'counting';
+    if (!revivalActiveNow) return undefined;
     const timerId = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(timerId);
-  }, []);
+  }, [selectedCharacterData]);
 
   useEffect(() => {
     let interval;
