@@ -213,15 +213,32 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     };
 
     const children = containersByParentId.get(container.id) || [];
+    const shouldHideByRules = (value, cfg) => {
+      if (cfg?.nascondi_se_negativa && value < 0) return true;
+      if (cfg?.nascondi_se_zero && value === 0) return true;
+      if (cfg?.nascondi_se_uno && value === 1) return true;
+      return false;
+    };
+
     const items = (container.items || [])
       .slice()
       .sort((a, b) => (a.ordine || 0) - (b.ordine || 0))
       .map((it) => {
         const stat = statsById.get(it.statistica_id);
         if (!stat) return null;
-        return { stat, itemConfig: it };
+        const value = computeStatValue(stat);
+        if (shouldHideByRules(value, it)) return null;
+        return { stat, itemConfig: it, value };
       })
       .filter(Boolean);
+
+    const renderedChildren = children
+      .map((child) => <StatisticaContainerTile key={child.id} container={child} />)
+      .filter(Boolean);
+
+    if (renderedChildren.length === 0 && items.length === 0) {
+      return null;
+    }
 
     return (
       <div className="rounded-lg overflow-hidden border border-gray-700 bg-gray-900/30">
@@ -237,17 +254,15 @@ const CharacterSheet = memo(({ data, onLogout }) => {
         />
 
         <div className="p-2 space-y-2">
-          {children.length > 0 && (
+          {renderedChildren.length > 0 && (
             <div className="grid grid-cols-1 gap-2">
-              {children.map((child) => (
-                <StatisticaContainerTile key={child.id} container={child} />
-              ))}
+              {renderedChildren}
             </div>
           )}
 
           {items.length > 0 && (
             <div className="flex flex-col gap-2">
-              {items.map(({ stat: p, itemConfig }) => (
+              {items.map(({ stat: p, itemConfig, value }) => (
                 <PunteggioDisplay
                   key={p.id}
                   punteggio={
@@ -255,7 +270,7 @@ const CharacterSheet = memo(({ data, onLogout }) => {
                       ? { ...p, colore: container.colore }
                       : p
                   }
-                  value={computeStatValue(p)}
+                  value={value}
                   displayText="name"
                   iconType="inv_circle"
                   size={itemConfig?.dimensione || "s"}
