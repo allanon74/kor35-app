@@ -482,8 +482,8 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
     return <HomeTab onLogout={onLogout} />;
   }, [activeTab, selectedCharacterId, isStealingOnCooldown, cooldownTimer, handleMenuNavigation, handleScanSuccess, onLogout]);
 
-  // --- COMPONENTE INTERNO PER IL CONTENUTO DEL MENU (RIUTILIZZABILE) ---
-  const MenuContent = memo(() => (
+  // --- CONTENUTO MENU (render function, evita remount continui della sidebar) ---
+  const renderMenuContent = () => (
     <div className="flex flex-col h-full overflow-hidden">
         {/* SELETTORE PERSONAGGIO E TAB */}
         <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
@@ -700,9 +700,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
             </button>
         </div>
     </div>
-  ));
-  
-  MenuContent.displayName = 'MenuContent';
+  );
 
   if (isRevivalActive) {
     return (
@@ -745,7 +743,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                  <span className="font-black text-gray-200 italic tracking-widest uppercase text-sm">MENU UTENTE</span>
             </div>
             {/* Riutilizza il contenuto del menu */}
-            <MenuContent />
+            {renderMenuContent()}
       </aside>
 
       {/* --- WRAPPER CONTENUTO PRINCIPALE --- */}
@@ -842,7 +840,7 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
                         <button onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
                     </div>
                     {/* Riutilizza il contenuto del menu */}
-                    <MenuContent />
+                    {renderMenuContent()}
                 </div>
             </div>
           )}

@@ -184,7 +184,12 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     );
 };
 
-const RisorsaPoolWidget = ({ pool, onConsume, isPending, nowTs }) => {
+const RisorsaPoolWidget = ({ pool, onConsume, isPending }) => {
+    const [nowTs, setNowTs] = useState(Date.now());
+    useEffect(() => {
+        const id = window.setInterval(() => setNowTs(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, []);
     const canConsume = (pool.valore_corrente || 0) >= 1;
     const rec = pool?.recupero_auto || {};
     const nextTickMs = rec?.next_tick_at ? new Date(rec.next_tick_at).getTime() : null;
@@ -598,7 +603,6 @@ const GameTab = ({ onNavigate }) => {
                         <RisorsaPoolWidget
                             key={pool.sigla}
                             pool={pool}
-                            nowTs={nowTs}
                             isPending={risorsaMutation.isPending}
                             onConsume={(sigla) =>
                                 risorsaMutation.mutate({ charId: char.id, statSigla: sigla })
