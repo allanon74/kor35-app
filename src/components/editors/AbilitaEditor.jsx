@@ -5,6 +5,9 @@ import StatModInline from './inlines/StatModInline';
 import GenericRelationInline from './inlines/GenericRelationInline';
 import SearchableSelect from './SearchableSelect';
 
+const DURATA_OPTIONS = ['O1H', 'DAY', 'EVT'];
+const TIPO_MOD_OPTIONS = ['ADD', 'MOL'];
+
 const EMPTY_ABILITA_FORM = {
     nome: '',
     descrizione: '',
@@ -24,6 +27,16 @@ const EMPTY_ABILITA_FORM = {
     statistiche: [],
     effetto_uso_risorsa_str: '',
     recupero_risorsa_str: '',
+};
+
+const EMPTY_EFFETTO_WIZARD = {
+    stat_sigla: 'FRT',
+    durata: 'O1H',
+    modifiche: [{ stat_sigla: 'PV', valore: 1, tipo_modificatore: 'ADD' }],
+};
+
+const EMPTY_RECUPERO_WIZARD = {
+    rigenerazioni: [{ stat_sigla: 'PV', ogni_minuti: 5, step: 1 }],
 };
 
 /** La lista staff restituisce righe senza relazioni annidate: senza merge, .map sugli inline va in errore. */
@@ -55,6 +68,8 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     const [punteggi, setPunteggi] = useState([]); 
     const [abilitaList, setAbilitaList] = useState([]); 
     const [tiersList, setTiersList] = useState([]); 
+    const [effettoWizard, setEffettoWizard] = useState(EMPTY_EFFETTO_WIZARD);
+    const [recuperoWizard, setRecuperoWizard] = useState(EMPTY_RECUPERO_WIZARD);
 
     const statsOptions = punteggi.filter(p => p.tipo === 'ST');
     const auraOptions = punteggi.filter(p => p.tipo === 'AU');
@@ -190,6 +205,34 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     const caratteristiche = punteggi.filter(p => p.tipo === 'CA' || p.tipo === 'CO');
     const aure = punteggi.filter(p => p.tipo === 'AU');
     const allStats = punteggi.filter(p => p.tipo === 'ST');
+
+    const pushEffettoWizardToJson = () => {
+        const payload = {
+            stat_sigla: (effettoWizard.stat_sigla || '').toUpperCase().trim(),
+            durata: (effettoWizard.durata || 'O1H').toUpperCase().trim(),
+            modifiche: (effettoWizard.modifiche || [])
+                .filter((r) => r && r.stat_sigla)
+                .map((r) => ({
+                    stat_sigla: String(r.stat_sigla || '').toUpperCase().trim(),
+                    valore: Number(r.valore || 0),
+                    tipo_modificatore: String(r.tipo_modificatore || 'ADD').toUpperCase().trim(),
+                })),
+        };
+        setFormData({ ...formData, effetto_uso_risorsa_str: JSON.stringify(payload, null, 2) });
+    };
+
+    const pushRecuperoWizardToJson = () => {
+        const payload = {
+            rigenerazioni: (recuperoWizard.rigenerazioni || [])
+                .filter((r) => r && r.stat_sigla)
+                .map((r) => ({
+                    stat_sigla: String(r.stat_sigla || '').toUpperCase().trim(),
+                    ogni_minuti: Math.max(1, Number(r.ogni_minuti || 1)),
+                    step: Math.max(1, Number(r.step || 1)),
+                })),
+        };
+        setFormData({ ...formData, recupero_risorsa_str: JSON.stringify(payload, null, 2) });
+    };
 
     return (
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-2xl text-white max-w-7xl mx-auto overflow-y-auto max-h-[90vh]">
@@ -365,11 +408,10 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                         <div>
                             <p className="font-bold text-gray-200 mb-1">2. Recupero risorsa</p>
                             <p>
-                                Serve a <strong>documentare</strong> regole tipo “recuperi un punto a fine evento / a fine anno di
-                                gioco”. Il motore può usarle in futuro per automatismi; oggi lo staff può comunque aggiungere
-                                punti dalla tab <strong>Risorse pool</strong>. Usa chiavi coerenti, es.{' '}
-                                <code className="text-amber-200/90">quando</code>: <code>FINE_EVENTO</code> o{' '}
-                                <code>FINE_ANNO_GIOCO</code>, e <code>stat_sigla</code> (es. <code>FRT</code>).
+                                Definisce la <strong>rigenerazione automatica</strong> per questa abilita. Formato consigliato:{' '}
+                                <code className="text-amber-200/90">{"{\"rigenerazioni\":[{\"stat_sigla\":\"PV\",\"ogni_minuti\":5,\"step\":1}]}"}</code>.
+                                Puoi usare anche <code>interval_seconds</code> invece di <code>ogni_minuti</code>. Se più abilita
+                                definiscono la stessa stat, il sistema usa l&apos;intervallo più veloce e lo step più alto.
                             </p>
                         </div>
                     </div>
@@ -377,6 +419,92 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div>
+                        <div className="mb-2 p-3 rounded border border-emerald-900/40 bg-emerald-950/20 space-y-2">
+                            <div className="text-[11px] text-emerald-200 font-bold uppercase tracking-wide">Wizard rapido effetto</div>
+                            <div className="grid grid-cols-4 gap-2">
+                                <input
+                                    className="col-span-1 bg-gray-950 border border-gray-700 rounded p-2 text-xs font-mono text-gray-200"
+                                    value={effettoWizard.stat_sigla}
+                                    onChange={(e) => setEffettoWizard({ ...effettoWizard, stat_sigla: e.target.value })}
+                                    placeholder="Stat risorsa (es FRT)"
+                                />
+                                <select
+                                    className="col-span-1 bg-gray-950 border border-gray-700 rounded p-2 text-xs text-gray-200"
+                                    value={effettoWizard.durata}
+                                    onChange={(e) => setEffettoWizard({ ...effettoWizard, durata: e.target.value })}
+                                >
+                                    {DURATA_OPTIONS.map((d) => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    className="col-span-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded p-2 text-xs font-bold"
+                                    onClick={() =>
+                                        setEffettoWizard({
+                                            ...effettoWizard,
+                                            modifiche: [...(effettoWizard.modifiche || []), { stat_sigla: 'PV', valore: 1, tipo_modificatore: 'ADD' }],
+                                        })
+                                    }
+                                >
+                                    + Aggiungi modifica
+                                </button>
+                            </div>
+                            {(effettoWizard.modifiche || []).map((m, idx) => (
+                                <div key={`effmod-${idx}`} className="grid grid-cols-5 gap-2">
+                                    <input
+                                        className="col-span-2 bg-gray-950 border border-gray-700 rounded p-2 text-xs font-mono text-gray-200"
+                                        value={m.stat_sigla}
+                                        onChange={(e) => {
+                                            const next = [...(effettoWizard.modifiche || [])];
+                                            next[idx] = { ...next[idx], stat_sigla: e.target.value };
+                                            setEffettoWizard({ ...effettoWizard, modifiche: next });
+                                        }}
+                                        placeholder="Stat target"
+                                    />
+                                    <input
+                                        type="number"
+                                        className="col-span-1 bg-gray-950 border border-gray-700 rounded p-2 text-xs font-mono text-gray-200"
+                                        value={m.valore}
+                                        onChange={(e) => {
+                                            const next = [...(effettoWizard.modifiche || [])];
+                                            next[idx] = { ...next[idx], valore: e.target.value };
+                                            setEffettoWizard({ ...effettoWizard, modifiche: next });
+                                        }}
+                                    />
+                                    <select
+                                        className="col-span-1 bg-gray-950 border border-gray-700 rounded p-2 text-xs text-gray-200"
+                                        value={m.tipo_modificatore}
+                                        onChange={(e) => {
+                                            const next = [...(effettoWizard.modifiche || [])];
+                                            next[idx] = { ...next[idx], tipo_modificatore: e.target.value };
+                                            setEffettoWizard({ ...effettoWizard, modifiche: next });
+                                        }}
+                                    >
+                                        {TIPO_MOD_OPTIONS.map((t) => (
+                                            <option key={t} value={t}>{t}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        className="col-span-1 bg-red-900/60 hover:bg-red-800 border border-red-700 rounded p-2 text-xs font-bold"
+                                        onClick={() => {
+                                            const next = (effettoWizard.modifiche || []).filter((_, i) => i !== idx);
+                                            setEffettoWizard({ ...effettoWizard, modifiche: next });
+                                        }}
+                                    >
+                                        X
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                className="w-full bg-emerald-700 hover:bg-emerald-600 rounded p-2 text-xs font-black uppercase"
+                                onClick={pushEffettoWizardToJson}
+                            >
+                                Genera JSON effetto
+                            </button>
+                        </div>
                         <label className="text-xs text-gray-500 uppercase font-bold block mb-1">
                             Effetto all&apos;uso risorsa (JSON)
                         </label>
@@ -389,13 +517,83 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                         />
                     </div>
                     <div>
+                        <div className="mb-2 p-3 rounded border border-indigo-900/40 bg-indigo-950/20 space-y-2">
+                            <div className="text-[11px] text-indigo-200 font-bold uppercase tracking-wide">Wizard rapido rigenerazione</div>
+                            <button
+                                type="button"
+                                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded p-2 text-xs font-bold"
+                                onClick={() =>
+                                    setRecuperoWizard({
+                                        ...recuperoWizard,
+                                        rigenerazioni: [...(recuperoWizard.rigenerazioni || []), { stat_sigla: 'PA', ogni_minuti: 5, step: 1 }],
+                                    })
+                                }
+                            >
+                                + Aggiungi rigenerazione
+                            </button>
+                            {(recuperoWizard.rigenerazioni || []).map((r, idx) => (
+                                <div key={`recr-${idx}`} className="grid grid-cols-4 gap-2">
+                                    <input
+                                        className="col-span-1 bg-gray-950 border border-gray-700 rounded p-2 text-xs font-mono text-gray-200"
+                                        value={r.stat_sigla}
+                                        onChange={(e) => {
+                                            const next = [...(recuperoWizard.rigenerazioni || [])];
+                                            next[idx] = { ...next[idx], stat_sigla: e.target.value };
+                                            setRecuperoWizard({ ...recuperoWizard, rigenerazioni: next });
+                                        }}
+                                        placeholder="Sigla stat"
+                                    />
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        className="col-span-1 bg-gray-950 border border-gray-700 rounded p-2 text-xs font-mono text-gray-200"
+                                        value={r.ogni_minuti}
+                                        onChange={(e) => {
+                                            const next = [...(recuperoWizard.rigenerazioni || [])];
+                                            next[idx] = { ...next[idx], ogni_minuti: e.target.value };
+                                            setRecuperoWizard({ ...recuperoWizard, rigenerazioni: next });
+                                        }}
+                                        placeholder="min"
+                                    />
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        className="col-span-1 bg-gray-950 border border-gray-700 rounded p-2 text-xs font-mono text-gray-200"
+                                        value={r.step}
+                                        onChange={(e) => {
+                                            const next = [...(recuperoWizard.rigenerazioni || [])];
+                                            next[idx] = { ...next[idx], step: e.target.value };
+                                            setRecuperoWizard({ ...recuperoWizard, rigenerazioni: next });
+                                        }}
+                                        placeholder="step"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="col-span-1 bg-red-900/60 hover:bg-red-800 border border-red-700 rounded p-2 text-xs font-bold"
+                                        onClick={() => {
+                                            const next = (recuperoWizard.rigenerazioni || []).filter((_, i) => i !== idx);
+                                            setRecuperoWizard({ ...recuperoWizard, rigenerazioni: next });
+                                        }}
+                                    >
+                                        X
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                className="w-full bg-indigo-700 hover:bg-indigo-600 rounded p-2 text-xs font-black uppercase"
+                                onClick={pushRecuperoWizardToJson}
+                            >
+                                Genera JSON rigenerazione
+                            </button>
+                        </div>
                         <label className="text-xs text-gray-500 uppercase font-bold block mb-1">
                             Recupero risorsa (JSON)
                         </label>
                         <textarea
                             className="w-full min-h-[140px] bg-gray-950 border border-gray-700 rounded p-3 text-sm font-mono text-gray-200"
                             spellCheck={false}
-                            placeholder={`{\n  "stat_sigla": "FRT",\n  "quando": "FINE_EVENTO"\n}`}
+                            placeholder={`{\n  "rigenerazioni": [\n    { "stat_sigla": "PV", "ogni_minuti": 5, "step": 1 },\n    { "stat_sigla": "CHK", "ogni_minuti": 10, "step": 1 }\n  ]\n}`}
                             value={formData.recupero_risorsa_str}
                             onChange={(e) => setFormData({ ...formData, recupero_risorsa_str: e.target.value })}
                         />
