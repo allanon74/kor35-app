@@ -1748,6 +1748,18 @@ export const resetPersonaggio = (id, reason, onLogout) => {
     }, onLogout);
 };
 
+export const staffKillPersonaggio = (id, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/gestione-personaggi/${id}/kill/`, {
+        method: 'POST',
+    }, onLogout);
+};
+
+export const staffRevivePersonaggio = (id, onLogout) => {
+    return fetchAuthenticated(`/api/personaggi/api/gestione-personaggi/${id}/revive/`, {
+        method: 'POST',
+    }, onLogout);
+};
+
 // --- STAFF RESOURCES ---
 export const staffAddResources = (charId, tipo, amount, reason, onLogout) => {
     return fetchAuthenticated(`/api/personaggi/api/gestione-personaggi/${charId}/add_resources/`, {
@@ -1761,6 +1773,12 @@ export const gameConsumaRisorsa = (charId, statSigla, onLogout) =>
     fetchAuthenticated('/api/personaggi/api/game/consuma_risorsa/', {
         method: 'POST',
         body: JSON.stringify({ char_id: charId, stat_sigla: statSigla }),
+    }, onLogout);
+
+export const gameComaControl = (charId, action, onLogout) =>
+    fetchAuthenticated('/api/personaggi/api/game/coma_control/', {
+        method: 'POST',
+        body: JSON.stringify({ char_id: charId, action }),
     }, onLogout);
 
 /** Staff: elenco personaggi con pool risorse (FRT, …). */

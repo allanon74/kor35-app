@@ -10,6 +10,7 @@ import {
     useOptimisticStatChange,
     useConsumaRisorsa,
 } from '../hooks/useGameData';
+import { gameComaControl } from '../api';
 
 import ActiveItemWidget from './ActiveItemWidget'; 
 
@@ -281,8 +282,10 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
 
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
-    const { selectedCharacterData: char, unreadCount, updateCharacter, fetchCharacterData } = useCharacter();
+    const { selectedCharacterData: char, unreadCount, fetchCharacterData, onLogout } = useCharacter();
     const [favorites, setFavorites] = useState([]);
+    const [comaBusy, setComaBusy] = useState(false);
+    const [nowTs, setNowTs] = useState(Date.now());
     
     const statMutation = useOptimisticStatChange();
     const risorsaMutation = useConsumaRisorsa();
@@ -290,6 +293,11 @@ const GameTab = ({ onNavigate }) => {
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
         setFavorites(savedFavs);
+    }, []);
+
+    useEffect(() => {
+        const timerId = window.setInterval(() => setNowTs(Date.now()), 1000);
+        return () => window.clearInterval(timerId);
     }, []);
 
     // --- FUNZIONI HELPER PER VISUALIZZAZIONE ---
@@ -454,6 +462,30 @@ const GameTab = ({ onNavigate }) => {
         'PS_CUR': tempStats['PS_CUR'] !== undefined ? tempStats['PS_CUR'] : maxShell,
         'CHK_CUR': tempStats['CHK_CUR'] !== undefined ? tempStats['CHK_CUR'] : maxChakra,
     };
+    const comaState = char?.impostazioni_ui?.coma_state || null;
+    const isDead = !!char?.data_morte || comaState?.status === 'dead';
+    const hasComaCountdown = tacticalStats['PV_CUR'] <= 0 && !!comaState && !isDead;
+    const endAtMs = comaState?.end_at ? new Date(comaState.end_at).getTime() : 0;
+    const pausedAtMs = comaState?.paused_at ? new Date(comaState.paused_at).getTime() : 0;
+    const liveRemaining = comaState?.is_paused
+        ? Math.max(0, Math.floor((endAtMs - pausedAtMs) / 1000))
+        : Math.max(0, Math.ceil((endAtMs - nowTs) / 1000));
+    const remainingSeconds = Number.isFinite(liveRemaining)
+        ? liveRemaining
+        : Math.max(0, Number(comaState?.remaining_seconds || 0));
+
+    const handleComaControl = async (actionName) => {
+        if (!char?.id) return;
+        setComaBusy(true);
+        try {
+            await gameComaControl(char.id, actionName, onLogout);
+            await fetchCharacterData();
+        } catch (e) {
+            alert(e?.message || 'Errore controllo coma.');
+        } finally {
+            setComaBusy(false);
+        }
+    };
 
     // Logica Capacità
     const statCog = primary.find((s) => s.sigla === 'COG');
@@ -487,6 +519,29 @@ const GameTab = ({ onNavigate }) => {
                         rankShell={rankShell}
                         onHit={(id, max) => handleStatChange(id, 'consuma', max)}
                     />
+                    {hasComaCountdown && (
+                        <div className="mt-3 w-full max-w-[280px] bg-red-950/50 border border-red-700 rounded-xl p-3 text-center">
+                            <div className="text-xs uppercase tracking-widest text-red-300 font-bold">Coma</div>
+                            <div className="text-3xl font-mono font-black text-red-100 mt-1">
+                                {String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:{String(remainingSeconds % 60).padStart(2, '0')}
+                            </div>
+                            <button
+                                type="button"
+                                disabled={comaBusy}
+                                onClick={() => handleComaControl(comaState?.is_paused ? 'stabilize_stop' : 'stabilize_start')}
+                                className="mt-2 w-full py-2 rounded-lg bg-red-800 hover:bg-red-700 disabled:opacity-50 text-xs font-bold uppercase tracking-wide"
+                            >
+                                {comaState?.is_paused ? 'Termina stabilizzazione' : 'Stabilizzato'}
+                            </button>
+                        </div>
+                    )}
+                    {isDead && (
+                        <div className="mt-3 w-full max-w-[360px] bg-red-950/70 border border-red-500 rounded-xl p-3 text-center">
+                            <div className="text-red-200 font-black uppercase tracking-wide">
+                                Il personaggio e morto. Contatta lo staff.
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="flex flex-col gap-4">
                     <DamageControlPanel stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onChange={handleStatChange} />

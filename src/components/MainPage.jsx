@@ -385,6 +385,14 @@ const MainPage = ({ token, onLogout, isStaff, onSwitchToMaster }) => {
   }, [isAdmin, adminPendingCount, unreadCount, selectedCharacterData?.lavori_pendenti_count, isStaff, staffUnreadCount]);
   
   const { hasAdminNotif, hasMsgNotif, hasJobNotif, hasStaffMsgNotif } = notificationState;
+  const comaState = selectedCharacterData?.impostazioni_ui?.coma_state || null;
+  const isComaLocked = !!selectedCharacterData && ['counting', 'paused', 'dead'].includes(String(comaState?.status || '').toLowerCase());
+
+  useEffect(() => {
+    if (isComaLocked && activeTab !== 'game') {
+      setActiveTab('game');
+    }
+  }, [isComaLocked, activeTab]);
 
   const renderTabContent = useCallback(() => {
     if (activeTab === 'home') return <HomeTab onLogout={onLogout} />;

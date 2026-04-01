@@ -10,10 +10,12 @@ import {
     getPersonaggioDetail,
     staffIncrementaRisorsaPool,
     resetPersonaggio,
+    staffKillPersonaggio,
+    staffRevivePersonaggio,
 } from '../api';
 import { useCharacter } from './CharacterContext';
 import { 
-    User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap, Gem, RotateCcw
+    User, Users, Plus, Edit, X, ShieldAlert, Coins, Zap, Gem, RotateCcw, Skull, Heart
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import BuildVersions from './BuildVersions';
@@ -296,8 +298,13 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
         }
     };
 
-    const handleSelect = (charId) => {
+    const handleSelect = (char) => {
+        const charId = char?.id;
         if (String(charId).startsWith('temp-')) return;
+        if (char?.data_morte && !(isStaff || isAdmin)) {
+            alert('Questo personaggio e morto e non e utilizzabile. Contatta lo staff.');
+            return;
+        }
         selectCharacter(charId);
         if (onSelectChar) onSelectChar();
     };
@@ -360,7 +367,7 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                     return (
                     <div 
                         key={char.id} 
-                        onClick={() => handleSelect(char.id)}
+                        onClick={() => handleSelect(char)}
                         className={`relative group p-4 rounded-xl border transition-all duration-200 cursor-pointer flex items-center justify-between transform hover:scale-[1.02] active:scale-[0.98]
                             ${isSelected
                                 ? 'bg-indigo-900/30 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)] ring-2 ring-indigo-500/20' 
@@ -373,7 +380,14 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                             </div>
                             
                             <div>
-                                <h3 className="font-bold text-lg leading-none">{char.nome}</h3>
+                                <h3 className="font-bold text-lg leading-none">
+                                    {char.nome}
+                                    {char.data_morte ? (
+                                        <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-900/70 border border-red-700 text-red-200 uppercase tracking-wide">
+                                            Morto
+                                        </span>
+                                    ) : null}
+                                </h3>
                                 {(char.era_nome || char.prefettura_nome) && (
                                     <div className="text-[11px] text-indigo-300 mt-1">
                                         {char.era_nome || 'Era non selezionata'}
@@ -428,6 +442,47 @@ const PersonaggiTab = ({ onLogout, onSelectChar }) => {
                                     >
                                         <RotateCcw size={16}/>
                                     </button>
+                                    {char.data_morte ? (
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!window.confirm(`Rivivere ${char.nome}?`)) return;
+                                                try {
+                                                    await staffRevivePersonaggio(char.id, onLogout);
+                                                    await fetchPersonaggi();
+                                                    if (String(char.id) === String(selectedCharacterId)) {
+                                                        refreshCharacterData();
+                                                    }
+                                                } catch (error) {
+                                                    alert('Errore revive: ' + error.message);
+                                                }
+                                            }}
+                                            className="p-2 bg-emerald-900/50 border border-emerald-700 rounded-full text-emerald-300 hover:bg-emerald-700 hover:text-white transition-colors"
+                                            title="Rivivi personaggio"
+                                        >
+                                            <Heart size={16}/>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!window.confirm(`Uccidere ${char.nome}?`)) return;
+                                                try {
+                                                    await staffKillPersonaggio(char.id, onLogout);
+                                                    await fetchPersonaggi();
+                                                    if (String(char.id) === String(selectedCharacterId)) {
+                                                        refreshCharacterData();
+                                                    }
+                                                } catch (error) {
+                                                    alert('Errore kill: ' + error.message);
+                                                }
+                                            }}
+                                            className="p-2 bg-red-950/60 border border-red-800 rounded-full text-red-300 hover:bg-red-800 hover:text-white transition-colors"
+                                            title="Uccidi personaggio"
+                                        >
+                                            <Skull size={16}/>
+                                        </button>
+                                    )}
                                 </>
                             )}
                         </div>
