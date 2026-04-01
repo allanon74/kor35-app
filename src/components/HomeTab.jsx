@@ -1,12 +1,15 @@
-import React, { useMemo, useCallback, memo, useState } from 'react';
+import React, { useMemo, useCallback, memo, useState, useEffect } from 'react';
 import { useCharacter } from './CharacterContext';
-import { Coins, Star, Bell, Backpack, Zap } from 'lucide-react';
+import { Coins, Star, Bell, Backpack, Zap, Pencil, Save, X } from 'lucide-react';
 import PunteggioDisplay from './PunteggioDisplay';
 import GenericGroupedList from './GenericGroupedList';
 import IconaPunteggio from './IconaPunteggio';
 import ActiveItemWidget from './ActiveItemWidget'; // <--- IMPORT WIDGET
 import StatisticaModificatoriModal from './StatisticaModificatoriModal'; // <--- IMPORT MODAL
 import { stripRazzaPrefix } from './RazzaCollapsible';
+import RichTextDisplay from './RichTextDisplay';
+import RichTextEditor from './RichTextEditor';
+import { updatePersonaggio } from '../api';
 
 // --- NUOVI COMPONENTI ---
 import LogViewer from './LogViewer';
@@ -47,6 +50,9 @@ const CharacterSheet = memo(({ data, onLogout }) => {
   
   // State per la modal dei modificatori
   const [modalStatistica, setModalStatistica] = useState(null);
+  const [isEditingBackground, setIsEditingBackground] = useState(false);
+  const [backgroundDraft, setBackgroundDraft] = useState(data?.testo || '');
+  const [isSavingBackground, setIsSavingBackground] = useState(false);
   // La modale Razza vive nell'header (MainPage). Qui resta solo il pulsante.
 
   const {
@@ -63,6 +69,12 @@ const CharacterSheet = memo(({ data, onLogout }) => {
   } = data;
 
   const canEditRazza = !!data?.can_edit_razza;
+  const canEditBackground = canEditRazza;
+
+  useEffect(() => {
+    setBackgroundDraft(data?.testo || '');
+    setIsEditingBackground(false);
+  }, [personaggioId, data?.testo]);
 
   const auraInnataRecord = useMemo(
     () => (punteggiList || []).find((p) => p.tipo === 'AU' && String(p.sigla || '').toUpperCase() === 'AIN'),
@@ -339,6 +351,20 @@ const CharacterSheet = memo(({ data, onLogout }) => {
     );
   };
 
+  const handleSaveBackground = async () => {
+    if (!canEditBackground || isSavingBackground) return;
+    setIsSavingBackground(true);
+    try {
+      await updatePersonaggio(personaggioId, { testo: backgroundDraft || '' }, onLogout);
+      await refreshCharacterData();
+      setIsEditingBackground(false);
+    } catch (error) {
+      alert(`Errore salvataggio background: ${error.message}`);
+    } finally {
+      setIsSavingBackground(false);
+    }
+  };
+
   return (
     <div className="p-4 max-w-4xl mx-auto">
       
@@ -582,6 +608,68 @@ const CharacterSheet = memo(({ data, onLogout }) => {
           </div>
         </div>
       )}
+
+      <details className="mt-6 bg-gray-800 rounded-lg shadow-inner">
+        <summary className="text-xl font-semibold text-gray-200 p-3 cursor-pointer select-none">
+          Background
+        </summary>
+        <div className="p-4 border-t border-gray-700 space-y-3">
+          {isEditingBackground ? (
+            <>
+              <RichTextEditor
+                label="Background Personaggio"
+                value={backgroundDraft}
+                onChange={setBackgroundDraft}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveBackground}
+                  disabled={isSavingBackground}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm"
+                >
+                  <Save size={16} />
+                  {isSavingBackground ? 'Salvataggio...' : 'Salva'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBackgroundDraft(data?.testo || '');
+                    setIsEditingBackground(false);
+                  }}
+                  disabled={isSavingBackground}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm"
+                >
+                  <X size={16} />
+                  Annulla
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {data?.testo ? (
+                <RichTextDisplay content={data.testo} />
+              ) : (
+                <p className="text-sm text-gray-400 italic">Nessun background inserito.</p>
+              )}
+              {canEditBackground ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingBackground(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm"
+                >
+                  <Pencil size={16} />
+                  Modifica background
+                </button>
+              ) : (
+                <p className="text-xs text-amber-300">
+                  Modifica background bloccata: il primo evento associato al personaggio e gia iniziato.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </details>
 
       {/* Modal Modificatori */}
       {modalStatistica && (
