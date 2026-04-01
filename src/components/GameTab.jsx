@@ -184,8 +184,13 @@ const DamageControlPanel = ({ stats, maxHp, maxArmor, maxShell, onChange }) => {
     );
 };
 
-const RisorsaPoolWidget = ({ pool, onConsume, isPending }) => {
+const RisorsaPoolWidget = ({ pool, onConsume, isPending, nowTs }) => {
     const canConsume = (pool.valore_corrente || 0) >= 1;
+    const rec = pool?.recupero_auto || {};
+    const nextTickMs = rec?.next_tick_at ? new Date(rec.next_tick_at).getTime() : null;
+    const countdownSeconds = nextTickMs != null ? Math.max(0, Math.ceil((nextTickMs - nowTs) / 1000)) : null;
+    const mm = countdownSeconds != null ? Math.floor(countdownSeconds / 60) : 0;
+    const ss = countdownSeconds != null ? countdownSeconds % 60 : 0;
     return (
         <div className="bg-gray-800 rounded-xl p-3 border border-amber-900/40 shadow-md">
             <div className="flex justify-between items-start mb-2 gap-2">
@@ -198,7 +203,7 @@ const RisorsaPoolWidget = ({ pool, onConsume, isPending }) => {
                     onClick={() => {
                         if (
                             !window.confirm(
-                                `Consumare 1 punto di ${pool.nome} (${pool.sigla})? I punti non si recuperano da soli salvo regole speciali.`
+                                `Consumare 1 punto di ${pool.nome} (${pool.sigla})?`
                             )
                         ) {
                             return;
@@ -216,6 +221,12 @@ const RisorsaPoolWidget = ({ pool, onConsume, isPending }) => {
                     / max {pool.valore_max}
                 </span>
             </div>
+            {rec.active ? (
+                <div className="mt-1 text-[10px] text-emerald-300/90 font-mono">
+                    Recupero auto +{rec.step || 1} ogni {rec.interval_seconds || 0}s · prossimo tick {String(mm).padStart(2, '0')}:
+                    {String(ss).padStart(2, '0')}
+                </div>
+            ) : null}
             {pool.descrizione ? (
                 <div
                     className="mt-2 text-[11px] text-gray-400 prose prose-invert prose-sm max-w-none leading-snug"
@@ -574,6 +585,7 @@ const GameTab = ({ onNavigate }) => {
                         <RisorsaPoolWidget
                             key={pool.sigla}
                             pool={pool}
+                            nowTs={nowTs}
                             isPending={risorsaMutation.isPending}
                             onConsume={(sigla) =>
                                 risorsaMutation.mutate({ charId: char.id, statSigla: sigla })
