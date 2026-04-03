@@ -219,11 +219,11 @@ export function RazzaModal({
   const formaAbilitata = useCallback(
     (trait) => {
       if (ainVal < 2) return false;
-      const n1 = trait.caratteristica?.nome;
-      const n2 = trait.caratteristica_2?.nome;
+      const n1 = trait.caratteristica?.nome != null ? String(trait.caratteristica.nome).trim() : '';
+      const n2 = trait.caratteristica_2?.nome != null ? String(trait.caratteristica_2.nome).trim() : '';
       if (!n1 || !n2) return false;
-      const v1 = scoresForm[n1] || 0;
-      const v2 = scoresForm[n2] || 0;
+      const v1 = Number(scoresForm[n1]) || 0;
+      const v2 = Number(scoresForm[n2]) || 0;
       if (n1 === n2) return v1 >= 2;
       return v1 >= 1 && v2 >= 1;
     },
@@ -234,7 +234,7 @@ export function RazzaModal({
     const deduped = dedupeArchetipiPerNomeVisualizzato(archetipiAll, archetipoSelezionato?.id);
     const selId = archetipoSelezionato?.id;
     return deduped
-      .filter((t) => (selId && t.id === selId) || archetipoAbilitato(t))
+      .filter((t) => (selId != null && String(t.id) === String(selId)) || archetipoAbilitato(t))
       .sort((a, b) => {
         const la = a.livello_riferimento ?? 0;
         const lb = b.livello_riferimento ?? 0;
@@ -246,7 +246,7 @@ export function RazzaModal({
   const formeVisibili = useMemo(() => {
     const selId = formaSelezionata?.id;
     return formeAll
-      .filter((t) => (selId && t.id === selId) || formaAbilitata(t))
+      .filter((t) => (selId != null && String(t.id) === String(selId)) || formaAbilitata(t))
       .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'it'));
   }, [formeAll, formaSelezionata?.id, formaAbilitata]);
 
