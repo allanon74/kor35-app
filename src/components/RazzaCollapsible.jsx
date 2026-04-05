@@ -24,20 +24,43 @@ function isTrattoAuraInnita(ab) {
   );
 }
 
-/** Punteggi caratteristica escludendo i contributi punteggio_acquisito delle abilità indicate */
+/** Allinea i nomi punteggio tra API scheda e tratti (trim), come nel confronto lato Django. */
+function normNomePunteggio(nome) {
+  if (nome == null || nome === '') return '';
+  return String(nome).trim();
+}
+
+/**
+ * Punteggi caratteristica (chiavi normalizzate) escludendo i contributi punteggio_acquisito delle abilità indicate.
+ * Per ogni CA in `punteggiList` legge il valore da `punteggiBase` anche se le chiavi differiscono solo per spazi.
+ */
 function caratteristicheEscludendoAbilita(punteggiBase, punteggiList, abilitaPossedute, excludeIds) {
-  const caNames = new Set((punteggiList || []).filter((p) => p.tipo === 'CA').map((p) => p.nome));
+  const base = punteggiBase || {};
+  const caRows = (punteggiList || []).filter((p) => p.tipo === 'CA');
   const scores = {};
-  for (const [k, v] of Object.entries(punteggiBase || {})) {
-    if (caNames.has(k)) scores[k] = Number(v) || 0;
+  for (const p of caRows) {
+    const nk = normNomePunteggio(p.nome);
+    if (!nk) continue;
+    let val = 0;
+    if (Object.prototype.hasOwnProperty.call(base, p.nome)) {
+      val = Number(base[p.nome]) || 0;
+    } else {
+      for (const [k, v] of Object.entries(base)) {
+        if (normNomePunteggio(k) === nk) {
+          val = Number(v) || 0;
+          break;
+        }
+      }
+    }
+    scores[nk] = val;
   }
   const excl = new Set(excludeIds || []);
   for (const ab of abilitaPossedute || []) {
     if (!ab?.id || !excl.has(ab.id)) continue;
     for (const link of ab.punteggi_assegnati || []) {
-      const nom = link?.punteggio?.nome;
-      if (nom && Object.prototype.hasOwnProperty.call(scores, nom)) {
-        scores[nom] -= Number(link.valore) || 0;
+      const kn = normNomePunteggio(link?.punteggio?.nome);
+      if (kn && Object.prototype.hasOwnProperty.call(scores, kn)) {
+        scores[kn] -= Number(link.valore) || 0;
       }
     }
   }
@@ -63,7 +86,7 @@ function dedupeArchetipiPerNomeVisualizzato(list, selectedId) {
   const byKey = new Map();
   const score = (t) => {
     let s = 0;
-    if (selectedId && t.id === selectedId) s += 100;
+    if (selectedId != null && String(t.id) === String(selectedId)) s += 100;
     if (t.livello_riferimento === 0) s += 10;
     return s;
   };
@@ -207,48 +230,33 @@ export function RazzaModal({
       if (liv === 0) return ainVal >= 0;
       if (liv === 1) {
         if (ainVal < 1) return false;
-        const nomeC = trait.caratteristica?.nome;
+        const nomeC = normNomePunteggio(trait.caratteristica?.nome);
         if (!nomeC) return false;
-        return (scoresArc[nomeC] || 0) >= 1;
+        return (Number(scoresArc[nomeC]) || 0) >= 1;
       }
       return false;
     },
     [ainVal, scoresArc]
   );
 
+  /**
+   * Forma visibile/selezionabile: aura innata ≥ 2; caratteristica_1 > 0;
+   * se caratteristica_2 è la stessa di _1 allora caratteristica_1 > 1, altrimenti caratteristica_2 > 0.
+   */
   const formaAbilitata = useCallback(
     (trait) => {
       if (ainVal < 2) return false;
-      const n1 = trait.caratteristica?.nome != null ? String(trait.caratteristica.nome).trim() : '';
-      const n2 = trait.caratteristica_2?.nome != null ? String(trait.caratteristica_2.nome).trim() : '';
+      const n1 = normNomePunteggio(trait.caratteristica?.nome);
+      const n2 = normNomePunteggio(trait.caratteristica_2?.nome);
       if (!n1 || !n2) return false;
       const v1 = Number(scoresForm[n1]) || 0;
       const v2 = Number(scoresForm[n2]) || 0;
-      if (n1 === n2) return v1 >= 2;
-      return v1 >= 1 && v2 >= 1;
+      if (!(v1 > 0)) return false;
+      if (n1 === n2) return v1 > 1;
+      return v2 > 0;
     },
     [ainVal, scoresForm]
   );
-
-  const archetipiVisibili = useMemo(() => {
-    const deduped = dedupeArchetipiPerNomeVisualizzato(archetipiAll, archetipoSelezionato?.id);
-    const selId = archetipoSelezionato?.id;
-    return deduped
-      .filter((t) => (selId != null && String(t.id) === String(selId)) || archetipoAbilitato(t))
-      .sort((a, b) => {
-        const la = a.livello_riferimento ?? 0;
-        const lb = b.livello_riferimento ?? 0;
-        if (la !== lb) return la - lb;
-        return String(a.nome || '').localeCompare(String(b.nome || ''), 'it');
-      });
-  }, [archetipiAll, archetipoSelezionato?.id, archetipoAbilitato]);
-
-  const formeVisibili = useMemo(() => {
-    const selId = formaSelezionata?.id;
-    return formeAll
-      .filter((t) => (selId != null && String(t.id) === String(selId)) || formaAbilitata(t))
-      .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'it'));
-  }, [formeAll, formaSelezionata?.id, formaAbilitata]);
 
   /** Tratto catalogo Umano (liv.0), per descrizione quando il PG non ha riga DB archetipo */
   const traitUmanoCatalogo = useMemo(
@@ -260,8 +268,10 @@ export function RazzaModal({
     [archetipiAll]
   );
 
+  /** Catalogo archetipi (dedupe nomi) tranne l'attuale e l'Umano L0 quando non hai ancora scelto archetipo */
   const archetipiAltri = useMemo(() => {
-    return archetipiVisibili.filter((t) => {
+    const deduped = dedupeArchetipiPerNomeVisualizzato(archetipiAll, archetipoSelezionato?.id);
+    const list = deduped.filter((t) => {
       if (archetipoSelezionato?.id != null && String(t.id) === String(archetipoSelezionato.id))
         return false;
       if (!archetipoSelezionato) {
@@ -271,12 +281,22 @@ export function RazzaModal({
       }
       return true;
     });
-  }, [archetipiVisibili, archetipoSelezionato]);
+    return list.sort((a, b) => {
+      const la = a.livello_riferimento ?? 0;
+      const lb = b.livello_riferimento ?? 0;
+      if (la !== lb) return la - lb;
+      return String(a.nome || '').localeCompare(String(b.nome || ''), 'it');
+    });
+  }, [archetipiAll, archetipoSelezionato]);
 
+  /** Solo forme che soddisfano i requisiti di punteggio, tranne quella già selezionata */
   const formeAltri = useMemo(() => {
     const sid = formaSelezionata?.id;
-    return formeVisibili.filter((t) => sid == null || String(t.id) !== String(sid));
-  }, [formeVisibili, formaSelezionata?.id]);
+    return [...formeAll]
+      .filter((t) => formaAbilitata(t))
+      .filter((t) => sid == null || String(t.id) !== String(sid))
+      .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'it'));
+  }, [formeAll, formaSelezionata?.id, formaAbilitata]);
 
   const getRequisitiBadges = useCallback((trait) => {
     if (!trait) return [];
@@ -292,7 +312,8 @@ export function RazzaModal({
       const c1 = trait.caratteristica;
       const c2 = trait.caratteristica_2;
       if (!c1 || !c2) return [];
-      if (String(c1?.nome) === String(c2?.nome)) return [{ punteggio: c1, value: 2 }];
+      if (normNomePunteggio(c1?.nome) === normNomePunteggio(c2?.nome))
+        return [{ punteggio: c1, value: 2 }];
       return [
         { punteggio: c1, value: 1 },
         { punteggio: c2, value: 1 },
@@ -316,7 +337,7 @@ export function RazzaModal({
   };
 
   const OptionCardV2 = useCallback(
-    ({ trait, accent, selected, showSelect }) => {
+    ({ trait, accent, selected, showSelect, selectDisabled = false }) => {
       const nomeDisplay = trait ? stripRazzaPrefix(trait.nome) : 'Umano';
       const descrizione = trait?.descrizione || null;
       const badges = getRequisitiBadges(trait);
@@ -330,13 +351,14 @@ export function RazzaModal({
           ? 'border-cyan-600/70 ring-1 ring-cyan-500/40 bg-cyan-950/20'
           : 'border-amber-600/70 ring-1 ring-amber-500/40 bg-amber-950/20';
 
-      const disabledSelect = !trait || !!loadingId;
+      const lockedSelect = showSelect && selectDisabled;
+      const disabledSelect = !trait || !!loadingId || lockedSelect;
 
       return (
         <details
           className={`rounded-lg border px-3 py-3 bg-slate-900 transition-colors ${
             selected ? selectedBorder : baseBorder
-          } ${disabledSelect && showSelect ? 'opacity-90' : ''}`}
+          } ${lockedSelect ? 'opacity-75' : ''} ${disabledSelect && showSelect && !lockedSelect ? 'opacity-90' : ''}`}
         >
           <summary className="list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden">
             <div className="flex items-start justify-between gap-3">
@@ -367,19 +389,21 @@ export function RazzaModal({
               {showSelect && trait ? (
                 <button
                   type="button"
-                  disabled={!!loadingId}
+                  disabled={!!loadingId || selectDisabled}
+                  title={selectDisabled ? 'Requisiti non soddisfatti' : undefined}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (selectDisabled) return;
                     handlePick(trait);
                   }}
                   className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider border ${
                     accent === 'forma'
                       ? 'border-cyan-700/60 text-cyan-200 hover:bg-cyan-950/30'
                       : 'border-amber-700/60 text-amber-200 hover:bg-amber-950/30'
-                  } disabled:opacity-60`}
+                  } disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
-                  Seleziona
+                  {selectDisabled ? 'Bloccata' : 'Seleziona'}
                 </button>
               ) : null}
             </div>
@@ -500,10 +524,13 @@ export function RazzaModal({
               )}
 
               <div className="pt-3 border-t border-slate-800">
-                <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Selezionabili</p>
+                <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Catalogo archetipi</p>
+                <p className="text-[11px] text-slate-600 mb-2">
+                  Tutte le opzioni AIN livello 0–1; &quot;Bloccata&quot; se mancano aura o caratteristica richiesta.
+                </p>
                 <div className="space-y-2">
                   {archetipiAltri.length === 0 ? (
-                    <p className="text-xs text-slate-500">Nessun altro archetipo selezionabile.</p>
+                    <p className="text-xs text-slate-500">Nessun altro archetipo nel catalogo.</p>
                   ) : (
                     archetipiAltri.map((trait) => (
                       <OptionCardV2
@@ -512,6 +539,7 @@ export function RazzaModal({
                         trait={trait}
                         selected={false}
                         showSelect={true}
+                        selectDisabled={!archetipoAbilitato(trait)}
                       />
                     ))
                   )}
@@ -544,7 +572,7 @@ export function RazzaModal({
                     <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Selezionabili</p>
                     <div className="space-y-2">
                       {formeAltri.length === 0 ? (
-                        <p className="text-xs text-slate-500">Non ci sono altre forme selezionabili.</p>
+                        <p className="text-xs text-slate-500">Non ci sono altre forme compatibili con i tuoi punteggi.</p>
                       ) : (
                         formeAltri.map((trait) => (
                           <OptionCardV2
