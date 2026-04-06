@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { staffCreateAbilita, staffUpdateAbilita, staffGetAbilita, getAbilitaEditorResources } from '../../api';
 import RichTextEditor from '../RichTextEditor';
 import StatModInline from './inlines/StatModInline';
@@ -39,6 +39,28 @@ const EMPTY_RECUPERO_WIZARD = {
     rigenerazioni: [{ stat_sigla: 'PV', ogni_minuti: 5, step: 1 }],
 };
 
+/**
+ * Opzioni combobox «Punteggi dipendenti»: etichetta «SIGLA - Nome»; per le risorse pool una nota esplicita.
+ * PV, PA, PS, CHK, PG e le altre ST sono già nell’elenco `/api/punteggi/all/`; il backend legge i valori runtime
+ * dove previsto (merge statistiche + get_risorsa_corrente / get_risorsa_corrente_runtime).
+ */
+function buildPunteggiOptionsPerDipendenti(rawList) {
+    if (!Array.isArray(rawList)) return [];
+    const mapped = rawList.map((p) => {
+        const sig = String(p.sigla || '').trim();
+        const nome = String(p.nome || '').trim();
+        const base = sig ? `${sig} - ${nome}` : nome || `#${p.id}`;
+        const hint = p.tipo === 'ST' && p.is_risorsa_pool ? ' · pool attuale' : '';
+        return { ...p, nome_dipendenti_ui: `${base}${hint}`.trim() };
+    });
+    mapped.sort((a, b) =>
+        String(a.nome_dipendenti_ui || '').localeCompare(String(b.nome_dipendenti_ui || ''), 'it', {
+            sensitivity: 'base',
+        })
+    );
+    return mapped;
+}
+
 /** La lista staff restituisce righe senza relazioni annidate: senza merge, .map sugli inline va in errore. */
 function mergeAbilitaFormState(initialData) {
     if (!initialData) {
@@ -74,6 +96,11 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
     const statsOptions = punteggi.filter(p => p.tipo === 'ST');
     const auraOptions = punteggi.filter(p => p.tipo === 'AU');
     const elementOptions = punteggi.filter(p => p.tipo === 'EL' || p.tipo === 'MA'); // 'EL' o 'MA' a seconda di come codifichi gli elementi/materie nel DB
+
+    const punteggiDipendentiSelectOptions = useMemo(
+        () => buildPunteggiOptionsPerDipendenti(punteggi),
+        [punteggi]
+    );
 
     const initialKey = initialData?.id ?? 'new';
     const [formData, setFormData] = useState(() => mergeAbilitaFormState(initialData));
@@ -678,7 +705,11 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                     </div>
                     {(formData.punteggi_dipendenti || []).length === 0 && (
                         <p className="text-xs text-gray-400">
-                            Nessuna regola. Esempio: Danni a distanza +1 ogni 2 Forza.
+                            Nessuna regola. Esempio: rango guscio +1 ogni 8 chakra. Nelle combobox le statistiche sono
+                            elencate come «SIGLA - Nome»; per PV, PA, PS, CHK, PG e per le risorse pool (es. FRT) il
+                            motore usa il valore attuale in scheda (punti/temp/pool), non solo i punti fissi da altre
+                            abilità. Le altre statistiche (e caratteristiche, aure, …) restano sui valori da tabella
+                            abilità.
                         </p>
                     )}
                     {(formData.punteggi_dipendenti || []).map((row, idx) => (
@@ -686,9 +717,10 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                             <div className="md:col-span-4">
                                 <label className="text-[10px] uppercase text-gray-500 font-bold">Punteggio X</label>
                                 <SearchableSelect
-                                    options={punteggi}
+                                    options={punteggiDipendentiSelectOptions}
+                                    labelKey="nome_dipendenti_ui"
                                     value={row.punteggio_target || ''}
-                                    placeholder="Cerca punteggio target..."
+                                    placeholder="Cerca target (SIGLA - Nome)..."
                                     onChange={(e) => {
                                         const next = [...(formData.punteggi_dipendenti || [])];
                                         next[idx] = { ...next[idx], punteggio_target: e };
@@ -726,9 +758,10 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                             <div className="md:col-span-3">
                                 <label className="text-[10px] uppercase text-gray-500 font-bold">Punteggio Y</label>
                                 <SearchableSelect
-                                    options={punteggi}
+                                    options={punteggiDipendentiSelectOptions}
+                                    labelKey="nome_dipendenti_ui"
                                     value={row.punteggio_sorgente || ''}
-                                    placeholder="Cerca punteggio sorgente..."
+                                    placeholder="Cerca sorgente (SIGLA - Nome)..."
                                     onChange={(e) => {
                                         const next = [...(formData.punteggi_dipendenti || [])];
                                         next[idx] = { ...next[idx], punteggio_sorgente: e };
