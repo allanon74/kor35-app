@@ -1,10 +1,11 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { useCharacter } from './CharacterContext';
 import { 
     ShoppingBag, Box, Shield, Zap, Loader2, Wrench, 
-    Info, ChevronUp, ChevronDown, Activity, Power, Battery, 
-    Clock, RefreshCw, Sparkles, Swords, Lock, User, Backpack, Weight
+    Info, ChevronUp, ChevronDown,     Activity, Power, Battery, 
+    Clock, RefreshCw, Sparkles, Swords, Lock, User, Backpack, Weight, Package
 } from 'lucide-react';
+import { consumabiliApiOccupanoSlotCog, raggruppaConsumabiliNomeScadenza } from '../utils/cogConsumabili';
 import ShopModal from './ShopModal';
 import ItemAssemblyModal from './ItemAssemblyModal';
 import ModuloDetailModal from './ModuloDetailModal';
@@ -370,9 +371,25 @@ const InventoryItemCard = memo(({ item, isExpanded, onToggleExpand, onEquip, onR
 });
 
 // --- CAPACITY DASHBOARD ---
-const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavyUsed, heavyMax, heavyConsumers }) => {
+const CapacityDashboard = ({
+    capacityUsed,
+    capacityMax,
+    capacityConsumers,
+    consumabiliApiList,
+    heavyUsed,
+    heavyMax,
+    heavyConsumers,
+}) => {
+    const consumabiliCogGroups = useMemo(
+        () => raggruppaConsumabiliNomeScadenza(consumabiliApiList || []),
+        [consumabiliApiList]
+    );
+    const hasCogConsumabili = consumabiliApiOccupanoSlotCog(consumabiliApiList);
+    const labelConsumabiliCog = consumabiliCogGroups.map((g) => `${g.nome} ×${g.utilizzi_rimanenti}`).join(', ');
+
     const isOverloaded = capacityUsed > capacityMax;
     const isHeavyOverloaded = heavyUsed > heavyMax;
+    const nessunCog = capacityConsumers.length === 0 && !hasCogConsumabili;
 
     return (
         <div className="w-full bg-gray-800 rounded-xl border border-gray-700 p-3 shadow-md mb-4 flex flex-col md:flex-row gap-4">
@@ -382,9 +399,28 @@ const CapacityDashboard = ({ capacityUsed, capacityMax, capacityConsumers, heavy
                     <span className={`text-xs font-bold font-mono ${isOverloaded ? 'text-red-400' : 'text-indigo-400'}`}>{capacityUsed} / {capacityMax}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                    {capacityConsumers.length > 0 ? capacityConsumers.map((item) => (
-                        <div key={item.id} className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></div><span className="text-[10px] text-gray-300 truncate font-mono max-w-[120px]">{item.nome}</span></div>
-                    )) : <span className="text-[10px] text-gray-600 italic px-1">Nessuno</span>}
+                    {capacityConsumers.map((item) => (
+                        <div key={item.id} className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                            <span className="text-[10px] text-gray-300 truncate font-mono max-w-[120px]">{item.nome}</span>
+                        </div>
+                    ))}
+                    {hasCogConsumabili ? (
+                        <div
+                            className="flex flex-col gap-0.5 bg-gray-800 px-2 py-1 rounded border border-violet-600/50 shadow-sm min-w-0 max-w-full"
+                            title={labelConsumabiliCog}
+                        >
+                            <div className="flex items-center gap-1.5">
+                                <Package size={12} className="text-violet-400 shrink-0" />
+                                <span className="text-[10px] text-violet-200 font-bold uppercase tracking-wide">Consumabili</span>
+                                <span className="text-[9px] text-violet-400/90 font-mono">+1 slot</span>
+                            </div>
+                            <span className="text-[9px] text-gray-400 truncate pl-[22px]">
+                                {labelConsumabiliCog}
+                            </span>
+                        </div>
+                    ) : null}
+                    {nessunCog ? <span className="text-[10px] text-gray-600 italic px-1">Nessuno</span> : null}
                 </div>
             </div>
             <div className={`flex-1 flex flex-col gap-2 p-2 rounded-lg border bg-gray-900/30 ${isHeavyOverloaded ? 'border-orange-500/50 bg-orange-900/10' : 'border-gray-700/50'}`}>
@@ -462,7 +498,8 @@ const InventoryTab = ({ onLogout }) => {
   const statCog = characterData?.statistiche_primarie?.find(s => s.sigla === 'COG');
   const capacityMax = statCog ? statCog.valore_max : 10;
   const capacityConsumers = items.filter(countsTowardCog);
-  const capacityUsed = capacityConsumers.length;
+  const consumabiliApi = characterData?.consumabili ?? [];
+  const capacityUsed = capacityConsumers.length + (consumabiliApiOccupanoSlotCog(consumabiliApi) ? 1 : 0);
   
   const statOgp = characterData?.statistiche_primarie?.find(s => s.sigla === 'OGP');
   const heavyMax = statOgp ? statOgp.valore_max : 0;
@@ -511,6 +548,7 @@ const InventoryTab = ({ onLogout }) => {
         capacityUsed={capacityUsed} 
         capacityMax={capacityMax} 
         capacityConsumers={capacityConsumers}
+        consumabiliApiList={consumabiliApi}
         heavyUsed={heavyUsed} 
         heavyMax={heavyMax} 
         heavyConsumers={heavyConsumers}

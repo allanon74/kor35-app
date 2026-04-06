@@ -4,6 +4,7 @@ import { Loader2, Info, Zap, Calendar, X, Timer, PackageCheck } from 'lucide-rea
 import RichTextDisplay from './RichTextDisplay';
 import { consumaConsumabile, completaCreazioneConsumabile } from '../api';
 import { useNow, secondsUntilIso } from '../hooks/useNow';
+import { raggruppaConsumabiliNomeScadenza } from '../utils/cogConsumabili';
 
 const ConsumabiliTab = ({ onLogout }) => {
   const { selectedCharacterData: char, selectedCharacterId, refreshCharacterData } = useCharacter();
@@ -14,6 +15,7 @@ const ConsumabiliTab = ({ onLogout }) => {
   const nowMs = useNow();
 
   const consumabili = char?.consumabili || [];
+  const consumabiliRighe = useMemo(() => raggruppaConsumabiliNomeScadenza(consumabili), [consumabili]);
   const creazioniInCorso = useMemo(() => char?.creazioni_consumabili_in_corso || [], [char?.creazioni_consumabili_in_corso]);
   const creazioniPronte = useMemo(() => char?.creazioni_consumabili_pronte || [], [char?.creazioni_consumabili_pronte]);
 
@@ -60,17 +62,19 @@ const ConsumabiliTab = ({ onLogout }) => {
     return `${m}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
-  const handleConsuma = async (item, e) => {
+  const handleConsuma = async (group, e) => {
     e.stopPropagation();
     if (isConsumendo || !selectedCharacterId) return;
-    if (!window.confirm(`Consumare un utilizzo di "${item.nome}"? Ne resteranno ${item.utilizzi_rimanenti - 1}.`)) return;
-    setIsConsumendo(item.id);
+    const target = group.items.find((i) => Number(i.utilizzi_rimanenti) > 0);
+    if (!target) return;
+    if (!window.confirm(`Consumare un utilizzo di "${group.nome}"? Ne resteranno ${group.utilizzi_rimanenti - 1}.`)) return;
+    setIsConsumendo(target.id);
     try {
-      await consumaConsumabile(item.id, selectedCharacterId, onLogout);
+      await consumaConsumabile(target.id, selectedCharacterId, onLogout);
       setModalAttivazione({
-        nome: item.nome,
-        descrizione: item.descrizione_formattata || item.descrizione,
-        formula: item.formula_formattata || item.formula,
+        nome: group.nome,
+        descrizione: target.descrizione_formattata || target.descrizione,
+        formula: target.formula_formattata || target.formula,
       });
       await refreshCharacterData();
     } catch (err) {
@@ -150,32 +154,39 @@ const ConsumabiliTab = ({ onLogout }) => {
         </div>
       ) : (
         <ul className="space-y-3">
-          {consumabili.map((item) => (
+          {consumabiliRighe.map((group) => {
+            const busy = group.items.some((i) => i.id === isConsumendo);
+            return (
             <li
-              key={item.id}
+              key={group.key}
               className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
             >
-              <div className="flex-1 cursor-pointer" onClick={() => setModalConsumabile(item)}>
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="font-bold text-gray-200 text-lg">{item.nome}</span>
+              <div className="flex-1 cursor-pointer" onClick={() => setModalConsumabile(group)}>
+                <div className="flex items-center gap-3 mb-1 flex-wrap">
+                  <span className="font-bold text-gray-200 text-lg">{group.nome}</span>
                   <span className="px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300 text-sm font-mono font-bold">
-                    ×{item.utilizzi_rimanenti}
+                    ×{group.utilizzi_rimanenti}
                   </span>
+                  {group.items.length > 1 ? (
+                    <span className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">
+                      {group.items.length} accorpati
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <Calendar size={14} />
-                    Scadenza: {formatDate(item.data_scadenza)}
+                    Scadenza: {formatDate(group.data_scadenza)}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={(e) => handleConsuma(item, e)}
-                  disabled={isConsumendo === item.id || item.utilizzi_rimanenti <= 0}
+                  onClick={(e) => handleConsuma(group, e)}
+                  disabled={busy || group.utilizzi_rimanenti <= 0}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold transition-colors"
                 >
-                  {isConsumendo === item.id ? (
+                  {busy ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
                     <Zap size={18} />
@@ -183,14 +194,16 @@ const ConsumabiliTab = ({ onLogout }) => {
                   Consuma
                 </button>
                 <button
-                  onClick={() => setModalConsumabile(item)}
+                  type="button"
+                  onClick={() => setModalConsumabile(group)}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"
                 >
                   <Info size={20} />
                 </button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
@@ -205,6 +218,7 @@ const ConsumabiliTab = ({ onLogout }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              type="button"
               onClick={() => setModalConsumabile(null)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"
             >
@@ -212,17 +226,27 @@ const ConsumabiliTab = ({ onLogout }) => {
             </button>
             <h3 className="text-xl font-bold text-amber-400 mb-2">{modalConsumabile.nome}</h3>
             <p className="text-sm text-gray-500 mb-4">
-              Utilizzi: {modalConsumabile.utilizzi_rimanenti} · Scadenza: {formatDate(modalConsumabile.data_scadenza)}
+              Utilizzi totali: {modalConsumabile.utilizzi_rimanenti}
+              {modalConsumabile.items?.length > 1 ? ` · ${modalConsumabile.items.length} voci accorpate` : ''}
+              {' · '}
+              Scadenza: {formatDate(modalConsumabile.data_scadenza)}
             </p>
             <div className="prose prose-invert prose-sm max-w-none text-gray-300 mb-4">
-              <RichTextDisplay content={modalConsumabile.descrizione_formattata || modalConsumabile.descrizione} />
+              <RichTextDisplay
+                content={
+                  (modalConsumabile.items?.[0]?.descrizione_formattata || modalConsumabile.items?.[0]?.descrizione) || ''
+                }
+              />
             </div>
-            {modalConsumabile.formula_formattata || modalConsumabile.formula ? (
+            {modalConsumabile.items?.[0]?.formula_formattata || modalConsumabile.items?.[0]?.formula ? (
               <div className="pt-4 border-t border-gray-700">
                 <h4 className="text-sm font-bold text-gray-400 mb-2">Formula</h4>
                 <div
                   className="text-gray-300"
-                  dangerouslySetInnerHTML={{ __html: modalConsumabile.formula_formattata || modalConsumabile.formula || '' }}
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      modalConsumabile.items[0].formula_formattata || modalConsumabile.items[0].formula || '',
+                  }}
                 />
               </div>
             ) : null}
