@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'; 
 import { useCharacter } from './CharacterContext';
 import { useNow } from '../hooks/useNow';
+import { useRegenTickSync } from '../hooks/useRegenTickSync';
 import { 
     Heart, Zap, Crosshair, Clock, Battery, RefreshCw, 
     Star, MessageSquare, Briefcase, Backpack, AlertCircle, Plus, Minus,
@@ -381,6 +382,7 @@ const LiveComaCountdown = ({ endAtIso, pausedAtIso, isPaused, fallbackSeconds = 
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount, refreshCharacterData, onLogout } = useCharacter();
     const nowMs = useNow();
+    useRegenTickSync({ char, nowMs, refreshCharacterData });
     const [favorites, setFavorites] = useState([]);
     const [comaBusy, setComaBusy] = useState(false);
     

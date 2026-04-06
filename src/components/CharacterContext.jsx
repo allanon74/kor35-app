@@ -224,7 +224,7 @@ export const CharacterProvider = ({ children, onLogout }) => {
   // consumabili, pulsante "Aggiungi a inventario") si aggiorna subito senza ricaricare la pagina.
   const refreshCharacterData = useCallback(async () => {
     if (selectedCharacterId) {
-      const cId = selectedCharacterId;
+      const cId = String(selectedCharacterId);
       await Promise.all([
         queryClient.cancelQueries({ queryKey: ['personaggio', cId] }),
         queryClient.cancelQueries({ queryKey: ['abilita_acquistabili', cId] }),
