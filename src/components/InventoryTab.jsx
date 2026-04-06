@@ -453,10 +453,15 @@ const InventoryTab = ({ onLogout }) => {
   const equipItems = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
   const zainoItems = items.filter(i => !i.is_equipaggiato && !['INN', 'MUT'].includes(i.tipo_oggetto));
 
-  // Calcolo Capacità Oggetti
+  // Calcolo COG: solo FIS equipaggiati con almeno una mod/materia montata (come backend)
+  const countsTowardCog = (i) =>
+    i.tipo_oggetto === 'FIS' &&
+    i.is_equipaggiato &&
+    (i.potenziamenti_installati?.length ?? 0) > 0;
+
   const statCog = characterData?.statistiche_primarie?.find(s => s.sigla === 'COG');
   const capacityMax = statCog ? statCog.valore_max : 10;
-  const capacityConsumers = items.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
+  const capacityConsumers = items.filter(countsTowardCog);
   const capacityUsed = capacityConsumers.length;
   
   const statOgp = characterData?.statistiche_primarie?.find(s => s.sigla === 'OGP');

@@ -535,10 +535,15 @@ const GameTab = ({ onNavigate }) => {
         }
     };
 
-    // Logica Capacità
+    // COG: solo FIS equipaggiati con almeno una mod/materia montata (allineato al backend)
+    const countsTowardCog = (i) =>
+        i.tipo_oggetto === 'FIS' &&
+        i.is_equipaggiato &&
+        (i.potenziamenti_installati?.length ?? 0) > 0;
+
     const statCog = primary.find((s) => s.sigla === 'COG');
     const capacityMax = statCog ? statCog.valore_max : 10;
-    const capacityConsumers = char.oggetti.filter(i => i.is_equipaggiato && i.tipo_oggetto === 'FIS');
+    const capacityConsumers = char.oggetti.filter(countsTowardCog);
     const capacityUsed = capacityConsumers.length;
     
     const statOgp = primary.find((s) => s.sigla === 'OGP');
