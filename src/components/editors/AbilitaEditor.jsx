@@ -597,6 +597,12 @@ const AbilitaEditor = ({ onBack, onLogout, initialData = null }) => {
                             value={formData.recupero_risorsa_str}
                             onChange={(e) => setFormData({ ...formData, recupero_risorsa_str: e.target.value })}
                         />
+                        <p className="text-[10px] text-gray-500 mt-1">
+                            Chakra: usa <span className="font-mono text-gray-400">CHK</span> (valore corrente in scheda:{' '}
+                            <span className="font-mono">CHK_CUR</span>). Il massimo in primarie è spesso{' '}
+                            <span className="font-mono">CHA</span>: il backend lo gestisce in abbinamento a CHK.{' '}
+                            <span className="font-mono">CHA</span> nel JSON viene accettato solo se CHA non è una risorsa a pool.
+                        </p>
                     </div>
                 </div>
             </div>
