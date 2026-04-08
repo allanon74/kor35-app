@@ -157,44 +157,32 @@ jobs:
               exit 1
             fi
 
+            if [ ! -d "${MIRROR_ROOT_PATH}" ]; then
+              echo "MIRROR_ROOT_PATH non esiste: ${MIRROR_ROOT_PATH}" >&2
+              exit 1
+            fi
+            if [ ! -f "${MIRROR_ROOT_PATH}/docker-compose.yml" ]; then
+              echo "docker-compose.yml non trovato in MIRROR_ROOT_PATH: ${MIRROR_ROOT_PATH}" >&2
+              exit 1
+            fi
+            cd "${MIRROR_ROOT_PATH}"
+            export COMPOSE_FILE="${MIRROR_ROOT_PATH}/docker-compose.yml"
+            export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}"
+
+            # Deploy frontend robusto: non rebuilda backend/daphne nel job frontend.
+            docker compose -f "${COMPOSE_FILE}" up -d frontend
+            docker compose -f "${COMPOSE_FILE}" exec -T frontend nginx -s reload 2>/dev/null || true
+
+            # Hook opzionale solo per comandi aggiuntivi (non necessari al deploy base frontend).
             if [ -n "${MIRROR_POST_DEPLOY_CMD}" ]; then
-              if [ ! -d "${MIRROR_ROOT_PATH}" ]; then
-                echo "MIRROR_ROOT_PATH non esiste: ${MIRROR_ROOT_PATH}" >&2
-                exit 1
-              fi
-              if [ ! -f "${MIRROR_ROOT_PATH}/docker-compose.yml" ]; then
-                echo "docker-compose.yml non trovato in MIRROR_ROOT_PATH: ${MIRROR_ROOT_PATH}" >&2
-                exit 1
-              fi
-              cd "${MIRROR_ROOT_PATH}"
-              export COMPOSE_FILE="${MIRROR_ROOT_PATH}/docker-compose.yml"
-
-              # Cleanup difensivo robusto: rimuove container backend/daphne orfani
-              # (project name variabile o naming legacy hashato) prima del compose up.
-              # 1) per label compose service
-              for svc in backend daphne; do
-                while IFS= read -r row; do
-                  [ -z "${row}" ] && continue
-                  cid="$(echo "${row}" | awk '{print $1}')"
-                  cname="$(echo "${row}" | awk '{print $2}')"
-                  echo "Removing legacy compose service container: ${cname} (${svc})"
-                  docker rm -f "${cid}" || true
-                done < <(docker ps -a --filter "label=com.docker.compose.service=${svc}" --format '{{.ID}} {{.Names}}')
-              done
-
-              # 2) fallback per naming vecchio/non etichettato
-              while IFS= read -r cname; do
-                case "${cname}" in
-                  *_django_app|*_daphne_app|django_app|daphne_app)
-                    echo "Removing legacy named container: ${cname}"
-                    docker rm -f "${cname}" || true
-                    ;;
-                esac
-              done < <(docker ps -a --format '{{.Names}}')
-
-              export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}"
-              docker compose -f "${COMPOSE_FILE}" down --remove-orphans || true
-              eval "${MIRROR_POST_DEPLOY_CMD}"
+              case "${MIRROR_POST_DEPLOY_CMD}" in
+                *"--build"*|*"backend"*|*"daphne"*)
+                  echo "MIRROR_FRONTEND_POST_DEPLOY_COMMAND ignorato: contiene build/backend/daphne (non consentito nel job frontend)." >&2
+                  ;;
+                *)
+                  eval "${MIRROR_POST_DEPLOY_CMD}"
+                  ;;
+              esac
             fi
 
             if [ -n "${{ secrets.MIRROR_FRONTEND_HEALTHCHECK_URL }}" ]; then
