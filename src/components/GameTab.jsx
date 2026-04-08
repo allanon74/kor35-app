@@ -355,11 +355,17 @@ const LiveComaCountdown = ({ endAtIso, pausedAtIso, isPaused, fallbackSeconds = 
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount, refreshCharacterData, onLogout } = useCharacter();
+    const [nowTs, setNowTs] = useState(Date.now());
     const [favorites, setFavorites] = useState([]);
     const [comaBusy, setComaBusy] = useState(false);
     
     const statMutation = useOptimisticStatChange();
     const risorsaMutation = useConsumaRisorsa();
+
+    useEffect(() => {
+        const id = window.setInterval(() => setNowTs(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, []);
 
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
