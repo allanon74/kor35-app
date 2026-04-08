@@ -264,7 +264,13 @@ const ChakraWidget = ({ current, max, onChange }) => {
     );
 };
 
-const RigenerazioneTimerWidget = ({ rows, nowTs }) => {
+const RigenerazioneTimerWidget = ({ rows }) => {
+    const [nowTs, setNowTs] = useState(Date.now());
+    useEffect(() => {
+        const id = window.setInterval(() => setNowTs(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, []);
+
     if (!Array.isArray(rows) || rows.length === 0) return null;
     return (
         <div className="bg-gray-900/50 rounded-lg p-2 border border-emerald-800/40 text-[10px] text-gray-300">
@@ -355,17 +361,11 @@ const LiveComaCountdown = ({ endAtIso, pausedAtIso, isPaused, fallbackSeconds = 
 // --- MAIN GAMETAB ---
 const GameTab = ({ onNavigate }) => {
     const { selectedCharacterData: char, unreadCount, refreshCharacterData, onLogout } = useCharacter();
-    const [nowTs, setNowTs] = useState(Date.now());
     const [favorites, setFavorites] = useState([]);
     const [comaBusy, setComaBusy] = useState(false);
     
     const statMutation = useOptimisticStatChange();
     const risorsaMutation = useConsumaRisorsa();
-
-    useEffect(() => {
-        const id = window.setInterval(() => setNowTs(Date.now()), 1000);
-        return () => window.clearInterval(id);
-    }, []);
 
     useEffect(() => {
         const savedFavs = JSON.parse(localStorage.getItem('kor35_favorites') || '[]');
@@ -639,7 +639,7 @@ const GameTab = ({ onNavigate }) => {
                 <div className="flex flex-col gap-4">
                     <DamageControlPanel stats={tacticalStats} maxHp={maxHP} maxArmor={maxArmor} maxShell={maxShell} onChange={handleStatChange} />
                     {(maxChakra > 0) && <ChakraWidget current={tacticalStats['CHK_CUR']} max={maxChakra} onChange={handleStatChange} />}
-                    <RigenerazioneTimerWidget rows={char.rigenerazioni_auto_ui || []} nowTs={nowTs} />
+                    <RigenerazioneTimerWidget rows={char.rigenerazioni_auto_ui || []} />
                     {(char.risorse_pool_ui || []).filter((p) => p.valore_max > 0).map((pool) => (
                         <RisorsaPoolWidget
                             key={pool.sigla}

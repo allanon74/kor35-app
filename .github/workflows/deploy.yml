@@ -102,6 +102,7 @@ jobs:
             REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
             FRONTEND_PATH="${{ secrets.MIRROR_FRONTEND_PATH || '/home/pi/kor35-replica/frontend_src' }}"
             FRONTEND_PATH_LEGACY="/home/pi/kor35-replica/forntend_src"
+            MIRROR_ROOT_PATH="${{ secrets.MIRROR_ROOT_PATH || '/home/pi/kor35-replica' }}"
             REACT_BUILD_PATH="${{ secrets.MIRROR_REACT_BUILD_PATH || '/home/pi/kor35-replica/react_build' }}"
             FRONTEND_REPO_URL="${{ secrets.MIRROR_FRONTEND_REPO_URL || '' }}"
             MIRROR_POST_DEPLOY_CMD="${{ secrets.MIRROR_FRONTEND_POST_DEPLOY_COMMAND || '' }}"
@@ -157,6 +158,16 @@ jobs:
             fi
 
             if [ -n "${MIRROR_POST_DEPLOY_CMD}" ]; then
+              if [ ! -d "${MIRROR_ROOT_PATH}" ]; then
+                echo "MIRROR_ROOT_PATH non esiste: ${MIRROR_ROOT_PATH}" >&2
+                exit 1
+              fi
+              if [ ! -f "${MIRROR_ROOT_PATH}/docker-compose.yml" ]; then
+                echo "docker-compose.yml non trovato in MIRROR_ROOT_PATH: ${MIRROR_ROOT_PATH}" >&2
+                exit 1
+              fi
+              cd "${MIRROR_ROOT_PATH}"
+
               # Cleanup difensivo robusto: rimuove container backend/daphne orfani
               # (project name variabile o naming legacy hashato) prima del compose up.
               # 1) per label compose service
