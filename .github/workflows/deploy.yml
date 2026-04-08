@@ -167,6 +167,7 @@ jobs:
                 exit 1
               fi
               cd "${MIRROR_ROOT_PATH}"
+              export COMPOSE_FILE="${MIRROR_ROOT_PATH}/docker-compose.yml"
 
               # Cleanup difensivo robusto: rimuove container backend/daphne orfani
               # (project name variabile o naming legacy hashato) prima del compose up.
@@ -192,7 +193,7 @@ jobs:
               done < <(docker ps -a --format '{{.Names}}')
 
               export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}"
-              docker compose down --remove-orphans || true
+              docker compose -f "${COMPOSE_FILE}" down --remove-orphans || true
               eval "${MIRROR_POST_DEPLOY_CMD}"
             fi
 
