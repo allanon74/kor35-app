@@ -16,14 +16,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  guard-main-ref:
+    name: Guard main-only deploy ref
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate deploy ref is main
+        run: |
+          set -euo pipefail
+          REF_INPUT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
+          if [ "${REF_INPUT}" != "main" ]; then
+            echo "Deploy bloccato: consentito solo ref=main. Ricevuto: ${REF_INPUT}" >&2
+            exit 1
+          fi
+          echo "Deploy ref valido: ${REF_INPUT}"
+
   production-deploy:
     name: Production frontend deploy
     runs-on: ubuntu-latest
+    needs: [guard-main-ref]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}
+          ref: main
 
       - name: Deploy frontend on production via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -33,7 +48,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
           script: |
-            REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
+            REF="main"
             source /etc/profile
             set -euo pipefail
             # Usa path assoluti per rm/cp: NOPASSWD in sudoers è spesso solo /bin/rm e /bin/cp, mentre
@@ -99,7 +114,7 @@ jobs:
           key: ${{ secrets.MIRROR_SERVER_SSH_KEY }}
           port: ${{ secrets.MIRROR_SERVER_SSH_PORT || 22 }}
           script: |
-            REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}"
+            REF="main"
             FRONTEND_PATH="${{ secrets.MIRROR_FRONTEND_PATH || '/home/pi/kor35-replica/frontend_src' }}"
             FRONTEND_PATH_LEGACY="/home/pi/kor35-replica/forntend_src"
             MIRROR_ROOT_PATH="${{ secrets.MIRROR_ROOT_PATH || '/home/pi/kor35-replica' }}"
